@@ -1,0 +1,37 @@
+# total 79032579 imiss 32501 dmiss 470108 dacc 26663862 fa_imiss 0
+per step (100 steps): 0.79 M instructions, 0.3 k I-miss, 4.7 k D-miss; estimate 4.3 ms at 333 MHz (instructions alone 2.4 ms)
+
+by group:
+  game code (stage)             0.65 M instr    0.2 k imiss    0.7 k dmiss    2.30 ms  54.0%
+  other runtime                 0.14 M instr    0.1 k imiss    3.9 k dmiss    1.92 ms  45.1%
+  game code (ELF)               0.00 M instr    0.0 k imiss    0.1 k dmiss    0.04 ms   0.9%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+S_w00a_P333380                          629.9    0.16    0.71    2.22  52.1%
+rt_idiom_qcopy                          135.4    0.03    3.87    1.87  43.9%
+S_w00a_P33bd58                            9.2    0.01    0.00    0.03   0.7%
+S_w00a_P33bd38                            9.2    0.00    0.00    0.03   0.7%
+P1435d0                                   1.5    0.03    0.03    0.02   0.6%
+S_w00a_P333290                            1.1    0.03    0.02    0.02   0.5%
+guest_call                                1.2    0.01    0.02    0.01   0.3%
+P125a78                                   1.1    0.00    0.03    0.01   0.3%
+gen_call                                  0.6    0.03    0.00    0.01   0.3%
+S_w00a_call                               0.3    0.02    0.00    0.01   0.2%
+strcmp                                    0.2    0.01    0.01    0.01   0.2%
+gen_jalr                                  0.1    0.00    0.01    0.00   0.1%
+stage_ovl_call                            0.2    0.00    0.01    0.00   0.1%
+gen_mm                                    0.3    0.00    0.00    0.00   0.0%
+
+most called (calls per step):
+  rt_idiom_qcopy                             328
+  S_w00a_P33bd58                             164
+  S_w00a_P33bd38                             164
+  gen_mm                                      48
+  P1435d0                                      8
+  guest_call                                   8
+  stage_ovl_call                               8
+  gen_call                                     8
+  strcmp                                       8
+  S_w00a_P333380                               8
+  S_w00a_P333290                               8
+  P125a78                                      8

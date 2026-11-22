@@ -1,0 +1,7 @@
+order_s1 rc 0
+current order, hot functions packed: trace 1 2918075 I-misses (weighted 2918075) test windows 933326 (weighted 933326) trace 2 3533354 I-misses (weighted 3533354) test windows 920892 (weighted 920892), weighted sum 6451429, test 1854218
+/home/claude/main/build_gl34/ord/seed.txt: trace 1 2619218 I-misses (weighted 2619218) test windows 856658 (weighted 856658) trace 2 3086540 I-misses (weighted 3086540) test windows 827863 (weighted 827863), weighted sum 5705758, test 1684521
+slice 0..1000: current order 6451429, first-fetch order 6075662
+slice: /home/claude/main/build_gl34/ord/seed.txt 5705758
+optimized order: slice 4624894
+optimized order, whole traces: trace 1 2097538 I-misses (weighted 2097538) test windows 691211 (weighted 691211) trace 2 2527356 I-misses (weighted 2527356) test windows 675132 (weighted 675132), weighted sum 4624894, test 1366343

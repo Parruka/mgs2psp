@@ -1,0 +1,2 @@
+crash catcher: on (handler 08b6deec; a crash leaves its record on the screen, no file)
+crash catcher: self-test skipped (no answer in 15 s); the run starts

@@ -1,0 +1,255 @@
+MGS2 harness gl4b crash catcher 3b
+folder ms0:/PSP/GAME/MGS2T_gl4b/
+config: vblanks 37800
+config: deck 31800
+config: MGS2_VFPU_STAT=1
+config: MGS2_HASH_DENSE=15700:16010
+config: MGS2_HASH_REF=hashref.txt
+config: MGS2_HASH_EVERY=500,31800:100
+config: MGS2_OPT_CYCLE=31800:100:ffffffff,fffff7ff,ffffefff,ffff7fff
+config: MGS2_GL_DIG=31801:31899
+config: MGS2_GL_SHOT=31850,32650,34250,35850,36950,37450
+config: MGS2_EXC=3
+config: MGS2_GL_TEXKB=2688
+config: MGS2_STACK_MARK=1
+speedups: default (g_opt ffffffff)
+speedups: take turns from vb:steps 31800:100:ffffffff,fffff7ff,ffffefff,ffff7fff
+clock 333 MHz requested: 0
+CPU 333 MHz, bus 166 MHz; FCR31 01000001
+modules: 2 loaded
+module 04646347 sceKernelLibrary text 08800000 2944 bytes
+module 0464166d MGS2T text 08804000 3954104 bytes
+claimed-line copies (cache 0x18): self-test 0 / 0 wrong words (lines out of / in the cache), on
+probe vadd.s: 4096 pairs, VFPU equals FPU round-toward-zero 2201, round-to-nearest 4096
+probe vsub.s: 4096 pairs, VFPU equals FPU round-toward-zero 2166, round-to-nearest 4096
+probe vmul.s: 4096 pairs, VFPU equals FPU round-toward-zero 2028, round-to-nearest 4096
+  vdot.q: VFPU bb5a72b8, FPU RZ in order bb5a72b0, in pairs bb5a72b0
+  vdot.q: VFPU 3c30f2b0, FPU RZ in order 3c30f2af, in pairs 3c30f2af
+  vdot.q: VFPU ca840bf6, FPU RZ in order ca840bf3, in pairs ca840bf4
+probe vdot.q: 4096 vectors, VFPU equals FPU RZ ((x+y)+z)+w 632, RZ (x+y)+(z+w) 631, RN ((x+y)+z)+w 2486
+probe denormal add 00000001 00000000: VFPU 00000000, FPU (flush, RZ) 00000001
+probe denormal add 00400000 00400000: VFPU 00000000, FPU (flush, RZ) 00800000
+probe denormal sub 00800001 00800000: VFPU 00000000, FPU (flush, RZ) 00000000
+probe denormal mul 1f800000 1f800000: VFPU 00000000, FPU (flush, RZ) 00000000
+probe denormal mul 00400000 4b000000: VFPU 00000000, FPU (flush, RZ) 0b800000
+probe fpu zero: add 0031685c 00000000: RZ 0031685c, RN 0031685c
+probe fpu zero: add 00000000 0031685c: RZ 0031685c, RN 0031685c
+probe fpu zero: add 0031685c 80000000: RZ 0031685c, RN 0031685c
+probe fpu zero: add 80000000 0031685c: RZ 0031685c, RN 0031685c
+probe fpu zero: add 8031685c 00000000: RZ 8031685c, RN 8031685c
+probe fpu zero: add 00000000 8031685c: RZ 8031685c, RN 8031685c
+probe fpu zero: add 3f800000 00000000: RZ 3f800000, RN 3f800000
+probe fpu zero: add 00000000 80000000: RZ 00000000, RN 00000000
+probe fpu zero: add 80000000 00000000: RZ 00000000, RN 00000000
+probe fpu zero: add 80000000 80000000: RZ 80000000, RN 80000000
+probe fpu zero: add 00000001 00000001: RZ 00000000, RN 00000000
+probe fpu zero: add 0031685c 8031685c: RZ 00000000, RN 00000000
+probe fpu zero: add 00800000 80000001: RZ 00000000, RN 00000000
+probe fpu zero: add 00800001 80800000: RZ 00000000, RN 00000000
+probe fpu zero: sub 0031685c 00000000: RZ 0031685c, RN 0031685c
+probe fpu zero: sub 00000000 0031685c: RZ 8031685c, RN 8031685c
+probe fpu zero: sub 0031685c 80000000: RZ 0031685c, RN 0031685c
+probe fpu zero: sub 80000000 0031685c: RZ 8031685c, RN 8031685c
+probe fpu zero: sub 00000000 00000000: RZ 00000000, RN 00000000
+probe fpu zero: sub 80000000 00000000: RZ 80000000, RN 80000000
+probe fpu zero: sub 00000000 80000000: RZ 00000000, RN 00000000
+probe fpu zero: sub 80000000 80000000: RZ 00000000, RN 00000000
+probe fpu zero: sub 0031685c 0031685c: RZ 00000000, RN 00000000
+probe fpu zero: sub 3f800000 3f800000: RZ 00000000, RN 00000000
+probe fpu zero: mul 0031685c 3f800000: RZ 00000000, RN 00000000
+probe fpu zero: mul 3f800000 0031685c: RZ 00000000, RN 00000000
+probe fpu zero: mul 0031685c bf800000: RZ 80000000, RN 80000000
+probe fpu zero: mul 0031685c 00000000: RZ 00000000, RN 00000000
+probe fpu zero: mul 0031685c 40000000: RZ 00000000, RN 00000000
+probe fpu zero: mul 0031685c 4b000000: RZ 0b45a170, RN 0b45a170
+probe fpu zero: div 0031685c 3f800000: RZ 00000000, RN 00000000
+probe fpu zero: div 0031685c 0031685c: RZ 3f800000, RN 3f800000
+probe fpu zero: div 00000000 0031685c: RZ 00000000, RN 00000000
+probe fpu zero: div 3f800000 0031685c: RZ 7f25cde4, RN 7f25cde5
+probe fpu zero: div 8031685c 0031685c: RZ bf800000, RN bf800000
+probe fpu zero: sqrt 0031685c 00000000: RZ 1f9f0ca6, RN 1f9f0ca7
+probe fpu zero: sqrt 80000000 00000000: RZ 80000000, RN 80000000
+probe fpu zero: trunc 0031685c 00000000: RZ 00000000, RN 00000000
+probe fpu zero: trunc 8031685c 00000000: RZ 00000000, RN 00000000
+probe fpu zero: c.eq 0031685c 00000000: RZ 00000000, RN 00000000
+probe fpu zero: c.eq 8031685c 00000000: RZ 00000000, RN 00000000
+probe fpu zero: c.lt 00000000 0031685c: RZ 00000001, RN 00000001
+probe fpu zero: c.lt 8031685c 00000000: RZ 00000001, RN 00000001
+probe fpu zero: c.le 0031685c 00000000: RZ 00000000, RN 00000000
+probe fpu chain 0x11cf88: |x| < |y| 1, f1 = 0 + d 0031685c, f0 = 0 - d 8031685c, f1 == 0 0, f0 / f1 bf800000
+probe loads, independent: scratchpad 9.16 ns, cached RAM 9.06 ns, uncached RAM 119.93 ns per load
+probe dependent loads: scratchpad 24.26 ns, cached RAM 24.17 ns, cache miss (4 MB chase) 218.96 ns
+probe dcache (ns per 64-byte line not in the cache): 1 load 172.1, 1 store 316.7, 16 stores 378.7, cache 0x18 + 16 stores 187.5, 4 sv.q 321.0, 4 sv.q wb 383.8
+probe dcache: cache 0x1e alone 187.5, loads after it 50.8, loads with a fill 4 lines ahead 189.5; loads replacing dirty lines 332.0, clean 183.6; 16 uncached stores 302.5
+probe dcache: 64 KB copy, lines not in the cache, per line: memcpy 658.2, lv.q / sv.q 550.8, with claimed lines 329.1 (destination 32 bytes off its line 440.9)
+probe icache: jump to a new line (1 MB, random order) 218.1 ns, in cache 9.8 ns, straight-line code 214.8 ns per 64-byte line (13.43 ns per instruction)
+probe vfpu special: vadd.q (fffc56e0 ffffffff 7f800000 7f7fffff) + 0 = 7f800001 7f800001 7f800000 7f7fffff
+probe vfpu special: vmul.q (ffffffff ffffffff 7f800000 7f7fffff) * (bf800000 ff7fffff 0 40000000) = 7f800001 7f800001 7f800001 7f800000
+probe vfpu special: vadd.q (80000001 80400000 00400000 80800000) + (0 0 0 1) = 00000000 00000000 00000000 80800000
+probe vfpu special: vmul.q (80000001 80400000 00400000 80800000) * 1 = 80000000 80000000 00000000 80800000
+probe vfpu special: vadd.q (80800000 00800000 80800001 3f000000) + (00800001 80800001 00800000 80800000) = 00000000 80000000 80000000 3f000000
+probe vfpu special: vmax.q (0 80000000 0 80000000) (80000000 0 80000000 0) = 80000000 80000000 80000000 80000000
+probe vfpu special: vmin.q same = 80000000 80000000 80000000 80000000
+probe vfpu special: vcmp.q ES (3f800000 7fc00000 ff800000 00000001) cc 16, (7f7fffff 7f800000 fffc56e0 80000000) cc 16
+probe vfpu lanes: vadd.q lanes equal vadd.s 4096 / 4096, vmul.q lanes equal vmul.s 4096 / 4096
+probe vfpu cc: vcmp.q nop mfvc (v12 check)  wrong 4096 / 4096 (2048 special)
+probe vfpu cc: vcmp.q bvtl (v14 check)      wrong 0 / 4096 (2048 special)
+probe vfpu cc: 4 nops mfvc                  wrong 0 / 4096 (2048 special)
+probe vfpu cc: 16 nops mfvc                 wrong 0 / 4096 (2048 special)
+probe vfpu cc: vsync mfvc                   wrong 0 / 4096 (2048 special)
+probe vfpu cc: mfvc $255 mfvc               wrong 0 / 4096 (2048 special)
+probe vfpu cc: vcmp.s nop mfvc              wrong 4095 / 4096 (2048 special)
+probe vfpu cc: vcmp.s bvtl                  wrong 0 / 4096 (2048 special)
+probe vfpu cc: vcmp.p bvtl                  wrong 0 / 4096 (2048 special)
+probe vfpu cc: vcmp.t bvtl                  wrong 0 / 4096 (2048 special)
+probe vfpu data: vmul then mfv wrong 0 / 4096, vmul sv.q then lw wrong 0 / 4096
+probe vfpu ovf: vmul.q (6c048010 5953fcb2 7f7fffff 7149f2ca) * (da0a3747 6c048010 7f7fffff 7149f2ca) = ff800000 7f800000 7f800000 7f800000 (vcmp ES 3f)
+probe vfpu ovf: vmul.q (7f000000 7f000000 7e800000 7f7fffff) * (40000000 7f000000 40800000 3f800001) = 7f800000 7f800000 7f800000 7f800000 (vcmp ES 3f)
+probe vfpu ovf: vadd.q (7f7fffff ff7fffff 7f7fffff 7f7fffff) + (7f7fffff ff7fffff 73000000 73000001) = 7f800000 ff800000 7f800000 7f800000 (vcmp ES 3f)
+probe vfpu ovf: x^2, x = (6c048010 7f7fffff 5953fcb2 bf68c0d5) = 7f800000 7f800000 732f8a87 3f539e13 (vcmp ES 13)
+probe vfpu ovf: x^4 = 7f800000 7f800000 7f800000 3f2eedf5 (vcmp ES 17)
+probe vfpu ovf: x^5 = 7f800000 7f800000 7f800000 bf1f0b6a (vcmp ES 17)
+probe vfpu ovf: group 0x11d02c (arctangent series, x = bf68c0d5 bf800000 7f7fffff bf800000): check 10 (x86: falls back)
+probe vfpu ovf:   VF4 = 3d42ac30 33800000 7f800001 33800000
+probe vfpu ovf:   VF13 = 3f539e13 3f800000 7f800000 3f800000
+probe vfpu ovf:   VF6 = bf4066a8 bf800000 7f800000 bf800000
+probe vfpu ovf:   VF14 = 3f2eedf5 3f800000 7f800000 3f800000
+probe vfpu ovf:   VF7 = bf1f0b6a bf800000 7f800000 bf800000
+probe vfpu ovf:   VF15 = 3f109a25 3f800000 7f800000 3f800000
+probe vfpu ovf:   VF8 = bf03789d bf800000 7f800000 bf800000
+probe vfpu ovf:   VF16 = 3eef10ac 3f800000 7f800000 3f800000
+probe vfpu ovf:   VF9 = bed95b30 bf800000 7f800000 bf800000
+probe vfpu ovf:   VF10 = beb3ac5f bf800000 7f800000 bf800000
+probe vfpu ovf:   VF11 = be948604 bf800000 7f800000 bf800000
+probe vfpu ovf:   VF12 = be758c55 bf800000 7f800000 bf800000
+probe vfpu ovf:   ACC = bf3ce518 bf490fda 7f800001 bf490fda
+probe vfpu ovf: group 0x32fcc0 (stage d00t, VF4 = da0a3747 5cc7cdb9 5b8bc68d 5953fcb2, VF5 = 10000004 0 01000101 6c048010): check 10 (x86: falls back)
+probe vfpu ovf:   VF1 = 3f800000 3f800000 3f800000 00000000
+probe vfpu ovf:   VF4 = ff800000 7f800000 7f800000 7f800000
+probe vfpu ovf:   VF6 = aa8a374b 80000000 9b8a385d ff800000
+probe vfpu ovf:   VF7 = 2d47cdbf 00000000 1e47cf4a 7f800000
+probe vfpu ovf:   VF8 = 2c0bc691 00000000 1d0bc7a6 7f800000
+probe vfpu ovf:   ACC = ff800000 7f800000 7f800000 7f800000
+probe vfpu bits: vmov.q (ffffffff fffc56e0 7f800000 00000001) = ffffffff fffc56e0 7f800000 00000001
+probe vfpu bits: vmov.q (80000001 807fffff 80000000 7fc00000) = 80000001 807fffff 80000000 7fc00000
+probe vfpu bits: vmov.q (00000000 80000000 00400000 80400000) = 00000000 80000000 00400000 80400000
+probe vfpu bits: vmov.q (7f800001 ff800000 3f800000 bf800000) = 7f800001 ff800000 3f800000 bf800000
+probe vfpu bits: vmov.q swizzle yzwx (ffffffff fffc56e0 7f800000 00000001) = fffc56e0 7f800000 00000001 ffffffff
+probe vfpu bits: vmov.q swizzle yzwx (80000001 807fffff 80000000 7fc00000) = 807fffff 80000000 7fc00000 80000001
+probe vfpu bits: vmov.q swizzle yzwx (00000000 80000000 00400000 80400000) = 80000000 00400000 80400000 00000000
+probe vfpu bits: vmov.q swizzle yzwx (7f800001 ff800000 3f800000 bf800000) = ff800000 3f800000 bf800000 7f800001
+probe vfpu bits: vmov.q mask y, w kept (11111111 .. 44444444 before) (ffffffff fffc56e0 7f800000 00000001) = ffffffff 22222222 7f800000 44444444
+probe vfpu bits: vmov.q mask y, w kept (11111111 .. 44444444 before) (80000001 807fffff 80000000 7fc00000) = 80000001 22222222 80000000 44444444
+probe vfpu bits: vmov.q mask y, w kept (11111111 .. 44444444 before) (00000000 80000000 00400000 80400000) = 00000000 22222222 00400000 44444444
+probe vfpu bits: vmov.q mask y, w kept (11111111 .. 44444444 before) (7f800001 ff800000 3f800000 bf800000) = 7f800001 22222222 3f800000 44444444
+probe vfpu bits: vmov.q |x| (ffffffff fffc56e0 7f800000 00000001) = 7fffffff 7ffc56e0 7f800000 00000001
+probe vfpu bits: vmov.q |x| (80000001 807fffff 80000000 7fc00000) = 00000001 007fffff 00000000 7fc00000
+probe vfpu bits: vmov.q |x| (00000000 80000000 00400000 80400000) = 00000000 00000000 00400000 00400000
+probe vfpu bits: vmov.q |x| (7f800001 ff800000 3f800000 bf800000) = 7f800001 7f800000 3f800000 3f800000
+probe vfpu bits: sv.q + lv.q (ffffffff fffc56e0 7f800000 00000001) = ffffffff fffc56e0 7f800000 00000001
+probe vfpu bits: sv.q + lv.q (80000001 807fffff 80000000 7fc00000) = 80000001 807fffff 80000000 7fc00000
+probe vfpu bits: sv.q + lv.q (00000000 80000000 00400000 80400000) = 00000000 80000000 00400000 80400000
+probe vfpu bits: sv.q + lv.q (7f800001 ff800000 3f800000 bf800000) = 7f800001 ff800000 3f800000 bf800000
+probe vfpu bits: vmin.q with +max (ffffffff fffc56e0 7f800000 00000001) = ffffffff fffc56e0 7f7fffff 00000001
+probe vfpu bits: vmin.q with +max (80000001 807fffff 80000000 7fc00000) = 80000001 807fffff 80000000 7f7fffff
+probe vfpu bits: vmin.q with +max (00000000 80000000 00400000 80400000) = 00000000 80000000 00400000 80400000
+probe vfpu bits: vmin.q with +max (7f800001 ff800000 3f800000 bf800000) = 7f7fffff ff800000 3f800000 bf800000
+probe vfpu bits: vmax.q with -max (ffffffff fffc56e0 7f800000 00000001) = ff7fffff ff7fffff 7f800000 00000001
+probe vfpu bits: vmax.q with -max (80000001 807fffff 80000000 7fc00000) = 80000001 807fffff 80000000 7fc00000
+probe vfpu bits: vmax.q with -max (00000000 80000000 00400000 80400000) = 00000000 80000000 00400000 80400000
+probe vfpu bits: vmax.q with -max (7f800001 ff800000 3f800000 bf800000) = 7f800001 ff7fffff 3f800000 bf800000
+probe vfpu bits: vmin.q with -max (ffffffff fffc56e0 7f800000 00000001) = ffffffff fffc56e0 ff7fffff ff7fffff
+probe vfpu bits: vmin.q with -max (80000001 807fffff 80000000 7fc00000) = ff7fffff ff7fffff ff7fffff ff7fffff
+probe vfpu bits: vmin.q with -max (00000000 80000000 00400000 80400000) = ff7fffff ff7fffff ff7fffff ff7fffff
+probe vfpu bits: vmin.q with -max (7f800001 ff800000 3f800000 bf800000) = ff7fffff ff800000 ff7fffff ff7fffff
+probe vfpu bits: vmax.q with +max (ffffffff fffc56e0 7f800000 00000001) = 7f7fffff 7f7fffff 7f800000 7f7fffff
+probe vfpu bits: vmax.q with +max (80000001 807fffff 80000000 7fc00000) = 7f7fffff 7f7fffff 7f7fffff 7fc00000
+probe vfpu bits: vmax.q with +max (00000000 80000000 00400000 80400000) = 7f7fffff 7f7fffff 7f7fffff 7f7fffff
+probe vfpu bits: vmax.q with +max (7f800001 ff800000 3f800000 bf800000) = 7f800001 7f7fffff 7f7fffff 7f7fffff
+probe vfpu bits: vcmp.q (ffffffff fffc56e0 7f800000 00000001) vs (0 -0 0 -0): GT 14 LT 00; vs (-0 0 -0 0): GT 14 LT 00
+probe vfpu bits: vcmp.q (80000001 807fffff 80000000 7fc00000) vs (0 -0 0 -0): GT 00 LT 00; vs (-0 0 -0 0): GT 00 LT 00
+probe vfpu bits: vcmp.q (00000000 80000000 00400000 80400000) vs (0 -0 0 -0): GT 00 LT 00; vs (-0 0 -0 0): GT 00 LT 00
+probe vfpu bits: vcmp.q (7f800001 ff800000 3f800000 bf800000) vs (0 -0 0 -0): GT 14 LT 1a; vs (-0 0 -0 0): GT 14 LT 1a
+probe vfpu arith: vmul.q (ffffffff fffc56e0 7f800000 00000001), 0 = ff800001 ff800001 7f800001 00000000
+probe vfpu arith: vmul.q (80000001 807fffff 7f7fffff 7fc00000), 0 = 80000000 80000000 00000000 7f800001
+probe vfpu arith: vmul.q (ff800000 7f800001 00400000 ff7fffff), 0 = ff800001 7f800001 00000000 80000000
+probe vfpu arith: vmul.q (7f000000 fffffffe 3f800000 7fffffff), 0 = 00000000 ff800001 00000000 7f800001
+probe vfpu arith: vmul.q (ffffffff fffc56e0 7f800000 00000001), 1 = ff800001 ff800001 7f800000 00000000
+probe vfpu arith: vmul.q (80000001 807fffff 7f7fffff 7fc00000), 1 = 80000000 80000000 7f7fffff 7f800001
+probe vfpu arith: vmul.q (ff800000 7f800001 00400000 ff7fffff), 1 = ff800000 7f800001 00000000 ff7fffff
+probe vfpu arith: vmul.q (7f000000 fffffffe 3f800000 7fffffff), 1 = 7f000000 ff800001 3f800000 7f800001
+probe vfpu arith: vmul.q (ffffffff fffc56e0 7f800000 00000001), +inf = ff800001 ff800001 7f800000 7f800001
+probe vfpu arith: vmul.q (80000001 807fffff 7f7fffff 7fc00000), +inf = ff800001 ff800001 7f800000 7f800001
+probe vfpu arith: vmul.q (ff800000 7f800001 00400000 ff7fffff), +inf = ff800000 7f800001 7f800001 ff800000
+probe vfpu arith: vmul.q (7f000000 fffffffe 3f800000 7fffffff), +inf = 7f800000 ff800001 7f800000 7f800001
+probe vfpu arith: vmul.q (ffffffff fffc56e0 7f800000 00000001), +max = ff800001 ff800001 7f800000 00000000
+probe vfpu arith: vmul.q (80000001 807fffff 7f7fffff 7fc00000), +max = 80000000 80000000 7f800000 7f800001
+probe vfpu arith: vmul.q (ff800000 7f800001 00400000 ff7fffff), +max = ff800000 7f800001 00000000 ff800000
+probe vfpu arith: vmul.q (7f000000 fffffffe 3f800000 7fffffff), +max = 7f800000 ff800001 7f7fffff 7f800001
+probe vfpu arith: vadd.q (ffffffff fffc56e0 7f800000 00000001), 0 = 7f800001 7f800001 7f800000 00000000
+probe vfpu arith: vadd.q (80000001 807fffff 7f7fffff 7fc00000), 0 = 00000000 00000000 7f7fffff 7f800001
+probe vfpu arith: vadd.q (ff800000 7f800001 00400000 ff7fffff), 0 = ff800000 7f800001 00000000 ff7fffff
+probe vfpu arith: vadd.q (7f000000 fffffffe 3f800000 7fffffff), 0 = 7f000000 7f800001 3f800000 7f800001
+probe vfpu arith: vadd.q (ffffffff fffc56e0 7f800000 00000001), 1 = 7f800001 7f800001 7f800000 3f800000
+probe vfpu arith: vadd.q (80000001 807fffff 7f7fffff 7fc00000), 1 = 3f800000 3f800000 7f7fffff 7f800001
+probe vfpu arith: vadd.q (ff800000 7f800001 00400000 ff7fffff), 1 = ff800000 7f800001 3f800000 ff7fffff
+probe vfpu arith: vadd.q (7f000000 fffffffe 3f800000 7fffffff), 1 = 7f000000 7f800001 40000000 7f800001
+probe vfpu arith: vadd.q (ffffffff fffc56e0 7f800000 00000001), +inf = 7f800001 7f800001 7f800000 7f800000
+probe vfpu arith: vadd.q (80000001 807fffff 7f7fffff 7fc00000), +inf = 7f800000 7f800000 7f800000 7f800001
+probe vfpu arith: vadd.q (ff800000 7f800001 00400000 ff7fffff), +inf = 7f800001 7f800001 7f800000 7f800000
+probe vfpu arith: vadd.q (7f000000 fffffffe 3f800000 7fffffff), +inf = 7f800000 7f800001 7f800000 7f800001
+probe vfpu arith: vadd.q (ffffffff fffc56e0 7f800000 00000001), +max = 7f800001 7f800001 7f800000 7f7fffff
+probe vfpu arith: vadd.q (80000001 807fffff 7f7fffff 7fc00000), +max = 7f7fffff 7f7fffff 7f800000 7f800001
+probe vfpu arith: vadd.q (ff800000 7f800001 00400000 ff7fffff), +max = ff800000 7f800001 7f7fffff 00000000
+probe vfpu arith: vadd.q (7f000000 fffffffe 3f800000 7fffffff), +max = 7f800000 7f800001 7f7fffff 7f800001
+probe vfpu arith: vsub.q (ffffffff fffc56e0 7f800000 00000001), 0 = 7f800001 7f800001 7f800000 00000000
+probe vfpu arith: vsub.q (80000001 807fffff 7f7fffff 7fc00000), 0 = 80000000 80000000 7f7fffff 7f800001
+probe vfpu arith: vsub.q (ff800000 7f800001 00400000 ff7fffff), 0 = ff800000 7f800001 00000000 ff7fffff
+probe vfpu arith: vsub.q (7f000000 fffffffe 3f800000 7fffffff), 0 = 7f000000 7f800001 3f800000 7f800001
+probe vfpu arith: vsub.q (ffffffff fffc56e0 7f800000 00000001), 1 = 7f800001 7f800001 7f800000 bf800000
+probe vfpu arith: vsub.q (80000001 807fffff 7f7fffff 7fc00000), 1 = bf800000 bf800000 7f7fffff 7f800001
+probe vfpu arith: vsub.q (ff800000 7f800001 00400000 ff7fffff), 1 = ff800000 7f800001 bf800000 ff7fffff
+probe vfpu arith: vsub.q (7f000000 fffffffe 3f800000 7fffffff), 1 = 7f000000 7f800001 00000000 7f800001
+probe vfpu arith: vsub.q (ffffffff fffc56e0 7f800000 00000001), +inf = 7f800001 7f800001 7f800001 ff800000
+probe vfpu arith: vsub.q (80000001 807fffff 7f7fffff 7fc00000), +inf = ff800000 ff800000 ff800000 7f800001
+probe vfpu arith: vsub.q (ff800000 7f800001 00400000 ff7fffff), +inf = ff800000 7f800001 ff800000 ff800000
+probe vfpu arith: vsub.q (7f000000 fffffffe 3f800000 7fffffff), +inf = ff800000 7f800001 ff800000 7f800001
+probe vfpu arith: vsub.q (ffffffff fffc56e0 7f800000 00000001), +max = 7f800001 7f800001 7f800000 ff7fffff
+probe vfpu arith: vsub.q (80000001 807fffff 7f7fffff 7fc00000), +max = ff7fffff ff7fffff 00000000 7f800001
+probe vfpu arith: vsub.q (ff800000 7f800001 00400000 ff7fffff), +max = ff800000 7f800001 ff7fffff ff800000
+probe vfpu arith: vsub.q (7f000000 fffffffe 3f800000 7fffffff), +max = fefffffe 7f800001 ff7fffff 7f800001
+probe vfpu cost per VU0 macro op (4x4 transform, 200000 x 4 ops): VFPU with VF / ACC in memory 62.1 ns, VFPU in registers + one ES check 45.4 ns (0 checks failed), FPU C form 387.9 ns
+volatile memory: locked (0, 4096 KB at 08400000)
+host stack pool: 512 KB at 0b940000
+free memory: heap headroom 7200 KB; outside the heap: largest block 512 KB, total 764 KB
+memory at the start: heap block at 0b1aec00, break 0b1b1000; malloc arena 9 KB: in use 4 KB, free 4 KB in 2 chunks, top 0 KB
+run: 37800 vblanks, deck timing from vb 31800, hash every 500,31800:100
+machine state in the scratchpad: layout ok (0), VFPU loads / stores there 0 wrong words
+v26me: battery log to ms0:/PSP/GAME/MGS2T_gl4b/battery.txt every 5 s, with the Media Engine's state
+sysdiag: power callback registered (00000000, slot 0)
+sysdiag: low-priority thread (0x6F, a wake every 10 ms) started (0461393b)
+crash catcher 3b: writer thread started (03d85473, priority 0x10, a look every 200 ms)
+crash catcher 3b: on (handler 08b76550, the system's sleep 880315f0; a crash leaves its record on the screen, the thread sleeps inside the system and the writer thread puts the record in crash.txt)
+crash catcher 3b: self-test started (a misaligned load in the main thread; the record, then the writer thread's lines)
+SELF-TEST: the crash catcher works (expected EPC 08b74474)
+ vb -1, c13 00000000, c15 882ff800, c16 88231c84, ic 1
+ COP0   EPC 08b74474 Cause 10000010 Status 60008613 Bad 0b1a190e
+    address error on load or fetch, user, ints on
+ kernel EPC 08b74474 Cause 10000010 Status 60008613
+    address error on load or fetch, user, ints on
+ zr 00000000  at 0babff00  v0 0b1a190c  v1 00000003  a0 08bc0000
+ a1 00000001  a2 00000001  a3 09031a6d  t0 00000001  t1 00000001
+ t2 00000000  t3 00000000  t4 72687420  t5 3b646165  t6 65687420
+ t7 63657220  s0 0b1a0000  s1 00000000  s2 0078149e  s3 00000001
+ s4 09030028  s5 08bc0000  s6 00000003  s7 09053d80  t8 00000015
+ t9 deadbeef  k0 0babff00  k1 00000000  gp 08bd3030  sp 0babfb60
+ fp 00000002  ra 08b7652c  lo deadbeef  hi deadbeef
+ EPC-12: 2442000c 3c020b1a 2442190c 8c420002 3c030b1a 03e00008
+ sp+00 73617263 61632068 65686374 62332072 6e6f203a 61682820
+ sp+18 656c646e 38302072 35363762 202c3035 20656874 74737973
+ sp+30 73276d65 656c7320 38207065 31333038 3b306635 63206120
+ sp+48 68736172 61656c20 20736576 20737469 6f636572 6f206472
+ sp+60 6874206e 63732065 6e656572 6874202c 68742065 64616572
+ sp+78 656c7320 20737065 69736e69 74206564 73206568 65747379
+ sp+90 6e61206d 68742064 72772065 72657469 72687420 20646165
+ EBOOT code 08804000-08bc96d0, overlays 08bd0000-09030000

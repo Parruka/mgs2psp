@@ -1,0 +1,42 @@
+--- /home/claude/me13/runtime/ee_io.h.sb14
++++ /home/claude/me13/runtime/ee_io.h
+@@ -251,7 +251,7 @@
+ #endif
+ /* a source chain (CHCR mode 1) or normal transfer, each quadword handed to fn; TTE passes the tag's upper half (VIF1) */
+ /* a contiguous run of n quadwords at guest address a, as one block when blk takes blocks (and no capture runs), else one by one */
+-#ifdef GEN_DG_TRACE   /* dev (boot.c MGS2_DG_TRACE): DMA reads of RAM and the scratchpad copies */
++#if defined(GEN_DG_TRACE) || defined(WT_TRACK)   /* dev (boot.c MGS2_DG_TRACE): DMA reads of RAM and the scratchpad copies (me12 WT_TRACK: boot/xlive_chk.c's tracker) */
+ void rt_dgt_dma(int ch, uint32_t a, uint32_t nq); void rt_dgt_copy(uint32_t dst, uint32_t src, uint32_t n);
+ #define DGT_DMA(ch, a, nq) rt_dgt_dma(ch, a, nq)
+ #define DGT_COPY(dst, src, n) rt_dgt_copy(dst, src, n)
+@@ -259,6 +259,12 @@
+ #define DGT_DMA(ch, a, nq) ((void)0)
+ #define DGT_COPY(dst, src, n) ((void)0)
+ #endif
++#ifdef ME_GUARD_RT   /* me13 (task #147, the ME hand-off's guards): the runtime's writes into game RAM report themselves before they write */
++void rt_me_guard(uint32_t a, uint32_t n);
++#define DGT_PRE(a, n) rt_me_guard(a, n)
++#else
++#define DGT_PRE(a, n) ((void)0)
++#endif
+ #ifndef __psp__   /* dev: boot.c MGS2_PKT_HASH=<from vb>:<to vb>: FNV-1a 64 of what the VIF1 and GIF DMA carry (the data, and the tag fields that act), per vblank */
+ int g_pkt_on; uint64_t g_pkt_h = 0xcbf29ce484222325ull; FILE *g_pkt_df;   /* g_pkt_df: boot.c MGS2_PKT_DUMP, the hashed bytes as records */
+ static void pkt_fnv(int ch, uint32_t a, const uint8_t *p, uint32_t n)
+@@ -881,7 +887,7 @@
+         for (q = 0; q < qwc; q += run) {
+           uint32_t nq = qwc - q < run ? qwc - q : run;
+           uint8_t *mm = g_mem + (m & (GUEST_SIZE - 1) & ~15u), *ss = g_spr + sadr + 16 * q;
+-          if (ch == 8) SPR_COPY(mm, ss, 16 * nq); else SPR_COPY(ss, mm, 16 * nq);   /* the two sides share no line: RAM side from 0x4000 */
++          if (ch == 8) { DGT_PRE((uint32_t)(mm - g_mem), 16 * nq); SPR_COPY(mm, ss, 16 * nq); } else SPR_COPY(ss, mm, 16 * nq);   /* the two sides share no line: RAM side from 0x4000 */
+ #ifdef GUEST_SPR0
+           if (ch == 8) DGT_COPY((uint32_t)(mm - g_mem), (uint32_t)(ss - g_mem), 16 * nq); else DGT_COPY((uint32_t)(ss - g_mem), (uint32_t)(mm - g_mem), 16 * nq);
+ #endif
+@@ -892,7 +898,7 @@
+     } else q = 0;
+     for (; q < qwc; q++) {                         /* interleave (mode 2, D_SQWC): TQWC quadwords, then MADR skips SQWC; SADR is contiguous */
+       uint8_t *mm = g_mem + (m & (GUEST_SIZE - 1) & ~15u), *ss = g_spr + ((sadr + 16 * q) & 0x3ff0);
+-      if (ch == 8) memcpy(mm, ss, 16); else memcpy(ss, mm, 16);
++      if (ch == 8) { DGT_PRE((uint32_t)(mm - g_mem), 16); memcpy(mm, ss, 16); } else memcpy(ss, mm, 16);
+ #ifdef GUEST_SPR0
+       if (ch == 8) DGT_COPY((uint32_t)(mm - g_mem), (uint32_t)(ss - g_mem), 16); else DGT_COPY((uint32_t)(ss - g_mem), (uint32_t)(mm - g_mem), 16);
+ #endif

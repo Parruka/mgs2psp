@@ -1,0 +1,1 @@
+start t 0 s, vb -1: 83%, 4068 mV, 20 C, 335 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off

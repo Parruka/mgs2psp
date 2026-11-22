@@ -1,0 +1,22 @@
+== the steady deck in d01t (no native groups there): gl36 no reuse (g36pc2) | gl36 reuse (g36rc2) | gl35 keep 0 (g35pc2) | gl35 keeps (g35kc2)
+steady deck (d01t), ME turn 27,410-27,490
+   g36pc2   17795686 instr   84906 I-miss (fully associative   86024)  139836 D-miss =  141.63 ms a picture; against g36pc2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rc2   17832960 instr   85021 I-miss (fully associative   86148)  140008 D-miss =  141.88 ms a picture; against g36pc2   +0.25 ms (instr   +37274, I-miss   +115, D-miss   +172)
+   g35pc2   17808998 instr   81995 I-miss (fully associative   87835)  135643 D-miss =  140.02 ms a picture; against g36pc2   -1.61 ms (instr   +13312, I-miss  -2911, D-miss  -4192)
+   g35kc2   17729434 instr   83518 I-miss (fully associative   85687)  135492 D-miss =  139.90 ms a picture; against g36pc2   -1.73 ms (instr   -66253, I-miss  -1388, D-miss  -4344)
+steady deck (d01t), main turn 27,510-27,590
+   g36pc2   15701606 instr   79819 I-miss (fully associative   77402)  110365 D-miss =  122.60 ms a picture; against g36pc2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rc2   15827763 instr   80526 I-miss (fully associative   78053)  111303 D-miss =  123.61 ms a picture; against g36pc2   +1.01 ms (instr  +126157, I-miss   +707, D-miss   +938)
+   g35pc2   15717990 instr   76465 I-miss (fully associative   79050)  113289 D-miss =  122.75 ms a picture; against g36pc2   +0.15 ms (instr   +16384, I-miss  -3354, D-miss  +2924)
+   g35kc2   15654605 instr   78272 I-miss (fully associative   65119)  113394 D-miss =  122.84 ms a picture; against g36pc2   +0.23 ms (instr   -47002, I-miss  -1547, D-miss  +3029)
+== the opening (before the native turns): gl36 no reuse (g36pc1) | gl36 reuse (g36rc1) | gl35 keep 0 (g35pc1) | gl35 keeps (g35kc1)
+opening, ME turn 16,010-16,090
+   g36pc1   17230643 instr   85676 I-miss (fully associative   86574)  131497 D-miss =  136.83 ms a picture; against g36pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rc1   17211904 instr   85462 I-miss (fully associative   86295)  131277 D-miss =  136.64 ms a picture; against g36pc1   -0.19 ms (instr   -18739, I-miss   -214, D-miss   -220)
+   g35pc1   17192141 instr   82769 I-miss (fully associative   87812)  127039 D-miss =  134.90 ms a picture; against g36pc1   -1.94 ms (instr   -38502, I-miss  -2908, D-miss  -4459)
+   g35kc1   17234842 instr   83173 I-miss (fully associative   88344)  127383 D-miss =  135.28 ms a picture; against g36pc1   -1.55 ms (instr    +4198, I-miss  -2504, D-miss  -4115)
+opening, main turn 16,110-16,190
+   g36pc1   15438643 instr   81371 I-miss (fully associative   78811)  102147 D-miss =  119.49 ms a picture; against g36pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rc1   15443661 instr   81357 I-miss (fully associative   78811)  102169 D-miss =  119.52 ms a picture; against g36pc1   +0.03 ms (instr    +5018, I-miss    -13, D-miss    +22)
+   g35pc1   15395226 instr   77921 I-miss (fully associative   80271)  111422 D-miss =  120.97 ms a picture; against g36pc1   +1.48 ms (instr   -43418, I-miss  -3450, D-miss  +9275)
+   g35kc1   15443661 instr   78156 I-miss (fully associative   80469)  111651 D-miss =  121.32 ms a picture; against g36pc1   +1.82 ms (instr    +5018, I-miss  -3215, D-miss  +9504)

@@ -1,0 +1,35 @@
+# gl15: gl14 with C1 on everywhere and Stage C step 2 for the people (stagec_notes.md 2.1-2.9). C1, the faces skinned, lit and
+# texture-mapped by the PSP's GE, was a test in two of gl14's nine turns; it is now on in every turn. The test of this build is C2:
+# Snake, the guards and the other people skinned, lit and texture-mapped by the GE the same way, in some turns only. Nothing in the
+# game's state is touched (the state hashes stay the PC's). With C2 on, the people differ from the exact picture mostly by one colour
+# level in a few percent of the screen (SHOTS\c2_people); everything else is gl14's picture with C1 on.
+# Timing settings taking turns: from vblank 1000 to the end, 100 vblanks each, nine in turn: everything on (C2 off); the GE overlap
+# off (the CPU waits after each frame's list, so the wait is the GE's own drawing time); the GE overlap off with C2 on; everything
+# on; C2 on; everything on; C2 on; everything on; C2 on. So each C2-on turn sits between two everything-on turns, and the two GE
+# turns sit side by side (C2's cost to the GE: the same scenes with the people drawn both ways). The log's windows and steps.csv's
+# cfg column: 0 everything on, 14 both GE windows (told apart by their vblanks), 27 C2 on. The rain setting is the same in every window.
+MGS2_OPT_CYCLE=1000:100:ffffffff,ffffefff,ffffefff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff,ffffffff
+MGS2_OPT2_CYCLE=ffffffdf,ffffffdf,ffffffff,ffffffdf,ffffffff,ffffffdf,ffffffff,ffffffdf,ffffffff
+# The lighter rain, as gl10 (Ffm's choice, 2026-10-31): of the big sheets of speckled drops close to the camera and of the splash
+# at Snake's feet, 1 strip in 2 is drawn (1 = all, as the PS2; up to 8). Picture only: the game runs exactly as before.
+MGS2_GL_RAIN=2
+MGS2_GL_SPLASH=2
+# Frame checks: the frames whose last vblank lies in 31561-31959 (indoors, Snake and the guards: C2 on, everything on, and the two
+# GE windows, C2 off then on) get their list and frame digests in log.txt, to compare with the PC's, which builds the same frames
+# word for word (measurement only, outside the step's time).
+MGS2_GL_DIG=31561:31959
+# Pictures: at these vblanks the frame on the screen is saved as shot_<vblank>.bmp next to the EBOOT (outside the step's time), to
+# compare with the emulator's: sixteen moments where people are drawn (the six in SHOTS\c2_people among them). Six fall in turns
+# with C2 on (23265, 30502, 31114, 33615, 34913, 36943): the GE's people, to compare with the emulator's. Shots that fall in a GE
+# window may show the next frame, since that frame is finished sooner.
+MGS2_GL_SHOT=8762,10518,15763,23265,24246,24786,29502,30502,31114,31665,32503,33615,34913,35029,35591,36943
+# The crash catcher: 3 = catcher 3b, as in gl6. At a crash the record goes on the screen (red text); then, when the crash came from
+# the game or the harness (not from the system), the stopped thread is handed back to the system asleep, the way the PSPLink debugger
+# does it, and the PSP's other threads run again: the record also goes to crash.txt and log.txt (green lines under the record say
+# so), and battery.txt goes on. HOME should then quit. At the start the screen offers the self-test: X makes a deliberate error that
+# must end with the SELF-TEST record and three green lines; O, or 15 s without an answer, starts the run.
+MGS2_EXC=3
+# The texture pool: 2688 KB, as gl6.
+MGS2_GL_TEXKB=2688
+# The deepest use of the main thread's stack, in the log's last lines: 1 = measured (outside the steps' time).
+MGS2_STACK_MARK=1

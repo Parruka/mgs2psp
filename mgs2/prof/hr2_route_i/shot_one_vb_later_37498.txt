@@ -1,0 +1,33 @@
+# Route i, x86 twin with VU0 and FPU toward zero (as PCSX2), trace build lcen3 run 14, 2026-11-08 (thread "MGS2 port"): the same run as
+# run 7 except that the game's step counter 0x18db64 is set one ahead at the start of vb 37,498 (0x9279 -> 0x927a, MGS2_POKE), so the
+# shooting guard's every-other-step gate in SIG_BasicShoot (w01a 0x2b4238) fails at 37,498 and its first roll comes at 37,499.
+# Per vblank: CPU stores to the w01a seed 0x1fbd74 (MGS2_WWATCH), the LCG steps between the seed at the start and at the end of the
+# vblank (x = x * 0x5d588b65 + 1; a store can carry more than one step), the storing w01a functions with counts, and the guard's shot
+# count +672 (0x1441390) when it changes. PCSX2 (prof/pcsx2_replay/x8_win2.txt): P36725 = twin 37,500 seed 53eac661, P36730 = twin
+# 37,505 seed 5605c348. All values hexadecimal except vb and counts.
+vb     stores  lcg  start     end       functions (w01a)                                        shots
+37494      5     5  b8ac7732  797259e7  2c5a58:5                                                
+37496      2     2  797259e7  dcadf335  2c5a58:2                                                
+37498      3     3  dcadf335  510dadc0  2b4058:3                                                
+37499    201   225  510dadc0  53eac661  350100:146,352400:20,347350:12,3509d8:9,357488:7,2b4058:3,22a8d0:2,2b4238:1,360210:1 0->1
+37500    127   127  53eac661  412eae60  32ef48:96,350f40:28,2b4058:3                            
+37501    249   273  412eae60  720d0591  350100:146,350f40:36,352400:20,384620:12,347350:12,3509d8:9,357488:7,2b4058:3,22a8d0:2,2b4238:1,360210:1 1->2
+37502    155   155  720d0591  2a972a14  32ef48:96,350f40:56,2b4058:3                            
+37503     56    56  2a972a14  abcfa15c  350f40:52,2b4058:3,2b4238:1                             
+37504     52    52  abcfa15c  5605c348  350f40:44,2c5a58:5,2b4058:3                             
+37505     37    37  5605c348  bb7f3915  350f40:32,2b4058:3,2b4238:1,2c5a58:1                    
+37506     33    33  bb7f3915  e6b8d52a  350f40:30,2b4058:3                                      2->0
+37507     30    30  e6b8d52a  a193fd44  350f40:30                                               
+37508     30    30  a193fd44  21f676ee  350f40:30                                               
+37509     30    30  21f676ee  c74ebca8  350f40:30                                               
+37510     30    30  c74ebca8  de1cccf2  350f40:30                                               
+37511     28    28  de1cccf2  2333a856  350f40:28                                               
+37512     28    28  2333a856  685e33fa  350f40:28                                               
+37513     28    28  685e33fa  0be813de  350f40:28                                               
+37514     33    33  0be813de  228f5ef7  350f40:28,383fb0:5                                      
+37515     33    33  228f5ef7  3230a054  350f40:28,383fb0:5                                      
+37516     33    33  3230a054  6d18fc85  350f40:28,383fb0:5                                      
+37517     33    33  6d18fc85  4757685a  350f40:28,383fb0:5                                      
+37518     31    31  4757685a  eba7ab45  350f40:26,383fb0:5                                      
+37519     31    31  eba7ab45  3f2e6fd4  350f40:26,383fb0:5                                      
+37520     31    31  3f2e6fd4  962ee537  350f40:26,383fb0:5                                      

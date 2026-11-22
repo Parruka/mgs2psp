@@ -1,0 +1,57 @@
+# v20 trace run trd (2026-10-21 01:10): x86 GEN_DG_TRACE build, MGS2_OPT=ffffffbf (full renderer, zero-time clock), deck route to vb 23300.
+# dgt_report.py stderr summary and its 'persistent packet data' section (first 8 ranges per writer). Rerun: ~10 min, see psp_harness.md Build v20.
+dg trace: written inside the pipeline 767187 words: renderer-only 765320, read by game code 1867
+dg trace: 14672 calls; 32535 words read inside the pipeline that it wrote in an earlier call (53283681 reads, 38034 word/writer/reader triples)
+dg trace: 43477 words DMA sent after a later call than the one that wrote them (435259 reads)
+dg trace: 744132928 reads outside the draw pipeline of words it wrote, 395229 word/reader pairs (/home/claude/v20/dgt/dgt_all_d.txt)
+persistent packet data: words DMA sent outside the pipeline after a later call than the one that wrote them (writer: words, largest call age; ranges):
+  P1214a0                        17646 words  age  5724  1b003f4-1b003f8 1b00424-1b00428 1b00454-1b00458 1b00484-1b00488 1b004b4-1b004b8 1b004d4-1b004d8 1b004e4-1b004e8 1b00514-1b00518 ... (17640 ranges)
+  P121c30                        10164 words  age 10290  1b487f4-1b487f8 1b48804-1b48808 1b48814-1b48818 1b48824-1b48828 1b48834-1b48838 1b48844-1b48848 1b48854-1b48858 1b48884-1b48888 ... (10164 ranges)
+  P12e8b8                         5256 words  age   214  1b27a04-1b27a08 1b27a14-1b27a18 1b27a24-1b27a28 1b27a34-1b27a38 1b27a44-1b27a48 1b27a54-1b27a58 1b27a64-1b27a68 1b27a84-1b27a88 ... (5256 ranges)
+  P120860                         3295 words  age  4548  1406c5c-1406c60 1406d8c-1406d90 1406ebc-1406ec0 1406fec-1406ff0 140711c-1407120 140724c-1407250 140737c-1407380 14074ac-14074b0 ... (3295 ranges)
+  P13bf78                         2886 words  age  9930  1b45e14-1b45e18 1b45e24-1b45e28 1b45e44-1b45e48 1b45e54-1b45e58 1b45e64-1b45e68 1b45e74-1b45e78 1b45e84-1b45e88 1b45e94-1b45e98 ... (2886 ranges)
+  spr copy to fromSPR             1251 words  age  4132  1b060c4-1b060c8 1b060d4-1b060d8 1b073c4-1b073c8 1b073d4-1b073d8 1b07454-1b07458 1b07464-1b07468 1b08d34-1b08d38 1b08d44-1b08d48 ... (1251 ranges)
+  spr copy to toSPR               1137 words  age  4096  1b07e94-1b07e98 1b07ea4-1b07ea8 1b097b4-1b097b8 1b097c4-1b097c8 1b09934-1b09938 1b09944-1b09948 1b09c24-1b09c28 1b09c34-1b09c38 ... (1137 ranges)
+  P12dc90                          468 words  age  5806  13f9bbc-13f9bc0 13f9bcc-13f9bd0 13f9bdc-13f9be0 13f9bec-13f9bf0 13f9c4c-13f9c50 13f9c5c-13f9c60 13f9c6c-13f9c70 13f9c7c-13f9c80 ... (321 ranges)
+  P1394a0                          374 words  age 10286  1b00174-1b00178 1b00184-1b00188 1b00504-1b00508 1b00524-1b00528 1b59944-1b59948 1b59954-1b59958 1b599a4-1b599a8 1b599b4-1b599b8 ... (374 ranges)
+  P11fde8                          351 words  age    67  1406bac-1406bb0 1406bbc-1406bc0 1406bcc-1406bd0 1406bdc-1406be0 1406bec-1406bf0 1406bfc-1406c00 1406c0c-1406c10 1406c1c-1406c20 ... (294 ranges)
+  P135338                          153 words  age  5642  1b458e4-1b458e8 1b458f4-1b458f8 1b45904-1b45908 1b45914-1b45918 1b45924-1b45928 1b45944-1b45948 1b45954-1b45958 1b45964-1b45968 ... (153 ranges)
+  P13d540                           72 words  age   190  1b45c94-1b45c98 1b45ca4-1b45ca8 1b45cb4-1b45cb8 1b45cc4-1b45cc8 1b45cd4-1b45cd8 1b45ce4-1b45ce8 1b45cf4-1b45cf8 1b45d04-1b45d08 ... (72 ranges)
+  P1226c8                           68 words  age  5638  1b00204-1b00208 1b00214-1b00218 1b00224-1b00228 1b00244-1b00248 1b00254-1b00258 1b00274-1b00278 1b03314-1b03318 1b03324-1b03328 ... (68 ranges)
+  P124630                           58 words  age  4600  1b002c4-1b002c8 1b002d4-1b002d8 1b002f4-1b002f8 1b00304-1b00308 1b00334-1b00338 1b00364-1b00368 1b48624-1b48628 1b48634-1b48638 ... (58 ranges)
+  P120538                           56 words  age    70  1406afc-1406b00 1b061a4-1b061a8 1b091b4-1b091b8 1b091c4-1b091c8 1b0d9c4-1b0d9c8 1b0d9d4-1b0d9d8 1b0f1b4-1b0f1b8 1b0f1c4-1b0f1c8 ... (56 ranges)
+  P12d810                           50 words  age  1342  1431334-1431338 1432404-1432408 1432424-1432428 14335b4-14335b8 14335d4-14335d8 1434704-1434708 1434724-1434728 144bb14-144bb18 ... (50 ranges)
+  P11e0d0                           47 words  age 10284  1b00464-1b00468 1b00474-1b00478 1b59984-1b59988 1b59994-1b59998 1b59a04-1b59a08 1b59a14-1b59a18 1b59a64-1b59a68 1b59a74-1b59a78 ... (47 ranges)
+  P12f130                           28 words  age  4438  1b278e4-1b278e8 1b278f4-1b278f8 1b27904-1b27908 1b27914-1b27918 1b27924-1b27928 1b27934-1b27938 1b27944-1b27948 1b27954-1b27958 ... (28 ranges)
+  P11fa58                           24 words  age  6811  15b6214-15b6218 15eab44-15eab48 15eab64-15eab68 15eab84-15eab88 15eaba4-15eaba8 15eac04-15eac08 15eac84-15eac88 15eaca4-15eaca8 ... (24 ranges)
+  P12d910                           17 words  age 10276  1b59904-1b59908 1b59f34-1b59f38 1b5a3d4-1b5a3d8 1b5a434-1b5a438 1baeb14-1baeb18 1baec34-1baec38 1baf4b4-1baf4b8 1baf5d4-1baf5d8 ... (17 ranges)
+  P122138                           17 words  age 10284  1b59914-1b59918 1b59f44-1b59f48 1b5a3e4-1b5a3e8 1b5a444-1b5a448 1baeb24-1baeb28 1baec44-1baec48 1baf484-1baf488 1baf4c4-1baf4c8 ... (17 ranges)
+  P12cf70                           12 words  age  7488  1b00024-1b00028 1b00034-1b00038 1b00194-1b00198 1b001a4-1b001a8 1b001b4-1b001b8 1b001e4-1b001e8 1d00024-1d00028 1d00034-1d00038 ... (12 ranges)
+  P161640                           10 words  age    40  1b000f4-1b000f8 1b000f8-1b000fc 1b00114-1b00118 1b05484-1b05488 1b05494-1b05498 1d000f4-1d000f8 1d000f8-1d000fc 1d00114-1d00118 ... (10 ranges)
+  P12d688                            9 words  age    67  1425c70-1425c74 1425da0-1425da4 1425ed0-1425ed4 1426000-1426004 1426130-1426134 1426260-1426264 1426390-1426394 1706f00-1706f04 ... (9 ranges)
+  P124d48                            8 words  age  1970  1b00394-1b00398 1b003a4-1b003a8 1b003c4-1b003c8 1d00394-1d00398 1d003a4-1d003a8 1d003c4-1d003c8 1d9a6d4-1d9a6d8 1d9a6e4-1d9a6e8
+  P136798                            5 words  age   118  000524-000528 000554-000558 000594-000598 0005a4-0005a8 0005e4-0005e8
+  P124fe8                            5 words  age   110  1b002a4-1b002a8 1b48664-1b48668 1b486c4-1b486c8 1d002a4-1d002a8 1d486c4-1d486c8
+  P11f4d0                            3 words  age  4260  1b000d4-1b000d8 1b00154-1b00158 1d00154-1d00158
+  P13fdd8                            3 words  age    44  1b486d4-1b486d8 1d486d4-1d486d8 1d9a5e4-1d9a5e8
+  P11e5e0                            2 words  age    22  1b05324-1b05328 1d05324-1d05328
+  P13a310                            1 words  age  4260  1b000c4-1b000c8
+  P133cc0                            1 words  age  5638  1d6ac24-1d6ac28
+
+micro calls outside the draw pipeline (code hash, entry, code uploaded inside it?, calls):
+  dbbe42cf pc    0 uploaded outside 162572
+  dbbe42cf pc    6 uploaded outside 152682
+
+words last written inside the draw pipeline at the stop: 1741 KB in 10171 ranges; largest:
+  1d05370-1d59cd0 338 KB
+  1b05370-1b59c70 338 KB
+  1b5a900-1baeeb0 337 KB
+  1d5a900-1d87dc0 181 KB
+  1d87e10-1daede0 155 KB
+  1bb4bd0-1bbd684 34 KB
+  1baf9e0-1bb4a40 20 KB
+  1daf9e0-1db4714 19 KB
+  000000-004000 16 KB
+  1dba0f8-1dbd5e4 13 KB
+  1db9858-1dba0b4 2 KB
+  1daf090-1daf7b4 1 KB

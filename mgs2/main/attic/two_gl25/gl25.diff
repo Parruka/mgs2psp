@@ -1,0 +1,99 @@
+diff -ru t24b/psp/xl_psp.c t25/psp/xl_psp.c
+--- t24b/psp/xl_psp.c	2026-11-19 15:49:14.677480979 +0000
++++ t25/psp/xl_psp.c	2026-11-19 16:53:43.265616534 +0000
+@@ -1080,6 +1080,7 @@
+ static int two_cfg, two, two_h, two_pend[2], two_spill, two_xh, two_xn, two_next[2]; static uint32_t two_ah, two_an, two_used[2];
+ static long two_steps, two_spills, two_nohalf, two_full_n, two_t0[3];
+ static int two_wx; static uint32_t two_wb;   /* gl24b: the extents and arena bytes planned since the last walk posted (the walk peaks) */
++static uint32_t two_seq[2]; static long two_nowait, two_older, two_move, two_t1[3];   /* gl25: the walk that holds each half; counts */
+ static void two_load(int h) { two_h = h; xmc.next = two_next[h]; xmc.used = two_used[h]; xmc.ext_cap = (h + 1) * two_xh; xmc.arena_n = (uint32_t)(h + 1) * two_ah; }
+ static void two_keep(void) { two_next[two_h] = xmc.next; two_used[two_h] = xmc.used; }
+ static void two_empty(int h) { two_next[h] = h * two_xh; two_used[h] = (uint32_t)h * two_ah; two_pend[h] = 0; }
+@@ -1101,14 +1102,31 @@
+   if (two_wb > mq_arena_max) { mq_arena_max = two_wb; mq_arena_max_vb = me_vb; }
+   two_wx = 0; two_wb = 0;
+   two_keep(); two_pend[two_h] = 1; if (two_spill) two_pend[two_h ^ 1] = 1;
++  two_seq[two_h] = mq_walk_seq; if (two_spill) two_seq[two_h ^ 1] = mq_walk_seq;   /* gl25 */
+   two_spill = 0; two_steps++;
+   if (!two_pend[two_h ^ 1]) two_load(two_h ^ 1); else two_nohalf++;
+ }
++static void mq_wait(uint32_t seq, int why);   /* (gl25: two_wait) */
++static void two_poll(void)   /* gl25: the halves whose walk is done emptied, without a wait; the current half held and the other free: the
++                                step moves there (a held half holds no copy of this step: its copies wait until the half is free) */
++{
++  if (!two) return;
++  for (int h = 0; h < 2; h++) if (two_pend[h] && mq_done(two_seq[h])) { two_empty(h); if (h == two_h) two_load(h); }
++  if (two_pend[two_h] && !two_pend[two_h ^ 1]) { two_load(two_h ^ 1); two_move++; }
++  if (mq_walk_due && mq_done(mq_walk_seq)) mq_walk_due = 0;
++}
++static void two_wait(int h, int why)   /* gl25: only the walk that holds half h (with two walks out, the older one for the older half) */
++{
++  if (two_seq[h] != mq_walk_seq) two_older++;
++  mq_wait(two_seq[h], why);
++  two_poll();
++}
+ static void mq_tstart(long vb)   /* an ME turn begins (the main CPU's cache holds the counts as they are) */
+ {
+   for (int k = 0; k < XME_T_N; k++) mq_tk0[k] = k == XME_T_IDLE ? mq_idle() : mq->t_k[k];   /* gl24: the idle time from the shared words */
+   for (int k = 0; k < MW_N; k++) mq_tw0[k] = mq_wus[k];
+   two_t0[0] = two_steps; two_t0[1] = two_spills; two_t0[2] = two_nohalf;   /* gl24 */
++  two_t1[0] = two_nowait; two_t1[1] = two_older; two_t1[2] = two_move;   /* gl25 */
+   mq_tt0 = mq_now(); mq_tvb0 = vb; mq_th0 = mq->n_hook; mq_tl0 = mq->n_list; mq_tg0 = mq->n_gewait;
+   mq_tovu0 = mq_ov_us; mq_tovn0 = mq_ov_n; mq_ov_f = 0;
+   { int b = ge2 ? 1 : 0; ge_tn0 = ge_n[b]; ge_td0 = ge_draw[b]; ge_tq0 = ge_note[b]; ge2_tn0 = mq->n_ge2; }   /* gl22; gl23 by GE2 */
+@@ -1140,14 +1158,14 @@
+           "the main CPU waited (ms): copies as they ended %.1f, fills %.1f, the arena %.1f, the rest %.1f; from a hook to its first copy plan "
+           "%ld times, mean %.2f ms; gl22: idle in this turn %.1f; GE2 %d: lists %ld, drawing %.1f ms, seen %.1f ms after its finish; begun while the "
+           "GE drew the frame before %ld; gl24 TWO %d: walks posted %ld, spills %ld, no half free %ld, the main CPU waited at hooks for the walk "
+-          "before %.1f ms\n", mq_tvb0, vb, tt, ms[XE_REC], ms[XE_THIN], ms[XE_FILL], ms[XE_WALK], ms[XE_HOOK], ms[XME_T_LIST],
++          "before %.1f ms; gl25: hooks without a wait %ld, waits for an older walk %ld, half moves %ld\n", mq_tvb0, vb, tt, ms[XE_REC], ms[XE_THIN], ms[XE_FILL], ms[XE_WALK], ms[XE_HOOK], ms[XME_T_LIST],
+           ms[XME_T_GEW], ms[XE_HOOK] - ms[XME_T_LIST] - ms[XME_T_GEW], ms[XE_SYNC] + ms[XE_STOP], ms[XME_T_IDLE], all, mq->n_hook - mq_th0,
+           mq->n_list - mq_tl0, mq->n_gewait - mq_tg0, w[MW_NOW], w[MW_FILL], w[MW_ARENA],
+           w[MW_RAM] + w[MW_RING] + w[MW_THIN] + w[MW_DRAIN] + w[MW_PROBE] + w[MW_SYNC], mq_ov_n - mq_tovn0,
+           mq_ov_n > mq_tovn0 ? (double)(mq_ov_us - mq_tovu0) / 1000.0 / (double)(mq_ov_n - mq_tovn0) : 0.0,
+           tt - (all - ms[XME_T_IDLE]), ge2, ge_n[ge2 ? 1 : 0] - ge_tn0, (double)(ge_draw[ge2 ? 1 : 0] - ge_td0) / 1000.0,
+           (double)(ge_note[ge2 ? 1 : 0] - ge_tq0) / 1000.0, mq->n_ge2 - ge2_tn0, two, two_steps - two_t0[0], two_spills - two_t0[1],
+-          two_nohalf - two_t0[2], w[MW_HOOK]);
++          two_nohalf - two_t0[2], w[MW_HOOK], two_nowait - two_t1[0], two_older - two_t1[1], two_move - two_t1[2]);
+   mq_tvb0 = -1;
+ }
+ static void mq_wait(uint32_t seq, int why)
+@@ -1673,12 +1691,13 @@
+     if (!mp_nrec) return;
+     e = &mp_rec[mp_nrec - 1]; e->nx = -1; mq_own++; mq_rec(e, 0); mq_late(3, 1); return; }
+   { uint64_t ov = mq_now(); mq_ov_us += (ov - mq_ov_t) & (0 - (uint64_t)mq_ov_f); mq_ov_n += mq_ov_f; mq_ov_f = 0; }   /* gl20: the overlap (no branch) */
+-  if (!two || two_pend[two_h]) mq_arena_wait();   /* (no plan while the ME walks the records before; gl24: in the half it walks) */
++  if (!two) mq_arena_wait();   /* (no plan while the ME walks the records before; gl24: in the half it walks) */
++  else { two_poll(); if (two_pend[two_h]) two_wait(two_h, MW_ARENA); }   /* gl25: only the walk that holds this half */
+   if (mq_tbk_cold != tb || !mp_nrec) return;   /* (a take-back: the record dropped) */
+   e = &mp_rec[mp_nrec - 1];
+   r = mq_plan(e, &x0, &nx);
+   if (two && (r == 2 || r == 3) && !two_spill) {   /* gl24: the half full: the other half, once the walk there is done (a spill) */
+-    if (two_pend[two_h ^ 1]) { mq_arena_wait(); if (mq_tbk_cold != tb || !mp_nrec) return; }
++    two_poll(); if (two_pend[two_h ^ 1]) { two_wait(two_h ^ 1, MW_ARENA); if (mq_tbk_cold != tb || !mp_nrec) return; }   /* gl25 */
+     if (two) { xmc.fails[r]--; two_keep(); two_load(two_h ^ 1); two_spill = 1; two_spills++;
+       r = mq_plan(e, &x0, &nx); }
+   }
+@@ -1755,7 +1774,11 @@
+ {
+   uint32_t kb; XmeE e;
+   mq_probe();
+-  mq_arena_waitw(two ? MW_HOOK : MW_ARENA);   /* gl24: with two areas the walk before ran while this step's game code did */
++  if (!two) mq_arena_wait();
++  else if (mp_nrec) mq_arena_waitw(MW_HOOK);   /* gl24: with two areas the walk before ran while this step's game code did; gl25: only a
++                                                 hook with records waits for it, before its FILL and WALK (lchk3: the RAM a late walk reads
++                                                 is unchanged until the next hook with records) */
++  else { two_poll(); two_nowait++; }   /* gl25: a hook without records (the lite step's): no wait */
+   if (!mq_m4 && mq_turn && mq_th >= 0) { int k = (int)((vb / mq_turn) & 1);
+     if (k != mq_turn_k) { mq_drain(); if (mq_th >= 0) { mq_turn_k = k; mq_self = k; mq_turns++; mq_thin_due = 0; mq_walk_due = 0; } } }
+   mp_hooks++; kb = (uint32_t)((xmc.bytes - mp_bytes_hook) >> 10); mp_bytes_hook = xmc.bytes;   /* (mp_hook's counts) */
+@@ -1803,7 +1826,8 @@
+ {
+   if (two_cfg) fprintf(f, "me picture copies (gl24): two copy areas: walks posted %ld, spills into the other half %ld, steps with no half free "
+                        "after their walk %ld, steps given the whole arena after a walk at once %ld; the main CPU waited at hooks for the walk "
+-                       "before %.1f s\n", two_steps, two_spills, two_nohalf, two_full_n, mq_wus[MW_HOOK] / 1e6);
++                       "before %.1f s; gl25: hooks without a wait %ld, waits for an older walk %ld, half moves %ld\n", two_steps, two_spills, two_nohalf,
++                       two_full_n, mq_wus[MW_HOOK] / 1e6, two_nowait, two_older, two_move);
+   { static const char *nm[3] = { "ME turns, one frame on the GE side", "ME turns, two frames on the GE side (GE2)", "main CPU turns" };   /* gl22, gl23 */
+     for (int b = 0; b < 3; b++) if (ge_n[b])
+       fprintf(f, "me picture GE (gl22): %s: %ld lists, the GE drawing a list %.2f ms on average (at most %.2f), the main CPU seeing its finish "

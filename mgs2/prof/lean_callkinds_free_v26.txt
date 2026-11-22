@@ -1,0 +1,11 @@
+call sites by caller unit and callee kind (per step): calls, R[] stores, F[] stores, reloads (registers, not words)
+  stage -> to ELF                   5807 calls  R st  8.31  F st 2.44  R reload 4.48  F reload 1.22 per call
+  stage -> to own stage             4275 calls  R st  6.13  F st 0.90  R reload 3.18  F reload 0.94 per call
+  elf -> to ELF                     2692 calls  R st  4.75  F st 0.64  R reload 2.01  F reload 0.61 per call
+  elf -> indirect                    583 calls  R st  8.51  F st 0.00  R reload 3.40  F reload 0.00 per call
+  elf -> host: BREAK                 247 calls  R st  8.03  F st 3.03  R reload 4.06  F reload 2.75 per call
+  stage -> host: NAT_LS_PREPOLL       82 calls  R st  0.00  F st 0.00  R reload 0.00  F reload 0.00 per call
+  stage -> host: BREAK                67 calls  R st  9.73  F st 2.63  R reload 8.01  F reload 1.70 per call
+  elf -> host: SYSCALL                26 calls  R st  4.35  F st 0.00  R reload 1.42  F reload 0.00 per call
+  elf -> host: COP0OP                 22 calls  R st  2.09  F st 0.00  R reload 0.36  F reload 0.00 per call
+  stage -> indirect                   16 calls  R st  5.29  F st 0.02  R reload 4.02  F reload 0.33 per call

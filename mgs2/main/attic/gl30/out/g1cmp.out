@@ -1,0 +1,12 @@
+digest lines: old 17664, new 17664; content lines: old 17664, new 17664
+same frames (vb): True ; content digests equal in all: True
+frames without XS                                                                16849
+  digests equal                                                                  16849
+frames with XS                                                                   815
+  digests differ                                                                 815
+  counts: old vertex-set fallbacks = new subset pairs + new vertex-set fallbacks 815
+G2 census vb 29490-31400: {'frames': 916, 'arm X': 916, '0x42 targets': 12247, 'paired (exact)': 10306, 'subset (XS)': 1941}
+   fallbacks base/matrix/vertex set/triangles/uv-colour/room: [0, 0, 0, 0, 0, 0] ; frames by fallback count: {0: 916}
+   the largest copy 2480 B (vb 30560)
+   old over the same range: 10306 paired, [0, 0, 1941, 0, 0, 0] fallbacks
+frames with XS: 815, from vb 29490 to 31262

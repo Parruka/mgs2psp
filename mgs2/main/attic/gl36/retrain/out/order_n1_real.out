@@ -1,0 +1,22 @@
+route deck (t0+t2): real addresses, gl36 psp (old order) -> psp_n1 (new objective, variant A)
+  16,001 opening ME              125264 ->   110757  -11.58%
+  16,101 opening main            217367 ->   179897  -17.24%
+  26,501 deck main               156841 ->   130543  -16.77%
+  27,501 steady deck main        175404 ->   148532  -15.32%
+  27,801 steady deck ME          169850 ->   143132  -15.73%
+  29,601 rain wait ME reuse      473730 ->   501575   +5.88%
+  29,801 rain wait ME plain      445900 ->   473832   +6.26%
+  30,101 rain main reuse         433105 ->   464156   +7.17%
+  31,101 rain walk main plain    397399 ->   432379   +8.80%
+  17,501 opening ME (test)       221718 ->   183497  -17.24%
+  training sum                  2594860 ->  2584803   -0.39%
+route inside (t1): real addresses, gl36 psp (old order) -> psp_n1 (new objective, variant A)
+  31,901                         354072 ->   378942   +7.02%
+  32,651                         321479 ->   335177   +4.26%
+  33,401                         245880 ->   253475   +3.09%
+  34,151                         437800 ->   462704   +5.69%
+  34,901                         427177 ->   455316   +6.59%
+  37,151                         494390 ->   510656   +3.29%
+  35,651                         348067 ->   361663   +3.91%
+  36,401 (test)                  268601 ->   279623   +4.10%
+  training sum                  2628865 ->  2757933   +4.91%

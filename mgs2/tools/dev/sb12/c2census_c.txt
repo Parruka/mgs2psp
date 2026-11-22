@@ -1,0 +1,33 @@
+c2 census: P06 calls 373221 (9406612 vertices; +0 282902/7354957, +358 90319/2051655, +738 0/0, +ab0 0/0 calls/vertices; fast 373221, exact form 0); lit lights 0..3: 0 357420 15801 0; pass 2 none/1/own/-1: 134471 160936 77814 0; pass 3 none/normal/ramp/0x100: 134471 238750 0 0; cull bit 0
+c2 census: clamp abs 3 x 255 x373221; alpha abs 3 y 128 x373221;
+c2 census: lit lights 389022, lengths 0.00057987..1; colour x length max 187, not whole 1167066, from 255.5 0, below 0 0; ambient 4..110, not whole 0, outside 0..255 0
+c2 census: skin: 90319 calls, weight w 0..4096 (4.12) over 2051655 vertices, outside 0..4096 0, 0 666335, 4096 751824; matrix column lengths 0.998415..1, largest |cos| 0.00107, translation up to 0.373835
+c2 census: normal length - 1 (<1e-3, <1e-2, <0.05, <0.1, <0.25, more): data (unskinned) 7344707 566 1497 1431 2735 4021 (0.030945..1); blended (skinned) 1495206 169942 292205 50541 42044 1717 (0.6163..0.99999)
+c2 census: factor (4.12) over 0 vertices: r 1073741824..-1073741824, g 1073741824..-1073741824, b 1073741824..-1073741824, a 1073741824..-1073741824; a channel above 4096 0, below 0 0; vertices whose lit sum passes the clamp 0 (of them with a factor 0)
+c2 window vb 30810-30890: P06 calls 520, vertices 14560 (skinned 0, with a factor 0), drawn again in pass 2 14560 and pass 3 14560; by lit lights 0..3: 0 14560 0 0
+c2 window vb 33410-33490: P06 calls 0, vertices 0 (skinned 0, with a factor 0), drawn again in pass 2 0 and pass 3 0; by lit lights 0..3: 0 0 0 0
+c2 model: calls C2 takes 373221 (9406612 vertices); left: light colour below 0 0, from 255.5 0, ambient 0, clamp not 255 0, not the fast form 0, no lit light 0, weight outside 0..4096 0, factor outside 0..4096 0, over 64 0
+c2 model: colour +0, GE - exact: mean 0.141, max |d| 70; -5 or below .. +5 or above: 0 0 0 193 104597 18886932 3061073 1632 1203 1026 8215
+c2 model: colour +358, GE - exact: mean 0.300, max |d| 18; -5 or below .. +5 or above: 0 0 0 79 25924 4972497 848736 143204 75155 28819 60551
+c2 model: colour +738 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model: colour +ab0 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model: colour with a factor, encoding B (f / 16): mean 0.000, max |d| 0: 0 0 0 0 0 0 0 0 0 0 0
+c2 model: alpha differing 0 of 9406612
+c2 model (b) round(255 len): colour +0, GE - exact: mean 0.134, max |d| 2; -5 or below .. +5 or above: 0 0 0 193 104997 18898660 3060987 34 0 0 0
+c2 model (b) round(255 len): colour +358, GE - exact: mean 0.108, max |d| 2; -5 or below .. +5 or above: 0 0 0 79 45802 5396927 712145 12 0 0 0
+c2 model (b) round(255 len): colour +738 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model (b) round(255 len): colour +ab0 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model (b) min(255, 256 len): colour +0, GE - exact: mean 0.134, max |d| 2; -5 or below .. +5 or above: 0 0 0 193 104906 18898351 3061387 34 0 0 0
+c2 model (b) min(255, 256 len): colour +358, GE - exact: mean 0.119, max |d| 2; -5 or below .. +5 or above: 0 0 0 79 35880 5350842 768152 12 0 0 0
+c2 model (b) min(255, 256 len): colour +738 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model (b) min(255, 256 len): colour +ab0 (factor A), GE - exact: mean 0.000, max |d| 0; -5 or below .. +5 or above: 0 0 0 0 0 0 0 0 0 0 0
+c2 model (b): factor calls left to the converter 0 (0 vertices); d = round(255 len) 0, 1-63, 64-127, 128-159, 160-199, 200-229, 230-249, 250-254, 255: 0 353 1370 975 5510 42309 235272 248616 8872207
+c2 cache: calls 373221 from streams: keys 643 (GE vertex bytes 338108 at 20 or 24 a vertex), the same bytes again 372314, other bytes at a known key 264, table full 0; skinned calls with a blended vertex 65173 (633496 blended vertices: their colour each frame)
+c2 cache window vb 30810-30890: calls 520, new keys 0
+c2 cache window vb 33410-33490: calls 0, new keys 0
+c2 passes: pass 1: tme 0/1 0 373221; tfx/tcc/GE texture: modulate tcc 1 tex 0 x18 modulate tcc 1 tex 1 x373203; blend off/on 0 373221 (A 0 B 1 C 0 D 1 FIX 0) x373221; fog off/on 0 373221
+c2 passes: pass 2: tme 0/1 0 238750; tfx/tcc/GE texture: modulate tcc 1 tex 1 x238750; blend off/on 0 238750 (A 2 B 0 C 0 D 1 FIX 0) x238750; fog off/on 0 238750
+c2 passes: pass 3: tme 0/1 0 238750; tfx/tcc/GE texture: modulate tcc 1 tex 1 x238750; blend off/on 0 238750 (A 0 B 2 C 1 D 1 FIX 0) x238750; fog off/on 0 238750
+c2 model: skinned positions: world distance max 0.01257, mean 0.001503; GE pixels (larger of x, y) below 1/64 2051655, 1/64-1/16 0, 1/16-1/4 0, 1/4-1/2 0, 1/2-1 0, from 1 0; behind the eye 0
+c2 model: pass 3 UVs, the normal as held (mode 3): 6264186 vertices, max |d| 4.554e-05, mean 9.29e-06; in texels of a 256 texture: below 1/64 6264186, 1/64-1/16 0, 1/16-1/4 0, 1/4-1/2 0, 1/2-1 0, from 1 0
+c2 model: pass 3 UVs, normalised normal (mode 2): 6264186 vertices, max |d| 0.1143, mean 0.0001389; in texels of a 256 texture: below 1/64 5792495, 1/64-1/16 73411, 1/16-1/4 182896, 1/4-1/2 109191, 1/2-1 60532, from 1 45661

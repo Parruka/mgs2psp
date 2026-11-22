@@ -1,0 +1,46 @@
+# x86 GEN_DG_TRACE (vgz/W + vp16n VU), deck route, MGS2_DG_TRACE=21000, to vb 25200; boot.c dgt_cnote + tools/dgt_report.py (2026-10-20)
+# the draw pipeline's state across calls: words a call reads (CPU, DMA, scratchpad copies) that an earlier call wrote
+dg trace: written inside the pipeline 473245 words: renderer-only 471636, read by game code 1609
+dg trace: 16571 calls; 24473 words read inside the pipeline that it wrote in an earlier call (27327549 reads, 27866 word/writer/reader triples)
+dg trace: 306574608 reads outside the draw pipeline of words it wrote, 381213 word/reader pairs (/home/claude/v19/dgt/dgt_xc_d.txt)
+the pipeline's state across calls: 24473 words it reads that it wrote in an earlier call (writer -> reader: words, reads; ranges):
+  P11fa58                  -> P11fa58                    9480 words  13863424 reads  11fda50-11fda8c 11fdc80-11fdcbc 11fdeb0-11fdeec 11fe0e0-11fe11c 11fe310-11fe34c 11ff2a0-11ff2dc ... (1183 ranges)
+  P11fa58                  -> spr copy to toSPR          7984 words   4053888 reads  120f520-120f560 120f650-120f690 120f780-120f7c0 120f8b0-120f8f0 120f9e0-120fa20 120fb10-120fb50 ... (499 ranges)
+  P11fde8                  -> spr copy to toSPR          2544 words    456832 reads  1357870-13578b0 13579a0-13579e0 1357ad0-1357b10 1357c00-1357c40 1357d30-1357d70 1357e60-1357ea0 ... (159 ranges)
+  P11fa58                  -> P12d378                    1992 words   1970088 reads  120a570-120a5a4 120a6a0-120a6d4 120a7d0-120a804 120a900-120a934 120e730-120e764 120e860-120e894 ... (498 ranges)
+  P12d688                  -> P12d688                    1710 words   2349581 reads  11fdb20-11fdb24 11fdd50-11fdd54 11fdf80-11fdf84 11fe1b0-11fe1b4 11fe3e0-11fe3e4 11ff370-11ff374 ... (1706 ranges)
+  P13bf78                  -> P13bf78                     900 words   1326600 reads  129a8d0-129a8d4 129a920-129a924 129a970-129a974 129a9c0-129a9c4 129aa10-129aa14 129aa60-129aa64 ... (900 ranges)
+  P121c30                  -> spr copy to fromSPR         592 words   2184280 reads  000c80-000d90scratchpad 000e00-000f10scratchpad 000f80-001090scratchpad 001100-001210scratchpad 001280-001390scratchpad 001400-001510scratchpad ... (9 ranges)
+  P120860                  -> P122608                     547 words     10279 reads  11ff398-11ff3a0 1202048-1202050 12027e8-12027f0 1202f88-1202f90 1203868-1203870 1204148-1204150 ... (491 ranges)
+  P11fde8                  -> P11fde8                     302 words    688205 reads  13578f8-13578fc 1357a28-1357a2c 1357b58-1357b5c 1357c88-1357c8c 1357db8-1357dbc 1357ee8-1357eec ... (274 ranges)
+  P11fde8                  -> P120f00                     168 words     22432 reads  142c8b0-142c8ec 142c9e0-142ca1c 142cb10-142cb4c 142cc40-142cc7c 142cd70-142cdac 142cea0-142cedc ... (21 ranges)
+  P11ee98                  -> P11ee98                      76 words    127846 reads  18dc48-18dc4c c00354-c00358 c006c4-c006c8 c00a34-c00a38 c00da4-c00da8 c01114-c01118 ... (76 ranges)
+  P121c30                  -> P121c30                      64 words       448 reads  1e6a20-1e6b20
+  P12dc90                  -> P12dc90                      48 words     51648 reads  11f8560-11f859c 11f91b0-11f91ec 160c9f0-160ca2c 160d640-160d67c 1662690-16626cc 1663d20-1663d5c
+  P120860                  -> P120f00                      42 words     31374 reads  142c968-142c970 142ca98-142caa0 142cbc8-142cbd0 142ccf8-142cd00 142ce28-142ce30 142cf58-142cf60 ... (21 ranges)
+  P120538                  -> P120538                      24 words     24456 reads  147c2e0-147c31c 165be40-165be7c 165c330-165c36c
+  P120860                  -> P121c30                      17 words       323 reads  121a6cc-121a6d0 121a7fc-121a800 121a92c-121a930 121aa5c-121aa60 121ab8c-121ab90 121acbc-121acc0 ... (17 ranges)
+  P135338                  -> P136798                       6 words       392 reads  1b4770-1b479c
+  P135338                  -> P121c30                       6 words        36 reads  1b4760-1b479c
+  P122138                  -> P13a310                       4 words       888 reads  1b47c0-1b47dc
+  P122138                  -> P13d540                       4 words       888 reads  1b47c0-1b47dc
+  P122138                  -> P1394a0                       4 words      1776 reads  1b47c0-1b47dc
+  P122138                  -> P135338                       4 words       888 reads  1b47c0-1b47dc
+  P122138                  -> gen_mm                        3 words       852 reads  1b47c0-1b47d4
+  P122138                  -> P120538                       2 words     99960 reads  1b47d0-1b47dc
+  P122138                  -> P137730                       2 words        24 reads  1b47c0-1b47cc
+  P13b6f0                  -> P13b6f0                       2 words      2956 reads  18f248-18f250
+  P135338                  -> P1214a0                       2 words     36112 reads  1b4780-1b478c
+  P135338                  -> P11fde8                       2 words       148 reads  1b4780-1b478c
+  P122138                  -> P120860                       2 words     11088 reads  1b47d0-1b47dc
+  P122138                  -> P12f130                       2 words        24 reads  1b47c0-1b47cc
+  P135338                  -> P11fa58                       2 words      7178 reads  1b4780-1b478c
+  P135338                  -> P13d540                       2 words         6 reads  1b4770-1b4778
+  P122138                  -> P1226c8                       2 words        12 reads  1b47c0-1b47cc
+  P11fde8                  -> P12dbc0                       1 words      1941 reads  1425c10-1425c14
+  P13a310                  -> spr copy to fromSPR           1 words         6 reads  000024-000028scratchpad
+  P135338                  -> P124630                       1 words         6 reads  1b4790-1b4794
+  P12dc90                  -> spr copy to fromSPR           1 words       129 reads  000024-000028scratchpad
+  P128d90                  -> P128d90                       1 words       533 reads  1b9a34-1b9a38
+  P11d930                  -> P11d930                       1 words         2 reads  18db64-18db68
+

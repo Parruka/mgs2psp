@@ -1,0 +1,169 @@
+# M1 facts (x86, v21 reference build + M1DEN), 2026-10-23. Dirs: A/B = build A (PSP rule) / B (MGS2_M1_PS2=1), D = deck route, W = w01a route, T* = trace build (M1VGT) with MGS2_PKT_HASH=1:25201 and the vu_vgrp log in vb 15784-15794, P* = to vb 15795 with every 0x11d02c run dumped.
+
+## sites AD
+sites 1279, uses 54800059
+  int    mtc1  sites  1052  uses    38108660
+  int    lwc1  sites   176  uses    16626996
+  float  lwc1  sites     3  uses       63155
+  int    lwc1s sites    46  uses        1135
+  float  lwc1s sites     2  uses         113
+float-operand sites: 5, uses 63268; functions 3
+  by function: elf P11cf88 42033, elf P11ce30 21122, d00t P28dd68 113
+  elf P11cf88 pc 11cfa8 lwc1: n 21124 vb 15793-24719 a 001b47c8 u 0031685c (last 001b4618 00148e9c) | CC = f0 < f3
+  elf P11ce30 pc 11ce70 lwc1: n 21122 vb 15793-19694 a 001b47c8 u 0031685c (last 001b47c8 0031685c) | CC = f4 < f0
+  elf P11cf88 pc 11cfa0 lwc1: n 20909 vb 15765-25199 a 001b47d8 u 0000000b (last 001b47d8 0018f438) | CC = f2 < f3
+  d00t P28dd68 pc 28e338 lwc1s: n 65 vb 4258-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f29
+  d00t P28dd68 pc 28e38c lwc1s: n 48 vb 4260-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f28
+
+## sites AW
+sites 1019, uses 50730798
+  int    mtc1  sites   805  uses    34422613
+  int    lwc1  sites   164  uses    16260150
+  float  lwc1  sites     3  uses       46870
+  int    lwc1s sites    45  uses        1052
+  float  lwc1s sites     2  uses         113
+float-operand sites: 5, uses 46983; functions 3
+  by function: elf P11cf88 25748, elf P11ce30 21122, d00t P28dd68 113
+  elf P11cf88 pc 11cfa8 lwc1: n 21122 vb 15793-19694 a 001b47c8 u 0031685c (last 001b47c8 0031685c) | CC = f0 < f3
+  elf P11ce30 pc 11ce70 lwc1: n 21122 vb 15793-19694 a 001b47c8 u 0031685c (last 001b47c8 0031685c) | CC = f4 < f0
+  elf P11cf88 pc 11cfa0 lwc1: n 4626 vb 15765-19571 a 001b47d8 u 0000000b (last 001b47d8 0015def4) | CC = f2 < f3
+  d00t P28dd68 pc 28e338 lwc1s: n 65 vb 4258-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f29
+  d00t P28dd68 pc 28e38c lwc1s: n 48 vb 4260-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f28
+
+## hashes AD
+m1: mode PSP rule; float loads 640284683, mtc1 306606696; denormal loads 16691399 (stack 1248), denormal mtc1 38108660; sites 1279 (dropped 0); zero-rule uses 70038 at 4 places
+m1: base 0x5606823f71c0 (g_hash_vb)
+zero-rule places: 4
+  add in P11cf88+0x141: n 13897, vb 15785-25199, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 13897, vb 15785-25199, operands 00000000 0015def4
+  add in P11cf88+0x273: n 21122, vb 15793-19694, operands 00000000 0031685c
+  sub in P11cf88+0x2ce: n 21122, vb 15793-19694, operands 00000000 0031685c
+every-100 hashes against hashes_x86_deck_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 0 of 252 differ
+  dense ee: 0 of 559 differ
+  dense vfb: 0 of 559 differ
+  vuh: 0 of 311 differ
+
+## hashes BD
+m1: mode PS2 (DAZ); float loads 640284683, mtc1 306606696; denormal loads 16691399 (stack 1248), denormal mtc1 38108660; sites 1279 (dropped 0); zero-rule uses 70038 at 2 places
+m1: base 0x5623113391c0 (g_hash_vb)
+zero-rule places: 2
+  add in P11cf88+0x141: n 35019, vb 15785-25199, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 35019, vb 15785-25199, operands 00000000 0015def4
+every-100 hashes against hashes_x86_deck_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 95 of 252 differ, first vb 15800
+  dense ee: 0 of 559 differ
+  dense vfb: 309 of 559 differ, first vb 15794
+  vuh: 0 of 311 differ
+
+## hashes AW
+m1: mode PSP rule; float loads 583525054, mtc1 265550769; denormal loads 16308185 (stack 1165), denormal mtc1 34422613; sites 1019 (dropped 0); zero-rule uses 48144 at 4 places
+m1: base 0x563237f2f1c0 (g_hash_vb)
+zero-rule places: 4
+  add in P11cf88+0x141: n 2950, vb 15785-19571, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 2950, vb 15785-19571, operands 00000000 0015def4
+  add in P11cf88+0x273: n 21122, vb 15793-19694, operands 00000000 0031685c
+  sub in P11cf88+0x2ce: n 21122, vb 15793-19694, operands 00000000 0031685c
+every-100 hashes against hashes_x86_w01a_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 0 of 252 differ
+  dense ee: 0 of 559 differ
+  dense vfb: 0 of 559 differ
+  vuh: 0 of 311 differ
+
+## hashes BW
+m1: mode PS2 (DAZ); float loads 583525054, mtc1 265550769; denormal loads 16308185 (stack 1165), denormal mtc1 34422613; sites 1019 (dropped 0); zero-rule uses 48144 at 2 places
+m1: base 0x5565d5e2a1c0 (g_hash_vb)
+zero-rule places: 2
+  add in P11cf88+0x141: n 24072, vb 15785-19694, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 24072, vb 15785-19694, operands 00000000 0015def4
+every-100 hashes against hashes_x86_w01a_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 95 of 252 differ, first vb 15800
+  dense ee: 0 of 559 differ
+  dense vfb: 309 of 559 differ, first vb 15794
+  vuh: 0 of 311 differ
+
+## hashes TAD
+m1: mode PSP rule; float loads 640284683, mtc1 306606696; denormal loads 16691399 (stack 1248), denormal mtc1 38108660; sites 1279 (dropped 0); zero-rule uses 70038 at 4 places
+m1: base 0x55c22afdf1c0 (g_hash_vb)
+zero-rule places: 4
+  add in P11cf88+0x141: n 13897, vb 15785-25199, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 13897, vb 15785-25199, operands 00000000 0015def4
+  add in P11cf88+0x273: n 21122, vb 15793-19694, operands 00000000 0031685c
+  sub in P11cf88+0x2ce: n 21122, vb 15793-19694, operands 00000000 0031685c
+every-100 hashes against hashes_x86_deck_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 0 of 252 differ
+  dense ee: 0 of 559 differ
+  dense vfb: 0 of 559 differ
+  vuh: 0 of 311 differ
+
+## hashes TBD
+m1: mode PS2 (DAZ); float loads 640284683, mtc1 306606696; denormal loads 16691399 (stack 1248), denormal mtc1 38108660; sites 1279 (dropped 0); zero-rule uses 70038 at 2 places
+m1: base 0x5578094021c0 (g_hash_vb)
+zero-rule places: 2
+  add in P11cf88+0x141: n 35019, vb 15785-25199, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 35019, vb 15785-25199, operands 00000000 0015def4
+every-100 hashes against hashes_x86_deck_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 95 of 252 differ, first vb 15800
+  dense ee: 0 of 559 differ
+  dense vfb: 309 of 559 differ, first vb 15794
+  vuh: 0 of 311 differ
+
+## hashes TAW
+m1: mode PSP rule; float loads 583525054, mtc1 265550769; denormal loads 16308185 (stack 1165), denormal mtc1 34422613; sites 1019 (dropped 0); zero-rule uses 48144 at 4 places
+m1: base 0x5616beeca1c0 (g_hash_vb)
+zero-rule places: 4
+  add in P11cf88+0x141: n 2950, vb 15785-19571, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 2950, vb 15785-19571, operands 00000000 0015def4
+  add in P11cf88+0x273: n 21122, vb 15793-19694, operands 00000000 0031685c
+  sub in P11cf88+0x2ce: n 21122, vb 15793-19694, operands 00000000 0031685c
+every-100 hashes against hashes_x86_w01a_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 0 of 252 differ
+  dense ee: 0 of 559 differ
+  dense vfb: 0 of 559 differ
+  vuh: 0 of 311 differ
+
+## hashes TBW
+m1: mode PS2 (DAZ); float loads 583525054, mtc1 265550769; denormal loads 16308185 (stack 1165), denormal mtc1 34422613; sites 1019 (dropped 0); zero-rule uses 48144 at 2 places
+m1: base 0x5624e3b4d1c0 (g_hash_vb)
+zero-rule places: 2
+  add in P11cf88+0x141: n 24072, vb 15785-19694, operands 00000000 0015def4
+  sub in P11cf88+0x1a0: n 24072, vb 15785-19694, operands 00000000 0015def4
+every-100 hashes against hashes_x86_w01a_v21.txt: 252 points in the run, 252 in the reference
+  ee: 0 of 252 differ
+  iop: 0 of 252 differ
+  vfb: 95 of 252 differ, first vb 15800
+  dense ee: 0 of 559 differ
+  dense vfb: 309 of 559 differ, first vb 15794
+  vuh: 0 of 311 differ
+
+## vgcmp deck
+pkt: 25199 vblanks in both, 0 differ
+vgrp runs in the window: A 36487, B 36487; fallbacks A 327, B 377
+first VF-before difference at run 4739: A vb 15785 pc 11d02c fb 1 h fafb1a4f | B vb 15785 pc 11d02c fb 1 h 757a0d46
+first pc difference: none
+fallbacks per (vb, pc) where A and B differ (A fb/runs, B fb/runs):
+  vb 15793 pc 11d02c: A 1/51, B 51/51
+first runs whose fallback differs: run 31279 vb 15793 pc 11d02c A fb 0 B fb 1; run 31333 vb 15793 pc 11d02c A fb 0 B fb 1; run 31337 vb 15793 pc 11d02c A fb 0 B fb 1; run 31341 vb 15793 pc 11d02c A fb 0 B fb 1; run 31345 vb 15793 pc 11d02c A fb 0 B fb 1; run 31349 vb 15793 pc 11d02c A fb 0 B fb 1
+
+## vgcmp w01a
+pkt: 25199 vblanks in both, 0 differ
+vgrp runs in the window: A 36487, B 36487; fallbacks A 327, B 377
+first VF-before difference at run 4739: A vb 15785 pc 11d02c fb 1 h fafb1a4f | B vb 15785 pc 11d02c fb 1 h 757a0d46
+first pc difference: none
+fallbacks per (vb, pc) where A and B differ (A fb/runs, B fb/runs):
+  vb 15793 pc 11d02c: A 1/51, B 51/51
+first runs whose fallback differs: run 31279 vb 15793 pc 11d02c A fb 0 B fb 1; run 31333 vb 15793 pc 11d02c A fb 0 B fb 1; run 31337 vb 15793 pc 11d02c A fb 0 B fb 1; run 31341 vb 15793 pc 11d02c A fb 0 B fb 1; run 31345 vb 15793 pc 11d02c A fb 0 B fb 1; run 31349 vb 15793 pc 11d02c A fb 0 B fb 1

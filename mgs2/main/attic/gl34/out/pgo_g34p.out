@@ -1,0 +1,9 @@
+pgo.sh: g34p 993 s
+g34p: # total 1893552128 imiss 9837028 dmiss 12073689 dacc 487656634 fa_imiss 10208410 cde 794379 pref 0 cinv 0 dskip 0 dst 3637802 dwb 5798721
+g34p.1: # total 1704144896 imiss 8502690 dmiss 10541497 dacc 427681033 fa_imiss 8998799 cde 793094 pref 0 cinv 0 dskip 0 dst 3068708 dwb 5263484
+g34p.2: # total 1828655104 imiss 8725815 dmiss 11539272 dacc 463735258 fa_imiss 8356477 cde 671689 pref 0 cinv 0 dskip 0 dst 3516604 dwb 5483317
+g34p.3: # total 1581391872 imiss 7400496 dmiss 9491783 dacc 385925625 fa_imiss 7096227 cde 622110 pref 0 cinv 0 dskip 0 dst 2767139 dwb 4684136
+/home/claude/main/build_gl34/model/log_g34p.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 62 reference lines (0 with vuh): 2 differ; 623 reference lines not in the log (first 100, last 37800)
+  vb 30000: ee d878221133638775 (ref 64892c084c8807d7)
+  vb 30500: ee 55aee58dcfcc3153 (ref 251627c7a663a167)

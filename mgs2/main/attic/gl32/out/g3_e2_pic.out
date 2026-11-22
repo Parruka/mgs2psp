@@ -1,0 +1,20 @@
+../build_gl31/emu_e2/pic (reference) against emu_e2/pic: 52 names in both, only in the reference 0, only in the new 0 []
+  live  arm 0, in 29490-31400                                      byte-identical                   16
+  live  arm 0, in 29490-31400                                      pictures                         16
+  live  arm 1, in 29490-31400                                      byte-identical                   8
+  live  arm 1, in 29490-31400                                      pictures                         8
+  live  arm 3, in 29490-31400                                      byte-identical                   12
+  live  arm 3, in 29490-31400                                      pictures                         12
+  shot  arm 0, in 29490-31400                                      byte-identical                   4
+  shot  arm 0, in 29490-31400                                      pictures                         4
+  shot  arm 0, outside 29490-31400                                 byte-identical                   4
+  shot  arm 0, outside 29490-31400                                 differing                        1
+  shot  arm 0, outside 29490-31400                                 pictures                         5
+  shot  arm 1, in 29490-31400                                      byte-identical                   2
+  shot  arm 1, in 29490-31400                                      pictures                         2
+  shot  arm 1, outside 29490-31400                                 byte-identical                   1
+  shot  arm 1, outside 29490-31400                                 pictures                         1
+  shot  arm 3, in 29490-31400                                      byte-identical                   4
+  shot  arm 3, in 29490-31400                                      pictures                         4
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_24784.bmp', 24784, 'arm 0, outside 29490-31400', 7, 0, 0, 0, 1)

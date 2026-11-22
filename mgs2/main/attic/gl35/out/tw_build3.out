@@ -1,0 +1,23 @@
+ge_xlive.o rc 0 0 s
+ge_xldig.o rc 0 0 s
+ge_gsfront.o rc 0 0 s
+ge_gebatch.o rc 0 1 s
+ge_fxthin.o rc 0 1 s
+ge_texconv.o rc 0 1 s
+ge_texcache.o rc 0 1 s
+ge_c3model.o rc 0 1 s
+ge_c1model.o rc 0 1 s
+ge_c2model.o rc 0 1 s
+ge_gelive.o rc 0 2 s
+ge_gelist.o rc 0 2 s
+ge_xlate.o rc 0 2 s
+ge_xconv.o rc 0 2 s
+ge_xlme.o rc 0 3 s
+ge_vu1conv.o rc 0 6 s
+boot_rt.o rc 0 32 s
+ge_gsup.o rc 0 1 s
+xlive_chk.o rc 0 1 s
+gen_nat.o: 0000000000092d05 W P1214a0;0000000000092d05 T P1214a0_orig;
+boot link rc 0
+cc_ge_xlme.o.log
+cc_xlive_chk.o.log

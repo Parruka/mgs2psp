@@ -1,0 +1,15 @@
+rain walk alone, ME turn 31,010-31,090
+   m31r     46383104 instr  316668 I-miss (fully associative  232898)  300493 D-miss =  372.10 ms a picture; against m31r   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pr    46038528 instr  216984 I-miss (fully associative  199885)  302081 D-miss =  350.44 ms a picture; against m31r  -21.65 ms (instr  -344576, I-miss -99684, D-miss  +1588)
+   g33ir    45679718 instr  216653 I-miss (fully associative  199772)  295737 D-miss =  346.96 ms a picture; against m31r  -25.14 ms (instr  -703386, I-miss -100015, D-miss  -4756)
+rain walk alone, main turn 31,110-31,190
+   m31r     39617331 instr  280445 I-miss (fully associative  196059)  227122 D-miss =  312.23 ms a picture; against m31r   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pr    39483494 instr  190418 I-miss (fully associative  158120)  230058 D-miss =  293.94 ms a picture; against m31r  -18.29 ms (instr  -133837, I-miss -90027, D-miss  +2936)
+   g33ir    39477350 instr  190241 I-miss (fully associative  158000)  229883 D-miss =  293.83 ms a picture; against m31r  -18.40 ms (instr  -139981, I-miss -90203, D-miss  +2761)
+the same, against gl33 plain
+rain walk alone, ME turn 31,010-31,090
+   g33pr    46038528 instr  216984 I-miss (fully associative  199885)  302081 D-miss =  350.44 ms a picture; against g33pr   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33ir    45679718 instr  216653 I-miss (fully associative  199772)  295737 D-miss =  346.96 ms a picture; against g33pr   -3.48 ms (instr  -358810, I-miss   -331, D-miss  -6344)
+rain walk alone, main turn 31,110-31,190
+   g33pr    39483494 instr  190418 I-miss (fully associative  158120)  230058 D-miss =  293.94 ms a picture; against g33pr   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33ir    39477350 instr  190241 I-miss (fully associative  158000)  229883 D-miss =  293.83 ms a picture; against g33pr   -0.11 ms (instr    -6144, I-miss   -176, D-miss   -175)

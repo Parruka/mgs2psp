@@ -1,0 +1,149 @@
+census/c2: 11877 keys, 12453 pictures (vb 4260..37799), 7167004 groups drawn; DF0-entry draws 6512855 (90.87%), other entries 654149
+MSCAL entries of the keys (first draw): pc 0xf0 = P04+0x780: 717 keys, pc 0x14e = P04+0xa70: 97 keys, pc 0x1be = P04+0xdf0: 11024 keys, pc 0x211 = P04+0x1088: 39 keys
+vb 0-3555: no ship-mesh group drawn
+
+vb 3556-20136: 5584 pictures, 3081461 groups drawn (552 a picture), 110834602 vertices (19849 a picture, 36.0 a group); DF0 entry: 2885561 groups, 104658527 vertices
+  keys drawn 3133 (DF0 2863): 105943 vertices, 2025 KB at the GE format (2115 KB in 64-byte slots, 2229 KB in worst-strip slots); DF0 keys 1901 KB / 2000 KB
+  a stream differs from the same key's draw before: A (positions) 4425 draws of 50 keys, B (colours, flags) 4523 of 100, C (UVs) 0 of 0; any 4523 (0.147% of the draws); first draws of a key 3133
+  bytes a picture draws (each key once, 64-byte slots): mean 390 KB, most 1622 KB; a key drawn again in the same picture: 63024 draws (2.05%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 447425 (15.51%), misses 2438136, drops 7379, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 916580 (31.76%), misses 1968981, drops 4112, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 1389326 (48.15%), misses 1496235, drops 2412, most in use 512 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 1906345 (66.06%), misses 979216, drops 1031, most in use 768 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 2152515 (74.60%), misses 733046, drops 530, most in use 1024 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 2882600 (99.90%), misses 2961, drops 0, most in use 2000 KB
+
+vb 20143-23244: 1417 pictures, 1640718 groups drawn (1158 a picture), 34444002 vertices (24308 a picture, 21.0 a group); DF0 entry: 1510766 groups, 29283728 vertices
+  keys drawn 2054 (DF0 1930): 40321 vertices, 772 KB at the GE format (836 KB in 64-byte slots, 874 KB in worst-strip slots); DF0 keys 749 KB / 782 KB
+  a stream differs from the same key's draw before: A (positions) 5730 draws of 22 keys, B (colours, flags) 5730 of 22, C (UVs) 0 of 0; any 5730 (0.349% of the draws); first draws of a key 2054
+  bytes a picture draws (each key once, 64-byte slots): mean 464 KB, most 822 KB; a key drawn again in the same picture: 60968 draws (3.72%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 280448 (18.56%), misses 1230318, drops 1989, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 333569 (22.08%), misses 1177197, drops 1265, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 341681 (22.62%), misses 1169085, drops 941, most in use 512 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 611306 (40.46%), misses 899460, drops 476, most in use 768 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 1508836 (99.87%), misses 1930, drops 0, most in use 782 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 1508836 (99.87%), misses 1930, drops 0, most in use 782 KB
+
+vb 23261-23663: 106 pictures, 59766 groups drawn (564 a picture), 1143950 vertices (10792 a picture, 19.1 a group); DF0 entry: 56904 groups, 1098582 vertices
+  keys drawn 565 (DF0 538): 10799 vertices, 206 KB at the GE format (223 KB in 64-byte slots, 235 KB in worst-strip slots); DF0 keys 214 KB / 225 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 538
+  bytes a picture draws (each key once, 64-byte slots): mean 223 KB, most 223 KB; a key drawn again in the same picture: 0 draws (0.00%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 56366 (99.05%), misses 538, drops 0, most in use 225 KB
+
+vb 23670-29052: 1153 pictures, 527010 groups drawn (457 a picture), 11232225 vertices (9742 a picture, 21.3 a group); DF0 entry: 448291 groups, 8708642 vertices
+  keys drawn 4172 (DF0 3867): 83246 vertices, 1595 KB at the GE format (1722 KB in 64-byte slots, 1802 KB in worst-strip slots); DF0 keys 1525 KB / 1593 KB
+  a stream differs from the same key's draw before: A (positions) 1281 draws of 26 keys, B (colours, flags) 1281 of 26, C (UVs) 0 of 0; any 1281 (0.243% of the draws); first draws of a key 4050
+  bytes a picture draws (each key once, 64-byte slots): mean 186 KB, most 813 KB; a key drawn again in the same picture: 21213 draws (4.03%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 133703 (29.83%), misses 314588, drops 502, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 134195 (29.93%), misses 314096, drops 334, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 244851 (54.62%), misses 203440, drops 161, most in use 512 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 246835 (55.06%), misses 201456, drops 106, most in use 768 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 443838 (99.01%), misses 4453, drops 1, most in use 1024 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 444424 (99.14%), misses 3867, drops 0, most in use 1593 KB
+
+vb 29070-31559: 1124 pictures, 618356 groups drawn (550 a picture), 12215901 vertices (10868 a picture, 19.8 a group); DF0 entry: 562169 groups, 10793533 vertices
+  keys drawn 1082 (DF0 967): 22615 vertices, 433 KB at the GE format (465 KB in 64-byte slots, 488 KB in worst-strip slots); DF0 keys 400 KB / 419 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 1050
+  bytes a picture draws (each key once, 64-byte slots): mean 220 KB, most 348 KB; a key drawn again in the same picture: 6815 draws (1.10%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 528811 (94.07%), misses 33358, drops 58, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 560817 (99.76%), misses 1352, drops 1, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 561202 (99.83%), misses 967, drops 0, most in use 419 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 561202 (99.83%), misses 967, drops 0, most in use 419 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 561202 (99.83%), misses 967, drops 0, most in use 419 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 561202 (99.83%), misses 967, drops 0, most in use 419 KB
+
+vb 31661-37799: 3069 pictures, 1239693 groups drawn (404 a picture), 33222064 vertices (10825 a picture, 26.8 a group); DF0 entry: 1049164 groups, 28393119 vertices
+  keys drawn 1091 (DF0 859): 26687 vertices, 508 KB at the GE format (542 KB in 64-byte slots, 568 KB in worst-strip slots); DF0 keys 416 KB / 434 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 1052
+  bytes a picture draws (each key once, 64-byte slots): mean 213 KB, most 348 KB; a key drawn again in the same picture: 23705 draws (1.91%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 997039 (95.03%), misses 52125, drops 108, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 1045161 (99.62%), misses 4003, drops 5, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 1048305 (99.92%), misses 859, drops 0, most in use 434 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 1048305 (99.92%), misses 859, drops 0, most in use 434 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 1048305 (99.92%), misses 859, drops 0, most in use 434 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 1048305 (99.92%), misses 859, drops 0, most in use 434 KB
+
+vb 24001-31400: 2113 pictures, 990200 groups drawn (469 a picture), 20226182 vertices (9572 a picture, 20.4 a group); DF0 entry: 873469 groups, 16914364 vertices
+  keys drawn 4046 (DF0 3684): 83254 vertices, 1595 KB at the GE format (1717 KB in 64-byte slots, 1798 KB in worst-strip slots); DF0 keys 1482 KB / 1550 KB
+  a stream differs from the same key's draw before: A (positions) 1281 draws of 26 keys, B (colours, flags) 1281 of 26, C (UVs) 0 of 0; any 1281 (0.129% of the draws); first draws of a key 3465
+  bytes a picture draws (each key once, 64-byte slots): mean 189 KB, most 813 KB; a key drawn again in the same picture: 21716 draws (2.19%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 639460 (73.21%), misses 234009, drops 377, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 671194 (76.84%), misses 202275, drops 214, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 672341 (76.97%), misses 201128, drops 159, most in use 512 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 672310 (76.97%), misses 201159, drops 106, most in use 768 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 867532 (99.32%), misses 5937, drops 2, most in use 1024 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 869785 (99.58%), misses 3684, drops 0, most in use 1550 KB
+
+vb 29490-31400: 915 pictures, 487824 groups drawn (533 a picture), 9646453 vertices (10543 a picture, 19.8 a group); DF0 entry: 443246 groups, 8553311 vertices
+  keys drawn 1082 (DF0 967): 22615 vertices, 433 KB at the GE format (465 KB in 64-byte slots, 488 KB in worst-strip slots); DF0 keys 400 KB / 419 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 444
+  bytes a picture draws (each key once, 64-byte slots): mean 213 KB, most 348 KB; a key drawn again in the same picture: 5561 draws (1.14%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 409888 (92.47%), misses 33358, drops 58, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 441894 (99.69%), misses 1352, drops 1, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 442279 (99.78%), misses 967, drops 0, most in use 419 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 442279 (99.78%), misses 967, drops 0, most in use 419 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 442279 (99.78%), misses 967, drops 0, most in use 419 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 442279 (99.78%), misses 967, drops 0, most in use 419 KB
+
+vb 29600-30500: 451 pictures, 273140 groups drawn (606 a picture), 5206610 vertices (11545 a picture, 19.1 a group); DF0 entry: 255551 groups, 4820554 vertices
+  keys drawn 611 (DF0 578): 11474 vertices, 219 KB at the GE format (237 KB in 64-byte slots, 250 KB in worst-strip slots); DF0 keys 224 KB / 236 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 0
+  bytes a picture draws (each key once, 64-byte slots): mean 234 KB, most 237 KB; a key drawn again in the same picture: 2706 draws (0.99%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 254973 (99.77%), misses 578, drops 0, most in use 236 KB
+
+vb 30900-31300: 201 pictures, 58961 groups drawn (293 a picture), 1275895 vertices (6348 a picture, 21.6 a group); DF0 entry: 47927 groups, 999976 vertices
+  keys drawn 602 (DF0 497): 13293 vertices, 255 KB at the GE format (272 KB in 64-byte slots, 286 KB in worst-strip slots); DF0 keys 217 KB / 227 KB
+  a stream differs from the same key's draw before: A (positions) 0 draws of 0 keys, B (colours, flags) 0 of 0, C (UVs) 0 of 0; any 0 (0.000% of the draws); first draws of a key 89
+  bytes a picture draws (each key once, 64-byte slots): mean 126 KB, most 174 KB; a key drawn again in the same picture: 1110 draws (1.88%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 47430 (98.96%), misses 497, drops 0, most in use 227 KB
+
+vb 0-37800: 12453 pictures, 7167004 groups drawn (576 a picture), 203092744 vertices (16309 a picture, 28.3 a group); DF0 entry: 6512855 groups, 182936131 vertices
+  keys drawn 11877 (DF0 11024): 283993 vertices, 5433 KB at the GE format (5791 KB in 64-byte slots, 6075 KB in worst-strip slots); DF0 keys 5205 KB / 5453 KB
+  a stream differs from the same key's draw before: A (positions) 11436 draws of 98 keys, B (colours, flags) 11534 of 148, C (UVs) 0 of 0; any 11534 (0.161% of the draws); first draws of a key 11877
+  bytes a picture draws (each key once, 64-byte slots): mean 319 KB, most 1622 KB; a key drawn again in the same picture: 175725 draws (2.45%)
+  cache   256 KB (worst-strip slots, dropped whole when full): hits 2443185 (37.51%), misses 4069670, drops 10041, most in use 256 KB
+  cache   384 KB (worst-strip slots, dropped whole when full): hits 3046516 (46.78%), misses 3466339, drops 5720, most in use 384 KB
+  cache   512 KB (worst-strip slots, dropped whole when full): hits 3640227 (55.89%), misses 2872628, drops 3519, most in use 512 KB
+  cache   768 KB (worst-strip slots, dropped whole when full): hits 4428787 (68.00%), misses 2084068, drops 1617, most in use 768 KB
+  cache  1024 KB (worst-strip slots, dropped whole when full): hits 5769113 (88.58%), misses 743742, drops 534, most in use 1024 KB
+  cache  4096 KB (worst-strip slots, dropped whole when full): hits 6500958 (99.82%), misses 11897, drops 1, most in use 4096 KB
+
+keys by life (last - first vblank): one picture or less (<= 2) 262, <= 100 721, <= 1000 5052, longer 5842
+keys whose stream ever changed: A 98, B 148, C 0; material pointer 0, material bytes 0, descriptor words 3134, strips (count or indices) 0
+keys with most B changes (id s0 s1 s2 nv first last draws cA cB cC):
+     4625 01204e50 01204f50 01069660 nv  32 vb 20919-22978 draws    460 cA 459 cB 459 cC 0
+     4627 01204c40 01204d40 01069660 nv  32 vb 20921-22977 draws    460 cA 459 cB 459 cC 0
+     4653 012029c0 01202a80 0106b920 nv  24 vb 20929-22977 draws    279 cA 278 cB 278 cC 0
+     4655 01202b50 01202c10 0106b920 nv  24 vb 20931-22978 draws    279 cA 278 cB 278 cC 0
+     5032 012023b0 01202470 0106c050 nv  24 vb 20935-22978 draws    278 cA 277 cB 277 cC 0
+     5033 01202220 012022e0 0106c050 nv  24 vb 20937-22977 draws    277 cA 276 cB 276 cC 0
+     5035 01204570 01204670 01069f70 nv  32 vb 20947-22978 draws    275 cA 274 cB 274 cC 0
+     5034 01204360 01204460 01069f70 nv  32 vb 20945-22977 draws    275 cA 274 cB 274 cC 0
+     5036 01200d90 01201590 010717a0 nv  62 vb 20963-22978 draws    271 cA 270 cB 270 cC 0
+     5040 01201490 01201c90 01071b40 nv  32 vb 20963-22978 draws    271 cA 270 cB 270 cC 0
+     5039 01201300 01201b00 01071a70 nv  50 vb 20963-22978 draws    271 cA 270 cB 270 cC 0
+     5038 01201170 01201970 010719a0 nv  50 vb 20963-22978 draws    271 cA 270 cB 270 cC 0
+keys with most A changes:
+     4625 01204e50 01204f50 01069660 nv  32 vb 20919-22978 draws    460 cA 459 cB 459 cC 0
+     4627 01204c40 01204d40 01069660 nv  32 vb 20921-22977 draws    460 cA 459 cB 459 cC 0
+     4653 012029c0 01202a80 0106b920 nv  24 vb 20929-22977 draws    279 cA 278 cB 278 cC 0
+     4655 01202b50 01202c10 0106b920 nv  24 vb 20931-22978 draws    279 cA 278 cB 278 cC 0
+     5032 012023b0 01202470 0106c050 nv  24 vb 20935-22978 draws    278 cA 277 cB 277 cC 0
+     5033 01202220 012022e0 0106c050 nv  24 vb 20937-22977 draws    277 cA 276 cB 276 cC 0
+     5035 01204570 01204670 01069f70 nv  32 vb 20947-22978 draws    275 cA 274 cB 274 cC 0
+     5034 01204360 01204460 01069f70 nv  32 vb 20945-22977 draws    275 cA 274 cB 274 cC 0

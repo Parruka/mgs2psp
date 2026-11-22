@@ -1,0 +1,12 @@
+== base (rb) vs gl31's base (build_gl31/xt31/out_rb.log)
+../build_gl31/xt31/out_rb.log: 31399 vblanks (0..31398); xt32/out_rb.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== native every turn (rn) vs native + the vertex cache keys (rv: MGS2_NAT_VC_CYCLE=0,0,1,1,3,3 MGS2_NAT_VC_KB=256)
+xt32/out_rn.log: 31399 vblanks (0..31398); xt32/out_rv.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== base (rb) vs native every turn (rn)
+xt32/out_rb.log: 31399 vblanks (0..31398); xt32/out_rn.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+rc 1
+== gl31's 0,0,3,3 run (build_gl31/xt31/out_rc.log) vs native every turn (rn)
+../build_gl31/xt31/out_rc.log: 31399 vblanks (0..31398); xt32/out_rn.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0

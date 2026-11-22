@@ -1,0 +1,42 @@
+ge_xme <- /home/claude/t32/ge/xme.c
+ge_xme_me <- /home/claude/t32/psp/xme_me.c
+ge_xlme <- /home/claude/t32/ge/xlme.c
+ge_xlate <- /home/claude/t32/ge/xlate.c (relabelled, directives only)
+boot_rt <- /home/claude/t32/boot/boot.c (relabelled, directives only)
+ge_gelist <- /home/claude/t32/ge/gelist.c (relabelled, plain -E)
+ge_gelive <- /home/claude/t32/ge/gelive.c (relabelled, plain -E)
+ge_xconv <- /home/claude/t32/ge/xconv.c (relabelled, plain -E)
+ge_vu1conv <- /home/claude/t32/ge/vu1conv.c (relabelled, plain -E)
+xl_psp <- /home/claude/t32/psp/xl_psp.c
+xme_me undef: xme_rest xme_rest_halt xme_rest_init xme_run 
+xme_me_chk: PASS
+gen.o: P1214a0 in .text.hot.P1214a0 at 0x00000000
+gen.o: P129128 in .text.P129128 at 0x00000000
+gen.o: P12cf28 in .text.P12cf28 at 0x00000000
+gen.o: P12cd78 in .text.P12cd78 at 0x00000000
+gen.o: 00000000 W P1214a0;00000000 T P1214a0_orig;00000000 W P129128;00000000 T P129128_orig;00000000 W P12cd78;00000000 T P12cd78_orig;00000000 W P12cf28;00000000 T P12cf28_orig;
+ge_gelist.o equals gl30's stage object
+ge_gelive.o equals gl23's and gl30's stage object
+ge_xconv.o differs from gl30's stage object (gl32: the vertex cache)
+ge_vu1conv.o differs from gl30's stage object (gl32: the vertex cache)
+against the parents (cmp): ge_xme_me =gl30 ge_xme_me =gl30n ge_xlate differs-from-gl30n boot_rt differs-from-gl30n gen differs-from-gl30n 
+psp.sh rc 0
+61216 ovl_init.bin
+465008 ovl_n_title.bin
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+4401856 ovl_w00a.bin
+3497168 ovl_w01a.bin
+5646bcec3d8eb832c17910d21543dba8  EBOOT.PBP
+0ef55c2ffb30160b87b11938abc7664a  ovl_d00t.bin
+67fb5be5e7d9fb685c5246584733df16  ovl_d01t.bin
+920a1a7282503a4241c4c6c5ef4abbe0  ovl_init.bin
+326a23045fba66bf6363ff86e464230f  ovl_n_title.bin
+f49971f4737211f84e706cd43ed26b27  ovl_r_title.bin
+a4073237850e3e60ec908d591db22d43  ovl_r_tnk0.bin
+5d91fd39fe8f82397f126e545bfce1c9  ovl_w00a.bin
+471abd40d36a9e05b81c91b6380eeffc  ovl_w01a.bin
+psp.sh: done 4 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+rc 0

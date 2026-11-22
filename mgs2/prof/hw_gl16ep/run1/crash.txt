@@ -1,0 +1,3 @@
+crash catcher 3b: writer thread started (03d85427, priority 0x10, a look every 200 ms)
+crash catcher 3b: on (handler 08ba4c8c, the system's sleep 880315f0; a crash leaves its record on the screen, the thread sleeps inside the system and the writer thread puts the record in crash.txt)
+crash catcher: self-test skipped (no answer in 15 s); the run starts

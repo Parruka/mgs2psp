@@ -1,0 +1,63 @@
+5
+u rc 0 13:26:20
+traces and pgochk done 13:38:57
+==> /home/claude/main/build_gl34/trace_t0.out <==
+pgo.sh: t0 626 s
+-rw-r--r-- 1 root root 320890632 Nov 21 13:36 /home/claude/main/build_gl34/lay/t0.it
+/home/claude/main/build_gl34/lay/log_t0.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+
+==> /home/claude/main/build_gl34/trace_t1.out <==
+pgo.sh: t1 757 s
+-rw-r--r-- 1 root root 242475752 Nov 21 13:38 /home/claude/main/build_gl34/lay/t1.it
+/home/claude/main/build_gl34/lay/log_t1.txt: 117 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+gen_dispatch.o rc 0 0 s, 0 profile lines, object equal to the build's
+ge_xme.o rc 0 0 s, 0 profile lines, object (renamed after compile in the build: not compared)
+pgochk.sh: done
+order rc 0 14:00:49
+slice 0..1000: current order 6451429, first-fetch order 6075662
+slice: /home/claude/main/build_gl34/ord/seed.txt 5705758
+optimized order: slice 4624894
+optimized order, whole traces: trace 1 2097538 I-misses (weighted 2097538) test windows 691211 (weighted 691211) trace 2 2527356 I-misses (weighted 2527356) test windows 675132 (weighted 675132), weighted sum 4624894, test 1366343
+region 0: 1007 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 482 input sections listed, 0 functions in shared sections, 0 left to the linker
+region 0: 1007 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 457 input sections listed, 0 functions in shared sections, 0 left to the linker
+layout_elf.ld equal for both routes
+0d04b761e908626d540c5b7719f0630e  final/layout_elf.ld
+fa9dfc4d04cfe77841267b9af25be003  final/layout_w00a.ld
+94023269ee6303c0f1fd0e30cf78cea8  final/layout_w01a.ld
+relink rc 0 14:00:55
+5b5e43d59e7fa19e35cf741d89c9c21a  ovl_w00a.bin
+f3e46d80d724d1b20075da04ed63834c  ovl_w01a.bin
+psp.sh: done 6 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS
+==> new_f_0.log <==
+10451 functions, fetched: region 0 931 (2281672 bytes), 1 482 (1872772), 2 0 (0)
+current placement: trace 1 2940512 I-misses (weighted 2940512) test windows 946913 (weighted 946913), 2940512, test 946913
+current order, hot functions packed: trace 1 2778756 I-misses (weighted 2778756) test windows 913962 (weighted 913962), 2778756, test 913962
+funcs_deck_f.txt: 10451 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2097538 I-misses (weighted 2097538) test windows 691211 (weighted 691211), 2097538, test 691211
+
+==> new_f_1.log <==
+10258 functions, fetched: region 0 829 (2150736 bytes), 1 457 (1625804), 2 0 (0)
+current placement: trace 1 3667806 I-misses (weighted 3667806) test windows 970387 (weighted 970387), 3667806, test 970387
+current order, hot functions packed: trace 1 3384368 I-misses (weighted 3384368) test windows 891158 (weighted 891158), 3384368, test 891158
+funcs_w01a_f.txt: 10258 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2527356 I-misses (weighted 2527356) test windows 675132 (weighted 675132), 2527356, test 675132
+t0m window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 2.70 k, total 2.70 k 
+t0m window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.37 k, total 3.37 k 
+t0m window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.07 k, total 11.07 k 
+t0m window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.11 k, total 11.11 k 
+t0m window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 4.60 k, total 4.60 k 
+t0m window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.84 k, total 8.84 k 
+t0m window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.79 k, total 3.79 k 
+t0m window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.11 k, total 10.11 k 
+t1m window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.38 k, total 8.38 k 
+t1m window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.67 k, total 7.67 k 
+t1m window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 6.39 k, total 6.39 k 
+t1m window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.31 k, total 11.31 k 
+t1m window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.09 k, total 10.09 k 
+t1m window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 13.54 k, total 13.54 k 
+t1m window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.07 k, total 8.07 k 
+t1m window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 6.46 k, total 6.46 k 
+pgo_b34.sh: done 14:01:16

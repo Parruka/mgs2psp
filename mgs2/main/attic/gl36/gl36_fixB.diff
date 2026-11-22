@@ -1,0 +1,90 @@
+--- a/ge/xme.h
++++ b/ge/xme.h
+@@ -57,8 +57,9 @@
+        XME_AT_BEGIN = 0x312, XME_AT_TKFRAME = 0x313, XME_AT_IDLE = 0x500, XME_AT_HANG = 0x600 };
+ typedef struct { int ch, lanes, restart, x0, nx, t, now; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+                  int nb, ng0[2], ngn[2]; uint32_t noff;
+-                 int chi;                        /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none) */
+-                 int nru[2];                     /* gl36: each buffer's reuse switch (boot/nat_stub.h NatBuf.ru) as the record was made */
++                 int16_t chi;                    /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none; < NS_CH) */
++                 uint8_t nru[2];                 /* gl36: each buffer's reuse switch (boot/nat_stub.h NatBuf.ru, 0 or 1) as the record was made;
++                                                    fix B: with chi in the 4 bytes gl35's int chi took (the queue keeps gl35's size) */
+                } XmeRec;   /* native step 1 (xlme.h XmPic): the ship-mesh groups the record's walk
+                                                  draws.  A record with a copy (nx >= 0): nb the packet buffer its plan bound (-1: none),
+                                                  ngn[nb] groups from index ng0[nb] of that buffer's array, which the ME copies into the
+@@ -67,6 +68,7 @@
+                                                  CPU waits for it) and answers in XmeSh nat_b / nat_used */
+ typedef struct { int32_t vb; int end, d, dig, begin, stop; uint32_t opt, opt2; int dz, dzn; } XmeHook;   /* gl29: dz, dzn the ending frame's
+                                                  MGS2_GL_DZ arm and steps (gelist.h GxList.dz, dzn; 0, 0: none) */
++typedef char xme_rec_size_check[sizeof(XmeRec) == 80 ? 1 : -1];   /* gl36 fix B: gl35's 80 B */
+ typedef struct { int kind, why, nlog; XmeRec r; XmeHook h; } XmeE;
+ typedef struct { int32_t fvb; int d, r, nt, dig; uint32_t *list; uint64_t dig_list, dig_frame; GxCount c;
+                  int dz, dzn; GxDzCount dc; uint32_t t_list; int t_me, me_turn; int32_t a_nb, a_nv, a_nd; } XmeRes;   /* gl29: the list's arm, steps and counts; xm_list's
+--- a/ge/xlate.c
++++ b/ge/xlate.c
+@@ -706,12 +706,12 @@
+    VU quadword q last, for the quadwords a replay may skip (cleared at the run's end); nr_tv: the run's T values (its groups' VU buffers) */
+ static NrEnt *nr_t; int xl_nr_cap, xl_nr_ok = 1; static int nr_chk; long xl_nr_n[20];
+ static int nr_mode, nr_n, nr_i0, nr_j = -1, nr_bad; static long nr_nf0, nr_nfl; static const NatGrp *nr_g; static uint32_t nr_vbg, nr_tv[4]; static int nr_tn;
+-static uint16_t nr_lw[1024];
++static uint16_t *nr_lw;   /* gl36 fix B: XL_NR_LW_N entries after the table's cap entries, in the host's block (not this file's bss) */
+ #ifndef __psp__
+ long xl_nr_why[16];   /* x86: why a run was not replayed: 0 buffers out of range, 1 length, 2 buffers, 3 entry, 4 head or not fast, 5 + k word k */
+ #endif
+ typedef char nr_size_check[sizeof(NrEnt) == 64 ? 1 : -1];
+-void xl_nr_table(NrEnt *t, int cap, int chk) { nr_t = t; xl_nr_cap = t ? cap : 0; nr_chk = chk; }
++void xl_nr_table(NrEnt *t, int cap, int chk) { nr_t = t; xl_nr_cap = t ? cap : 0; nr_chk = chk; nr_lw = t ? (uint16_t *)(void *)(t + cap) : 0; }
+ static inline void nr_words(const NatGrp *g, uint32_t *w)
+ {
+   w[0] = g->mat; w[1] = g->s[0]; w[2] = g->s[1]; w[3] = g->s[2];
+--- a/ge/xlate.h
++++ b/ge/xlate.h
+@@ -181,6 +181,9 @@
+ typedef struct NrEnt { uint32_t w[10]; int16_t box[6]; uint16_t i1, hd; uint8_t bits, pad; uint16_t rn; uint32_t vbg; } NrEnt;   /* 64 B */
+ enum { NR_S = 1, NR_BOX = 2, NR_S2 = 4, NR_OS = 8, NR_OB = 16 };
+ enum { XR_SKIP = 1, XR_REC = 2, XR_BOX = 4, XR_CHK = 8 };
++#define XL_NR_LW_N 1024u   /* gl36 fix B: the table's block holds cap entries, then XL_NR_LW_N uint16_t (the run's last writers, ge/xlate.c
++                              nr_lw), all zero: XL_NR_BYTES(cap) bytes */
++#define XL_NR_BYTES(cap) ((size_t)(cap) * sizeof(NrEnt) + XL_NR_LW_N * sizeof(uint16_t))
+ void xl_nr_table(NrEnt *t, int cap, int chk);
+ int xl_nr_begin(const void *grp, int n, int i0);   /* grp: n NatGrp records.  Returns 1 replayed, 2 recorded, 3 checked, 0 neither */
+ void xl_nr_group(int j);
+--- a/psp/xl_psp.c
++++ b/psp/xl_psp.c
+@@ -637,7 +637,7 @@
+ #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
+ typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+                  int nb, ng0[2], ngn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec */
+-                 int nru[2];                              /* gl36: as ge/xme.h XmeRec */ } MpRec;   /* (4b-2: t, filled,
++                 uint8_t nru[2];                          /* gl36: as ge/xme.h XmeRec (0 or 1) */ } MpRec;   /* (4b-2: t, filled,
+                                             and the check's line hashes h0 .. h0 + nh - 1) */
+ /* ---- task #180 step 4b-2 (me_step4_notes.md): MGS2_ME_PIC=2, the copy at its deadline.  From the hook of vb MGS2_ME_PIC_DL on (default
+    60: the boot's writers are not guarded, me_handoff_design.md 4.10) a record's copy is planned as its transfer ends (ge/xlme.c xm_plan:
+@@ -2335,12 +2335,12 @@
+     static const int cap_try[4] = { NAT_MAXGRP, 1536, 1024, 512 }; uint8_t *bl = 0; int cap = 0;
+     uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
+     for (int k = 0; k < 4 && !bl; k++) {
+-      uint32_t nb = (uint32_t)cap_try[k] * (uint32_t)sizeof(NrEnt);
++      uint32_t nb = (uint32_t)XL_NR_BYTES(cap_try[k]);   /* gl36 fix B: + the last writers (ge/xlate.h XL_NR_LW_N) */
+       nat_rsys = sceKernelAllocPartitionMemory(2, "nat_reuse", PSP_SMEM_Low, nb, 0);
+       if (nat_rsys >= 0) { bl = (uint8_t *)sceKernelGetBlockHeadAddr(nat_rsys); cap = cap_try[k];
+         if (bl && ((uintptr_t)bl & 63)) { bl = 0; cap = 0; break; } } }   /* (not on a 64-byte line: not used; the system's blocks are) */
+-    if (bl) { memset(bl, 0, (size_t)cap * sizeof(NrEnt)); sceKernelDcacheWritebackAll(); xl_nr_table((NrEnt *)(void *)bl, cap, g_nat_rchk); }
+-    fprintf(stderr, "nat reuse (gl36): the table: %s, %d entries of %u B = %u KB (%08x); the system's memory before: largest block %u KB, total %u KB; "
++    if (bl) { memset(bl, 0, XL_NR_BYTES(cap)); sceKernelDcacheWritebackAll(); xl_nr_table((NrEnt *)(void *)bl, cap, g_nat_rchk); }
++    fprintf(stderr, "nat reuse (gl36): the table: %s, %d entries of %u B = %u KB and the last writers' 2 KB (%08x); the system's memory before: largest block %u KB, total %u KB; "
+             "after: %u KB, %u KB; check mode (MGS2_NAT_RCHK) %d\n", bl ? "made" : "NOT MADE: nothing is reused", cap, (unsigned)sizeof(NrEnt),
+             (unsigned)((uint32_t)cap * (uint32_t)sizeof(NrEnt) >> 10), (unsigned)(uintptr_t)bl, (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
+             (unsigned)((uint32_t)sceKernelMaxFreeMemSize() >> 10), (unsigned)((uint32_t)sceKernelTotalFreeMemSize() >> 10), g_nat_rchk);
+--- a/boot/nat_stub.h
++++ b/boot/nat_stub.h
+@@ -124,7 +124,8 @@
+   if ((e = getenv("MGS2_NAT_CAP"))) { nat_cap_dev = atoi(e); if (nat_cap_dev < 0 || nat_cap_dev > NAT_MAXGRP) nat_cap_dev = 0; }
+   if (g_nat_cfg && g_nat_rcfg) {   /* gl36: the reuse's table (the PSP's: psp/xl_psp.c nat_psp_setup) */
+     int cap = (e = getenv("MGS2_NAT_RCAP")) ? atoi(e) : NAT_MAXGRP; if (cap < 0 || cap > NAT_MAXGRP) cap = NAT_MAXGRP;
+-    struct NrEnt *t = cap ? calloc((size_t)cap, 64) : 0; xl_nr_table(t, t ? cap : 0, g_nat_rchk);   /* (ge/xlate.h NrEnt: 64 B) */
++    struct NrEnt *t = cap ? calloc((size_t)cap * 64u + 2048u, 1) : 0;   /* gl36 fix B: + ge/xlate.h XL_NR_LW_N uint16_t */
++    xl_nr_table(t, t ? cap : 0, g_nat_rchk);   /* (ge/xlate.h NrEnt: 64 B) */
+     fprintf(stderr, "nat: gl36 reuse table: %d entries of 64 B (%u KB)%s\n", t ? cap : 0, (unsigned)((size_t)(t ? cap : 0) * 64u >> 10),
+             g_nat_rchk ? ", check mode" : ""); }
+   if (g_nat_cfg && !((e = getenv("MGS2_NAT_NOMEM")) && atoi(e)))   /* (dev: MGS2_NAT_NOMEM=1: no arrays, the PSP's case when its block is refused) */

@@ -1,0 +1,16 @@
+--- runtime/host_time.h.nbs (NBS: md5 1b6fb0a9)
++++ runtime/host_time.h (G0C: md5 546b8eaf)
+@@ -144,7 +144,12 @@
+ #define OPT2_NBS 16384u                 /* sbg0, task #165 (rain_study.md section 8): body_sph's parts done natively (boot/native_w00a.c, the
+                                            private nat/ copy, nat_bs_part; the hook in the private wpl/gen_s_w00a.h): the same VU0 operations,
+                                            draws, memory, registers and time as the translation.  NOTE: gl16 / gl17 cycle words have this bit set */
+-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3 and NBS (sbg0: G0, H3 and NBS until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++#define OPT2_G0C 32768u                /* sbg0, task #165 (rain_study.md section 9): charaspread's particle sets skipped natively (boot/native_w00a.c,
++                                           the private nat/ copy, nat_cs_sets; the hook in the private wpl/gen_s_w00a.h), only with OPT2_H3 and both
++                                           prims hidden: the lives, births, draws, game random calls, registers, frames and time as the translation
++                                           leaves them; the positions, velocities and packets (which only the hidden prims' drawing reads) left as
++                                           they are.  Once on, keep H3 on for the rest of the run.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS and G0C (sbg0: G0, H3, NBS and G0C until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+ extern uint32_t g_opt2;

@@ -1,0 +1,838 @@
+--- me18b/ge/xlme.c
++++ me18c/ge/xlme.c
+@@ -148,7 +148,7 @@
+ }
+ static void xc_tag(XmCopy *c, uint32_t a)   /* a tag and the margin after it, to the end of RAM or the scratchpad (where the lanes stop) */
+ {
+-  uint32_t spr = a & 0x80000000u, o = spr ? (a & 0x3ff0) : (a & (c->mem_size - 1) & ~15u), e = spr ? 0x4000 : c->mem_size, k1 = o + 16 + XC_MARGIN;
++  uint32_t spr = a & 0x80000000u, o = spr ? (a & 0x3ff0) : (a & (c->mem_size - 1) & ~15u), e = spr ? 0x4000 : c->mem_size, k1 = o + 16 + (c->rd_only ? 0 : XC_MARGIN);
+   if (k1 > e) k1 = e;
+   xc_add(c, 0, (spr ? XV_SPR : 0) + o, (spr ? XV_SPR : 0) + k1);
+ }
+@@ -183,7 +183,7 @@
+   return 0;
+ }
+ static const uint32_t xc_keep[2][2] = { { 0x12c0000u, 0x1430000u }, { 0x1ed0000u, 0x1ee0000u } };   /* the texture sources the game rewrites */
+-int xm_copy(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx)
++int xm_plan(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx)   /* step 4b-2: xm_copy's first part */
+ {
+   int r, na, nb, nk = 0, i, j, m; uint32_t tot = 0;
+   c->na = c->nb = 0; c->over = 0;
+@@ -229,12 +229,32 @@
+   *x0 = c->next; *nx = m;
+   for (i = 0; i < m; i++) {
+     XvExt *x = &c->ext[c->next++]; uint32_t k0 = c->rb[i].k0, n = c->rb[i].k1 - k0;
+-    x->a0 = k0; x->a1 = c->rb[i].k1; x->off = c->used;
+-    memcpy(c->arena + c->used, k0 >= XV_SPR ? c->spr + (k0 - XV_SPR) : c->mem + k0, n); c->used += n;
++    x->a0 = k0; x->a1 = c->rb[i].k1; x->off = c->used; c->used += n;
+   }
+   c->copies++; c->exts += m; c->bytes += tot; if (m > c->nx_max) c->nx_max = m;
+   return 0;
+ }
++void xm_fill(XmCopy *c, int x0, int nx, int t, const XmLogE *log, int nlog)   /* step 4b-2: xm_copy's second part, at the deadline */
++{
++  const XvExt *x = c->ext + x0; int i;
++  for (i = 0; i < nx; i++)
++    memcpy(c->arena + x[i].off, x[i].a0 >= XV_SPR ? c->spr + (x[i].a0 - XV_SPR) : c->mem + x[i].a0, x[i].a1 - x[i].a0);
++  c->fills++;
++  for (i = nlog - 1; i >= 0 && log[i].t >= t; i--) {   /* the entries made since the transfer started, the newest first */
++    uint32_t a = log[i].l << 6, e = a + 64; int lo = 0, hi = nx, k, in = 0;
++    while (lo < hi) { int md = (lo + hi) >> 1; if (x[md].a1 <= a) lo = md + 1; else hi = md; }   /* the first extent that ends after a */
++    for (k = lo; k < nx && x[k].a0 < e; k++) {   /* (RAM keys: the scratchpad's extents, keyed from XV_SPR, are never met) */
++      uint32_t s = x[k].a0 > a ? x[k].a0 : a, f = x[k].a1 < e ? x[k].a1 : e;
++      memcpy(c->arena + x[k].off + (s - x[k].a0), log[i].old + (s - a), f - s); c->laid_b += f - s; in = 1; }
++    c->laid++; c->laid_lines += in;
++  }
++}
++int xm_copy(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx)
++{
++  int r = xm_plan(c, chcr, madr, qwc, tadr, x0, nx);
++  if (!r) xm_fill(c, *x0, *nx, 0, 0, 0);
++  return r;
++}
+ 
+ /* ---- the switches a record carries ---- */
+ void xm_init(XmPic *p)
+--- me18b/ge/xlme.h
++++ me18c/ge/xlme.h
+@@ -91,15 +91,29 @@
+   XcR *ra, *rb, *mk, *tmp; int cap;    /* cap entries each: tags and the data after them; the data the tags point to; the image marks
+                                           (the host fills mk and nmk as the runtime's walk goes, mk_full when they did not fit); a scratch */
+   int nmk, mk_full;
++  int rd_only;   /* step 4b-2's check (xl_psp.c): 1 = the tags without the margin after them, so the extents are the bytes the
++                    transfer itself reads (with nmk 0: its image data too) */
+   XvExt *ext; int ext_cap; uint8_t *arena; uint32_t arena_n;
+   /* the state: extents and arena bytes in use (the host empties them once the copies are walked) */
+   int next; uint32_t used;
+   /* counts */
+   long copies, fails[5], exts, rb_cut, mk_cut; int na_max, nb_max, nmk_max, nx_max; uint64_t bytes, marked;
++  long fills, laid, laid_lines; uint64_t laid_b;   /* task #180 step 4b-2: xm_fill's: fills, log entries laid, their lines in the
++                                                      extents, bytes */
+   /* the walk's */
+   int na, nb, over;
+ } XmCopy;
+ /* 0: the copy made, its extents ext[*x0 .. *x0 + *nx); else nothing kept: 1 the ranges did not fit, 2 the extents, 3 the arena, 4 the
+    chain did not end */
+ int xm_copy(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx);
++/* task #180 step 4b-2 (me_step4_notes.md 4b-2; me_handoff_design.md 4.2, 4.3): the copy in two parts.  xm_plan is xm_copy without the
++   bytes: the extents and their places in the arena, as the transfer ends.  xm_fill, at the copy's deadline, copies the extents' bytes
++   from RAM and the scratchpad as they are then and lays over them the guards' log entries made since the transfer started (their t, the
++   count of transfers started when the store came, is the transfer's own number t or more), the newest first, so that where a line was
++   logged twice its oldest bytes win: the bytes as they were when the transfer started.  The log is in the order the stores came (t never
++   goes down).  xm_copy = xm_plan + xm_fill with no log. */
++typedef struct { uint32_t l; int32_t t; uint8_t old[64]; } XmLogE;   /* a guarded store's entry: RAM line l (bytes 64 l ..), the count of
++                                                                         transfers started when it came, the line's 64 bytes before it */
++int xm_plan(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx);
++void xm_fill(XmCopy *c, int x0, int nx, int t, const XmLogE *log, int nlog);
+ #endif
+--- me18b/psp/xl_psp.c
++++ me18c/psp/xl_psp.c
+@@ -121,7 +121,7 @@
+   if ((e = mgs2_getenv("MGS2_XL_ONE"))) one_mode = atoi(e) != 0;     /* mgs2.cfg, through main_psp.c */
+   if ((e = mgs2_getenv("MGS2_XL_SKIP"))) skip_mode = atoi(e) != 0;
+ #ifdef MGS2_GL
+-  if ((e = mgs2_getenv("MGS2_ME_PIC"))) mp_want = atoi(e) != 0;
++  if ((e = mgs2_getenv("MGS2_ME_PIC"))) { mp_want = atoi(e); if (mp_want < 0 || mp_want > 2) mp_want = 1; }   /* task #180: 1 4b-1, 2 4b-2 */
+ #endif
+ }
+ #ifdef MGS2_GL
+@@ -413,7 +413,136 @@
+ static int mp_on;
+ static XmPic xmp; static XmCopy xmc; static XmView mp_view;
+ #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
+-typedef struct { int ch, lanes, restart, x0, nx; uint32_t chcr, madr, qwc, tadr, opt, opt2; } MpRec;
++typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2; } MpRec;   /* (4b-2: t, filled,
++                                            and the check's line hashes h0 .. h0 + nh - 1) */
++/* ---- task #180 step 4b-2 (me_step4_notes.md): MGS2_ME_PIC=2, the copy at its deadline.  From the hook of vb MGS2_ME_PIC_DL on (default
++   60: the boot's writers are not guarded, me_handoff_design.md 4.10) a record's copy is planned as its transfer ends (ge/xlme.c xm_plan:
++   the extents and their places in the arena) and its lines go into the filter (a bit per 64-byte line of RAM); its bytes are copied at
++   the deadline, the hook that ends the step, from RAM as it is then with the guards' log laid over them (xm_fill).  The guards (the 12
++   G0 functions' stores through boot/gen_pre.h, the runtime's writes into game RAM through runtime/ee_io.h ME_GUARD_RT: the scratchpad DMA
++   to RAM, the SIF's IOP-to-EE copies, the disc reads, three kernel calls) log, before they write, the 64 old bytes of each line in the
++   filter once per line and count of records started (t).  A record whose copy holds scratchpad bytes (unguarded: the game writes the
++   scratchpad from everywhere) is copied as its transfer ends, as in 4b-1.  The log full, the queue full or no room in the arena: every
++   waiting copy filled then (with the walks, for the last two).  MGS2_ME_PIC_LOG: the log's entries (default 1024, 72 bytes each);
++   MGS2_ME_PIC_CHK=1: the check, each deadline copy compared line by line with the bytes as its transfer ended (hashes, MGS2_ME_PIC_CHKN
++   of them at most a step, default 65536): a line that differs is a write no guard logged. */
++int g_g0_on;                             /* boot/gen_pre.h rt_g0_pre, runtime/ee_io.h DGT_PRE: a copy is due (or a record in its walk) */
++extern int g_xl_img, g_xl_end;           /* runtime/ee_io.h (boot.c): set from a queued record's start to its end */
++static int mp_mode;                      /* 1: the copy as the transfer ends (4b-1); 2: at its deadline (4b-2) */
++static long mp_dl = 60; static int mp_chk, mp_seg, mp_unfilled;   /* the hand-over vb; the check; records started (their t); waiting */
++static XmLogE *mp_log; static int mp_nlog, mp_logcap, mp_nlog_max;
++typedef struct { uint32_t l; int32_t t; uint32_t gen; } MpH;        /* the log's lines: line -> the t it was last logged with */
++static MpH *mp_h; static uint32_t mp_hn, mp_hgen = 1; static int mp_hbits;
++static uint8_t *mp_bm;                   /* the filter: the lines of the waiting copies' RAM extents */
++static uint32_t *mp_ch; static int mp_chn, mp_chcap;   /* the check's line hashes (as each transfer ended) */
++static long mg_st[13], mg_skip[13], mg_dup[13], mg_log[13], mg_walk[13]; static uint64_t mg_rtb;   /* guards: [0] the runtime, [1..12] G0 */
++static long mp_fill_dl, mp_fill_early[3], mp_fill_end[3], mp_full_log;   /* fills at the deadline, early (log, queue, room), at the end
++                                                                             (boot, scratchpad, 4b-1) */
++static long mp_chk_lines, mp_chk_diff, mp_chk_rec, mp_chk_skip, mp_chk_prn;
++static XmCopy xmr; static uint8_t *mp_chr;   /* the check's second walk (rd_only: the bytes the transfer itself reads) and its flag
++                                               per line piece (b4): bits 0-3 the piece's quadwords the transfer reads (by place in
++                                               their line), bits 4-7 a 4-bit hash of its other quadwords (the margin) when it has both */
++static long mp_chk_drd, mp_chk_dmg, mp_chk_prnm, mp_chk_rdfail, mp_chk_lrd, mp_chk_dboth;
++static int mp_nolay, mp_scr; static long mp_scr_q, mp_scr_rec;   /* me18c b5 (diagnostics, one a run): MGS2_ME_PIC_NOLAY=1 the guards' log
++                                                                  not laid over the copies (the check's control); MGS2_ME_PIC_SCRAMBLE=1
++                                                                  (with the check) each copy's margin quadwords turned over before its walk */
++static long mpc_w = -1, mpc_rd, mpc_mg, mpc_rec;   /* me18c b3: the check's differing lines by window of 100 vblanks (printed as each ends) */
++static void mpc_flush(void)
++{
++  if (mpc_w >= 0 && (mpc_rd | mpc_mg))
++    fprintf(stderr, "me picture check window: vb %ld-%ld: %ld lines differ (%ld in bytes the transfers read, %ld only in a margin) in %ld copies\n",
++            mpc_w * 100, mpc_w * 100 + 99, mpc_rd + mpc_mg, mpc_rd, mpc_mg, mpc_rec);
++  mpc_rd = mpc_mg = mpc_rec = 0;
++}
++#ifdef ME_WATCH
++/* ---- task #180 step 4b-2, diagnostic b3 (built with -DME_WATCH; MGS2_ME_PIC_WATCH=1 with MGS2_ME_PIC_CHK=1): the read lines the check
++   finds changed (the first MPW_N) are watched from then on.  When a later copy's plan holds one, its 64 bytes as the transfer ends are
++   kept, and every checkpoint (runtime/ee_io.h ME_WCK: a transfer's start and end, a guarded write's logged line, a kernel call, a thread
++   switch, an interrupt handler or alarm before and after, the vblank hook's parts, the native qword copy before and after, the deadline)
++   compares the line with them: a change is printed with the checkpoints around it and the words that changed.  A line a guard logs is
++   covered by the log from there on and is let go; at the deadline every line is let go.  A line the check finds changed although RAM
++   still holds its bytes as the transfer ended is printed with the log's entries for it. ---- */
++#define MPW_N 32
++typedef struct { uint32_t l; int armed, letgo, t, ch, seen, prn; unsigned rmask; uint32_t tadr; long vb; uint8_t b[64]; } MpW;   /* b4: prn, rmask */
++static MpW mpw[MPW_N]; static int mpw_n, mpw_on; static uint8_t *mpw_bm; int g_mpw_armed;
++static int mpw_lid; static uint32_t mpw_la, mpw_lb; static long mpw_lvb;
++static long mpw_prn, mpw_chg, mpw_logd, mpw_d_chg, mpw_d_same, mpw_d_ram, mpw_d_new, mpw_d_logd, mpw_d_other, mpw_iv[20][20], mpw_ivm[20][20], mpw_chg_rd;
++static const char *const mpw_name[20] = { "the plan", "a transfer's start (ch, madr)", "a transfer's end (ch, record)",
++  "a guarded write's logged line (who, line)", "a kernel call (number, pc)", "a thread switch (from, to)", "a handler's start (fn, cause)",
++  "a handler's end (fn, cause)", "an alarm's start (fn, alarm)", "an alarm's end (fn, alarm)", "the hook: before io_vblank (start, vb)",
++  "the hook: after io_vblank (start, vb)", "the hook: after opt_window (-, vb)", "the hook: after sif_vblank (-, vb)",
++  "the hook: before host_vb_end (-, vb)", "the deadline: before the fill (why, records)", "the native qword copy: before (dst, qwords)",
++  "the native qword copy: after (dst, qwords)", "?", "?" };
++static void mpw_change(MpW *w, const uint8_t *p, int id, uint32_t a, uint32_t b)
++{
++  const uint32_t *o = (const uint32_t *)w->b, *n = (const uint32_t *)p; int nd = 0, k0 = -1;
++  int inr = 0;
++  for (int k = 0; k < 16; k++) if (o[k] != n[k]) { if (k0 < 0) k0 = k; nd++; if ((w->rmask >> (k >> 2)) & 1) inr = 1; }
++  mpw_chg++; w->seen++; if (inr) { mpw_iv[mpw_lid][id]++; mpw_chg_rd++; } else mpw_ivm[mpw_lid][id]++;
++  if (w->prn < 8 && mpw_prn < 1000) {   /* b4: at most 8 a line */
++    mpw_prn++; w->prn++;
++    fprintf(stderr, "me picture watch: vb %ld: line %07x (record %d, ch %d, tadr %08x, planned at vb %ld) changed between %s %x %x (vb %ld) and %s "
++            "%x %x: %d words, from +%02x:", me_vb, (unsigned)(w->l << 6), w->t, w->ch, (unsigned)w->tadr, w->vb, mpw_name[mpw_lid], (unsigned)mpw_la,
++            (unsigned)mpw_lb, mpw_lvb, mpw_name[id], (unsigned)a, (unsigned)b, nd, 4 * k0);
++    for (int k = 0, m = 0; k < 16 && m < 6; k++) if (o[k] != n[k]) { fprintf(stderr, " +%02x%c %08x>%08x", 4 * k, (w->rmask >> (k >> 2)) & 1 ? 'r' : 'm',
++                                                                                    (unsigned)o[k], (unsigned)n[k]); m++; }
++    fprintf(stderr, "\n"); }
++  memcpy(w->b, p, 64);
++}
++void rt_me_watch(int id, uint32_t a, uint32_t b)   /* runtime/ee_io.h ME_WCK: a checkpoint (called only while a line is armed) */
++{
++  for (int i = 0; i < mpw_n; i++) {
++    MpW *w = &mpw[i]; const uint8_t *p;
++    if (!w->armed) continue;
++    p = M.mem + ((size_t)w->l << 6);
++    if (memcmp(p, w->b, 64)) mpw_change(w, p, id, a, b);
++  }
++  mpw_lid = id; mpw_la = a; mpw_lb = b; mpw_lvb = me_vb;
++}
++static MpW *mpw_find(uint32_t l) { for (int i = 0; i < mpw_n; i++) if (mpw[i].l == l) return &mpw[i]; return 0; }
++static int mpw_bit(uint32_t l) { return (mpw_bm[l >> 3] >> (l & 7)) & 1; }
++static void mpw_arm(const MpRec *e, uint32_t l, unsigned qm)   /* mp_chk_plan: a watched line in a copy planned now (as its transfer ends);
++                                                                 qm: the piece's quadwords the transfer reads */
++{
++  MpW *w = mpw_find(l);
++  if (!w) return;
++  if (w->armed) { if (w->t == e->t) w->rmask |= qm; return; }
++  w->armed = 1; w->letgo = 0; g_mpw_armed++; w->t = e->t; w->ch = e->ch; w->tadr = e->tadr; w->vb = me_vb; w->seen = 0; w->rmask = qm;
++  memcpy(w->b, M.mem + ((size_t)l << 6), 64);
++  mpw_lid = 2; mpw_la = (uint32_t)e->ch; mpw_lb = (uint32_t)e->t; mpw_lvb = me_vb;   /* (xlive_chk_end checked the lines armed before) */
++}
++static void mpw_letgo(void) { for (int i = 0; i < mpw_n; i++) mpw[i].armed = 0; g_mpw_armed = 0; }
++static void mpw_logged(uint32_t l, int who)   /* mg_lines: a guard logs line l (in the filter) before it writes */
++{
++  MpW *w;
++  if (!mpw_bit(l) || !(w = mpw_find(l)) || !w->armed) return;
++  rt_me_watch(3, (uint32_t)who, l << 6);
++  w->armed = 0; w->letgo = 1; g_mpw_armed--; mpw_logd++;
++}
++static void mpw_diff(const MpRec *e, uint32_t a, uint32_t f, const uint8_t *cp)   /* mp_chk_fill: a read line of e's copy differs */
++{
++  uint32_t l = a >> 6; MpW *w = mpw_bit(l) ? mpw_find(l) : 0;
++  if (!w) {
++    if (mpw_n < MPW_N) { w = &mpw[mpw_n++]; memset(w, 0, sizeof *w); w->l = l; mpw_bm[l >> 3] |= (uint8_t)(1u << (l & 7)); }
++    mpw_d_new++; return; }
++  if (w->t != e->t || (!w->armed && !w->letgo)) { mpw_d_other++; return; }
++  if (w->letgo) { mpw_d_logd++; return; }
++  if (w->seen) { mpw_d_chg++; return; }
++  { const uint8_t *r = M.mem + a; const uint32_t *cw = (const uint32_t *)cp, *rw = (const uint32_t *)r; int same = !memcmp(M.mem + ((size_t)l << 6), w->b, 64), k0 = -1;
++    if (same) mpw_d_same++; else mpw_d_ram++;
++    for (uint32_t k = 0; k < (f - a) / 4; k++) if (cw[k] != rw[k]) { k0 = (int)k; break; }
++    if (mpw_prn < 400) {
++      mpw_prn++;
++      fprintf(stderr, "me picture watch: vb %ld: line %07x+%u (record %d, ch %d, tadr %08x) differs in the deadline copy with no change seen at a "
++              "checkpoint; RAM now %s the bytes as the transfer ended; the copy against RAM: %s", me_vb, (unsigned)a, (unsigned)(f - a), e->t, e->ch,
++              (unsigned)e->tadr, same ? "holds" : "differs from", k0 < 0 ? "equal" : "differs");
++      if (k0 >= 0) fprintf(stderr, " from +%02x (%08x, RAM %08x)", (unsigned)(4 * k0 + (a & 63)), (unsigned)cw[k0], (unsigned)rw[k0]);
++      fprintf(stderr, "; the log's entries for the line:");
++      for (int i = mp_nlog - 1, m = 0; i >= 0 && m < 6; i--) if (mp_log[i].l == l) {
++        m++; fprintf(stderr, " %d (t %d, its bytes %s)", i, (int)mp_log[i].t, memcmp(mp_log[i].old, w->b, 64) ? "differ from the plan's" : "= the plan's"); }
++      fprintf(stderr, "\n"); } }
++}
++#endif
+ static MpRec mp_rec[MP_NREC]; static int mp_nrec, mp_restart_due;
+ static long mp_queued, mp_late_runs, mp_drain_full, mp_drain_room, mp_direct, mp_hooks, mp_hist[9]; static uint32_t mp_step_max; static long mp_step_max_vb;
+ static long mp_img_runs, mp_img_spr, mp_img_small, mp_img_full;
+@@ -435,14 +564,204 @@
+   xmp.m = &M; xmp.map = map; xmp.tk = tk; xmp.glf = &glf; xmp.gxl = &gxl; xmp.gxh = &gxh; xmp.follow = XM_F_ALL; xmp.lanes = 15; xmp.lw_on = 1;
+   xm_init(&xmp);
+   memset(&mp_view, 0, sizeof mp_view); mp_view.arena = xmc.arena; mp_view.mem = M.mem; mp_view.spr = M.spr; mp_view.mem_size = XL_GSZ;
+-  mp_on = 1;
++  mp_on = 1; mp_mode = 1;
++  if (mp_want == 2) {   /* step 4b-2 */
++    if ((e = mgs2_getenv("MGS2_ME_PIC_DL"))) mp_dl = atol(e);
++    mp_chk = (e = mgs2_getenv("MGS2_ME_PIC_CHK")) && atoi(e);
++    mp_nolay = (e = mgs2_getenv("MGS2_ME_PIC_NOLAY")) && atoi(e);   /* b5 */
++    mp_scr = mp_chk && (e = mgs2_getenv("MGS2_ME_PIC_SCRAMBLE")) && atoi(e);
++    if (mp_nolay || mp_scr) fprintf(stderr, "me picture diagnostic b5: %s\n", mp_nolay ? "the guards log as before, but their log is not "
++                                    "laid over the copies (MGS2_ME_PIC_NOLAY=1): the check must find the read bytes they keep" : "after the "
++                                    "check, each copy's quadwords the transfer does not read (the margins after tags) turned over (xor "
++                                    "5a5a5a5a) before its walk (MGS2_ME_PIC_SCRAMBLE=1)");
++    mp_logcap = (e = mgs2_getenv("MGS2_ME_PIC_LOG")) && atoi(e) >= 64 ? atoi(e) : 1024;
++    for (mp_hbits = 6; (1u << mp_hbits) < 2u * (uint32_t)mp_logcap; mp_hbits++) ;
++    mp_hn = 1u << mp_hbits;
++    mp_chcap = mp_chk ? ((e = mgs2_getenv("MGS2_ME_PIC_CHKN")) && atoi(e) >= 1024 ? atoi(e) : 65536) : 0;
++    mp_log = malloc((size_t)mp_logcap * sizeof *mp_log); mp_h = calloc(mp_hn, sizeof *mp_h); mp_bm = calloc(XL_GSZ / 64 / 8, 1);
++    mp_ch = mp_chcap ? malloc((size_t)mp_chcap * sizeof *mp_ch) : 0;
++    if (mp_chcap) {   /* the check's second walk: its own arrays, no arena */
++      memset(&xmr, 0, sizeof xmr); xmr.mem = M.mem; xmr.spr = M.spr; xmr.mem_size = XL_GSZ; xmr.cap = cap; xmr.ext_cap = cap;
++      xmr.arena_n = 0xffffffffu; xmr.rd_only = 1;
++      xmr.ra = xmc.ra; xmr.rb = xmc.rb; xmr.mk = xmc.mk; xmr.tmp = xmc.tmp;   /* b3: xmc's work arrays, free once its own plan is made (nmk
++                                                                                  0 here: mk is not read), 512 KB less than b2 */
++      xmr.ext = malloc((size_t)cap * sizeof(XvExt)); mp_chr = malloc((size_t)mp_chcap);
++      if (!xmr.ext || !mp_chr) {
++        fprintf(stderr, "me picture check: no memory for its second walk: every line counted as read\n");
++        free(xmr.ext); free(mp_chr); mp_chr = 0; } }
++#ifdef ME_WATCH
++    mpw_on = mp_chk && (e = mgs2_getenv("MGS2_ME_PIC_WATCH")) && atoi(e) && (mpw_bm = calloc(XL_GSZ / 64 / 8, 1));
++    if (mpw_on) fprintf(stderr, "me picture watch (diagnostic b3): on: the first %d read lines the check finds changed are watched at the "
++                        "checkpoints from then on (MGS2_ME_PIC_WATCH)\n", MPW_N);
++#endif
++    if (!mp_log || !mp_h || !mp_bm || (mp_chcap && !mp_ch)) {
++      fprintf(stderr, "me picture deadline (step 4b-2): no memory for the log (%d entries), its table or the filter: the copy as each "
++              "transfer ends (4b-1)\n", mp_logcap);
++      free(mp_log); free(mp_h); free(mp_bm); free(mp_ch); mp_log = 0; mp_h = 0; mp_bm = 0; mp_ch = 0; mp_chcap = 0; }
++    else {
++      mp_mode = 2;
++      fprintf(stderr, "me picture deadline (task #180, step 4b-2): on from vb %ld: each copy planned as its transfer ends and filled at "
++              "the hook that ends its step, from RAM with the guards' log laid over it (log %d entries at %08x, filter %u KB); records with "
++              "scratchpad bytes copied as they end; check %s (MGS2_ME_PIC=2, MGS2_ME_PIC_DL, MGS2_ME_PIC_LOG, MGS2_ME_PIC_CHK)\n", mp_dl,
++              mp_logcap, (unsigned)(uintptr_t)mp_log, (unsigned)(XL_GSZ / 64 / 8 / 1024), mp_chk ? "on: each deadline copy compared with "
++              "the bytes as its transfer ended, line by line" : "off"); } }
+   fprintf(stderr, "me picture split (task #180, step 4b-1): on: each transfer queued with its copy (arena %u KB at %08x, %d entries a work "
+           "array), walked at the next vblank hook through its view, the lanes in that walk (MGS2_ME_PIC, MGS2_ME_PIC_KB, MGS2_ME_PIC_RNG)\n",
+           (unsigned)kb, (unsigned)(uintptr_t)xmc.arena, cap);
+ }
+-/* the queued records walked in order, each through its copy (or from RAM, a record with none), and the arena emptied */
+-static void mp_late(void)
++/* step 4b-2: the filter's bits of lines l0 .. l1 set (v) or cleared */
++static void mp_bm_range(uint32_t l0, uint32_t l1, int v)
++{
++  if (l1 >= XL_GSZ / 64) l1 = XL_GSZ / 64 - 1;
++  for (; l0 <= l1 && (l0 & 7); l0++) { if (v) mp_bm[l0 >> 3] |= (uint8_t)(1u << (l0 & 7)); else mp_bm[l0 >> 3] &= (uint8_t)~(1u << (l0 & 7)); }
++  if (l0 <= l1 && l1 - l0 + 1 >= 8) { uint32_t nb = (l1 - l0 + 1) >> 3; memset(mp_bm + (l0 >> 3), v ? 0xff : 0, nb); l0 += nb << 3; }
++  for (; l0 <= l1; l0++) { if (v) mp_bm[l0 >> 3] |= (uint8_t)(1u << (l0 & 7)); else mp_bm[l0 >> 3] &= (uint8_t)~(1u << (l0 & 7)); }
++}
++static void mp_mark(const MpRec *e, int v)   /* a record's RAM extents into the filter or out of it */
++{
++  const XvExt *x = xmc.ext + e->x0;
++  for (int i = 0; i < e->nx; i++) if (x[i].a0 < XV_SPR) mp_bm_range(x[i].a0 >> 6, (x[i].a1 - 1) >> 6, v);
++}
++static int mp_spr(const MpRec *e)   /* its copy holds scratchpad bytes (keyed from XV_SPR), or bytes of the RAM the scratchpad is (GUEST_SPR0) */
++{
++  const XvExt *x = xmc.ext + e->x0;
++  for (int i = 0; i < e->nx; i++) if (x[i].a0 >= XV_SPR || x[i].a0 < 0x4000u) return 1;
++  return 0;
++}
++static uint32_t mp_hash(const uint8_t *p, uint32_t n)   /* the check's: FNV-1a over the words of n bytes (16-byte aligned pieces) */
++{
++  const uint32_t *w = (const uint32_t *)p; uint32_t h = 2166136261u;
++  for (uint32_t i = 0; i < n / 4; i++) h = (h ^ w[i]) * 16777619u;
++  return h ^ n;
++}
++static uint32_t mp_hashq(const uint8_t *p, uint32_t a, uint32_t f, unsigned qm, int rd)   /* b4: FNV-1a over the quadwords of [a, f) (p its
++                                                                                           bytes) whose bit in qm is rd */
++{
++  uint32_t h = 2166136261u, n = 0;
++  for (uint32_t q = a; q < f; q += 16) if ((int)((qm >> ((q >> 4) & 3)) & 1) == rd) {
++    const uint32_t *w = (const uint32_t *)(p + (q - a));
++    h = (h ^ w[0]) * 16777619u; h = (h ^ w[1]) * 16777619u; h = (h ^ w[2]) * 16777619u; h = (h ^ w[3]) * 16777619u; n++; }
++  return h ^ n;
++}
++static void mp_chk_plan(MpRec *e)   /* the check: the record's lines (64-byte lines cut at its extents' ends) hashed from RAM as it ends,
++                                        each flagged by whether it holds bytes the transfer itself reads (the second walk, no margins) */
++{
++  const XvExt *x = xmc.ext + e->x0, *r = 0; int n = 0, rx0 = 0, rnx = -1, j = 0;
++  if (mp_chr) {
++    xmr.next = 0; xmr.used = 0; xmr.nmk = 0; xmr.mk_full = 0;
++    if (xm_plan(&xmr, e->chcr, e->madr, e->qwc, e->tadr, &rx0, &rnx)) { rnx = -1; mp_chk_rdfail++; } else r = xmr.ext + rx0; }
++  e->h0 = mp_chn; e->nh = -1;
++  for (int i = 0; i < e->nx; i++)
++    for (uint32_t a = x[i].a0; a < x[i].a1; ) {
++      uint32_t f = ((a >> 6) + 1) << 6; if (f > x[i].a1) f = x[i].a1;
++      if (mp_chn + n == mp_chcap) { mp_chk_skip++; return; }
++      unsigned qm = 15;   /* b4: the piece's quadwords the transfer reads (all of them without the second walk) */
++      if (mp_chr) {   /* (both lists sorted by address) */
++        if (r) { qm = 0; while (j < rnx && r[j].a1 <= a) j++;
++          for (int jj = j; jj < rnx && r[jj].a0 < f; jj++) { uint32_t s = r[jj].a0 > a ? r[jj].a0 : a, u = r[jj].a1 < f ? r[jj].a1 : f;
++            for (uint32_t q = s & ~15u; q < u; q += 16) qm |= 1u << ((q >> 4) & 3); } }
++        mp_chr[mp_chn + n] = (uint8_t)(qm | (qm ? (mp_hashq(M.mem + a, a, f, qm, 0) & 15) << 4 : 0)); }
++#ifdef ME_WATCH
++      if (mpw_on && mpw_bit(a >> 6)) mpw_arm(e, a >> 6, qm);
++#endif
++      mp_ch[mp_chn + n++] = qm ? mp_hashq(M.mem + a, a, f, qm, 1) : mp_hash(M.mem + a, f - a); a = f; }
++  e->nh = n; mp_chn += n;
++}
++static void mp_chk_fill(const MpRec *e)   /* the check: the deadline copy's lines against those hashes */
++{
++  const XvExt *x = xmc.ext + e->x0; int n = 0, bad = 0, sc = 0;
++  if (e->nh < 0) return;
++  for (int i = 0; i < e->nx; i++)
++    for (uint32_t a = x[i].a0; a < x[i].a1; ) {
++      uint32_t f = ((a >> 6) + 1) << 6; if (f > x[i].a1) f = x[i].a1;
++      unsigned c = mp_chr ? mp_chr[e->h0 + n] : 15u, qm = c & 15u; const uint8_t *cp = xmc.arena + x[i].off + (a - x[i].a0);
++      int rd = 0, dm = 0;   /* b4: rd the read quadwords differ, dm the margin's (in a piece with both: by its 4-bit hash) */
++      if (qm) { rd = mp_hashq(cp, a, f, qm, 1) != mp_ch[e->h0 + n]; dm = mp_chr && (mp_hashq(cp, a, f, qm, 0) & 15) != (c >> 4); }
++      else dm = mp_hash(cp, f - a) != mp_ch[e->h0 + n];
++      mp_chk_lrd += qm != 0;
++      if (rd && dm) mp_chk_dboth++;
++      if (rd || dm) {
++        mp_chk_diff++; bad = 1; if (rd) mp_chk_drd++; else mp_chk_dmg++;
++        { long w = me_vb / 100; if (w != mpc_w) { mpc_flush(); mpc_w = w; } if (rd) mpc_rd++; else mpc_mg++; }   /* b3 */
++#ifdef ME_WATCH
++        if (mpw_on && rd) mpw_diff(e, a, f, xmc.arena + x[i].off + (a - x[i].a0));
++#endif
++        if (rd ? mp_chk_prn < 60 : mp_chk_prnm < 12) { if (rd) mp_chk_prn++; else mp_chk_prnm++;
++          fprintf(stderr, "me picture check: vb %ld: record %d (ch %d, chcr %08x, tadr %08x): line %07x+%u of extent %07x..%07x (read quadwords "
++                  "%u%u%u%u: %s) differs from the bytes as its transfer ended\n", me_vb, e->t, e->ch, (unsigned)e->chcr, (unsigned)e->tadr,
++                  (unsigned)a, (unsigned)(f - a), (unsigned)x[i].a0, (unsigned)x[i].a1, qm & 1, (qm >> 1) & 1, (qm >> 2) & 1, (qm >> 3) & 1,
++                  rd ? (dm ? "in bytes the transfer reads and in the margin" : "in bytes the transfer reads") : "only in the margin"); } }
++      if (mp_scr && mp_chr && qm != 15u) {   /* b5: the piece's margin quadwords turned over (the walk reads the copy after this) */
++        uint8_t *wp = xmc.arena + x[i].off + (a - x[i].a0); int k0 = 0;
++        for (uint32_t q = a; q + 16 <= f; q += 16) if (!((qm >> ((q >> 4) & 3)) & 1)) {
++          uint32_t *w = (uint32_t *)(wp + (q - a)); w[0] ^= 0x5a5a5a5au; w[1] ^= 0x5a5a5a5au; w[2] ^= 0x5a5a5a5au; w[3] ^= 0x5a5a5a5au;
++          mp_scr_q++; k0 = 1; }
++        if (k0 && !sc) { sc = 1; mp_scr_rec++; } }
++      n++; mp_chk_lines++; a = f; }
++  mp_chk_rec += bad; mpc_rec += bad;
++}
++/* every waiting copy filled now, from RAM as it is with the log laid over it (why: 0 the deadline, 1 the log full, 2 the queue full,
++   3 no room); the log, its table and the filter emptied */
++static void mp_fill_all(int why)
++{
++  int n = 0;
++#ifdef ME_WATCH
++  if (g_mpw_armed) rt_me_watch(15, (uint32_t)why, (uint32_t)mp_nrec);
++#endif
++  for (int i = 0; i < mp_nrec && mp_unfilled; i++) {
++    MpRec *e = &mp_rec[i];
++    if (e->nx < 0 || e->filled) continue;
++    xm_fill(&xmc, e->x0, e->nx, e->t, mp_nolay ? 0 : mp_log, mp_nolay ? 0 : mp_nlog); e->filled = 1; n++;   /* (b5: NOLAY) */
++    if (mp_chk) mp_chk_fill(e);
++    mp_mark(e, 0); }
++  if (why) mp_fill_early[why - 1] += n; else mp_fill_dl += n;
++#ifdef ME_WATCH
++  if (mpw_on) mpw_letgo();
++#endif
++  if (mp_nlog > mp_nlog_max) mp_nlog_max = mp_nlog;
++  mp_nlog = 0; mp_unfilled = 0;
++  if (!++mp_hgen) { memset(mp_h, 0, (size_t)mp_hn * sizeof *mp_h); mp_hgen = 1; }
++  g_g0_on = mp_mode == 2 && g_xl_end;   /* (a record in its walk: a write there is counted) */
++}
++/* a guarded write of n bytes at RAM offset o, before it writes (who: 0 the runtime, 1..12 the G0 functions): each line in the filter that
++   is not in the log since the last record started goes in with its 64 bytes */
++static void mg_lines(uint32_t o, uint32_t n, int who)
++{
++  uint32_t l = o >> 6, l1 = (o + (n ? n : 1) - 1) >> 6;
++  if (g_xl_end) mg_walk[who]++;
++  if (l1 >= XL_GSZ / 64) l1 = XL_GSZ / 64 - 1;
++  for (; l <= l1; l++) {
++    uint32_t h;
++    if (!((mp_bm[l >> 3] >> (l & 7)) & 1)) { mg_skip[who]++; continue; }
++    h = (l * 0x9e3779b1u) >> (32 - mp_hbits);
++    while (mp_h[h].gen == mp_hgen && mp_h[h].l != l) h = (h + 1) & (mp_hn - 1);
++    if (mp_h[h].gen == mp_hgen && mp_h[h].t == mp_seg) { mg_dup[who]++; continue; }
++    if (mp_nlog == mp_logcap) { mp_full_log++; mp_fill_all(1); return; }   /* (nothing of this write is written yet) */
++#ifdef ME_WATCH
++    if (mpw_on && g_mpw_armed) mpw_logged(l, who);
++#endif
++    { XmLogE *e = &mp_log[mp_nlog++]; e->l = l; e->t = mp_seg; memcpy(e->old, M.mem + ((size_t)l << 6), 64); }
++    mp_h[h].gen = mp_hgen; mp_h[h].l = l; mp_h[h].t = mp_seg; mg_log[who]++;
++  }
++}
++void rt_g0_pre(uint32_t a, uint32_t n, int fn)   /* boot/gen_pre.h: G0 function fn's store of n bytes at guest address a, before it writes */
++{
++  if (!g_g0_on) return;
++  if (fn < 1 || fn > 12) fn = 0;
++  mg_st[fn]++;
++  if ((a >> 28) == 1) return;   /* the register space (gen_pre.h GEN_FAST): no RAM */
++  mg_lines(a & (XL_GSZ - 1), n, fn);
++}
++void rt_me_guard(uint32_t a, uint32_t n)   /* runtime/ee_io.h DGT_PRE (only while g_g0_on): the runtime writes n bytes of game RAM at a */
+ {
++  mg_st[0]++; mg_rtb += n;
++  mg_lines(a & (XL_GSZ - 1), n, 0);
++}
++/* the queued records walked in order, each through its copy (or from RAM, a record with none), and the arena emptied (4b-2: the
++   waiting copies filled first; why as mp_fill_all's) */
++static void mp_late(int why)
++{
++  if (mp_unfilled) mp_fill_all(why);
+   for (int i = 0; i < mp_nrec; i++) {
+     MpRec *e = &mp_rec[i];
+     if (e->restart) { sum(); gu_zero_empty(map, 0); xl_reset(); l_words = l_calls = l_ad = 0; }   /* a start again (xlive_chk_dma) */
+@@ -451,7 +770,7 @@
+     HOST_ENTER(HOST_XL); xm_walk(&xmp, e->ch, e->chcr, e->madr, e->qwc, e->tadr, e->lanes, e->opt); HOST_LEAVE(HOST_XL);
+     M.view = 0; sum();
+   }
+-  mp_nrec = 0; xmc.next = 0; xmc.used = 0; mp_late_runs++;
++  mp_nrec = 0; xmc.next = 0; xmc.used = 0; mp_late_runs++; mp_chn = 0;
+ }
+ /* runtime/ee_io.h XL_IMG, while g_xl_img: nb bytes of image data at host address p, the queued record's (whole 16-byte pieces kept) */
+ extern int g_xl_img, g_xl_end;   /* defined there (boot.c) */
+@@ -472,13 +791,20 @@
+ {
+   MpRec *e = &mp_rec[mp_nrec - 1]; int r, x0 = 0, nx = 0;
+   (void)ch; g_xl_img = g_xl_end = 0;
+-  r = xm_copy(&xmc, e->chcr, e->madr, e->qwc, e->tadr, &x0, &nx);
+-  if ((r == 2 || r == 3) && mp_nrec > 1) {   /* no room: the records before walked now, the copy made again */
+-    MpRec keep = *e; mp_drain_room++; mp_nrec--; mp_late(); mp_rec[0] = keep; mp_nrec = 1; e = &mp_rec[0];
+-    r = xm_copy(&xmc, e->chcr, e->madr, e->qwc, e->tadr, &x0, &nx);
++#ifdef ME_WATCH
++  if (g_mpw_armed) rt_me_watch(2, (uint32_t)ch, (uint32_t)e->t);
++#endif
++  r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, &x0, &nx);
++  if ((r == 2 || r == 3) && mp_nrec > 1) {   /* no room: the records before (filled and) walked now, the copy planned again */
++    MpRec keep = *e; mp_drain_room++; mp_nrec--; mp_late(3); mp_rec[0] = keep; mp_nrec = 1; e = &mp_rec[0];
++    r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, &x0, &nx);
+   }
+-  if (r) { mp_direct++; mp_late(); return; }   /* none: walked at once (its nx -1: from RAM) */
++  if (r) { mp_direct++; mp_late(3); return; }   /* none: walked at once (its nx -1: from RAM) */
+   e->x0 = x0; e->nx = nx;
++  if (mp_mode == 2 && me_vb >= mp_dl && !mp_spr(e)) {   /* 4b-2: its bytes at the deadline */
++    e->filled = 0; mp_mark(e, 1); if (mp_chk) mp_chk_plan(e); mp_unfilled++; }
++  else { xm_fill(&xmc, x0, nx, 0, 0, 0); e->filled = 1; mp_fill_end[mp_mode < 2 ? 2 : me_vb < mp_dl ? 0 : 1]++; }
++  g_g0_on = mp_mode == 2 && mp_unfilled > 0;
+ }
+ static uint64_t mp_bytes_hook;
+ static void mp_hook(long vb)   /* xl_psp_frame, first: the step's records */
+@@ -488,12 +814,20 @@
+   mp_hooks++; kb = (uint32_t)((xmc.bytes - mp_bytes_hook) >> 10); mp_bytes_hook = xmc.bytes;
+   if (kb > mp_step_max) { mp_step_max = kb; mp_step_max_vb = vb; }
+   if (kb) mp_hist[kb < 512 ? 0 : kb < 1024 ? 1 : kb < 1536 ? 2 : kb < 2048 ? 3 : kb < 2560 ? 4 : kb < 3072 ? 5 : kb < 3584 ? 6 : kb < 4096 ? 7 : 8]++;
+-  if (mp_nrec) mp_late();
++  if (mp_nrec) mp_late(0);
+ }
+-static void mp_end(void) { if (mp_on && mp_nrec) mp_late(); }
++static void mp_end(void) { if (mp_on && mp_nrec) mp_late(0); }
++#endif
++#ifndef MGS2_GL   /* task #180 step 4b-2: the guarded game units' and runtime's calls, idle without the picture */
++int g_g0_on;
++void rt_g0_pre(uint32_t a, uint32_t n, int fn) { (void)a; (void)n; (void)fn; }
++void rt_me_guard(uint32_t a, uint32_t n) { (void)a; (void)n; }
+ #endif
+ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int one)
+ {
++#if defined(ME_WATCH) && defined(MGS2_GL)
++  if (g_mpw_armed) rt_me_watch(1, (uint32_t)ch, madr);
++#endif
+   if (!(g_opt & OPT_XL)) { if (state == 1) state = 2; return; }
+   cfg();
+   if (!mp_want) {   /* (task #180: with the split each record's switches are set as it is walked, ge/xlme.c xm_switch) */
+@@ -568,11 +902,13 @@
+ #ifdef MGS2_GL
+   if (mp_on) {   /* task #180: queued; its copy as it ends (xlive_chk_end) */
+     MpRec *r;
+-    if (mp_nrec == MP_NREC) { mp_drain_full++; mp_late(); }
++    if (mp_nrec == MP_NREC) { mp_drain_full++; mp_late(2); }
+     r = &mp_rec[mp_nrec++]; r->ch = ch; r->chcr = chcr; r->madr = madr; r->qwc = qwc; r->tadr = tadr; r->opt = g_opt; r->opt2 = g_opt2;
+     r->lanes = one_mode && one ? ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) | ((g_opt & OPT_XL_LANE4) ? 8 : 0) : 0;
+     r->restart = mp_restart_due; mp_restart_due = 0; r->x0 = 0; r->nx = -1;
++    r->t = ++mp_seg; r->filled = 0; r->h0 = 0; r->nh = -1;   /* step 4b-2 */
+     xmc.nmk = 0; xmc.mk_full = 0; g_xl_img = g_xl_end = 1; mp_queued++;
++    if (mp_mode == 2) g_g0_on = 1;   /* 4b-2: a guarded write in the walk is counted (none is expected) */
+     return; }
+ #endif
+   if (one_mode && one) { none++; g_xl_one = 1; return; }   /* the exact walk feeds it, then xlive_one_end */
+@@ -627,7 +963,41 @@
+     fprintf(f, "me picture split: reads through the view (from the copy / from RAM / split or refused): tags %ld %ld %ld, runs %ld %ld %ld, "
+             "the lanes' data %ld %ld %ld, the map's %ld %ld %ld\n", mp_view.in[XV_TAG], mp_view.out[XV_TAG], mp_view.part[XV_TAG], mp_view.in[XV_SPAN],
+             mp_view.out[XV_SPAN], mp_view.part[XV_SPAN], mp_view.in[XV_LANE], mp_view.out[XV_LANE], mp_view.part[XV_LANE], mp_view.in[XV_RAM],
+-            mp_view.out[XV_RAM], mp_view.part[XV_RAM]); }
++            mp_view.out[XV_RAM], mp_view.part[XV_RAM]);
++    if (mp_mode == 2) {   /* step 4b-2 */
++      long st = 0, sk = 0, du = 0, lg = 0, wk = 0;
++      for (int k = 1; k <= 12; k++) { st += mg_st[k]; sk += mg_skip[k]; du += mg_dup[k]; lg += mg_log[k]; wk += mg_walk[k]; }
++      fprintf(f, "me picture deadline: from vb %ld: copies filled at the deadline %ld, early %ld / %ld / %ld (the log full %ld times / the "
++              "queue full / no room), as the transfer ended %ld (before vb %ld) and %ld (scratchpad bytes); log entries laid %ld (%ld on the "
++              "copies' lines, %llu bytes), at most %d at once (of %d); G0 guards while on: %ld stores (%ld in a walk), lines out of the filter "
++              "%ld, in the log already %ld, logged %ld; the runtime's writes while on: %ld (%llu KB, %ld in a walk), lines out of the filter "
++              "%ld, in the log already %ld, logged %ld\n", mp_dl, mp_fill_dl, mp_fill_early[0], mp_fill_early[1], mp_fill_early[2],
++              mp_full_log, mp_fill_end[0], mp_dl, mp_fill_end[1], xmc.laid, xmc.laid_lines, (unsigned long long)xmc.laid_b, mp_nlog_max,
++              mp_logcap, st, wk, sk, du, lg, mg_st[0], (unsigned long long)(mg_rtb >> 10), mg_walk[0], mg_skip[0], mg_dup[0], mg_log[0]);
++      fprintf(f, "me picture deadline: G0 function, stores while on / lines logged:");
++      for (int k = 1; k <= 12; k++) fprintf(f, " %d %ld/%ld", k, mg_st[k], mg_log[k]);
++      fprintf(f, "\n");
++      if (mp_chk) mpc_flush();   /* b3: the last window */
++      if (mp_chk) fprintf(f, "me picture check: %ld lines of the deadline copies compared with the bytes as their transfers ended (%ld of them "
++                          "holding bytes the transfers read, the others only the margins after tags), %ld differ (in %ld copies): %ld in bytes "
++                          "the transfers read (b4: by 16-byte quadword; %ld of them in the margin too), %ld only in a margin; %ld copies not "
++                          "checked (hashes full); second walk failed %ld times\n",
++                          mp_chk_lines, mp_chk_lrd, mp_chk_diff, mp_chk_rec, mp_chk_drd, mp_chk_dboth, mp_chk_dmg, mp_chk_skip, mp_chk_rdfail);
++      if (mp_nolay || mp_scr) fprintf(f, "me picture diagnostic b5: the guards' log %s; margin quadwords turned over %ld (in %ld copies)\n",
++                                      mp_nolay ? "not laid" : "laid", mp_scr_q, mp_scr_rec);
++#ifdef ME_WATCH
++      if (mpw_on) {
++        fprintf(f, "me picture watch: %d lines watched; %ld changes seen at the checkpoints (%ld lines printed), %ld lines let go as a guard logged "
++                "them; the check's read lines that differ: %ld seen first (then watched), %ld changed in RAM at a checkpoint, %ld with no change "
++                "seen and RAM as at the plan (the copy itself), %ld with no change seen and RAM changed since, %ld let go by a guard, %ld planned "
++                "by another copy\n", mpw_n, mpw_chg, mpw_prn, mpw_logd, mpw_d_new, mpw_d_chg, mpw_d_same, mpw_d_ram, mpw_d_logd, mpw_d_other);
++        fprintf(f, "me picture watch (b4): %ld of the changes in quadwords the transfer reads, %ld only in the margin\n", mpw_chg_rd, mpw_chg - mpw_chg_rd);
++        for (int i = 0; i < 20; i++) for (int j = 0; j < 20; j++) if (mpw_iv[i][j] | mpw_ivm[i][j])
++          fprintf(f, "me picture watch: changes between %s and %s: %ld in read quadwords, %ld only in the margin\n", mpw_name[i], mpw_name[j],
++                  mpw_iv[i][j], mpw_ivm[i][j]);
++        for (int i = 0; i < mpw_n; i++) fprintf(f, "me picture watch: line %07x\n", (unsigned)(mpw[i].l << 6)); }
++#endif
++    } }
+   if (gl_ok < 0) { fprintf(f, "picture: none (no memory or no set-up)\n"); return; }
+   if (!gl_ok) { fprintf(f, "picture: never set up\n"); return; }
+   if (gl_ok == 3)
+--- me18b/rt/ee_io.h
++++ me18c/rt/ee_io.h
+@@ -267,6 +267,19 @@
+ #define DGT_DMA(ch, a, nq) ((void)0)
+ #define DGT_COPY(dst, src, n) ((void)0)
+ #endif
++#ifdef ME_GUARD_RT   /* task #180 step 4b-2 (me13's guard, with its test inline): the runtime's writes into game RAM report themselves before
++                        they write while a frame's copy is due at its deadline (psp/xl_psp.c g_g0_on, rt_me_guard) */
++extern int g_g0_on; void rt_me_guard(uint32_t a, uint32_t n);
++#define DGT_PRE(a, n) (__builtin_expect(g_g0_on, 0) ? rt_me_guard((uint32_t)(a), (uint32_t)(n)) : (void)0)
++#else
++#define DGT_PRE(a, n) ((void)0)
++#endif
++#ifdef ME_WATCH   /* task #180 step 4b-2, diagnostic b3 (psp/xl_psp.c rt_me_watch): checkpoints while a line the check found changed is watched */
++extern int g_mpw_armed; void rt_me_watch(int id, uint32_t a, uint32_t b);
++#define ME_WCK(id, a, b) (__builtin_expect(g_mpw_armed, 0) ? rt_me_watch((id), (uint32_t)(a), (uint32_t)(b)) : (void)0)
++#else
++#define ME_WCK(id, a, b) ((void)0)
++#endif
+ #ifndef __psp__   /* dev: boot.c MGS2_PKT_HASH=<from vb>:<to vb>: FNV-1a 64 of what the VIF1 and GIF DMA carry (the data, and the tag fields that act), per vblank */
+ int g_pkt_on; uint64_t g_pkt_h = 0xcbf29ce484222325ull; FILE *g_pkt_df;   /* g_pkt_df: boot.c MGS2_PKT_DUMP, the hashed bytes as records */
+ static void pkt_fnv(int ch, uint32_t a, const uint8_t *p, uint32_t n)
+@@ -893,7 +906,7 @@
+         for (q = 0; q < qwc; q += run) {
+           uint32_t nq = qwc - q < run ? qwc - q : run;
+           uint8_t *mm = g_mem + (m & (GUEST_SIZE - 1) & ~15u), *ss = g_spr + sadr + 16 * q;
+-          if (ch == 8) SPR_COPY(mm, ss, 16 * nq); else SPR_COPY(ss, mm, 16 * nq);   /* the two sides share no line: RAM side from 0x4000 */
++          if (ch == 8) { DGT_PRE((uint32_t)(mm - g_mem), 16 * nq); SPR_COPY(mm, ss, 16 * nq); } else SPR_COPY(ss, mm, 16 * nq);   /* the two sides share no line: RAM side from 0x4000 */
+ #ifdef GUEST_SPR0
+           if (ch == 8) DGT_COPY((uint32_t)(mm - g_mem), (uint32_t)(ss - g_mem), 16 * nq); else DGT_COPY((uint32_t)(ss - g_mem), (uint32_t)(mm - g_mem), 16 * nq);
+ #endif
+@@ -904,7 +917,7 @@
+     } else q = 0;
+     for (; q < qwc; q++) {                         /* interleave (mode 2, D_SQWC): TQWC quadwords, then MADR skips SQWC; SADR is contiguous */
+       uint8_t *mm = g_mem + (m & (GUEST_SIZE - 1) & ~15u), *ss = g_spr + ((sadr + 16 * q) & 0x3ff0);
+-      if (ch == 8) memcpy(mm, ss, 16); else memcpy(ss, mm, 16);
++      if (ch == 8) { DGT_PRE((uint32_t)(mm - g_mem), 16); memcpy(mm, ss, 16); } else memcpy(ss, mm, 16);
+ #ifdef GUEST_SPR0
+       if (ch == 8) DGT_COPY((uint32_t)(mm - g_mem), (uint32_t)(ss - g_mem), 16); else DGT_COPY((uint32_t)(ss - g_mem), (uint32_t)(mm - g_mem), 16);
+ #endif
+--- mgs2/runtime/sif.h
++++ me18c/rt/sif.h
+@@ -31,7 +31,7 @@
+ #define SIF_DMA_INT_O 0x4u
+ 
+ static uint32_t ee_rd32(uint32_t a) { return RD32(a); }
+-static void ee_copy_to(uint32_t ee, const uint8_t *src, uint32_t n) { uint32_t i; for (i = 0; i < n; i++) WR8(ee + i, src[i]); }
++static void ee_copy_to(uint32_t ee, const uint8_t *src, uint32_t n) { uint32_t i; DGT_PRE(ee, n); for (i = 0; i < n; i++) WR8(ee + i, src[i]); }   /* me13: DGT_PRE, the ME hand-off's guard (ee_io.h ME_GUARD_RT) */
+ static void ee_copy_from(uint8_t *dst, uint32_t ee, uint32_t n) { uint32_t i; for (i = 0; i < n; i++) dst[i] = RD8(ee + i); }
+ static uint8_t *iop_p(uint32_t a) { return g_iop->mem + (a & IOP_MEM_MASK); }
+ 
+--- mgs2/runtime/iop_host.h
++++ me18c/rt/iop_host.h
+@@ -182,7 +182,7 @@
+   (void)fno;
+   fprintf(stderr, "cdvd: sceCdSearchFile %s -> %s lsn %x size %u\n", path, ok ? "found" : "not found", lsn, size);
+   if (ok) { const char *b = strrchr(path, '\\'); wr32(g_iop, buf, lsn); wr32(g_iop, buf + 4, size); memset(iop_p(buf + 8), 0, 24); if (b) strncpy((char *)iop_p(buf + 8), b + 1, 15); }
+-  for (i = 0; i < n; i++) WR8(eedest + i, *iop_p(buf + i));
++  DGT_PRE(eedest, n); for (i = 0; i < n; i++) WR8(eedest + i, *iop_p(buf + i));   /* me13: DGT_PRE, the ME hand-off's guard */
+   wr32(g_iop, buf + 0x200, ok); *rep = buf + 0x200; return 0;
+ }
+ static uint8_t cd_sec[2048 * 64];
+@@ -192,7 +192,7 @@
+   if (fno == 1 || fno == 19) {                     /* read to EE memory: { lbn, sectors, ee addr, mode, ... } */
+     uint32_t lbn = rd32(g_iop, buf), n = rd32(g_iop, buf + 4), ee = rd32(g_iop, buf + 8);
+     fprintf(stderr, "cdvd: read lsn %x x %u -> EE %08x\n", lbn, n, ee);
+-    while (n) { uint32_t k = n > 64 ? 64 : n, i; disc_read_cb(0, lbn, k, cd_sec); for (i = 0; i < k * 2048; i++) WR8(ee + i, cd_sec[i]); lbn += k; ee += k * 2048; n -= k; }
++    while (n) { uint32_t k = n > 64 ? 64 : n, i; disc_read_cb(0, lbn, k, cd_sec); DGT_PRE(ee, k * 2048); for (i = 0; i < k * 2048; i++) WR8(ee + i, cd_sec[i]); lbn += k; ee += k * 2048; n -= k; }
+   } else fprintf(stderr, "cdvd: N command %u\n", fno);
+   wr32(g_iop, buf + 0x100, r); wr32(g_iop, buf + 0x104, 1); *rep = buf + 0x100; return 0;
+ }
+--- mgs2/runtime/kernel.h
++++ me18c/rt/kernel.h
+@@ -1,3 +1,5 @@
++/* task #180 step 4b-2: kernel.h of the project (32e401ed) with DGT_PRE (ee_io.h ME_GUARD_RT) before the kernel calls' writes into game RAM
++   (Copy, ReferThreadStatus, ReferSemaStatus) */
+ /* EE kernel HLE for the recompiled MGS2 (x86 development host first).
+    Guest threads are host coroutines (ucontext): each has its own host stack and its own copy of the guest register file, which is
+    swapped in and out of the globals (R, RH, HI, LO, F, ...) at a switch.  Scheduling follows the EE kernel: strict priority (lower
+@@ -103,7 +105,7 @@
+     if (n == k_cur) { k_th[n].status = THS_RUN; return; }
+     {
+       KThread *from = &k_th[k_cur], *to = &k_th[n];
+-      DGX_NOTE(4);
++      DGX_NOTE(4); ME_WCK(5, k_cur, n);
+       if (from->status == THS_RUN) { from->status = THS_READY; from->qseq = 0; }   /* preempted: stays first among its priority (assumed, to check) */
+       k_save(&from->c);
+       k_cur = n; to->status = THS_RUN;
+@@ -158,7 +160,9 @@
+ {
+   KCtx save; DGX_NOTE(h->dmac ? 1 : 0); k_save(&save); k_in_intr++; k_handler_regs();
+   R[4] = cause; R[5] = (int32_t)h->arg; R[6] = 0; R[29] = (int32_t)(K_ISTACK - 0x100 * k_in_intr); R[31] = K_EXIT_RA;
++  ME_WCK(6, h->fn, cause);
+   if (!guest_call(h->fn)) k_fatal("handler not translated", (int)h->fn);
++  ME_WCK(7, h->fn, cause);
+   k_in_intr--; K_POLL_KICK(); k_load(&save);
+ }
+ static void k_intc(int cause)
+@@ -192,7 +196,9 @@
+   KCtx save; uint32_t fn = k_al[al].fn, arg = k_al[al].arg;
+   k_al[al].used = 0; DGX_NOTE(2); k_save(&save); k_in_intr++; k_handler_regs();
+   R[4] = al; R[5] = (int32_t)(K_NOW() & 0xffff); R[6] = (int32_t)arg; R[29] = (int32_t)(K_ISTACK - 0x100 * k_in_intr); R[31] = K_EXIT_RA;
++  ME_WCK(8, fn, al);
+   if (!guest_call(fn)) k_fatal("alarm handler not translated", (int)fn);
++  ME_WCK(9, fn, al);
+   k_in_intr--; K_POLL_KICK(); k_load(&save);
+ }
+ /* the timed events due at k_time: alarms, then the vblank */
+@@ -265,7 +271,7 @@
+   /* libkernel's start-up kernel patch (0x174490: SetSyscall(0x5a, copy), Copy() of 0x740 bytes to 0x80076000, then SetSyscall of the alarm
+      calls 0xfc..0xff to that code): the HLE implements those calls itself, so the patch is copied into the unused kernel area and not used */
+   case 0x74: R[2] = 0; return 1;                                                                     /* SetSyscall */
+-  case 0x5a: for (i = 0; i < (int)(a2 >> 2); i++) WR32(a0 + 4 * i, RD32(a1 + 4 * i)); R[2] = 0; return 1;   /* Copy (as set by the game: word copy) */
++  case 0x5a: DGT_PRE(a0, a2 & ~3u); for (i = 0; i < (int)(a2 >> 2); i++) WR32(a0 + 4 * i, RD32(a1 + 4 * i)); R[2] = 0; return 1;   /* Copy (as set by the game: word copy) */
+   case 0x5b: R[2] = 0; return 1;                                                                     /* GetEntryAddress */
+   /* threads */
+   case 0x20:                                     /* CreateThread(ee_thread_t *) */
+@@ -305,9 +311,9 @@
+     { uint32_t t = a0 ? a0 : (uint32_t)k_cur; KThread *th; if (t >= K_THREADS) { R[2] = -1; return 1; }
+       /* a free slot (never created, or after ExitDeleteThread / DeleteThread) answers status 0: d00t's loop at 0x204140 waits for 0
+          after its loader thread's ExitDeleteThread.  Inferred from that loop, not checked against the retail kernel. */
+-      if (!k_th[t].used) { if (a1) { int k; for (k = 0; k < 48; k += 4) WR32(a1 + k, 0); } R[2] = 0; return 1; }
++      if (!k_th[t].used) { if (a1) { int k; DGT_PRE(a1, 48); for (k = 0; k < 48; k += 4) WR32(a1 + k, 0); } R[2] = 0; return 1; }
+       th = &k_th[t];
+-      if (a1) { WR32(a1, th->status); WR32(a1 + 4, th->entry); WR32(a1 + 8, th->stack); WR32(a1 + 12, th->ssize); WR32(a1 + 16, th->gp);
++      if (a1) { DGT_PRE(a1, 48); WR32(a1, th->status); WR32(a1 + 4, th->entry); WR32(a1 + 8, th->stack); WR32(a1 + 12, th->ssize); WR32(a1 + 16, th->gp);
+         WR32(a1 + 20, th->init_prio); WR32(a1 + 24, th->prio); WR32(a1 + 28, th->attr); WR32(a1 + 32, th->option); WR32(a1 + 36, th->wait_type);
+         WR32(a1 + 40, th->wait_id); WR32(a1 + 44, th->wakeups); }
+       R[2] = th->status; return 1; }
+@@ -354,7 +360,7 @@
+     k_sem[a0].count--; R[2] = a0; return 1;
+   case 0x47: case -0x48:                                                                             /* (i)ReferSemaStatus */
+     if (a0 >= K_SEMAS || !k_sem[a0].used) { R[2] = -1; return 1; }
+-    WR32(a1, k_sem[a0].count); WR32(a1 + 4, k_sem[a0].max); WR32(a1 + 8, k_sem[a0].init); WR32(a1 + 12, k_sem[a0].waiters);
++    DGT_PRE(a1, 24); WR32(a1, k_sem[a0].count); WR32(a1 + 4, k_sem[a0].max); WR32(a1 + 8, k_sem[a0].init); WR32(a1 + 12, k_sem[a0].waiters);
+     WR32(a1 + 16, k_sem[a0].attr); WR32(a1 + 20, k_sem[a0].option); R[2] = a0; return 1;
+   /* interrupts */
+   case 0x10: case 0x12:                                                                              /* AddIntcHandler / AddDmacHandler(cause, fn, next, arg) */
+--- sb18/boot/boot.c
++++ me18c/boot/boot.c
+@@ -1,3 +1,5 @@
++/* me18c b3 (task #180 step 4b-2, diagnostic): boot/boot.c of sb18 (d903d06d) with ee_io.h ME_WATCH's checkpoints in k_vblank_hook, SYSCALL and
++   rt_idiom_qcopy (psp/xl_psp.c rt_me_watch).  Game data passes through it: personal use only. */
+ /* x86 boot probe for the recompiled MGS2 ELF: loads SLES_503.83 into the guest memory, runs the entry with the kernel HLE (runtime/kernel.h)
+    and logs every kernel call and the EE / GS register ranges the game touches.  Stops at the first kernel call not handled yet.
+    Build (from a directory holding gen_elf.h made by recomp/survey.py and the IOP translations, see runtime/iop_host.h); RT is
+@@ -140,7 +142,9 @@
+ }
+ static void k_vblank_hook(int start)
+ {
++  ME_WCK(10, start, k_vblanks);   /* me18c b3 (ee_io.h ME_WATCH): the hook's parts */
+   io_vblank(start);
++  ME_WCK(11, start, k_vblanks);
+ #if !defined(__psp__)
+   if (start) { void vb_time(long vb); vb_time(k_vblanks); void pkt_vblank(long vb); pkt_vblank(k_vblanks); }
+ #ifdef MGS2_XLIVE
+@@ -150,7 +154,8 @@
+   if (start) { void gi_window(long vb); gi_window(k_vblanks); }
+ #endif
+ #endif
+-  if (start) { opt_window(k_vblanks); sif_vblank(); host_vb_begin(k_vblanks); iop_watch(); state_hash(); ee_dump(); ee_poke(); host_vb_end(); }
++  if (start) { opt_window(k_vblanks); ME_WCK(12, 0, k_vblanks); sif_vblank(); ME_WCK(13, 0, k_vblanks); host_vb_begin(k_vblanks); iop_watch(); state_hash(); ee_dump(); ee_poke();
++    ME_WCK(14, 0, k_vblanks); host_vb_end(); }
+   if (k_vblanks >= max_vblanks) {
+     int t; fprintf(stderr, "stop: %ld vblanks\n", k_vblanks);
+     stack_report();
+@@ -213,6 +218,7 @@
+ static void SYSCALL(uint32_t pc)
+ {
+   int32_t n = (int32_t)R[3]; uint32_t a0 = R[4], a1 = R[5], a2 = R[6], a3 = R[7];
++  ME_WCK(4, n, pc);   /* me18c b3 */
+   n_sys++; k_take_interrupts(); if (k_need_resched && !k_in_intr && !k_dispatch_off) k_resched();
+   if (!quiet_sys(n) || n_sys < 400 || (k_vblanks >= verbose_from && k_vblanks < verbose_from + 3))
+     fprintf(stderr, "[%ld vb, th %d] sys %s%02x %-20s pc %06x a0 %08x a1 %08x a2 %08x a3 %08x ra %06x\n", k_vblanks, k_cur, n < 0 ? "-" : " ",
+@@ -355,6 +361,7 @@
+     if (s0 >> 28 == 1 || d0 >> 28 == 1 || T > (1 << 21) || (s0 & (GUEST_SIZE - 1)) + 16 * T > GUEST_SIZE || (d0 & (GUEST_SIZE - 1)) + 16 * T > GUEST_SIZE) return 0;
+     if (K_NOW() + (uint64_t)P * K_POLL_CYCLES >= k_poll_at) return 0;
+     const uint64_t *s = (const uint64_t *)(g_mem + (s0 & (GUEST_SIZE - 1))); uint64_t *d = (uint64_t *)(g_mem + (d0 & (GUEST_SIZE - 1)));
++    ME_WCK(16, d0, T);   /* me18c b3: the native qword copy, before and after (its stores report to no guard) */
+ #if defined(__psp__) && !defined(QCOPY_NO_VFPU)
+     /* PSP: each qword through a VFPU register (lv.q / sv.q: 16 bytes in one instruction, g_mem is 64-byte aligned), still qword i loaded
+        then stored before qword i + 1, so an overlap copies as in the translation; C000-C030 are scratch (nothing else uses the VFPU).
+@@ -370,6 +377,7 @@
+ #else
+     for (int64_t i = 0; i < 2 * T; i += 2) { uint64_t lo = s[i], hi = s[i + 1]; d[i] = lo; d[i + 1] = hi; }
+ #endif
++    ME_WCK(17, d0, T);
+     if (i2 >= 0) { RH[2] = (int64_t)d[2 * i2 + 1]; if (!s2) R[2] = (int64_t)d[2 * i2]; }   /* qword i of dst holds what was loaded */
+     if (i3 >= 0) { RH[3] = (int64_t)d[2 * i3 + 1]; if (!s3) R[3] = (int64_t)d[2 * i3]; }
+   }
+--- mgs2/boot/gen_pre.h
++++ me18c/boot/gen_pre.h
+@@ -1,4 +1,5 @@
+-/* Prelude of the generated units of the split x86 probe build (gen.c: the ELF translation and the call dispatch; gen_stage.c: one stage
++/* task #180 step 4b-2: boot/gen_pre.h of the project (7fea4d36) with the G0 guards (GEN_G0_PRE below).
++   Prelude of the generated units of the split x86 probe build (gen.c: the ELF translation and the call dispatch; gen_stage.c: one stage
+    image each).  The machine state (registers, guest memory) is defined by the runtime unit (boot.c, guest.h GSV); memory accesses take
+    the plain RAM path inline and call the runtime for the register space, the scratchpad, or while a hardware register write is pending
+    (ee_io.h mm_map).  The generated functions are made global (`static` defined away around them) so the units call each other. */
+@@ -10,6 +11,14 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #define GUEST_SIZE (1 << 25)
++/* task #180 step 4b-2 (mgs2/me_step4_notes.md; me_handoff_design.md 4.3): the guards of the 12 G0 functions, the game code that writes
++   into bytes in flight in their own step.  tools/dev/me18/patch_g0.py opens each of their bodies with enum { gen_g0_fn = <its number> },
++   which hides the 0 below; every store in those bodies first calls psp/xl_psp.c rt_g0_pre (a plain call, no branch, so the bodies keep
++   their PGO profile), which logs the line's old bytes while a frame's copy is due.  Everywhere else the guard is the constant 0 and
++   compiles away.  Only the PSP build's access paths (GEN_MM_FAST, GUEST_SPR0, no GEN_DG_TRACE) carry it. */
++enum { gen_g0_fn = 0 };
++void rt_g0_pre(uint32_t a, uint32_t n, int fn);
++#define GEN_G0_PRE(a, n) (gen_g0_fn ? rt_g0_pre((uint32_t)(a), (uint32_t)(n), gen_g0_fn) : (void)0)
+ extern uint32_t g_io_arm, g_io_pend;
+ extern uint8_t g_mem[GUEST_SIZE];
+ uint8_t *rt_mm(uint32_t a); uint32_t rt_wr_note(uint32_t a); void rt_poll(void);
+@@ -59,9 +68,9 @@
+ static inline void rt_stf(uint32_t a, float v) { uint32_t u; memcpy(&u, &v, 4); rt_st32(a, u); }
+ /* the slow path takes the value in registers (no stack copy at every store site) */
+ #define GEN_ST_SLOW(T, a, v) _Generic((T)0, uint8_t: rt_st8, uint16_t: rt_st16, uint32_t: rt_st32, uint64_t: rt_st64, float: rt_stf)(a, v)
+-#define GUEST_STORE(T, a, v) ({ uint32_t a_ = (uint32_t)(a); T v_ = (T)(v); \
++#define GUEST_STORE(T, a, v) ({ uint32_t a_ = (uint32_t)(a); T v_ = (T)(v); GEN_G0_PRE(a_, sizeof(T)); \
+   if (GEN_FAST(a_)) { GEN_ODD_W(a_, sizeof(T)); *(T *)GEN_RAM(a_) = v_; } else GEN_ST_SLOW(T, a_, v_); (void)0; })
+-#define GUEST_STORE16(a, p) ({ uint32_t a_ = (uint32_t)(a); \
++#define GUEST_STORE16(a, p) ({ uint32_t a_ = (uint32_t)(a); GEN_G0_PRE(a_, 16); \
+   if (GEN_FAST(a_)) { GEN_ODD_W(a_, 16); memcpy(__builtin_assume_aligned(GEN_RAM(a_), 16), (p), 16); } else rt_store(a_, (p), 16); (void)0; })
+ #define MM(a) gen_mm((uint32_t)(a))
+ #else
+@@ -122,11 +131,11 @@
+ #define WR64S(sp, k, v) GUEST_STORE(uint64_t, (uint32_t)(sp) + (k), v)
+ #define WRFS(sp, k, v) GUEST_STORE(float, (uint32_t)(sp) + (k), v)
+ #else
+-#define WR8S(sp, k, v) ((void)(*(uint8_t *)MMS(sp, k) = (uint8_t)(v)))
+-#define WR16S(sp, k, v) ((void)(*(uint16_t *)MMS(sp, k) = (uint16_t)(v)))
+-#define WR32S(sp, k, v) ((void)(*(uint32_t *)MMS(sp, k) = (uint32_t)(v)))
+-#define WR64S(sp, k, v) ((void)(*(uint64_t *)MMS(sp, k) = (uint64_t)(v)))
+-#define WRFS(sp, k, v) ((void)(*(float *)MMS(sp, k) = (v)))
++#define WR8S(sp, k, v) (GEN_G0_PRE((uint32_t)(sp) + (k), 1), (void)(*(uint8_t *)MMS(sp, k) = (uint8_t)(v)))
++#define WR16S(sp, k, v) (GEN_G0_PRE((uint32_t)(sp) + (k), 2), (void)(*(uint16_t *)MMS(sp, k) = (uint16_t)(v)))
++#define WR32S(sp, k, v) (GEN_G0_PRE((uint32_t)(sp) + (k), 4), (void)(*(uint32_t *)MMS(sp, k) = (uint32_t)(v)))
++#define WR64S(sp, k, v) (GEN_G0_PRE((uint32_t)(sp) + (k), 8), (void)(*(uint64_t *)MMS(sp, k) = (uint64_t)(v)))
++#define WRFS(sp, k, v) (GEN_G0_PRE((uint32_t)(sp) + (k), 4), (void)(*(float *)MMS(sp, k) = (v)))
+ #endif
+ /* tools/mm_base.py (recomp/lean_plan.md step 3): a guest access through a register base + a constant offset k takes the I/O test and the
+    host address from the base, not from each address, so GCC shares both between the accesses through one register and k becomes the
+@@ -144,7 +153,7 @@
+ #define GEN_LDB(T, b, k) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); GEN_MB_CK(b_, k); \
+   GEN_FAST(b_) ? *(T *)(h_ + (k)) : *(T *)rt_mm(b_ + (uint32_t)(k)); })
+ #define GEN_STB(T, b, k, v) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); T v_ = (T)(v); GEN_MB_CK(b_, k); \
+-  if (GEN_FAST(b_)) *(T *)(h_ + (k)) = v_; else GEN_ST_SLOW(T, b_ + (uint32_t)(k), v_); (void)0; })
++  GEN_G0_PRE(b_ + (uint32_t)(k), sizeof(T)); if (GEN_FAST(b_)) *(T *)(h_ + (k)) = v_; else GEN_ST_SLOW(T, b_ + (uint32_t)(k), v_); (void)0; })
+ #define RD8B(b, k) GEN_LDB(uint8_t, b, k)
+ #define RD16B(b, k) GEN_LDB(uint16_t, b, k)
+ #define RD32B(b, k) GEN_LDB(uint32_t, b, k)
+@@ -161,13 +170,14 @@
+ #define GLDUB(r, b, k, rl) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); int64_t r_; GEN_MB_CK(b_, k); GEN_MB_CK(b_, (k) + 7); \
+   if (GEN_FAST(b_)) { uint64_t v_; memcpy(&v_, h_ + (k), 8); r_ = (int64_t)v_; } else r_ = GLDU(r, b_ + (uint32_t)(k), rl); r_; })
+ #define GSDUB(r, b, k, rl) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); uint64_t v_ = (uint64_t)(r); GEN_MB_CK(b_, k); \
+-  GEN_MB_CK(b_, (k) + 7); if (GEN_FAST(b_)) memcpy(h_ + (k), &v_, 8); else GSDU((int64_t)v_, b_ + (uint32_t)(k), rl); (void)0; })
++  GEN_MB_CK(b_, (k) + 7); GEN_G0_PRE(b_ + (uint32_t)(k), 8); if (GEN_FAST(b_)) memcpy(h_ + (k), &v_, 8); else (GSDU)((int64_t)v_, b_ + (uint32_t)(k), rl); \
++  (void)0; })
+ /* lqc2 / sqc2 (runtime/vu0.h VLQC2 / VSQC2) at a multiple of 16 from a register: (r + k) & ~15 = (r & ~15) + k, so the base is the
+    register's 16-byte-aligned value (the invariant above for k and k + 15) */
+ #define VLQC2B(ft, b, k) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); GEN_MB_CK(b_, k); GEN_MB_CK(b_, (k) + 15); \
+   if (ft) { if (GEN_FAST(b_)) VU_CP16(VF[ft].u, h_ + (k)); else VU_CP16(VF[ft].u, rt_mm(b_ + (uint32_t)(k))); } (void)0; })
+ #define VSQC2B(ft, b, k) ({ uint32_t b_ = (uint32_t)(b); uint8_t *h_ = gen_hb(b_); GEN_MB_CK(b_, k); GEN_MB_CK(b_, (k) + 15); \
+-  if (GEN_FAST(b_)) VU_CP16(h_ + (k), VF[ft].u); else rt_store(b_ + (uint32_t)(k), VF[ft].u, 16); (void)0; })
++  GEN_G0_PRE(b_ + (uint32_t)(k), 16); if (GEN_FAST(b_)) VU_CP16(h_ + (k), VF[ft].u); else rt_store(b_ + (uint32_t)(k), VF[ft].u, 16); (void)0; })
+ #else
+ #define RD8B(b, k) RD8((uint32_t)(b) + (uint32_t)(k))
+ #define RD16B(b, k) RD16((uint32_t)(b) + (uint32_t)(k))
+@@ -241,6 +251,8 @@
+ #define RD64S(sp, k) RD64((uint32_t)(sp) + (k))
+ #endif
+ #include "mmi.h"
++/* task #180 step 4b-2: a G0 body's 8-byte unaligned store pair (GSDU writes bytes a .. a + 7) */
++#define GSDU(r, a, rl) ({ uint32_t gsa_ = (uint32_t)(a); GEN_G0_PRE(gsa_, 8); (GSDU)((r), gsa_, (rl)); })
+ #define HWR32 rt_hwr32
+ #define HWW32 rt_hww32
+ #define SYSCALL rt_syscall

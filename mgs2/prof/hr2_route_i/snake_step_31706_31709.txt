@@ -1,0 +1,69 @@
+# x86 twin, route i, trace build xt7 (MGS2_WRITE_LOG=31706:31709, hashes = hr2), 2026-11-08: every game-code store to Snake's control block
+# 0x13d6cb0 (x y z) and its step vector (0x13d6cc0 x, +4 y, +8 z, +12) at vb 31,706-31,709, in store order.
+# vb | index in the vblank | field | bits | value | function (guest pc where mapped)
+31706  2418  step x   3f519b41  0.818775237     w01a 0x39fef0
+31706  2419  step z   c29c091f  -78.0178146     w01a 0x39fef0
+31706  2420  step +12 c0916700  -4.54382324     w01a 0x39fef0
+31706  2427  step x   00000000  0               w01a 0x287478 (raiden.c act)
+31706  2428  step z   00000000  0               w01a 0x287478 (raiden.c act)
+31706  2467  y        443b4000  749             GM_ActControl (main) pc 106f0c
+31706  2483  x        c608b800  -8750           GM_ActControl (main) pc 107114
+31706  2484  z        c5b3b000  -5750           GM_ActControl (main) pc 107118
+31706  2542  x        c608b800  -8750           GM_ActControl (main) pc 107318
+31706  2543  z        c5b3b000  -5750           GM_ActControl (main) pc 10731c
+31706  2544  y        4478304c  992.754639      GM_ActControl (main) pc 107320
+31706  2548  y        443b4000  749             GM_ActControl (main) pc 1073e8
+31706  2714  y        44770d7e  988.210815      GM_ActControl (main) pc 1076c0
+31706  5862  step x   00000000  0               w01a 0x39ffb0
+31706  5863  step z   00000000  0               w01a 0x39ffb0
+31706  5864  step +12 00000000  0               w01a 0x39ffb0
+31706  5964  step y   00000000  0               w01a 0x287478 (raiden.c act)
+31706  5965  step y   c2e66667  -115.200005     w01a 0x287478 (raiden.c act)
+31707  2934  step x   31e0a2b0  6.53775345e-09  w01a 0x39fef0
+31707  2935  step z   3700003d  7.62945001e-06  w01a 0x39fef0
+31707  2936  step +12 00000000  0               w01a 0x39fef0
+31707  2993  y        443b4000  749             GM_ActControl (main) pc 106f0c
+31707  3009  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107114
+31707  3010  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 107118
+31707  3068  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107318
+31707  3069  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 10731c
+31707  3070  y        44770d7e  988.210815      GM_ActControl (main) pc 107320
+31707  3074  y        443b4000  749             GM_ActControl (main) pc 1073e8
+31707  3240  y        44770d7e  988.210815      GM_ActControl (main) pc 1076c0
+31707  6724  step x   00000000  0               w01a 0x39ffb0
+31707  6725  step z   00000000  0               w01a 0x39ffb0
+31707  6726  step +12 00000000  0               w01a 0x39ffb0
+31707  6826  step y   00000000  0               w01a 0x287478 (raiden.c act)
+31707  6827  step y   c2e66667  -115.200005     w01a 0x287478 (raiden.c act)
+31708  2386  step x   b29d5e7c  -1.8320172e-08  w01a 0x39fef0
+31708  2387  step z   b7000028  -7.62943091e-06  w01a 0x39fef0
+31708  2388  step +12 bd872000  -0.0659790039   w01a 0x39fef0
+31708  2445  y        443b4000  749             GM_ActControl (main) pc 106f0c
+31708  2461  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107114
+31708  2462  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 107118
+31708  2520  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107318
+31708  2521  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 10731c
+31708  2522  y        44770d7e  988.210815      GM_ActControl (main) pc 107320
+31708  2526  y        443b4000  749             GM_ActControl (main) pc 1073e8
+31708  2692  y        44773059  988.755432      GM_ActControl (main) pc 1076c0
+31708  5813  step x   00000000  0               w01a 0x39ffb0
+31708  5814  step z   00000000  0               w01a 0x39ffb0
+31708  5815  step +12 00000000  0               w01a 0x39ffb0
+31708  5915  step y   00000000  0               w01a 0x287478 (raiden.c act)
+31708  5916  step y   c2e66667  -115.200005     w01a 0x287478 (raiden.c act)
+31709  2386  step x   00000000  0               w01a 0x39fef0
+31709  2387  step z   00000000  0               w01a 0x39fef0
+31709  2388  step +12 be1fc000  -0.156005859    w01a 0x39fef0
+31709  2445  y        443b4000  749             GM_ActControl (main) pc 106f0c
+31709  2461  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107114
+31709  2462  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 107118
+31709  2520  x        c608b7ff  -8749.99902     GM_ActControl (main) pc 107318
+31709  2521  z        c5b3afff  -5749.99951     GM_ActControl (main) pc 10731c
+31709  2522  y        44773059  988.755432      GM_ActControl (main) pc 107320
+31709  2526  y        443b4000  749             GM_ActControl (main) pc 1073e8
+31709  2692  y        44774f36  989.237671      GM_ActControl (main) pc 1076c0
+31709  5813  step x   00000000  0               w01a 0x39ffb0
+31709  5814  step z   00000000  0               w01a 0x39ffb0
+31709  5815  step +12 00000000  0               w01a 0x39ffb0
+31709  5915  step y   00000000  0               w01a 0x287478 (raiden.c act)
+31709  5916  step y   c2e66667  -115.200005     w01a 0x287478 (raiden.c act)

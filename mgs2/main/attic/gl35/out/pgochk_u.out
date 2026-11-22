@@ -1,0 +1,21 @@
+gen.o rc 0 358 s, 0 profile lines, object equal to the build's as compiled (gen_compiled.md5; gl33: before the wrapper step)
+gen_s_w01a.o rc 0 422 s, 0 profile lines, object equal to the build's
+gen_s_w00a.o rc 0 525 s, 0 profile lines, object equal to the build's
+ge_fxthin.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+xl_psp.o rc 0 8 s, 0 profile lines, object (renamed after compile in the build: not compared)
+boot_rt.o rc 0 156 s, 0 profile lines, object equal to the build's
+ge_xlive.o rc 0 0 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_gsfront.o rc 0 0 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_xlate.o rc 0 4 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_texconv.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_texcache.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_gelive.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_gebatch.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_xconv.o rc 0 4 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_vu1conv.o rc 0 13 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_gelist.o rc 0 3 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_gsup2.o rc 0 4 s, 0 profile lines, object (renamed after compile in the build: not compared)
+ge_xlme.o rc 0 6 s, 0 profile lines, object (renamed after compile in the build: not compared)
+gen_dispatch.o rc 0 0 s, 0 profile lines, object equal to the build's
+ge_xme.o rc 0 0 s, 0 profile lines, object (renamed after compile in the build: not compared)
+pgochk.sh: done

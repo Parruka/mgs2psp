@@ -1,0 +1,7 @@
+order_sh rc 0
+16964 functions, fetched: region 0 1007 (2409772 bytes), 1 482 (1872772), 2 457 (1625804)
+current placement: trace 1 2940512 I-misses (weighted 2940512) test windows 946913 (weighted 946913) trace 2 3667806 I-misses (weighted 3667806) test windows 970387 (weighted 970387), weighted sum 6608318, test 1917300
+current order, hot functions packed: trace 1 2918075 I-misses (weighted 2918075) test windows 933326 (weighted 933326) trace 2 3533354 I-misses (weighted 3533354) test windows 920892 (weighted 920892), weighted sum 6451429, test 1854218
+slice 0..1000: current order 6451429, first-fetch order 6075662
+optimized order: slice 6063896
+optimized order, whole traces: trace 1 2739909 I-misses (weighted 2739909) test windows 876529 (weighted 876529) trace 2 3323987 I-misses (weighted 3323987) test windows 879951 (weighted 879951), weighted sum 6063896, test 1756480

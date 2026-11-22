@@ -1,0 +1,14 @@
+steady deck (d01t), ME turn 27,410-27,490
+   m31c2    17925530 instr  117905 I-miss (fully associative   95664)  133160 D-miss =  147.29 ms a picture; against m31c2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pc2   17669018 instr   88949 I-miss (fully associative   84420)  134581 D-miss =  140.47 ms a picture; against m31c2   -6.82 ms (instr  -256512, I-miss -28956, D-miss  +1420)
+   g33ic2   17676595 instr   88963 I-miss (fully associative   84389)  134615 D-miss =  140.52 ms a picture; against m31c2   -6.77 ms (instr  -248934, I-miss -28942, D-miss  +1454)
+steady deck (d01t), main turn 27,510-27,590
+   m31c2    15737446 instr  107957 I-miss (fully associative   82831)  101200 D-miss =  126.16 ms a picture; against m31c2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pc2   15645696 instr   82258 I-miss (fully associative   75921)  101164 D-miss =  120.45 ms a picture; against m31c2   -5.71 ms (instr   -91750, I-miss -25699, D-miss    -36)
+   g33ic2   15613030 instr   82096 I-miss (fully associative   75835)  100943 D-miss =  120.20 ms a picture; against m31c2   -5.96 ms (instr  -124416, I-miss -25860, D-miss   -257)
+opening, ME turn 16,010-16,090
+   m31c1    17282458 instr  118921 I-miss (fully associative   95950)  126028 D-miss =  142.47 ms a picture; against m31c1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pc1   17074586 instr   89253 I-miss (fully associative   84481)  127476 D-miss =  135.75 ms a picture; against m31c1   -6.71 ms (instr  -207872, I-miss -29669, D-miss  +1448)
+opening, main turn 16,110-16,190
+   m31c1    15397069 instr  110444 I-miss (fully associative   84178)   99359 D-miss =  124.51 ms a picture; against m31c1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33pc1   15286067 instr   83173 I-miss (fully associative   76917)  101192 D-miss =  118.86 ms a picture; against m31c1   -5.65 ms (instr  -111002, I-miss -27270, D-miss  +1833)

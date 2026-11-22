@@ -1,0 +1,445 @@
+rain wait, ME turn 29,810-29,890, gl35 no keeps: drawn (g35p) - not drawn (g35n4): B model/g35p - A model/g35n4 over 40 pictures; 609 groups, 11545 vertices a picture
+all: instructions +7333371, I-misses +51008, D-misses +54494 = +60.83 ms a picture [C model]; per group 12042 instructions, 83.8 I-misses, 89.5 D-misses = 99.9 us
+
+1 waits (the harness waiting for the ME thread or the GE; not work)  [counters: -]
+      =   +4.18 ms a picture ( 7.4% of the work without the waits)  per group:  1174 instr   0.0 I-miss   4.1 D-miss =   6.9 us
+      hw                            +4.185 ms  (instr   +715148, I-miss      +0, D-miss   +2483 a picture; a group   1174 /   0.0 /   4.1; a vertex  61.9 instr)
+
+2 main CPU: the stub (records)  [counters: -]
+      =   +1.03 ms a picture ( 1.8% of the work without the waits)  per group:   268 instr   0.0 I-miss   1.4 D-miss =   1.7 us
+      rt_nat_p04                    +1.028 ms  (instr   +163371, I-miss     +25, D-miss    +828 a picture; a group    268 /   0.0 /   1.4; a vertex  14.2 instr)
+
+3 hand-off: the copy plan (extents) and the copy into the arena  [counters: the line's hand-off (the ME's records ms)]
+      =   +3.74 ms a picture ( 6.6% of the work without the waits)  per group:   795 instr   1.3 I-miss   7.5 D-miss =   6.1 us
+      me_memcpy                     +1.839 ms  (instr   +140175, I-miss    +744, D-miss   +3842 a picture; a group    230 /   1.2 /   6.3; a vertex  12.1 instr)
+      xm_plan                       +0.948 ms  (instr   +167435, I-miss     +14, D-miss    +449 a picture; a group    275 /   0.0 /   0.7; a vertex  14.5 instr)
+      xc_merge                      +0.800 ms  (instr   +154031, I-miss      -1, D-miss    +143 a picture; a group    253 /  -0.0 /   0.2; a vertex  13.3 instr)
+      xc_add                        +0.119 ms  (instr    +19026, I-miss      -1, D-miss     +98 a picture; a group     31 /  -0.0 /   0.2; a vertex   1.6 instr)
+      xm_fill                       +0.023 ms  (instr     +2314, I-miss      +0, D-miss     +46 a picture; a group      4 /   0.0 /   0.1; a vertex   0.2 instr)
+
+4 the walk: the merge by key, the record into the front end's form, its pointers  [counters: walk and pointers + walk's end]
+      =   +0.02 ms a picture ( 0.0% of the work without the waits)  per group:     0 instr   0.1 I-miss   0.1 D-miss =   0.0 us
+      xl_vif1_span                  +0.023 ms  (instr        +0, I-miss     +56, D-miss     +44 a picture; a group      0 /   0.1 /   0.1; a vertex   0.0 instr)
+
+5 front end, plain: the block, material and header into the VU model, the streams' descriptors, the call, its A+D packet  [counters: register + A+D packet + call's rest + way back (plain turns)]
+      =   +2.40 ms a picture ( 4.2% of the work without the waits)  per group:   534 instr   3.1 I-miss   2.6 D-miss =   3.9 us
+      me_memset                     +0.944 ms  (instr   +115183, I-miss    +704, D-miss    +887 a picture; a group    189 /   1.2 /   1.5; a vertex  10.0 instr)
+      me_memcmp                     +0.451 ms  (instr    +77359, I-miss      +1, D-miss    +261 a picture; a group    127 /   0.0 /   0.4; a vertex   6.7 instr)
+      gf_reg                        +0.308 ms  (instr    +14130, I-miss    +648, D-miss    +411 a picture; a group     23 /   1.1 /   0.7; a vertex   1.2 instr)
+      ud_eager                      +0.196 ms  (instr    +23043, I-miss     +13, D-miss    +308 a picture; a group     38 /   0.0 /   0.5; a vertex   2.0 instr)
+      gif_qw                        +0.153 ms  (instr    +23621, I-miss     +62, D-miss     +90 a picture; a group     39 /   0.1 /   0.1; a vertex   2.0 instr)
+      xl_p04_core                   +0.091 ms  (instr    +16722, I-miss     +27, D-miss     +11 a picture; a group     27 /   0.0 /   0.0; a vertex   1.4 instr)
+      ud_vec                        +0.088 ms  (instr     +9316, I-miss      +9, D-miss    +157 a picture; a group     15 /   0.0 /   0.3; a vertex   0.8 instr)
+      gf_unknown                    +0.088 ms  (instr     +6092, I-miss    +281, D-miss      +0 a picture; a group     10 /   0.5 /   0.0; a vertex   0.5 instr)
+      ud_new                        +0.048 ms  (instr    +21698, I-miss     +22, D-miss    -249 a picture; a group     36 /   0.0 /  -0.4; a vertex   1.9 instr)
+      ud_ok                         +0.024 ms  (instr     +4680, I-miss      +3, D-miss      +0 a picture; a group      8 /   0.0 /   0.0; a vertex   0.4 instr)
+
+6 front end, fast: the same work in one function  [counters: register + A+D packet + call's rest + way back (fast turns)]
+      =   +7.58 ms a picture (13.4% of the work without the waits)  per group:  1279 instr  12.0 I-miss  14.2 D-miss =  12.4 us
+      xl_p04_fast                   +7.577 ms  (instr   +779115, I-miss   +7282, D-miss   +8632 a picture; a group   1279 /  12.0 /  14.2; a vertex  67.5 instr)
+
+7 GS model tracking: the CLUT loads, the drawn areas, the texture pages  [counters: inside A+D packet (the CLUT load) + drawn areas]
+      =   +4.42 ms a picture ( 7.8% of the work without the waits)  per group:   692 instr   9.7 I-miss   7.2 D-miss =   7.3 us
+      gu_drawn                      +1.210 ms  (instr   +116352, I-miss   +1726, D-miss   +1089 a picture; a group    191 /   2.8 /   1.8; a vertex  10.1 instr)
+      gu_clut_load                  +0.981 ms  (instr   +113696, I-miss    +710, D-miss   +1055 a picture; a group    187 /   1.2 /   1.7; a vertex   9.8 instr)
+      drew_ctx                      +0.446 ms  (instr    +34723, I-miss    +655, D-miss    +542 a picture; a group     57 /   1.1 /   0.9; a vertex   3.0 instr)
+      gu_pages_sig                  +0.444 ms  (instr    +34754, I-miss    +693, D-miss    +503 a picture; a group     57 /   1.1 /   0.8; a vertex   3.0 instr)
+      gu_clut_id                    +0.442 ms  (instr    +35807, I-miss    +976, D-miss    +252 a picture; a group     59 /   1.6 /   0.4; a vertex   3.1 instr)
+      touch                         +0.396 ms  (instr    +17033, I-miss    +645, D-miss    +697 a picture; a group     28 /   1.1 /   1.1; a vertex   1.5 instr)
+      rows                          +0.260 ms  (instr    +47949, I-miss     +12, D-miss     +76 a picture; a group     79 /   0.0 /   0.1; a vertex   4.2 instr)
+      gf_drew                       +0.135 ms  (instr    +11574, I-miss    +269, D-miss     +86 a picture; a group     19 /   0.4 /   0.1; a vertex   1.0 instr)
+      clut_new                      +0.105 ms  (instr     +9820, I-miss    +201, D-miss     +60 a picture; a group     16 /   0.3 /   0.1; a vertex   0.9 instr)
+
+8 converter, per group: the call's set-up, GS state, texture look-up, batch state  [counters: host call and GS state + texture + GE transform and batch data + into the frame]
+      =   +9.72 ms a picture (17.2% of the work without the waits)  per group:  1054 instr  33.7 I-miss  14.9 D-miss =  16.0 us
+      xc_call                       +3.325 ms  (instr   +263432, I-miss   +5846, D-miss   +3200 a picture; a group    433 /   9.6 /   5.3; a vertex  22.8 instr)
+      tk_get_um                     +1.296 ms  (instr    +63063, I-miss   +2769, D-miss   +1620 a picture; a group    104 /   4.5 /   2.7; a vertex   5.5 instr)
+      gl_call                       +0.975 ms  (instr    +54605, I-miss   +1490, D-miss   +1551 a picture; a group     90 /   2.4 /   2.5; a vertex   4.7 instr)
+      gl_tex                        +0.827 ms  (instr    +46053, I-miss   +2549, D-miss    +302 a picture; a group     76 /   4.2 /   0.5; a vertex   4.0 instr)
+      xc_gs                         +0.815 ms  (instr    +50746, I-miss   +1648, D-miss    +878 a picture; a group     83 /   2.7 /   1.4; a vertex   4.4 instr)
+      xc_xform                      +0.719 ms  (instr    +44481, I-miss   +2093, D-miss    +274 a picture; a group     73 /   3.4 /   0.5; a vertex   3.9 instr)
+      gb_xform_in                   +0.376 ms  (instr    +17896, I-miss   +1053, D-miss    +280 a picture; a group     29 /   1.7 /   0.5; a vertex   1.6 instr)
+      add_tex                       +0.288 ms  (instr     +8801, I-miss    +635, D-miss    +444 a picture; a group     14 /   1.0 /   0.7; a vertex   0.8 instr)
+      gb_room                       +0.278 ms  (instr    +17105, I-miss    +946, D-miss      +0 a picture; a group     28 /   1.6 /   0.0; a vertex   1.5 instr)
+      xc_state                      +0.273 ms  (instr    +31318, I-miss    +577, D-miss      +1 a picture; a group     51 /   0.9 /   0.0; a vertex   2.7 instr)
+      tk_pal                        +0.226 ms  (instr    +22811, I-miss    +401, D-miss    +119 a picture; a group     37 /   0.7 /   0.2; a vertex   2.0 instr)
+      xm_call                       +0.179 ms  (instr    +11574, I-miss    +348, D-miss    +197 a picture; a group     19 /   0.6 /   0.3; a vertex   1.0 instr)
+      gb_tex                        +0.101 ms  (instr     +2553, I-miss    +187, D-miss    +195 a picture; a group      4 /   0.3 /   0.3; a vertex   0.2 instr)
+      gb_left                       +0.046 ms  (instr     +7412, I-miss      +8, D-miss     +29 a picture; a group     12 /   0.0 /   0.0; a vertex   0.6 instr)
+
+9 converter: the transform (matrix products)  [counters: transform]
+      =   +0.78 ms a picture ( 1.4% of the work without the waits)  per group:    67 instr   3.7 I-miss   0.7 D-miss =   1.3 us
+      vc_xform                      +0.776 ms  (instr    +40942, I-miss   +2281, D-miss    +415 a picture; a group     67 /   3.7 /   0.7; a vertex   3.5 instr)
+
+10 converter, off-screen cut (the box's 8 corners)  [counters: cut test]
+      =   +1.95 ms a picture ( 3.4% of the work without the waits)  per group:   451 instr   1.3 I-miss   2.7 D-miss =   3.2 us
+      xc_off                        +1.951 ms  (instr   +274651, I-miss    +808, D-miss   +1646 a picture; a group    451 /   1.3 /   2.7; a vertex  23.8 instr)
+
+11 converter, depth range  [counters: depth range]
+      =   +1.22 ms a picture ( 2.2% of the work without the waits)  per group:   225 instr   2.8 I-miss   1.2 D-miss =   2.0 us
+      xc_zr_df0d                    +1.213 ms  (instr   +136615, I-miss   +1682, D-miss    +745 a picture; a group    224 /   2.8 /   1.2; a vertex  11.8 instr)
+
+12 converter, per vertex: positions and box, colours / UVs / flags, strips  [counters: positions + attributes + strips]
+      =   +4.91 ms a picture ( 8.7% of the work without the waits)  per group:   822 instr   3.5 I-miss  12.7 D-miss =   8.1 us
+      vc_df0_pos_k                  +3.468 ms  (instr   +329323, I-miss   +1199, D-miss   +6161 a picture; a group    541 /   2.0 /  10.1; a vertex  28.5 instr)
+      vc_df0_att                    +0.939 ms  (instr   +112001, I-miss    +269, D-miss   +1275 a picture; a group    184 /   0.4 /   2.1; a vertex   9.7 instr)
+      vc_strips                     +0.505 ms  (instr    +59456, I-miss    +683, D-miss    +275 a picture; a group     98 /   1.1 /   0.5; a vertex   5.1 instr)
+
+13 list build at the frame's end: the batches into the GE list, the shadow pairing (outside the walk)  [counters: - (the ME's frame ends and lists)]
+      =   +5.60 ms a picture ( 9.9% of the work without the waits)  per group:  1520 instr   1.4 I-miss   5.4 D-miss =   9.2 us
+      gx_batch                      +1.700 ms  (instr   +280649, I-miss    +207, D-miss   +1035 a picture; a group    461 /   0.3 /   1.7; a vertex  24.3 instr)
+      xf_setup                      +1.298 ms  (instr   +238117, I-miss      +0, D-miss    +459 a picture; a group    391 /   0.0 /   0.8; a vertex  20.6 instr)
+      dz_pair                       +0.896 ms  (instr    +94959, I-miss    +249, D-miss   +1451 a picture; a group    156 /   0.4 /   2.4; a vertex   8.2 instr)
+      put_sym                       +0.675 ms  (instr   +132457, I-miss     +10, D-miss     +63 a picture; a group    217 /   0.0 /   0.1; a vertex  11.5 instr)
+      put                           +0.356 ms  (instr    +68060, I-miss     +22, D-miss     +57 a picture; a group    112 /   0.0 /   0.1; a vertex   5.9 instr)
+      xf_rest                       +0.179 ms  (instr    +34221, I-miss     +36, D-miss      +7 a picture; a group     56 /   0.1 /   0.0; a vertex   3.0 instr)
+      dz_sortk                      +0.163 ms  (instr    +32524, I-miss      +7, D-miss      +0 a picture; a group     53 /   0.0 /   0.0; a vertex   2.8 instr)
+      dz_tris                       +0.084 ms  (instr    +13113, I-miss     +57, D-miss     +27 a picture; a group     22 /   0.1 /   0.0; a vertex   1.1 instr)
+      dz_sortt                      +0.083 ms  (instr    +13679, I-miss     +72, D-miss      +0 a picture; a group     22 /   0.1 /   0.0; a vertex   1.2 instr)
+      gl_end                        +0.050 ms  (instr     +1579, I-miss      +0, D-miss    +164 a picture; a group      3 /   0.0 /   0.3; a vertex   0.1 instr)
+      dz_tuniq                      +0.036 ms  (instr     +4762, I-miss     +60, D-miss      +0 a picture; a group      8 /   0.1 /   0.0; a vertex   0.4 instr)
+      dz_uniq                       +0.032 ms  (instr     +4317, I-miss     +50, D-miss      +0 a picture; a group      7 /   0.1 /   0.0; a vertex   0.4 instr)
+      gx_frame                      +0.029 ms  (instr     +3938, I-miss     +41, D-miss      +3 a picture; a group      6 /   0.1 /   0.0; a vertex   0.3 instr)
+
+14 everything else (each under its name when 0.10 ms or more)
+      =  +13.27 ms a picture (23.4% of the work without the waits)  per group:  3159 instr  11.1 I-miss  15.0 D-miss =  21.8 us
+      gl_digest                     +8.384 ms  (instr  +1429920, I-miss      +0, D-miss   +5031 a picture; a group   2348 /   0.0 /   8.3; a vertex 123.9 instr)
+      lw_walk                       +3.529 ms  (instr   +379756, I-miss   +4290, D-miss   +2985 a picture; a group    624 /   7.0 /   4.9; a vertex  32.9 instr)
+      mq_wait                       +0.176 ms  (instr     +5246, I-miss    +229, D-miss    +400 a picture; a group      9 /   0.4 /   0.7; a vertex   0.5 instr)
+      mq_service                    +0.166 ms  (instr     +4900, I-miss    +191, D-miss    +399 a picture; a group      8 /   0.3 /   0.7; a vertex   0.4 instr)
+      ug_get                        +0.147 ms  (instr     +4161, I-miss    +328, D-miss    +231 a picture; a group      7 /   0.5 /   0.4; a vertex   0.4 instr)
+      ld_sig                        +0.147 ms  (instr    +20672, I-miss    +169, D-miss     +38 a picture; a group     34 /   0.3 /   0.1; a vertex   1.8 instr)
+      mp_mark                       +0.142 ms  (instr    +26032, I-miss      -2, D-miss     +54 a picture; a group     43 /  -0.0 /   0.1; a vertex   2.3 instr)
+
+rain wait, main turn 29,910-29,990, gl35 no keeps: drawn (g35p.1) - not drawn (g35n4.1): B model/g35p.1 - A model/g35n4.1 over 40 pictures; 609 groups, 11545 vertices a picture
+all: instructions +6319612, I-misses +43378, D-misses +45251 = +51.86 ms a picture [C model]; per group 10377 instructions, 71.2 I-misses, 74.3 D-misses = 85.2 us
+
+1 waits (the harness waiting for the ME thread or the GE; not work)  [counters: -]
+      =   +3.91 ms a picture ( 8.1% of the work without the waits)  per group:  1096 instr   0.0 I-miss   3.8 D-miss =   6.4 us
+      hw                            +3.907 ms  (instr   +667624, I-miss      +0, D-miss   +2318 a picture; a group   1096 /   0.0 /   3.8; a vertex  57.8 instr)
+
+2 main CPU: the stub (records)  [counters: -]
+      =   +1.01 ms a picture ( 2.1% of the work without the waits)  per group:   262 instr   0.0 I-miss   1.3 D-miss =   1.7 us
+      rt_nat_p04                    +1.006 ms  (instr   +159785, I-miss     +25, D-miss    +808 a picture; a group    262 /   0.0 /   1.3; a vertex  13.8 instr)
+
+3 hand-off: the copy plan (extents) and the copy into the arena  [counters: the line's hand-off (the ME's records ms)]
+      =   +0.16 ms a picture ( 0.3% of the work without the waits)  per group:    18 instr   0.6 I-miss   0.2 D-miss =   0.3 us
+      me_memcpy                     +0.160 ms  (instr    +10911, I-miss    +333, D-miss    +149 a picture; a group     18 /   0.5 /   0.2; a vertex   0.9 instr)
+
+4 the walk: the merge by key, the record into the front end's form, its pointers  [counters: walk and pointers + walk's end]
+      =   +0.01 ms a picture ( 0.0% of the work without the waits)  per group:    -1 instr   0.1 I-miss   0.0 D-miss =   0.0 us
+
+5 front end, plain: the block, material and header into the VU model, the streams' descriptors, the call, its A+D packet  [counters: register + A+D packet + call's rest + way back (plain turns)]
+      =   +2.39 ms a picture ( 5.0% of the work without the waits)  per group:   495 instr   3.5 I-miss   3.0 D-miss =   3.9 us
+      me_memset                     +0.886 ms  (instr   +108510, I-miss    +709, D-miss    +786 a picture; a group    178 /   1.2 /   1.3; a vertex   9.4 instr)
+      me_memcmp                     +0.424 ms  (instr    +72433, I-miss      -0, D-miss    +254 a picture; a group    119 /  -0.0 /   0.4; a vertex   6.3 instr)
+      ud_eager                      +0.186 ms  (instr    +21788, I-miss     +11, D-miss    +294 a picture; a group     36 /   0.0 /   0.5; a vertex   1.9 instr)
+      gf_reg                        +0.175 ms  (instr    +12814, I-miss    +458, D-miss     +71 a picture; a group     21 /   0.8 /   0.1; a vertex   1.1 instr)
+      call                          +0.167 ms  (instr    +10303, I-miss    +578, D-miss      -8 a picture; a group     17 /   0.9 /  -0.0; a vertex   0.9 instr)
+      gif_qw                        +0.145 ms  (instr    +20090, I-miss     +51, D-miss    +135 a picture; a group     33 /   0.1 /   0.2; a vertex   1.7 instr)
+      ud_new                        +0.121 ms  (instr    +19090, I-miss      +6, D-miss     +97 a picture; a group     31 /   0.0 /   0.2; a vertex   1.7 instr)
+      ud_vec                        +0.090 ms  (instr     +9314, I-miss      +9, D-miss    +162 a picture; a group     15 /   0.0 /   0.3; a vertex   0.8 instr)
+      xl_p04_core                   +0.089 ms  (instr    +16677, I-miss     +22, D-miss      +8 a picture; a group     27 /   0.0 /   0.0; a vertex   1.4 instr)
+      gf_unknown                    +0.084 ms  (instr     +5900, I-miss    +266, D-miss      +0 a picture; a group     10 /   0.4 /   0.0; a vertex   0.5 instr)
+      ud_ok                         +0.020 ms  (instr     +4100, I-miss      -0, D-miss      +0 a picture; a group      7 /  -0.0 /   0.0; a vertex   0.4 instr)
+
+6 front end, fast: the same work in one function  [counters: register + A+D packet + call's rest + way back (fast turns)]
+      =   +7.06 ms a picture (14.7% of the work without the waits)  per group:  1243 instr  10.4 I-miss  12.8 D-miss =  11.6 us
+      xl_p04_fast                   +7.056 ms  (instr   +756812, I-miss   +6363, D-miss   +7771 a picture; a group   1243 /  10.4 /  12.8; a vertex  65.6 instr)
+
+7 GS model tracking: the CLUT loads, the drawn areas, the texture pages  [counters: inside A+D packet (the CLUT load) + drawn areas]
+      =   +4.28 ms a picture ( 8.9% of the work without the waits)  per group:   657 instr   9.0 I-miss   7.5 D-miss =   7.0 us
+      gu_drawn                      +1.369 ms  (instr   +112690, I-miss   +1663, D-miss   +1824 a picture; a group    185 /   2.7 /   3.0; a vertex   9.8 instr)
+      gu_clut_load                  +0.943 ms  (instr   +108665, I-miss    +654, D-miss   +1050 a picture; a group    178 /   1.1 /   1.7; a vertex   9.4 instr)
+      gu_clut_id                    +0.429 ms  (instr    +32895, I-miss    +901, D-miss    +317 a picture; a group     54 /   1.5 /   0.5; a vertex   2.8 instr)
+      gu_pages_sig                  +0.400 ms  (instr    +30498, I-miss    +629, D-miss    +467 a picture; a group     50 /   1.0 /   0.8; a vertex   2.6 instr)
+      touch                         +0.354 ms  (instr    +15228, I-miss    +598, D-miss    +607 a picture; a group     25 /   1.0 /   1.0; a vertex   1.3 instr)
+      drew_ctx                      +0.304 ms  (instr    +33630, I-miss    +611, D-miss     +47 a picture; a group     55 /   1.0 /   0.1; a vertex   2.9 instr)
+      rows                          +0.247 ms  (instr    +45588, I-miss     +12, D-miss     +72 a picture; a group     75 /   0.0 /   0.1; a vertex   3.9 instr)
+      gf_drew                       +0.137 ms  (instr    +11210, I-miss    +253, D-miss    +115 a picture; a group     18 /   0.4 /   0.2; a vertex   1.0 instr)
+      clut_new                      +0.097 ms  (instr     +9820, I-miss    +190, D-miss     +39 a picture; a group     16 /   0.3 /   0.1; a vertex   0.9 instr)
+
+8 converter, per group: the call's set-up, GS state, texture look-up, batch state  [counters: host call and GS state + texture + GE transform and batch data + into the frame]
+      =   +8.67 ms a picture (18.1% of the work without the waits)  per group:   988 instr  29.5 I-miss  12.9 D-miss =  14.2 us
+      xc_call                       +2.772 ms  (instr   +250212, I-miss   +4531, D-miss   +2352 a picture; a group    411 /   7.4 /   3.9; a vertex  21.7 instr)
+      tk_get_um                     +1.175 ms  (instr    +55941, I-miss   +2399, D-miss   +1582 a picture; a group     92 /   3.9 /   2.6; a vertex   4.8 instr)
+      gl_tex                        +0.839 ms  (instr    +41425, I-miss   +2576, D-miss    +419 a picture; a group     68 /   4.2 /   0.7; a vertex   3.6 instr)
+      gl_call                       +0.815 ms  (instr    +52430, I-miss   +1233, D-miss   +1173 a picture; a group     86 /   2.0 /   1.9; a vertex   4.5 instr)
+      xc_gs                         +0.796 ms  (instr    +48670, I-miss   +1464, D-miss    +990 a picture; a group     80 /   2.4 /   1.6; a vertex   4.2 instr)
+      xc_xform                      +0.653 ms  (instr    +41557, I-miss   +1953, D-miss    +186 a picture; a group     68 /   3.2 /   0.3; a vertex   3.6 instr)
+      gb_xform_in                   +0.348 ms  (instr    +16721, I-miss    +984, D-miss    +250 a picture; a group     27 /   1.6 /   0.4; a vertex   1.4 instr)
+      gb_room                       +0.266 ms  (instr    +16642, I-miss    +899, D-miss      +0 a picture; a group     27 /   1.5 /   0.0; a vertex   1.4 instr)
+      xc_state                      +0.257 ms  (instr    +29262, I-miss    +546, D-miss      +1 a picture; a group     48 /   0.9 /   0.0; a vertex   2.5 instr)
+      add_tex                       +0.251 ms  (instr     +7882, I-miss    +586, D-miss    +358 a picture; a group     13 /   1.0 /   0.6; a vertex   0.7 instr)
+      tk_pal                        +0.225 ms  (instr    +20309, I-miss    +302, D-miss    +241 a picture; a group     33 /   0.5 /   0.4; a vertex   1.8 instr)
+      xm_call                       +0.142 ms  (instr    +11210, I-miss    +323, D-miss     +79 a picture; a group     18 /   0.5 /   0.1; a vertex   1.0 instr)
+      gb_tex                        +0.094 ms  (instr     +2344, I-miss    +172, D-miss    +184 a picture; a group      4 /   0.3 /   0.3; a vertex   0.2 instr)
+      gb_left                       +0.038 ms  (instr     +7163, I-miss      +0, D-miss     +11 a picture; a group     12 /   0.0 /   0.0; a vertex   0.6 instr)
+
+9 converter: the transform (matrix products)  [counters: transform]
+      =   +0.64 ms a picture ( 1.3% of the work without the waits)  per group:    66 instr   3.0 I-miss   0.4 D-miss =   1.0 us
+      vc_xform                      +0.637 ms  (instr    +40191, I-miss   +1817, D-miss    +260 a picture; a group     66 /   3.0 /   0.4; a vertex   3.5 instr)
+
+10 converter, off-screen cut (the box's 8 corners)  [counters: cut test]
+      =   +1.87 ms a picture ( 3.9% of the work without the waits)  per group:   445 instr   1.0 I-miss   2.6 D-miss =   3.1 us
+      xc_off                        +1.874 ms  (instr   +271208, I-miss    +588, D-miss   +1590 a picture; a group    445 /   1.0 /   2.6; a vertex  23.5 instr)
+
+11 converter, depth range  [counters: depth range]
+      =   +1.16 ms a picture ( 2.4% of the work without the waits)  per group:   221 instr   2.4 I-miss   1.3 D-miss =   1.9 us
+      xc_zr_df0d                    +1.158 ms  (instr   +134425, I-miss   +1424, D-miss    +778 a picture; a group    221 /   2.3 /   1.3; a vertex  11.6 instr)
+
+12 converter, per vertex: positions and box, colours / UVs / flags, strips  [counters: positions + attributes + strips]
+      =   +4.49 ms a picture ( 9.4% of the work without the waits)  per group:   791 instr   3.2 I-miss  10.9 D-miss =   7.4 us
+      vc_df0_pos_k                  +3.164 ms  (instr   +321862, I-miss   +1047, D-miss   +5250 a picture; a group    529 /   1.7 /   8.6; a vertex  27.9 instr)
+      vc_df0_att                    +0.856 ms  (instr   +104567, I-miss    +252, D-miss   +1109 a picture; a group    172 /   0.4 /   1.8; a vertex   9.1 instr)
+      vc_strips                     +0.468 ms  (instr    +55352, I-miss    +626, D-miss    +255 a picture; a group     91 /   1.0 /   0.4; a vertex   4.8 instr)
+
+13 list build at the frame's end: the batches into the GE list, the shadow pairing (outside the walk)  [counters: - (the ME's frame ends and lists)]
+      =   +5.20 ms a picture (10.8% of the work without the waits)  per group:  1414 instr   1.2 I-miss   4.9 D-miss =   8.5 us
+      gx_batch                      +1.572 ms  (instr   +260159, I-miss    +173, D-miss    +958 a picture; a group    427 /   0.3 /   1.6; a vertex  22.5 instr)
+      xf_setup                      +1.214 ms  (instr   +222490, I-miss      +0, D-miss    +430 a picture; a group    365 /   0.0 /   0.7; a vertex  19.3 instr)
+      dz_pair                       +0.819 ms  (instr    +87707, I-miss    +226, D-miss   +1312 a picture; a group    144 /   0.4 /   2.2; a vertex   7.6 instr)
+      put_sym                       +0.624 ms  (instr   +122223, I-miss     +10, D-miss     +63 a picture; a group    201 /   0.0 /   0.1; a vertex  10.6 instr)
+      put                           +0.328 ms  (instr    +62615, I-miss     +19, D-miss     +54 a picture; a group    103 /   0.0 /   0.1; a vertex   5.4 instr)
+      xf_rest                       +0.169 ms  (instr    +31896, I-miss     +36, D-miss     +13 a picture; a group     52 /   0.1 /   0.0; a vertex   2.8 instr)
+      dz_sortk                      +0.156 ms  (instr    +31336, I-miss      +6, D-miss      +0 a picture; a group     51 /   0.0 /   0.0; a vertex   2.7 instr)
+      dz_tris                       +0.080 ms  (instr    +12641, I-miss     +55, D-miss     +23 a picture; a group     21 /   0.1 /   0.0; a vertex   1.1 instr)
+      dz_sortt                      +0.080 ms  (instr    +13320, I-miss     +67, D-miss      +0 a picture; a group     22 /   0.1 /   0.0; a vertex   1.2 instr)
+      gl_end                        +0.047 ms  (instr     +1475, I-miss      +0, D-miss    +154 a picture; a group      2 /   0.0 /   0.3; a vertex   0.1 instr)
+      dz_tuniq                      +0.033 ms  (instr     +4615, I-miss     +52, D-miss      +0 a picture; a group      8 /   0.1 /   0.0; a vertex   0.4 instr)
+      dz_uniq                       +0.030 ms  (instr     +4157, I-miss     +48, D-miss      +0 a picture; a group      7 /   0.1 /   0.0; a vertex   0.4 instr)
+      gx_frame                      +0.023 ms  (instr     +3697, I-miss     +15, D-miss      +5 a picture; a group      6 /   0.0 /   0.0; a vertex   0.3 instr)
+
+14 everything else (each under its name when 0.10 ms or more)
+      =  +11.02 ms a picture (23.0% of the work without the waits)  per group:  2681 instr   7.4 I-miss  12.8 D-miss =  18.1 us
+      gl_digest                     +7.708 ms  (instr  +1314610, I-miss      +0, D-miss   +4623 a picture; a group   2159 /   0.0 /   7.6; a vertex 113.9 instr)
+      lw_walk                       +2.331 ms  (instr   +215585, I-miss   +2815, D-miss   +2666 a picture; a group    354 /   4.6 /   4.4; a vertex  18.7 instr)
+      ld_sig                        +0.137 ms  (instr    +19989, I-miss    +137, D-miss     +38 a picture; a group     33 /   0.2 /   0.1; a vertex   1.7 instr)
+      ug_get                        +0.124 ms  (instr     +3787, I-miss    +240, D-miss    +218 a picture; a group      6 /   0.4 /   0.4; a vertex   0.3 instr)
+
+rain wait, ME turn 29,810-29,890, gl35 keeps 15: drawn (g35k) - not drawn (g35n4): B model/g35k - A model/g35n4 over 40 pictures; 609 groups, 11545 vertices a picture
+all: instructions +7140246, I-misses +54428, D-misses +53420 = +60.29 ms a picture [C model]; per group 11725 instructions, 89.4 I-misses, 87.7 D-misses = 99.0 us
+
+1 waits (the harness waiting for the ME thread or the GE; not work)  [counters: -]
+      =   +4.15 ms a picture ( 7.4% of the work without the waits)  per group:  1164 instr   0.0 I-miss   4.0 D-miss =   6.8 us
+      hw                            +4.149 ms  (instr   +708979, I-miss      +0, D-miss   +2462 a picture; a group   1164 /   0.0 /   4.0; a vertex  61.4 instr)
+
+2 main CPU: the stub (records)  [counters: -]
+      =   +1.05 ms a picture ( 1.9% of the work without the waits)  per group:   275 instr   0.0 I-miss   1.4 D-miss =   1.7 us
+      rt_nat_p04                    +1.049 ms  (instr   +167630, I-miss     +25, D-miss    +828 a picture; a group    275 /   0.0 /   1.4; a vertex  14.5 instr)
+
+3 hand-off: the copy plan (extents) and the copy into the arena  [counters: the line's hand-off (the ME's records ms)]
+      =   +3.67 ms a picture ( 6.5% of the work without the waits)  per group:   790 instr   0.9 I-miss   7.5 D-miss =   6.0 us
+      me_memcpy                     +1.765 ms  (instr   +137143, I-miss    +504, D-miss   +3803 a picture; a group    225 /   0.8 /   6.2; a vertex  11.9 instr)
+      xm_plan                       +0.948 ms  (instr   +167435, I-miss     +14, D-miss    +449 a picture; a group    275 /   0.0 /   0.7; a vertex  14.5 instr)
+      xc_merge                      +0.800 ms  (instr   +154038, I-miss      -1, D-miss    +143 a picture; a group    253 /  -0.0 /   0.2; a vertex  13.3 instr)
+      xc_add                        +0.119 ms  (instr    +19024, I-miss      -1, D-miss     +98 a picture; a group     31 /  -0.0 /   0.2; a vertex   1.6 instr)
+      xm_fill                       +0.023 ms  (instr     +2314, I-miss      +0, D-miss     +46 a picture; a group      4 /   0.0 /   0.1; a vertex   0.2 instr)
+
+4 the walk: the merge by key, the record into the front end's form, its pointers  [counters: walk and pointers + walk's end]
+      =   +0.02 ms a picture ( 0.0% of the work without the waits)  per group:     0 instr   0.1 I-miss   0.1 D-miss =   0.0 us
+      xl_vif1_span                  +0.023 ms  (instr        +0, I-miss     +56, D-miss     +45 a picture; a group      0 /   0.1 /   0.1; a vertex   0.0 instr)
+
+5 front end, plain: the block, material and header into the VU model, the streams' descriptors, the call, its A+D packet  [counters: register + A+D packet + call's rest + way back (plain turns)]
+      =   +2.10 ms a picture ( 3.7% of the work without the waits)  per group:   520 instr   1.5 I-miss   2.2 D-miss =   3.5 us
+      me_memset                     +0.802 ms  (instr   +115298, I-miss     +41, D-miss    +862 a picture; a group    189 /   0.1 /   1.4; a vertex  10.0 instr)
+      me_memcmp                     +0.451 ms  (instr    +77322, I-miss      +5, D-miss    +260 a picture; a group    127 /   0.0 /   0.4; a vertex   6.7 instr)
+      ud_new                        +0.216 ms  (instr    +21698, I-miss    +781, D-miss    -196 a picture; a group     36 /   1.3 /  -0.3; a vertex   1.9 instr)
+      gif_qw                        +0.159 ms  (instr    +23621, I-miss     +60, D-miss    +113 a picture; a group     39 /   0.1 /   0.2; a vertex   2.0 instr)
+      ud_eager                      +0.152 ms  (instr    +23043, I-miss    -232, D-miss    +328 a picture; a group     38 /  -0.4 /   0.5; a vertex   2.0 instr)
+      xl_p04_core                   +0.091 ms  (instr    +16722, I-miss     +27, D-miss     +11 a picture; a group     27 /   0.0 /   0.0; a vertex   1.4 instr)
+      ud_vec                        +0.088 ms  (instr     +9316, I-miss      +9, D-miss    +157 a picture; a group     15 /   0.0 /   0.3; a vertex   0.8 instr)
+      gf_unknown                    +0.082 ms  (instr     +6092, I-miss    +254, D-miss      +0 a picture; a group     10 /   0.4 /   0.0; a vertex   0.5 instr)
+      gf_reg                        +0.033 ms  (instr     +5577, I-miss    -116, D-miss    +111 a picture; a group      9 /  -0.2 /   0.2; a vertex   0.5 instr)
+
+6 front end, fast: the same work in one function  [counters: register + A+D packet + call's rest + way back (fast turns)]
+      =   +7.85 ms a picture (14.0% of the work without the waits)  per group:  1311 instr  13.4 I-miss  14.2 D-miss =  12.9 us
+      xl_p04_fast                   +7.853 ms  (instr   +798503, I-miss   +8156, D-miss   +8639 a picture; a group   1311 /  13.4 /  14.2; a vertex  69.2 instr)
+
+7 GS model tracking: the CLUT loads, the drawn areas, the texture pages  [counters: inside A+D packet (the CLUT load) + drawn areas]
+      =   +3.33 ms a picture ( 5.9% of the work without the waits)  per group:   467 instr   8.1 I-miss   5.8 D-miss =   5.5 us
+      gu_clut_load                  +0.987 ms  (instr    +94869, I-miss    +747, D-miss   +1411 a picture; a group    156 /   1.2 /   2.3; a vertex   8.2 instr)
+      gu_clut_id                    +0.509 ms  (instr    +35772, I-miss   +1345, D-miss    +220 a picture; a group     59 /   2.2 /   0.4; a vertex   3.1 instr)
+      gu_pages_sig                  +0.475 ms  (instr    +34754, I-miss    +835, D-miss    +513 a picture; a group     57 /   1.4 /   0.8; a vertex   3.0 instr)
+      gu_drawn_again                +0.401 ms  (instr    +30681, I-miss    +316, D-miss    +713 a picture; a group     50 /   0.5 /   1.2; a vertex   2.7 instr)
+      touch                         +0.367 ms  (instr    +17019, I-miss    +587, D-miss    +631 a picture; a group     28 /   1.0 /   1.0; a vertex   1.5 instr)
+      rows                          +0.311 ms  (instr    +47941, I-miss    +394, D-miss     -28 a picture; a group     79 /   0.6 /  -0.0; a vertex   4.2 instr)
+      gu_dgen                       +0.190 ms  (instr     +2273, I-miss    +156, D-miss    +568 a picture; a group      4 /   0.3 /   0.9; a vertex   0.2 instr)
+      gu_drawn                      -0.133 ms  (instr     +7855, I-miss     +30, D-miss    -688 a picture; a group     13 /   0.0 /  -1.1; a vertex   0.7 instr)
+      drew_ctx                      +0.109 ms  (instr     +2337, I-miss    +282, D-miss    +154 a picture; a group      4 /   0.5 /   0.3; a vertex   0.2 instr)
+      clut_new                      +0.105 ms  (instr     +9820, I-miss    +203, D-miss     +59 a picture; a group     16 /   0.3 /   0.1; a vertex   0.9 instr)
+
+8 converter, per group: the call's set-up, GS state, texture look-up, batch state  [counters: host call and GS state + texture + GE transform and batch data + into the frame]
+      =  +10.24 ms a picture (18.2% of the work without the waits)  per group:   955 instr  40.1 I-miss  15.1 D-miss =  16.8 us
+      xc_call                       +3.012 ms  (instr   +254774, I-miss   +4595, D-miss   +3142 a picture; a group    418 /   7.5 /   5.2; a vertex  22.1 instr)
+      gl_tex                        +1.904 ms  (instr    +89392, I-miss   +5192, D-miss   +1551 a picture; a group    147 /   8.5 /   2.5; a vertex   7.7 instr)
+      xc_gs                         +0.913 ms  (instr    +50746, I-miss   +2172, D-miss    +845 a picture; a group     83 /   3.6 /   1.4; a vertex   4.4 instr)
+      gl_call                       +0.838 ms  (instr    +54602, I-miss    +922, D-miss   +1468 a picture; a group     90 /   1.5 /   2.4; a vertex   4.7 instr)
+      xc_xform                      +0.790 ms  (instr    +44481, I-miss   +2439, D-miss    +277 a picture; a group     73 /   4.0 /   0.5; a vertex   3.9 instr)
+      tk_keep_again                 +0.789 ms  (instr    +60954, I-miss   +1226, D-miss    +918 a picture; a group    100 /   2.0 /   1.5; a vertex   5.3 instr)
+      tk_keep_ok                    +0.525 ms  (instr    +29794, I-miss   +1022, D-miss    +652 a picture; a group     49 /   1.7 /   1.1; a vertex   2.6 instr)
+      gb_xform_in                   +0.375 ms  (instr    +17876, I-miss   +1052, D-miss    +277 a picture; a group     29 /   1.7 /   0.5; a vertex   1.5 instr)
+      xc_state                      +0.303 ms  (instr    +31282, I-miss    +722, D-miss      +0 a picture; a group     51 /   1.2 /   0.0; a vertex   2.7 instr)
+      gb_room                       +0.278 ms  (instr    +17105, I-miss    +946, D-miss      +0 a picture; a group     28 /   1.6 /   0.0; a vertex   1.5 instr)
+      add_tex                       +0.205 ms  (instr     +8796, I-miss    +219, D-miss    +451 a picture; a group     14 /   0.4 /   0.7; a vertex   0.8 instr)
+      xm_call                       +0.177 ms  (instr    +11574, I-miss    +348, D-miss    +187 a picture; a group     19 /   0.6 /   0.3; a vertex   1.0 instr)
+      tk_get_um                     -0.114 ms  (instr    -73637, I-miss   +2036, D-miss    -639 a picture; a group   -121 /   3.3 /  -1.0; a vertex  -6.4 instr)
+      gb_tex                        +0.101 ms  (instr     +2553, I-miss    +187, D-miss    +194 a picture; a group      4 /   0.3 /   0.3; a vertex   0.2 instr)
+      gb_left                       +0.078 ms  (instr     +7412, I-miss    +166, D-miss     +29 a picture; a group     12 /   0.3 /   0.0; a vertex   0.6 instr)
+      tk_keep_last                  +0.070 ms  (instr      +752, I-miss    +325, D-miss      +0 a picture; a group      1 /   0.5 /   0.0; a vertex   0.1 instr)
+
+9 converter: the transform (matrix products)  [counters: transform]
+      =   +0.78 ms a picture ( 1.4% of the work without the waits)  per group:    67 instr   3.7 I-miss   0.7 D-miss =   1.3 us
+      vc_xform                      +0.777 ms  (instr    +40932, I-miss   +2280, D-miss    +421 a picture; a group     67 /   3.7 /   0.7; a vertex   3.5 instr)
+
+10 converter, off-screen cut (the box's 8 corners)  [counters: cut test]
+      =   +1.98 ms a picture ( 3.5% of the work without the waits)  per group:   451 instr   1.6 I-miss   2.7 D-miss =   3.2 us
+      xc_off                        +1.979 ms  (instr   +274651, I-miss    +945, D-miss   +1646 a picture; a group    451 /   1.6 /   2.7; a vertex  23.8 instr)
+
+11 converter, depth range  [counters: depth range]
+      =   +1.18 ms a picture ( 2.1% of the work without the waits)  per group:   223 instr   2.5 I-miss   1.2 D-miss =   1.9 us
+      xc_zr_df0d                    +1.169 ms  (instr   +135796, I-miss   +1491, D-miss    +742 a picture; a group    223 /   2.4 /   1.2; a vertex  11.8 instr)
+
+12 converter, per vertex: positions and box, colours / UVs / flags, strips  [counters: positions + attributes + strips]
+      =   +4.95 ms a picture ( 8.8% of the work without the waits)  per group:   822 instr   4.0 I-miss  12.6 D-miss =   8.1 us
+      vc_df0_pos_k                  +3.514 ms  (instr   +329323, I-miss   +1483, D-miss   +6115 a picture; a group    541 /   2.4 /  10.0; a vertex  28.5 instr)
+      vc_df0_att                    +0.940 ms  (instr   +112001, I-miss    +273, D-miss   +1275 a picture; a group    184 /   0.4 /   2.1; a vertex   9.7 instr)
+      vc_strips                     +0.500 ms  (instr    +59456, I-miss    +657, D-miss    +276 a picture; a group     98 /   1.1 /   0.5; a vertex   5.1 instr)
+
+13 list build at the frame's end: the batches into the GE list, the shadow pairing (outside the walk)  [counters: - (the ME's frame ends and lists)]
+      =   +5.53 ms a picture ( 9.8% of the work without the waits)  per group:  1507 instr   1.4 I-miss   5.1 D-miss =   9.1 us
+      gx_batch                      +1.692 ms  (instr   +279518, I-miss    +207, D-miss   +1024 a picture; a group    459 /   0.3 /   1.7; a vertex  24.2 instr)
+      xf_setup                      +1.297 ms  (instr   +237846, I-miss      -0, D-miss    +460 a picture; a group    391 /  -0.0 /   0.8; a vertex  20.6 instr)
+      dz_pair                       +0.839 ms  (instr    +89739, I-miss    +249, D-miss   +1328 a picture; a group    147 /   0.4 /   2.2; a vertex   7.8 instr)
+      put_sym                       +0.671 ms  (instr   +131668, I-miss     +10, D-miss     +65 a picture; a group    216 /   0.0 /   0.1; a vertex  11.4 instr)
+      put                           +0.351 ms  (instr    +67059, I-miss     +22, D-miss     +56 a picture; a group    110 /   0.0 /   0.1; a vertex   5.8 instr)
+      xf_rest                       +0.178 ms  (instr    +34069, I-miss     +37, D-miss      +7 a picture; a group     56 /   0.1 /   0.0; a vertex   3.0 instr)
+      dz_sortk                      +0.165 ms  (instr    +32977, I-miss      +7, D-miss      +0 a picture; a group     54 /   0.0 /   0.0; a vertex   2.9 instr)
+      dz_tris                       +0.084 ms  (instr    +13211, I-miss     +57, D-miss     +27 a picture; a group     22 /   0.1 /   0.0; a vertex   1.1 instr)
+      dz_sortt                      +0.083 ms  (instr    +13775, I-miss     +72, D-miss      +0 a picture; a group     23 /   0.1 /   0.0; a vertex   1.2 instr)
+      gl_end                        +0.050 ms  (instr     +1577, I-miss      +0, D-miss    +164 a picture; a group      3 /   0.0 /   0.3; a vertex   0.1 instr)
+      dz_tuniq                      +0.036 ms  (instr     +4797, I-miss     +60, D-miss      +0 a picture; a group      8 /   0.1 /   0.0; a vertex   0.4 instr)
+      dz_uniq                       +0.032 ms  (instr     +4352, I-miss     +50, D-miss      +0 a picture; a group      7 /   0.1 /   0.0; a vertex   0.4 instr)
+      gx_frame                      +0.029 ms  (instr     +3934, I-miss     +41, D-miss      +3 a picture; a group      6 /   0.1 /   0.0; a vertex   0.3 instr)
+
+14 everything else (each under its name when 0.10 ms or more)
+      =  +13.47 ms a picture (24.0% of the work without the waits)  per group:  3171 instr  12.2 I-miss  15.1 D-miss =  22.1 us
+      gl_digest                     +8.384 ms  (instr  +1429920, I-miss      +0, D-miss   +5031 a picture; a group   2348 /   0.0 /   8.3; a vertex 123.9 instr)
+      lw_walk                       +3.401 ms  (instr   +379756, I-miss   +3683, D-miss   +2972 a picture; a group    624 /   6.0 /   4.9; a vertex  32.9 instr)
+      xc_hold_test                  +0.266 ms  (instr    +13114, I-miss    +966, D-miss     +14 a picture; a group     22 /   1.6 /   0.0; a vertex   1.1 instr)
+      mq_wait                       +0.165 ms  (instr     +5094, I-miss    +192, D-miss    +391 a picture; a group      8 /   0.3 /   0.6; a vertex   0.4 instr)
+      mq_service                    +0.154 ms  (instr     +4756, I-miss    +141, D-miss    +393 a picture; a group      8 /   0.2 /   0.6; a vertex   0.4 instr)
+      ug_get                        +0.147 ms  (instr     +4161, I-miss    +328, D-miss    +232 a picture; a group      7 /   0.5 /   0.4; a vertex   0.4 instr)
+      ld_sig                        +0.147 ms  (instr    +20672, I-miss    +169, D-miss     +39 a picture; a group     34 /   0.3 /   0.1; a vertex   1.8 instr)
+      mp_mark                       +0.142 ms  (instr    +26032, I-miss      -2, D-miss     +54 a picture; a group     43 /  -0.0 /   0.1; a vertex   2.3 instr)
+      xl_lane_p06                   +0.132 ms  (instr        +0, I-miss    +561, D-miss     +69 a picture; a group      0 /   0.9 /   0.1; a vertex   0.0 instr)
+
+rain wait, main turn 29,910-29,990, gl35 keeps 15: drawn (g35k.1) - not drawn (g35n4.1): B model/g35k.1 - A model/g35n4.1 over 40 pictures; 609 groups, 11545 vertices a picture
+all: instructions +6183420, I-misses +47458, D-misses +44584 = +51.84 ms a picture [C model]; per group 10153 instructions, 77.9 I-misses, 73.2 D-misses = 85.1 us
+
+1 waits (the harness waiting for the ME thread or the GE; not work)  [counters: -]
+      =   +3.91 ms a picture ( 8.2% of the work without the waits)  per group:  1098 instr   0.0 I-miss   3.8 D-miss =   6.4 us
+      hw                            +3.914 ms  (instr   +668822, I-miss      +0, D-miss   +2322 a picture; a group   1098 /   0.0 /   3.8; a vertex  57.9 instr)
+
+2 main CPU: the stub (records)  [counters: -]
+      =   +1.03 ms a picture ( 2.1% of the work without the waits)  per group:   269 instr   0.0 I-miss   1.3 D-miss =   1.7 us
+      rt_nat_p04                    +1.026 ms  (instr   +163943, I-miss     +25, D-miss    +808 a picture; a group    269 /   0.0 /   1.3; a vertex  14.2 instr)
+
+3 hand-off: the copy plan (extents) and the copy into the arena  [counters: the line's hand-off (the ME's records ms)]
+      =   +0.13 ms a picture ( 0.3% of the work without the waits)  per group:    22 instr   0.2 I-miss   0.3 D-miss =   0.2 us
+      me_memcpy                     +0.130 ms  (instr    +13467, I-miss    +112, D-miss    +158 a picture; a group     22 /   0.2 /   0.3; a vertex   1.2 instr)
+
+4 the walk: the merge by key, the record into the front end's form, its pointers  [counters: walk and pointers + walk's end]
+      =   +0.01 ms a picture ( 0.0% of the work without the waits)  per group:    -1 instr   0.1 I-miss   0.0 D-miss =   0.0 us
+
+5 front end, plain: the block, material and header into the VU model, the streams' descriptors, the call, its A+D packet  [counters: register + A+D packet + call's rest + way back (plain turns)]
+      =   +2.15 ms a picture ( 4.5% of the work without the waits)  per group:   492 instr   2.3 I-miss   2.4 D-miss =   3.5 us
+      me_memset                     +0.714 ms  (instr   +109166, I-miss     +35, D-miss    +641 a picture; a group    179 /   0.1 /   1.1; a vertex   9.5 instr)
+      me_memcmp                     +0.425 ms  (instr    +72519, I-miss      +4, D-miss    +253 a picture; a group    119 /   0.0 /   0.4; a vertex   6.3 instr)
+      ud_new                        +0.284 ms  (instr    +20265, I-miss    +773, D-miss    +101 a picture; a group     33 /   1.3 /   0.2; a vertex   1.8 instr)
+      call                          +0.177 ms  (instr    +11644, I-miss    +593, D-miss      -6 a picture; a group     19 /   1.0 /  -0.0; a vertex   1.0 instr)
+      ud_eager                      +0.155 ms  (instr    +22393, I-miss    -174, D-miss    +309 a picture; a group     37 /  -0.3 /   0.5; a vertex   1.9 instr)
+      gif_qw                        +0.129 ms  (instr    +22313, I-miss     +53, D-miss     +31 a picture; a group     37 /   0.1 /   0.1; a vertex   1.9 instr)
+      ud_vec                        +0.089 ms  (instr     +9314, I-miss      +9, D-miss    +160 a picture; a group     15 /   0.0 /   0.3; a vertex   0.8 instr)
+      xl_p04_core                   +0.089 ms  (instr    +16677, I-miss     +22, D-miss      +8 a picture; a group     27 /   0.0 /   0.0; a vertex   1.4 instr)
+      gf_unknown                    +0.078 ms  (instr     +5918, I-miss    +240, D-miss      +0 a picture; a group     10 /   0.4 /   0.0; a vertex   0.5 instr)
+
+6 front end, fast: the same work in one function  [counters: register + A+D packet + call's rest + way back (fast turns)]
+      =   +7.29 ms a picture (15.2% of the work without the waits)  per group:  1274 instr  11.8 I-miss  12.6 D-miss =  12.0 us
+      xl_p04_fast                   +7.292 ms  (instr   +775676, I-miss   +7159, D-miss   +7692 a picture; a group   1274 /  11.8 /  12.6; a vertex  67.2 instr)
+
+7 GS model tracking: the CLUT loads, the drawn areas, the texture pages  [counters: inside A+D packet (the CLUT load) + drawn areas]
+      =   +3.34 ms a picture ( 7.0% of the work without the waits)  per group:   442 instr   7.6 I-miss   6.7 D-miss =   5.5 us
+      gu_clut_load                  +0.987 ms  (instr    +91306, I-miss    +697, D-miss   +1518 a picture; a group    150 /   1.1 /   2.5; a vertex   7.9 instr)
+      gu_clut_id                    +0.494 ms  (instr    +33143, I-miss   +1270, D-miss    +274 a picture; a group     54 /   2.1 /   0.5; a vertex   2.9 instr)
+      gu_pages_sig                  +0.435 ms  (instr    +30792, I-miss    +774, D-miss    +483 a picture; a group     51 /   1.3 /   0.8; a vertex   2.7 instr)
+      gu_drawn_again                +0.374 ms  (instr    +29848, I-miss    +286, D-miss    +648 a picture; a group     49 /   0.5 /   1.1; a vertex   2.6 instr)
+      touch                         +0.344 ms  (instr    +15492, I-miss    +566, D-miss    +586 a picture; a group     25 /   0.9 /   1.0; a vertex   1.3 instr)
+      rows                          +0.326 ms  (instr    +45965, I-miss    +389, D-miss     +71 a picture; a group     75 /   0.6 /   0.1; a vertex   4.0 instr)
+      gu_dgen                       +0.183 ms  (instr     +2211, I-miss    +143, D-miss    +553 a picture; a group      4 /   0.2 /   0.9; a vertex   0.2 instr)
+      clut_new                      +0.097 ms  (instr     +9820, I-miss    +190, D-miss     +39 a picture; a group     16 /   0.3 /   0.1; a vertex   0.9 instr)
+      drew_ctx                      +0.064 ms  (instr     +2226, I-miss    +280, D-miss     -17 a picture; a group      4 /   0.5 /  -0.0; a vertex   0.2 instr)
+      gu_drawn                      +0.028 ms  (instr     +7483, I-miss     +29, D-miss     -57 a picture; a group     12 /   0.0 /  -0.1; a vertex   0.6 instr)
+
+8 converter, per group: the call's set-up, GS state, texture look-up, batch state  [counters: host call and GS state + texture + GE transform and batch data + into the frame]
+      =   +9.30 ms a picture (19.4% of the work without the waits)  per group:   919 instr  36.0 I-miss  13.1 D-miss =  15.3 us
+      xc_call                       +2.563 ms  (instr   +256541, I-miss   +3316, D-miss   +2381 a picture; a group    421 /   5.4 /   3.9; a vertex  22.2 instr)
+      gl_tex                        +1.881 ms  (instr    +84567, I-miss   +5125, D-miss   +1609 a picture; a group    139 /   8.4 /   2.6; a vertex   7.3 instr)
+      xc_gs                         +0.901 ms  (instr    +48972, I-miss   +1993, D-miss    +974 a picture; a group     80 /   3.3 /   1.6; a vertex   4.2 instr)
+      tk_keep_again                 +0.782 ms  (instr    +60367, I-miss   +1212, D-miss    +911 a picture; a group     99 /   2.0 /   1.5; a vertex   5.2 instr)
+      xc_xform                      +0.723 ms  (instr    +41557, I-miss   +2288, D-miss    +193 a picture; a group     68 /   3.8 /   0.3; a vertex   3.6 instr)
+      gl_call                       +0.704 ms  (instr    +52667, I-miss    +769, D-miss   +1108 a picture; a group     86 /   1.3 /   1.8; a vertex   4.6 instr)
+      tk_keep_ok                    +0.421 ms  (instr    +29491, I-miss   +1001, D-miss    +274 a picture; a group     48 /   1.6 /   0.5; a vertex   2.6 instr)
+      gb_xform_in                   +0.348 ms  (instr    +16720, I-miss    +984, D-miss    +249 a picture; a group     27 /   1.6 /   0.4; a vertex   1.4 instr)
+      xc_state                      +0.284 ms  (instr    +29259, I-miss    +679, D-miss      +2 a picture; a group     48 /   1.1 /   0.0; a vertex   2.5 instr)
+      gb_room                       +0.266 ms  (instr    +16642, I-miss    +899, D-miss      +0 a picture; a group     27 /   1.5 /   0.0; a vertex   1.4 instr)
+      add_tex                       +0.170 ms  (instr     +7996, I-miss    +205, D-miss    +344 a picture; a group     13 /   0.3 /   0.6; a vertex   0.7 instr)
+      xm_call                       +0.141 ms  (instr    +11244, I-miss    +327, D-miss     +71 a picture; a group     18 /   0.5 /   0.1; a vertex   1.0 instr)
+      tk_get_um                     -0.119 ms  (instr    -78260, I-miss   +1739, D-miss    -334 a picture; a group   -129 /   2.9 /  -0.5; a vertex  -6.8 instr)
+      gb_tex                        +0.095 ms  (instr     +2361, I-miss    +173, D-miss    +185 a picture; a group      4 /   0.3 /   0.3; a vertex   0.2 instr)
+      gb_left                       +0.071 ms  (instr     +7186, I-miss    +158, D-miss     +12 a picture; a group     12 /   0.3 /   0.0; a vertex   0.6 instr)
+      tk_keep_last                  +0.067 ms  (instr      +727, I-miss    +313, D-miss      +0 a picture; a group      1 /   0.5 /   0.0; a vertex   0.1 instr)
+
+9 converter: the transform (matrix products)  [counters: transform]
+      =   +0.64 ms a picture ( 1.3% of the work without the waits)  per group:    66 instr   3.0 I-miss   0.4 D-miss =   1.0 us
+      vc_xform                      +0.637 ms  (instr    +40181, I-miss   +1818, D-miss    +260 a picture; a group     66 /   3.0 /   0.4; a vertex   3.5 instr)
+
+10 converter, off-screen cut (the box's 8 corners)  [counters: cut test]
+      =   +1.91 ms a picture ( 4.0% of the work without the waits)  per group:   445 instr   1.3 I-miss   2.6 D-miss =   3.1 us
+      xc_off                        +1.915 ms  (instr   +271208, I-miss    +787, D-miss   +1590 a picture; a group    445 /   1.3 /   2.6; a vertex  23.5 instr)
+
+11 converter, depth range  [counters: depth range]
+      =   +1.12 ms a picture ( 2.3% of the work without the waits)  per group:   221 instr   2.1 I-miss   1.3 D-miss =   1.8 us
+      xc_zr_df0d                    +1.117 ms  (instr   +134344, I-miss   +1229, D-miss    +776 a picture; a group    221 /   2.0 /   1.3; a vertex  11.6 instr)
+
+12 converter, per vertex: positions and box, colours / UVs / flags, strips  [counters: positions + attributes + strips]
+      =   +4.52 ms a picture ( 9.4% of the work without the waits)  per group:   791 instr   3.5 I-miss  10.8 D-miss =   7.4 us
+      vc_df0_pos_k                  +3.203 ms  (instr   +321862, I-miss   +1277, D-miss   +5218 a picture; a group    529 /   2.1 /   8.6; a vertex  27.9 instr)
+      vc_df0_att                    +0.857 ms  (instr   +104567, I-miss    +256, D-miss   +1109 a picture; a group    172 /   0.4 /   1.8; a vertex   9.1 instr)
+      vc_strips                     +0.462 ms  (instr    +55352, I-miss    +596, D-miss    +255 a picture; a group     91 /   1.0 /   0.4; a vertex   4.8 instr)
+
+13 list build at the frame's end: the batches into the GE list, the shadow pairing (outside the walk)  [counters: - (the ME's frame ends and lists)]
+      =   +5.17 ms a picture (10.8% of the work without the waits)  per group:  1411 instr   1.2 I-miss   4.9 D-miss =   8.5 us
+      gx_batch                      +1.572 ms  (instr   +260304, I-miss    +173, D-miss    +956 a picture; a group    427 /   0.3 /   1.6; a vertex  22.5 instr)
+      xf_setup                      +1.213 ms  (instr   +222467, I-miss      +0, D-miss    +429 a picture; a group    365 /   0.0 /   0.7; a vertex  19.3 instr)
+      dz_pair                       +0.800 ms  (instr    +85950, I-miss    +226, D-miss   +1269 a picture; a group    141 /   0.4 /   2.1; a vertex   7.4 instr)
+      put_sym                       +0.622 ms  (instr   +122112, I-miss     +10, D-miss     +60 a picture; a group    201 /   0.0 /   0.1; a vertex  10.6 instr)
+      put                           +0.326 ms  (instr    +62043, I-miss     +19, D-miss     +56 a picture; a group    102 /   0.0 /   0.1; a vertex   5.4 instr)
+      xf_rest                       +0.168 ms  (instr    +31811, I-miss     +36, D-miss     +13 a picture; a group     52 /   0.1 /   0.0; a vertex   2.8 instr)
+      dz_sortk                      +0.157 ms  (instr    +31486, I-miss      +6, D-miss      +0 a picture; a group     52 /   0.0 /   0.0; a vertex   2.7 instr)
+      dz_tris                       +0.080 ms  (instr    +12665, I-miss     +55, D-miss     +23 a picture; a group     21 /   0.1 /   0.0; a vertex   1.1 instr)
+      dz_sortt                      +0.080 ms  (instr    +13345, I-miss     +67, D-miss      +0 a picture; a group     22 /   0.1 /   0.0; a vertex   1.2 instr)
+      gl_end                        +0.047 ms  (instr     +1475, I-miss      +0, D-miss    +154 a picture; a group      2 /   0.0 /   0.3; a vertex   0.1 instr)
+      dz_tuniq                      +0.034 ms  (instr     +4624, I-miss     +52, D-miss      +0 a picture; a group      8 /   0.1 /   0.0; a vertex   0.4 instr)
+      dz_uniq                       +0.030 ms  (instr     +4168, I-miss     +48, D-miss      +0 a picture; a group      7 /   0.1 /   0.0; a vertex   0.4 instr)
+      gx_frame                      +0.023 ms  (instr     +3696, I-miss     +15, D-miss      +5 a picture; a group      6 /   0.0 /   0.0; a vertex   0.3 instr)
+
+14 everything else (each under its name when 0.10 ms or more)
+      =  +11.31 ms a picture (23.6% of the work without the waits)  per group:  2704 instr   8.9 I-miss  13.0 D-miss =  18.6 us
+      gl_digest                     +7.708 ms  (instr  +1314610, I-miss      +0, D-miss   +4623 a picture; a group   2159 /   0.0 /   7.6; a vertex 113.9 instr)
+      lw_walk                       +2.267 ms  (instr   +217194, I-miss   +2387, D-miss   +2722 a picture; a group    357 /   3.9 /   4.5; a vertex  18.8 instr)
+      xc_hold_test                  +0.253 ms  (instr    +12529, I-miss    +935, D-miss      +2 a picture; a group     21 /   1.5 /   0.0; a vertex   1.1 instr)
+      ld_sig                        +0.139 ms  (instr    +20337, I-miss    +141, D-miss     +38 a picture; a group     33 /   0.2 /   0.1; a vertex   1.8 instr)
+      ug_get                        +0.127 ms  (instr     +3821, I-miss    +242, D-miss    +228 a picture; a group      6 /   0.4 /   0.4; a vertex   0.3 instr)
+      xl_lane_p06                   +0.120 ms  (instr     -1105, I-miss    +551, D-miss     +51 a picture; a group     -2 /   0.9 /   0.1; a vertex  -0.1 instr)
+

@@ -1,0 +1,29 @@
+--- /mnt/project-files/mgs2/tools/dev/rain/g0/boot.c	2026-11-03 21:57:55.676251000 +0000
++++ /home/claude/sbg0/boot/boot.c	2026-11-03 22:38:20.620398712 +0000
+@@ -689,7 +689,11 @@
+    copy unmarks it; a load of a marked word by line_sph's act (MGS2_READ_G0=<lo>:<hi>, host offsets from rt_dgt_rd as MGS2_READ_SKIP) is
+    hashed with those two bits clear, as the translation leaves them, and unmarks it; any other load of a marked word is hashed as it is
+    and reported ("g0h:" lines, the first 64). */
+-static uint8_t *g0h_mk; static unsigned long g0h_fn[2]; static int g0h_on = -1; static long g0h_rep, g0h_n, g0h_set;
++static uint8_t *g0h_mk; static unsigned long g0h_fn[8][2]; static int g0h_on = -1; static long g0h_rep, g0h_n, g0h_set;   /* up to 8 ranges, comma-separated */
++/* H3 (OPT2_H3 8192): body_sph's, charaspread's and rain_gas_pers's acts store their prims' +164 with the hide bits on their show paths
++   (wpl/gen_s_w00a.h H3_WR, which marks the word); their own read-modify-write loads of +164 (H3_RD) set g_h3_allow, and a marked word
++   they load is hashed with the two bits clear like line_sph's; a load anywhere else is reported as above. */
++int g_h3_allow;
+ void rt_g0h_mark(uint32_t a) { if (!g0h_mk) g0h_mk = calloc(GUEST_SIZE / 4, 1); g0h_mk[(a & (GUEST_SIZE - 1)) >> 2] = 1; g0h_set++; }
+ static void dgt_wr(uint32_t a, int n, uintptr_t ra)
+ {
+@@ -751,8 +755,11 @@
+   if (g0h_mk) {
+     uint32_t m = a & (GUEST_SIZE - 1), w;
+     for (w = m >> 2; w <= ((m + n - 1) & (GUEST_SIZE - 1)) >> 2; w++) if (g0h_mk[w]) {
+-      if (g0h_on < 0) { const char *e2 = getenv("MGS2_READ_G0"); g0h_on = e2 && sscanf(e2, "%lx:%lx", &g0h_fn[0], &g0h_fn[1]) == 2; }
+-      if (g0h_on && (unsigned long)(ra - b) >= g0h_fn[0] && (unsigned long)(ra - b) < g0h_fn[1]) {
++      int k;
++      if (g0h_on < 0) { const char *e2 = getenv("MGS2_READ_G0"); g0h_on = 0;
++        while (e2 && g0h_on < 8 && sscanf(e2, "%lx:%lx", &g0h_fn[g0h_on][0], &g0h_fn[g0h_on][1]) == 2) { g0h_on++; e2 = strchr(e2, ','); if (e2) e2++; } }
++      for (k = 0; k < g0h_on; k++) if ((unsigned long)(ra - b) >= g0h_fn[k][0] && (unsigned long)(ra - b) < g0h_fn[k][1]) break;
++      if (k < g0h_on || g_h3_allow) {
+         int j = (int)((w << 2) + 1 - m);   /* bits 12-13 of the word are 0x30 in its byte 1 */
+         if (j >= 0 && j < n) v[j] &= (uint8_t)~0x30u;
+         g0h_mk[w] = 0; g0h_n++;

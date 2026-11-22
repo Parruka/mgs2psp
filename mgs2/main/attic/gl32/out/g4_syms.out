@@ -1,0 +1,10 @@
+gl32 G4: undefined symbols of each stage object against gl31's (psp-nm -u); new names only
+  boot_rt.o: > P129128_orig > P12cd78_orig > P12cf28_orig 
+  ge_xconv.o: > vc_df0_head 
+  xl_psp.o: > g_nat_ev > g_nat_stc > rt_nat_vc_at > xc_vc > xc_vc_set 
+objects: 45; byte-identical to gl31's stage objects: 38
+not identical: boot_rt.o ge_vu1conv.o ge_xconv.o ge_xlate.o ge_xlme.o gen.o xl_psp.o 
+defined in the build (so no import): P129128_orig(T) P12cd78_orig(T) P12cf28_orig(T) vc_df0_head(T) g_nat_ev(B) g_nat_stc(B) rt_nat_vc_at(T) xc_vc(B) xc_vc_set(T) 
+imports of the ELF (.lib.stub / sceXxx stubs) against gl31's:
+  the same names (133)
+xme_me_chk: PASS

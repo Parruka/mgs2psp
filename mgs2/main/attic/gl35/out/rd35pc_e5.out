@@ -1,0 +1,211 @@
+== END: 'disc pack: 3126 reads, 93104 KB, 14.02 s of host time in the run' | lines 4030
+   stack: the main thread above the pool (guest thread 1) uses 2940 of 260544 bytes below pool_init's frame
+   memory at the end: heap block at 0b239300, break 0be78000; malloc arena 12539 KB: in use 12463 KB, free 75 KB in 15 chunks, top 74 KB
+   memory at the end: blocks malloc can still give (KB): 64 = 64 KB in 1 blocks
+   disc pack: 3126 reads, 93104 KB, 14.02 s of host time in the run
+   native step 1 totals: arrays made, one a buffer; calls recorded 242826, groups 993411, pictures with records 2119; stubbed with no record 0; calls with no group 0; the builder run instead: array full 0, key order 0, near the buffer's end 0, other 0; recorded with no array 0; groups left untaken 2984 (pictures 6); transfers planned with groups 1227 (497020 groups), groups taken by walks from RAM 492697, plans undone for the groups' room 0, early fills for an array's reuse 0; records' groups copied 1227 (497020 groups, 23856960 bytes); merge runs 12291, groups to the core 989444, fed word by word 273, dropped 0, drawn at a walk's end 0, run lanes stopped at a key 2101; the groups' data in the copy 847291, read from RAM 1317126, partly (dropped) 0
+   static streams in place totals (gl33): groups flagged static 876258
+   keeps for fast native groups totals (gl35): groups flagged 0; drawn areas replayed 0, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+   fast native front end totals (gl34): groups flagged 993411; taken 872659, declined: state 0, entry 116682, buffers 0, stream counts 0, material tag 0, tables full 103, path 1 busy 0; transforms taken 493990, computed and kept 115245; pointers by their own hints 4310240 (checked 0, differing 0); nat split: groups timed by stage 15779 of 497020, clock read pairs 5824; chain lists read 14519, transfers in a list 192717, not in one 3
+   picture: 14592 frames made (the first began at vb 31), 14592 shown, 16 saved; lists: 0 that did not fit, 0 batches left out, 131499839 words (the largest 62153), the largest aux 234272 bytes, the largest list and aux together 342536 bytes (of 360448); digests 916 (vb 29490..31400), all 70b0bd06c9e53a9b
+== CRASH:
+== HASHES: 62 lines, 66499cdb584a (expected 62, 66499cdb584a): EQUAL
+== DIGESTS: 916 lines, b4bf989fb1d6 / with dz 7d2f93ab5f56 (expected 916, b4bf989fb1d6 / 7d2f93ab5f56): EQUAL
+== TURNS (vb start; per log: mean ms a step, logic, GE wait; ME turn ms, walks, frame ends+lists, idle, main waited for fills; nat arm, inpl, fast, keep, native ms, in copy/from RAM; kept: drawn areas / textures replayed):
+vb k | gl35: mean logic gew | me walks fl idle wfill | arm inpl fast keep nat copy/ram taken/declined kept dr/tex || gl34: mean logic gew | me walks fl idle wfill | arm inpl fast nat copy/ram
+24000 me | 71.6 21.8 18.3 | 7218.0 1719.6 108.5 5216.4 190.4 | 3 1 1 0 77.2 6060.0/10788.0 3596/398 0/0 || 71.8 21.9 18.4 | 7237.0 1727.6 107.2 4861.9 190.3 | 3 1 0 97.3 6060.0/10788.0
+24100 ma | 64.2 41.1 0.4 | - - - - - | 3 1 1 0 0.0 0.0/0.0 2660/725 0/0 || 64.2 41.0 0.4 | - - - - - | 3 1 0 0.0 0.0/0.0
+24200 me | 81.9 29.4 28.8 | 8287.0 2669.3 235.8 5235.5 364.1 | 3 1 1 0 142.3 22862.0/9000.0 3000/4193 0/0 || 81.7 29.4 28.6 | 8268.0 2652.4 233.7 5042.5 363.0 | 3 1 1 140.7 22862.0/9000.0
+24300 ma | 59.1 40.9 0.0 | - - - - - | 3 1 1 0 0.0 0.0/0.0 2788/2632 0/0 || 58.9 40.7 0.0 | - - - - - | 3 1 1 0.0 0.0/0.0
+24400 me | 68.8 22.0 26.0 | 7078.0 2526.5 227.0 4186.9 346.1 | 3 1 1 0 60.5 3873.0/7245.0 2415/224 0/0 || 68.7 21.9 26.0 | 7077.0 2527.2 228.2 4101.4 346.1 | 3 1 0 73.3 3873.0/7245.0
+24500 ma | 64.5 42.4 0.3 | - - - - - | 3 1 1 0 0.0 0.0/0.0 8366/4086 0/0 || 64.7 42.6 0.3 | - - - - - | 3 1 0 0.0 0.0/0.0
+24600 me | 73.5 23.9 29.6 | 7418.0 2652.2 257.7 4353.1 401.7 | 3 1 1 0 255.7 29560.0/24207.0 8069/4379 0/0 || 73.4 23.9 29.4 | 7399.0 2636.4 257.5 4350.0 400.9 | 3 1 1 252.7 29560.0/24207.0
+24700 ma | 71.2 47.2 0.5 | - - - - - | 3 1 1 0 0.0 0.0/0.0 7774/6676 0/0 || 71.1 47.0 0.5 | - - - - - | 3 1 1 0.0 0.0/0.0
+24800 me | 69.7 22.6 26.9 | 7019.0 2444.3 250.4 4179.3 374.8 | 3 1 1 0 109.5 11360.0/11667.0 3889/1465 0/0 || 69.7 22.5 27.0 | 7027.0 2452.5 250.6 4178.2 375.6 | 3 1 0 131.8 11360.0/11667.0
+24900 ma | 60.0 39.1 0.4 | - - - - - | 3 1 1 0 0.0 0.0/0.0 3215/900 0/0 || 59.9 39.0 0.3 | - - - - - | 3 1 0 0.0 0.0/0.0
+25000 me | 34.1 12.8 10.8 | 3428.0 975.4 50.2 2152.4 128.8 | 3 1 1 0 138.5 21824.0/34263.0 11421/1471 0/0 || 33.9 12.9 10.7 | 3414.0 965.7 49.8 2151.6 127.9 | 3 1 1 135.0 21824.0/34263.0
+25100 ma | 24.4 15.1 0.1 | - - - - - | 3 1 1 0 0.0 0.0/0.0 14750/1922 0/0 || 24.3 15.0 0.1 | - - - - - | 3 1 1 0.0 0.0/0.0
+25200 me | 31.9 10.6 11.6 | 3207.0 1058.4 0.5 1968.3 137.4 | 3 1 1 0 172.4 28453.0/44346.0 14782/1931 0/0 || 32.6 10.7 12.3 | 3281.0 1127.4 0.4 2013.4 137.2 | 3 1 0 247.1 28453.0/44346.0
+25300 ma | 25.7 15.9 0.1 | - - - - - | 3 1 1 0 0.0 0.0/0.0 6190/2647 0/0 || 25.8 16.0 0.1 | - - - - - | 3 1 0 0.0 0.0/0.0
+25400 me | 31.7 10.9 10.6 | 3340.0 1126.9 0.4 2075.1 132.2 | 3 1 1 0 97.3 20851.0/17292.0 5764/2750 0/0 || 31.6 10.9 10.5 | 3336.0 1118.6 0.4 2080.1 131.3 | 3 1 1 97.6 20851.0/17292.0
+25500 ma | 23.4 14.3 0.1 | - - - - - | 3 1 1 0 0.0 0.0/0.0 6125/2750 0/0 || 23.3 14.2 0.1 | - - - - - | 3 1 1 0.0 0.0/0.0
+25600 me | 29.5 10.0 10.1 | 2964.0 914.5 0.5 1922.3 124.3 | 3 1 1 0 93.8 19652.0/15366.0 5122/2730 0/0 || 29.6 10.0 10.3 | 2980.0 931.9 0.4 1920.5 123.4 | 3 1 0 118.3 19652.0/15366.0
+25700 ma | 22.6 13.4 0.0 | - - - - - | 3 1 1 0 0.0 0.0/0.0 1799/2493 0/0 || 22.6 13.4 0.0 | - - - - - | 3 1 0 0.0 0.0/0.0
+25800 me | 44.2 12.5 21.0 | 4461.0 1994.6 0.4 2278.6 179.5 | 3 1 1 0 998.7 164482.0/281166.0 93673/8045 0/0 || 44.0 12.4 20.9 | 4440.0 1978.7 0.4 2274.5 179.7 | 3 1 1 988.8 164482.0/281166.0
+25900 ma | 33.2 22.7 0.3 | - - - - - | 3 1 1 0 0.0 0.0/0.0 95541/7459 0/0 || 33.0 22.4 0.3 | - - - - - | 3 1 1 0.0 0.0/0.0
+26000 me | 17.0 7.0 8.0 | 1719.0 457.7 8.2 864.4 323.3 | 3 1 1 0 200.0 16350.0/28665.0 9551/722 0/0 || 17.3 7.0 8.3 | 1744.0 490.3 8.0 867.7 319.3 | 3 1 0 232.0 16350.0/28665.0
+26100 ma | 14.4 6.6 0.0 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 14.3 6.6 0.0 | - - - - - | 3 1 0 0.0 0.0/0.0
+26200 me | 30.9 5.1 18.7 | 3125.0 1636.8 252.1 1155.8 315.9 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.8 5.2 18.6 | 3116.0 1623.7 252.5 1159.8 315.2 | 3 1 1 0.0 0.0/0.0
+26300 ma | 26.3 17.5 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.1 17.3 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+26400 me | 31.0 5.2 18.8 | 3290.0 1792.9 254.3 1162.1 318.0 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.8 5.2 18.6 | 3276.0 1780.6 253.9 1161.5 316.6 | 3 1 0 0.0 0.0/0.0
+26500 ma | 25.8 17.0 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 25.7 16.9 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+26600 me | 30.4 5.1 18.3 | 3078.0 1603.4 251.0 1126.5 308.3 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.3 5.1 18.2 | 3065.0 1590.1 252.3 1146.7 309.5 | 3 1 1 0.0 0.0/0.0
+26700 ma | 26.2 17.4 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.2 17.3 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+26800 me | 30.4 5.1 18.3 | 3077.0 1603.0 254.9 1120.2 313.7 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.2 5.0 18.2 | 3064.0 1593.1 254.1 1140.2 313.9 | 3 1 0 0.0 0.0/0.0
+26900 ma | 26.2 17.3 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.1 17.3 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+27000 me | 30.5 5.1 18.4 | 3085.0 1605.9 254.8 1300.3 314.5 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.3 5.1 18.2 | 3069.0 1594.6 253.8 1298.5 313.4 | 3 1 1 0.0 0.0/0.0
+27100 ma | 26.2 17.4 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.1 17.3 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+27200 me | 30.7 5.1 18.6 | 3112.0 1628.1 255.3 1151.4 315.9 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.6 5.1 18.5 | 3099.0 1615.4 253.2 1151.4 315.7 | 3 1 0 0.0 0.0/0.0
+27300 ma | 26.1 17.3 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 25.9 17.1 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+27400 me | 30.4 5.1 18.3 | 3235.0 1757.3 253.0 1148.4 312.3 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.4 5.0 18.2 | 3226.0 1743.8 254.5 1128.7 313.3 | 3 1 1 0.0 0.0/0.0
+27500 ma | 26.2 17.3 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.0 17.2 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+27600 me | 30.5 5.1 18.3 | 3087.0 1610.4 254.3 1123.2 313.4 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.4 5.1 18.2 | 3077.0 1598.9 255.0 1147.2 313.9 | 3 1 0 0.0 0.0/0.0
+27700 ma | 26.1 17.3 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.0 17.3 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+27800 me | 30.7 5.1 18.6 | 3112.0 1633.4 251.7 1147.1 315.2 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.6 5.1 18.6 | 3100.0 1623.4 253.0 1143.7 316.6 | 3 1 1 0.0 0.0/0.0
+27900 ma | 26.0 17.1 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 25.9 17.0 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+28000 me | 30.5 5.1 18.4 | 3086.0 1605.5 254.7 1302.5 315.6 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.4 5.1 18.2 | 3074.0 1592.2 254.0 1302.3 314.5 | 3 1 0 0.0 0.0/0.0
+28100 ma | 26.2 17.4 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.2 17.3 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+28200 me | 30.8 5.2 19.0 | 3118.0 1635.1 253.6 1148.8 321.9 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.6 5.1 18.9 | 3102.0 1622.4 253.7 1145.7 322.4 | 3 1 1 0.0 0.0/0.0
+28300 ma | 26.4 17.6 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 26.3 17.5 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+28400 me | 30.4 5.1 18.4 | 3237.0 1758.8 253.6 1148.2 313.8 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.4 5.0 18.2 | 3226.0 1746.8 253.2 1145.8 313.9 | 3 1 0 0.0 0.0/0.0
+28500 ma | 25.7 17.0 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 25.6 16.9 0.2 | - - - - - | 3 1 0 0.0 0.0/0.0
+28600 me | 30.5 4.9 19.3 | 3087.0 1634.7 252.1 1123.0 322.7 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 30.4 5.0 19.2 | 3079.0 1625.0 251.6 1124.9 322.9 | 3 1 1 0.0 0.0/0.0
+28700 ma | 10.0 3.4 0.2 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 9.8 3.3 0.2 | - - - - - | 3 1 1 0.0 0.0/0.0
+28800 me | 13.1 9.3 0.3 | 1318.0 7.8 0.0 1220.7 1.3 | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 13.1 9.3 0.3 | 1322.0 7.7 0.0 1223.3 1.1 | 3 1 0 0.0 0.0/0.0
+28900 ma | 16.7 11.6 0.0 | - - - - - | 3 1 1 0 0.0 0.0/0.0 0/0 0/0 || 16.7 11.6 0.0 | - - - - - | 3 1 0 0.0 0.0/0.0
+29000 me | 43.9 24.6 12.0 | 4454.0 1127.6 91.5 3352.9 119.3 | 3 1 1 0 268.8 14545.0/24045.0 8015/854 0/0 || 43.8 24.6 11.9 | 4444.0 1118.1 91.2 3350.6 119.0 | 3 1 1 265.8 14545.0/24045.0
+29100 ma | 66.1 43.2 0.5 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28795/3050 0/0 || 65.9 43.0 0.5 | - - - - - | 3 1 1 0.0 0.0/0.0
+29200 me | 74.2 19.6 35.2 | 7486.0 3130.4 328.5 3826.1 442.4 | 3 1 1 0 651.8 52084.0/86196.0 28732/3050 0/0 || 75.6 19.5 36.7 | 7632.0 3284.2 330.9 3894.8 445.9 | 3 1 0 823.1 52084.0/86196.0
+29300 ma | 64.0 41.6 0.5 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28121/2900 0/0 || 65.0 42.6 0.5 | - - - - - | 3 1 0 0.0 0.0/0.0
+29400 me | 70.2 18.5 33.2 | 7257.0 3013.1 433.9 3699.4 511.2 | 3 1 1 0 615.9 46465.0/84225.0 28075/1950 0/0 || 70.0 18.5 33.1 | 7242.0 2995.5 434.9 3701.4 511.6 | 3 1 1 612.4 46465.0/84225.0
+29500 ma | 73.0 39.3 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28152/1950 0/0 || 72.7 39.1 0.7 | - - - - - | 3 1 1 0.0 0.0/0.0
+29600 me | 81.8 18.0 45.5 | 8275.0 2880.6 1637.9 3642.9 1718.1 | 3 1 1 0 637.8 47451.0/86469.0 28823/1950 0/0 || 83.3 18.0 47.0 | 8427.0 3037.0 1639.2 3638.4 1717.7 | 3 1 0 808.5 47451.0/86469.0
+29700 ma | 72.9 39.0 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28529/1950 0/0 || 73.8 40.0 0.8 | - - - - - | 3 1 0 0.0 0.0/0.0
+29800 me | 81.5 18.1 45.2 | 8241.0 2872.5 1618.8 3565.3 1697.9 | 3 1 1 0 627.7 47019.0/85491.0 28497/1950 0/0 || 81.3 18.1 45.0 | 8224.0 2852.7 1617.2 3568.3 1696.7 | 3 1 1 624.1 47019.0/85491.0
+29900 ma | 72.2 38.9 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 27745/1950 0/0 || 72.0 38.7 0.7 | - - - - - | 3 1 1 0.0 0.0/0.0
+30000 me | 81.2 18.1 44.9 | 8215.0 2863.9 1595.8 3794.6 1675.8 | 3 1 1 0 620.8 46550.0/84450.0 28150/1950 0/0 || 82.7 18.1 46.4 | 8360.0 3016.7 1595.1 3787.8 1674.8 | 3 1 0 788.9 46550.0/84450.0
+30100 ma | 73.2 39.2 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28609/1950 0/0 || 74.3 40.3 0.8 | - - - - - | 3 1 0 0.0 0.0/0.0
+30200 me | 82.0 18.1 45.3 | 8296.0 2878.4 1622.7 3607.0 1703.1 | 3 1 1 0 634.5 47136.0/85734.0 28578/1950 0/0 || 81.9 17.9 45.2 | 8277.0 2862.1 1623.0 3679.1 1702.4 | 3 1 1 629.9 47136.0/85734.0
+30300 ma | 73.2 39.1 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28357/1950 0/0 || 73.0 38.9 0.7 | - - - - - | 3 1 1 0.0 0.0/0.0
+30400 me | 81.2 18.1 44.6 | 8360.0 3004.7 1579.5 3663.1 1660.5 | 3 1 1 0 609.6 46040.0/83100.0 27700/1950 0/0 || 82.7 18.1 46.1 | 8512.0 3154.1 1579.2 3665.1 1659.5 | 3 1 0 774.1 46040.0/83100.0
+30500 ma | 72.9 39.2 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 28213/2066 0/0 || 74.0 40.2 0.7 | - - - - - | 3 1 0 0.0 0.0/0.0
+30600 me | 86.3 19.4 47.3 | 8979.0 3208.5 1796.3 3847.3 1850.0 | 3 1 1 0 740.6 53031.0/85650.0 28550/3300 0/0 || 86.1 19.4 47.1 | 8956.0 3189.1 1795.0 3844.5 1849.0 | 3 1 1 738.1 53031.0/85650.0
+30700 ma | 79.4 42.1 0.8 | - - - - - | 3 1 1 0 0.0 0.0/0.0 31386/4125 0/0 || 79.1 41.8 0.8 | - - - - - | 3 1 1 0.0 0.0/0.0
+30800 me | 78.5 18.0 41.4 | 8177.0 2771.4 1620.2 3574.6 1688.6 | 3 1 1 0 525.6 42138.0/56733.0 18911/3971 0/0 || 79.3 18.0 42.2 | 8266.0 2861.4 1619.6 3649.0 1688.8 | 3 1 0 635.6 42138.0/56733.0
+30900 ma | 64.1 33.3 0.6 | - - - - - | 3 1 1 0 0.0 0.0/0.0 11195/2620 0/0 || 64.4 33.6 0.7 | - - - - - | 3 1 0 0.0 0.0/0.0
+31000 me | 76.7 18.9 38.6 | 8021.0 2696.8 1464.5 3898.4 1516.5 | 3 1 1 0 301.6 31426.0/32541.0 10847/3949 0/0 || 76.5 18.9 38.4 | 7999.0 2679.7 1460.3 3898.1 1513.0 | 3 1 1 300.1 31426.0/32541.0
+31100 ma | 67.8 35.3 0.7 | - - - - - | 3 1 1 0 0.0 0.0/0.0 12800/1645 0/0 || 67.6 35.0 0.6 | - - - - - | 3 1 1 0.0 0.0/0.0
+31200 me | 73.6 17.3 37.2 | 7686.0 2575.0 1438.6 3540.1 1511.1 | 3 1 1 0 324.5 28079.0/38487.0 12829/2777 0/0 || 74.3 17.4 37.9 | 7750.0 2637.7 1438.8 3540.0 1512.7 | 3 1 0 398.2 28079.0/38487.0
+31300 ma | 24.9 14.7 0.6 | - - - - - | 3 1 1 0 0.0 0.0/0.0 2560/430 0/0 || 25.0 14.8 0.6 | - - - - - | 3 1 0 0.0 0.0/0.0
+== MEANS, turns starting in vb 29200..30400 (the rain wait); ms a step = the window line's mean; ME figures are ms a turn of 100 vblanks (50 steps):
+  gl35 me   turns keep  0:  7 turns; step 78.9 ms (logic 18.3, GE wait 42.0); ME turn 8018.6: walks 2949.1, frame ends+lists 1259.6, idle 3685.5, records 108.7; main waited for fills 1344.1; native 628.3
+       gl34, the same  7 turns (its fast arm 0/1): step 79.6 ms (logic 18.3, GE wait 42.8); ME turn 8096.3: walks 3028.9, frame ends+lists 1259.9, idle 3705.0, records 108.4; main waited for fills 1344.1; native 723.0
+  gl35 main turns keep  0:  6 turns; step 71.4 ms (logic 39.5, GE wait 0.7)
+       gl34, the same  6 turns (its fast arm 0/1): step 71.8 ms (logic 39.9, GE wait 0.7)
+== MEANS, turns starting in vb 30500..31300 (the rain walk); ms a step = the window line's mean; ME figures are ms a turn of 100 vblanks (50 steps):
+  gl35 me   turns keep  0:  4 turns; step 78.8 ms (logic 18.4, GE wait 41.1); ME turn 8215.8: walks 2812.9, frame ends+lists 1579.9, idle 3715.1, records 109.1; main waited for fills 1641.5; native 473.1
+       gl34, the same  4 turns (its fast arm 0/1): step 79.0 ms (logic 18.4, GE wait 41.4); ME turn 8242.8: walks 2842.0, frame ends+lists 1578.4, idle 3732.9, records 109.5; main waited for fills 1640.9; native 518.0
+  gl35 main turns keep  0:  5 turns; step 61.8 ms (logic 32.9, GE wait 0.7)
+       gl34, the same  5 turns (its fast arm 0/1): step 62.0 ms (logic 33.1, GE wait 0.7)
+== MEANS, turns starting in vb 26200..28700 (the steady deck, d01t); ms a step = the window line's mean; ME figures are ms a turn of 100 vblanks (50 steps):
+  gl35 me   turns keep  0: 13 turns; step 30.6 ms (logic 5.1, GE wait 18.6); ME turn 3133.0: walks 1654.3, frame ends+lists 253.5, idle 1166.0, records 72.1; main waited for fills 315.5; native 0.0
+       gl34, the same 13 turns (its fast arm 0/1): step 30.5 ms (logic 5.1, GE wait 18.5); ME turn 3121.0: walks 1642.3, frame ends+lists 253.4, idle 1169.0, records 72.0; main waited for fills 315.5; native 0.0
+  gl35 main turns keep  0: 13 turns; step 24.9 ms (logic 16.2, GE wait 0.2)
+       gl34, the same 13 turns (its fast arm 0/1): step 24.8 ms (logic 16.1, GE wait 0.2)
+== MEANS, turns starting in vb 24000..31300 (all nat turns); ms a step = the window line's mean; ME figures are ms a turn of 100 vblanks (50 steps):
+  gl35 me   turns keep  0: 37 turns; step 50.7 ms (logic 13.1, GE wait 24.7); ME turn 5179.3: walks 1975.0, frame ends+lists 531.4, idle 2562.8, records 95.6; main waited for fills 618.9; native 240.7
+       gl34, the same 37 turns (its fast arm 0/1): step 50.8 ms (logic 13.1, GE wait 24.9); ME turn 5194.2: walks 1990.7, frame ends+lists 531.2, idle 2553.5, records 95.5; main waited for fills 618.6; native 267.9
+  gl35 main turns keep  0: 37 turns; step 43.4 ms (logic 26.1, GE wait 0.4)
+       gl34, the same 37 turns (its fast arm 0/1): step 43.5 ms (logic 26.1, GE wait 0.4)
+   (gl35 keep against gl35 keep 0 = the lever; gl35 keep 0 against gl34 on turns where gl34 was fast = the new profile and order)
+== ME SPLIT per ME turn (us a timed group by stage; one group in about 32 is timed; each stage figure holds one clock read):
+   stages: 0 walk and pointers, 1 register, 2 A+D packet, 3 call's rest, 4 host call and GS state, 5 transform, 6 positions, 7 cut test, 8 attributes, 9 texture, 10 strips, 11 GE transform and batch data, 12 depth range, 13 into the frame, 14 way back, 15 drawn areas, 16 walk's end
+24000 f1 k0 | groups 3998 timed 128 vtx 1839 cut 72 | read 1.460 us, 1000 ticks a ms | 3.35 3.85 4.33 0.94 1.47 1.52 1.56 2.43 0.32 0.86 0.28 0.52 0.25 0.14 2.04 1.66 0.58 | sum 26.09 | native 77.2 ms = 19.32 us a group | records 104.8 ms, plans 39426 KB, groups' data 1018 KB
+24200 f1 k0 | groups 7193 timed 228 vtx 2108 cut 80 | read 1.008 us, 1000 ticks a ms | 4.07 4.83 5.82 1.20 0.64 0.52 1.09 1.27 0.24 0.22 0.13 0.16 0.11 0.04 1.33 1.82 0.77 | sum 24.26 | native 142.3 ms = 19.79 us a group | records 140.8 ms, plans 52587 KB, groups' data 4210 KB
+24400 f1 k0 | groups 2639 timed 83 vtx 1725 cut 70 | read 1.741 us, 1000 ticks a ms | 2.98 3.65 31.14 0.99 1.78 1.58 2.49 2.82 0.29 0.76 0.25 0.55 0.20 0.07 2.12 1.96 0.61 | sum 54.27 | native 60.5 ms = 22.94 us a group | records 132.0 ms, plans 51090 KB, groups' data 623 KB
+24600 f1 k0 | groups 12448 timed 396 vtx 6026 cut 200 | read 0.927 us, 1000 ticks a ms | 3.34 4.72 5.22 0.99 1.29 0.99 1.59 1.80 0.49 0.62 0.32 0.57 0.58 0.12 1.49 1.55 0.79 | sum 26.47 | native 255.7 ms = 20.54 us a group | records 148.9 ms, plans 56991 KB, groups' data 6197 KB
+24800 f1 k0 | groups 5364 timed 170 vtx 3047 cut 101 | read 1.229 us, 1000 ticks a ms | 3.18 4.02 4.97 0.94 1.33 1.09 1.76 2.06 0.57 0.67 0.28 0.43 0.23 0.22 2.18 1.71 0.61 | sum 26.24 | native 109.5 ms = 20.41 us a group | records 139.4 ms, plans 53810 KB, groups' data 2153 KB
+25000 f1 k0 | groups 12892 timed 409 vtx 175 cut 7 | read 1.000 us, 1000 ticks a ms | 3.16 4.33 3.49 1.14 0.03 0.02 0.04 0.05 0.00 0.02 0.00 0.01 0.01 0.00 0.67 1.63 0.72 | sum 15.33 | native 138.5 ms = 10.74 us a group | records 111.3 ms, plans 43000 KB, groups' data 4031 KB
+25200 f1 k0 | groups 16713 timed 531 vtx 0 cut 0 | read 1.107 us, 1000 ticks a ms | 3.24 3.65 3.55 0.94 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.62 1.66 0.70 | sum 14.36 | native 172.4 ms = 10.32 us a group | records 136.0 ms, plans 52077 KB, groups' data 5254 KB
+25400 f1 k0 | groups 8514 timed 270 vtx 0 cut 0 | read 1.173 us, 1000 ticks a ms | 3.31 4.49 3.93 1.03 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.74 1.64 0.75 | sum 15.89 | native 97.3 ms = 11.43 us a group | records 132.3 ms, plans 50840 KB, groups' data 4064 KB
+25600 f1 k0 | groups 7852 timed 249 vtx 0 cut 0 | read 0.980 us, 1000 ticks a ms | 3.26 4.49 4.10 1.14 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.71 1.59 0.74 | sum 16.04 | native 93.8 ms = 11.94 us a group | records 121.7 ms, plans 47120 KB, groups' data 3866 KB
+25800 f1 k0 | groups 101816 timed 3233 vtx 0 cut 0 | read 0.812 us, 1000 ticks a ms | 4.20 3.97 3.02 1.04 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.69 1.51 0.72 | sum 15.16 | native 998.7 ms = 9.81 us a group | records 179.2 ms, plans 65404 KB, groups' data 32776 KB
+26000 f1 k0 | groups 10283 timed 326 vtx 1127 cut 41 | read 0.629 us, 1000 ticks a ms | 3.60 3.87 2.99 1.10 0.28 0.33 0.33 0.52 0.14 1.52 0.12 0.20 0.06 0.05 0.88 1.63 0.65 | sum 18.27 | native 200.0 ms = 19.45 us a group | records 20.3 ms, plans 7310 KB, groups' data 3222 KB
+26200 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.3 ms, plans 28426 KB, groups' data 0 KB
+26400 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.8 ms, plans 28435 KB, groups' data 0 KB
+26600 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.7 ms, plans 28451 KB, groups' data 0 KB
+26800 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.9 ms, plans 28450 KB, groups' data 0 KB
+27000 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.8 ms, plans 28455 KB, groups' data 0 KB
+27200 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.7 ms, plans 28417 KB, groups' data 0 KB
+27400 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.8 ms, plans 28459 KB, groups' data 0 KB
+27600 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.4 ms, plans 28460 KB, groups' data 0 KB
+27800 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.0 ms, plans 28452 KB, groups' data 0 KB
+28000 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.5 ms, plans 28453 KB, groups' data 0 KB
+28200 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.9 ms, plans 28455 KB, groups' data 0 KB
+28400 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 72.0 ms, plans 28468 KB, groups' data 0 KB
+28600 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 71.9 ms, plans 28427 KB, groups' data 0 KB
+28800 f1 k0 | groups 0 timed 0 vtx 0 cut 0 | read 0.000 us, 1000 ticks a ms | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.0 ms = 0.00 us a group | records 1.0 ms, plans 365 KB, groups' data 0 KB
+29000 f1 k0 | groups 8869 timed 282 vtx 4858 cut 138 | read 0.557 us, 1000 ticks a ms | 2.67 3.78 3.12 1.13 1.71 1.33 1.87 2.32 0.93 2.79 0.86 1.89 0.66 0.54 1.21 1.66 0.61 | sum 29.07 | native 268.8 ms = 30.30 us a group | records 33.2 ms, plans 12415 KB, groups' data 2776 KB
+29200 f1 k0 | groups 31782 timed 1009 vtx 17104 cut 491 | read 0.528 us, 1000 ticks a ms | 2.91 3.81 7.72 1.02 1.60 1.49 2.01 2.26 0.80 1.80 0.80 1.54 0.68 0.42 1.22 1.66 0.69 | sum 32.44 | native 651.8 ms = 20.51 us a group | records 116.8 ms, plans 43953 KB, groups' data 9940 KB
+29400 f1 k0 | groups 30025 timed 953 vtx 17306 cut 493 | read 0.800 us, 1000 ticks a ms | 2.89 3.90 3.18 1.10 1.68 1.57 2.00 2.38 1.06 1.78 0.83 1.60 0.66 0.38 1.34 1.50 0.71 | sum 28.56 | native 615.9 ms = 20.51 us a group | records 105.5 ms, plans 39444 KB, groups' data 8567 KB
+29600 f1 k0 | groups 30773 timed 977 vtx 16986 cut 481 | read 0.600 us, 1000 ticks a ms | 2.97 3.79 3.01 1.11 1.64 1.60 2.04 2.24 0.88 1.76 0.90 1.65 0.72 0.52 1.19 1.57 0.74 | sum 28.34 | native 637.8 ms = 20.73 us a group | records 108.2 ms, plans 39424 KB, groups' data 8750 KB
+29800 f1 k0 | groups 30447 timed 967 vtx 17494 cut 487 | read 0.580 us, 1000 ticks a ms | 2.60 3.89 3.16 1.03 1.85 1.49 1.88 2.21 0.91 2.04 0.80 1.64 0.72 0.39 1.11 1.57 0.72 | sum 28.01 | native 627.7 ms = 20.62 us a group | records 107.6 ms, plans 39389 KB, groups' data 8669 KB
+30000 f1 k0 | groups 30100 timed 955 vtx 17340 cut 475 | read 0.555 us, 1000 ticks a ms | 2.80 3.84 3.31 1.03 1.64 1.46 1.97 2.37 0.90 2.11 0.83 1.64 0.64 0.44 1.17 1.58 0.67 | sum 28.38 | native 620.8 ms = 20.62 us a group | records 107.7 ms, plans 39363 KB, groups' data 8580 KB
+30200 f1 k0 | groups 30528 timed 969 vtx 17549 cut 482 | read 0.685 us, 1000 ticks a ms | 2.77 3.66 3.09 0.94 1.64 1.55 1.93 2.36 0.92 1.85 0.82 1.50 0.71 0.44 1.21 1.61 0.65 | sum 27.65 | native 634.5 ms = 20.78 us a group | records 107.4 ms, plans 39519 KB, groups' data 8693 KB
+30400 f1 k0 | groups 29650 timed 941 vtx 16653 cut 475 | read 0.570 us, 1000 ticks a ms | 2.81 3.80 3.01 1.08 1.74 1.50 1.93 2.43 0.89 1.73 0.90 1.59 0.67 0.47 1.15 1.58 0.71 | sum 27.99 | native 609.6 ms = 20.56 us a group | records 107.7 ms, plans 39348 KB, groups' data 8501 KB
+30600 f1 k0 | groups 31850 timed 1011 vtx 17410 cut 497 | read 3.597 us, 1000 ticks a ms | 11.31 3.90 3.33 1.38 1.88 1.49 1.82 2.20 0.91 1.73 0.88 1.59 0.62 0.39 1.13 1.47 0.76 | sum 36.80 | native 740.6 ms = 23.25 us a group | records 121.6 ms, plans 44909 KB, groups' data 10032 KB
+30800 f1 k0 | groups 22882 timed 727 vtx 12337 cut 348 | read 3.940 us, 1000 ticks a ms | 16.92 3.86 6.52 1.05 1.43 1.29 1.85 2.20 0.69 1.65 0.64 1.30 0.63 0.31 1.42 1.63 0.68 | sum 44.06 | native 525.6 ms = 22.97 us a group | records 105.3 ms, plans 40150 KB, groups' data 7869 KB
+31000 f1 k0 | groups 14796 timed 470 vtx 7290 cut 222 | read 4.173 us, 1000 ticks a ms | 20.47 4.01 3.90 1.53 1.30 1.19 1.68 1.89 0.69 1.27 0.61 0.96 0.55 0.30 1.87 1.67 0.84 | sum 44.73 | native 301.6 ms = 20.39 us a group | records 107.3 ms, plans 40238 KB, groups' data 5918 KB
+31200 f1 k0 | groups 15606 timed 495 vtx 9486 cut 291 | read 1.573 us, 1000 ticks a ms | 21.46 3.93 3.79 0.99 1.34 1.27 1.85 2.34 0.61 0.99 0.61 0.84 0.86 0.25 1.90 1.49 0.79 | sum 45.29 | native 324.5 ms = 20.79 us a group | records 102.2 ms, plans 39630 KB, groups' data 4878 KB
+  rain wait, keep 0, 7 ME turns: 2.82 3.81 3.81 1.04 1.68 1.52 1.97 2.32 0.91 1.87 0.84 1.59 0.69 0.44 1.20 1.58 0.70 | sum 28.79 | native 20.62 us a group (628.3 ms a turn) | clock read 0.614 us | records 108.7 ms a turn
+  rain walk, keep 0, 4 ME turns: 16.27 3.91 4.37 1.25 1.56 1.34 1.81 2.17 0.76 1.49 0.72 1.27 0.65 0.33 1.48 1.55 0.76 | sum 41.69 | native 22.23 us a group (473.1 ms a turn) | clock read 3.471 us | records 109.1 ms a turn
+  steady deck d01t, keep 0, 13 ME turns: 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | sum 0.00 | native 0.00 us a group (0.0 ms a turn) | clock read 0.000 us | records 72.1 ms a turn
+  all, keep 0, 37 ME turns: 5.50 3.93 3.93 1.08 1.10 0.98 1.30 1.54 0.56 1.18 0.52 0.97 0.44 0.26 1.12 1.58 0.71 | sum 26.70 | native 17.92 us a group (240.7 ms a turn) | clock read 1.418 us | records 95.6 ms a turn
+== ME CHAINS per ME turn (ms a turn : converter calls, by chain of the frame's list; ends = held calls converted at the transfers' ends; other = not in a list):
+24000 f1 k0 | lists 44 in 551 not 0 | 0 0.8:0 1 1.1:0 2 79.8:1921 3 291.3:4778 4 76.8:3297 5 33.4:738 6 375.5:9134 7 618.1:13071 8 120.5:0 9 0.8:0 10 2.1:0 11 2.0:0 12 0.1:0 ends 116.4:0 | walks 1719.6
+24200 f1 k0 | lists 50 in 650 not 0 | 0 0.9:0 1 1.2:0 2 852.9:14100 3 3.7:0 4 210.1:7193 5 10.3:300 6 5.8:0 7 1263.5:33318 8 262.2:0 9 0.7:0 10 1.1:0 11 3.8:0 12 0.2:0 ends 51.9:0 | walks 2669.3
+24400 f1 k0 | lists 50 in 644 not 0 | 0 1.1:0 1 1.2:0 2 72.9:1170 3 588.9:8913 4 84.5:2342 5 9.8:264 6 130.1:3108 7 944.3:22968 8 239.9:0 9 0.7:0 10 1.4:0 11 85.7:0 12 0.2:0 ends 364.7:0 | walks 2526.5
+24600 f1 k0 | lists 50 in 650 not 0 | 0 0.9:0 1 1.2:0 2 70.2:1611 3 479.1:9750 4 303.9:12448 5 10.2:300 6 7.2:70 7 1189.4:28516 8 60.2:0 9 0.6:0 10 1.1:0 11 113.1:0 12 0.2:0 ends 413.6:0 | walks 2652.2
+24800 f1 k0 | lists 50 in 648 not 0 | 0 0.9:0 1 1.2:0 2 54.0:690 3 471.5:9530 4 159.1:5206 5 9.9:288 6 59.0:1660 7 1079.0:26546 8 219.8:0 9 0.7:0 10 1.3:0 11 3.6:0 12 0.2:0 ends 382.9:0 | walks 2444.3
+25000 f1 k0 | lists 42 in 508 not 0 | 0 0.7:0 1 0.9:0 2 265.8:8172 3 190.1:13391 4 18.3:509 5 70.0:3520 6 248.5:15618 7 110.0:2056 8 21.6:0 9 0.7:0 10 2.6:0 11 0.5:0 12 0.0:0 ends 44.8:0 | walks 975.4
+25200 f1 k0 | lists 50 in 600 not 0 | 0 1.1:0 1 1.1:0 2 346.9:10700 3 190.8:16713 4 9.9:300 5 98.8:5002 6 352.1:21533 7 34.9:0 8 0.7:0 9 0.8:0 10 3.2:0 11 0.3:0 ends 16.8:0 | walks 1058.4
+25400 f1 k0 | lists 50 in 600 not 0 | 0 0.8:0 1 1.1:0 2 343.2:10700 3 115.7:8514 4 9.4:300 5 90.8:4594 6 525.2:23100 7 16.8:0 8 0.6:0 9 0.9:0 10 3.2:0 11 0.2:0 ends 17.9:0 | walks 1126.9
+25600 f1 k0 | lists 50 in 600 not 0 | 0 0.8:0 1 1.1:0 2 348.1:10700 3 118.6:7852 4 9.7:300 5 74.9:3688 6 310.1:19506 7 20.6:0 8 0.6:0 9 0.8:0 10 10.2:0 11 0.2:0 ends 17.8:0 | walks 914.5
+25800 f1 k0 | lists 50 in 600 not 0 | 0 0.8:0 1 1.1:0 2 356.8:10700 3 1017.6:100983 4 10.3:300 5 189.7:9922 6 363.9:22879 7 16.7:0 8 0.6:0 9 0.9:0 10 18.4:0 11 0.2:0 ends 16.6:0 | walks 1994.6
+26000 f1 k0 | lists 22 in 144 not 0 | 0 0.4:0 1 0.3:0 2 207.2:2876 3 124.1:8184 4 1.3:38 5 28.6:533 6 31.5:1972 7 1.3:0 8 0.1:0 9 59.9:0 10 1.4:0 11 0.0:0 ends 1.6:0 | walks 457.7
+26200 f1 k0 | lists 50 in 849 not 0 | 0 0.9:0 1 0.6:0 2 1.7:0 3 362.4:8400 4 36.0:650 5 13.9:200 6 11.4:0 7 46.7:0 8 0.7:0 9 1.9:0 10 342.0:6850 11 11.2:0 12 59.0:0 13 0.7:0 14 155.3:0 15 46.7:0 16 0.2:0 ends 543.8:0 | walks 1636.8
+26400 f1 k0 | lists 50 in 849 not 0 | 0 0.9:0 1 0.6:0 2 1.0:0 3 364.3:8400 4 187.1:650 5 13.7:200 6 11.2:0 7 39.2:0 8 0.6:0 9 0.9:0 10 341.4:6850 11 11.2:0 12 45.0:0 13 0.7:0 14 154.8:0 15 72.5:0 16 0.2:0 ends 546.1:0 | walks 1792.9
+26600 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 363.7:8400 4 35.9:650 5 13.8:200 6 11.2:0 7 39.4:0 8 0.6:0 9 1.0:0 10 341.4:6850 11 11.3:0 12 34.8:0 13 0.6:0 14 154.9:0 15 46.6:0 16 0.2:0 ends 544.3:0 | walks 1603.4
+26800 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 364.7:8400 4 35.9:650 5 13.5:200 6 11.2:0 7 39.3:0 8 0.6:0 9 0.9:0 10 341.6:6850 11 11.4:0 12 34.8:0 13 0.6:0 14 154.7:0 15 46.3:0 16 0.2:0 ends 543.5:0 | walks 1603.0
+27000 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 363.1:8400 4 35.8:650 5 13.9:200 6 11.3:0 7 39.6:0 8 0.6:0 9 0.9:0 10 341.0:6850 11 11.2:0 12 35.0:0 13 0.7:0 14 154.7:0 15 47.1:0 16 0.2:0 ends 547.1:0 | walks 1605.9
+27200 f1 k0 | lists 50 in 849 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 363.2:8400 4 36.1:650 5 13.5:200 6 11.2:0 7 40.1:0 8 0.6:0 9 1.0:0 10 340.8:6850 11 11.3:0 12 34.5:0 13 0.8:0 14 154.9:0 15 72.6:0 16 0.2:0 ends 543.6:0 | walks 1628.1
+27400 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 361.7:8400 4 188.4:650 5 13.7:200 6 11.2:0 7 40.6:0 8 0.6:0 9 1.0:0 10 340.1:6850 11 11.2:0 12 35.4:0 13 0.6:0 14 154.8:0 15 46.9:0 16 0.2:0 ends 546.9:0 | walks 1757.3
+27600 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 362.5:8400 4 36.0:650 5 13.7:200 6 11.2:0 7 39.4:0 8 0.6:0 9 0.9:0 10 341.4:6850 11 11.3:0 12 35.2:0 13 0.6:0 14 154.9:0 15 46.4:0 16 0.2:0 ends 552.4:0 | walks 1610.4
+27800 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 362.2:8400 4 36.0:650 5 13.4:200 6 11.3:0 7 39.2:0 8 0.6:0 9 1.1:0 10 340.2:6850 11 11.2:0 12 34.8:0 13 0.6:0 14 154.8:0 15 74.4:0 16 0.3:0 ends 549.5:0 | walks 1633.4
+28000 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 362.6:8400 4 36.4:650 5 13.5:200 6 11.2:0 7 40.1:0 8 0.7:0 9 0.9:0 10 340.3:6850 11 11.2:0 12 35.8:0 13 0.6:0 14 155.5:0 15 46.5:0 16 0.2:0 ends 546.6:0 | walks 1605.5
+28200 f1 k0 | lists 50 in 850 not 0 | 0 0.9:0 1 0.6:0 2 0.8:0 3 365.0:8400 4 35.9:650 5 13.6:200 6 11.2:0 7 39.8:0 8 0.6:0 9 0.9:0 10 342.0:6850 11 11.5:0 12 35.5:0 13 0.6:0 14 154.5:0 15 73.5:0 16 0.3:0 ends 546.5:0 | walks 1635.1
+28400 f1 k0 | lists 50 in 850 not 0 | 0 1.0:0 1 0.6:0 2 0.8:0 3 363.7:8400 4 189.0:650 5 13.6:200 6 11.3:0 7 40.0:0 8 0.7:0 9 1.0:0 10 341.6:6850 11 11.2:0 12 35.2:0 13 0.6:0 14 155.3:0 15 46.5:0 16 0.2:0 ends 545.1:0 | walks 1758.8
+28600 f1 k0 | lists 50 in 849 not 0 | 0 0.9:0 1 0.6:0 2 2.0:0 3 364.2:8400 4 36.2:650 5 13.6:200 6 11.5:0 7 39.6:0 8 0.7:0 9 2.2:0 10 341.1:6850 11 11.2:0 12 34.7:0 13 0.6:0 14 155.1:0 15 72.7:0 16 0.2:0 ends 546.2:0 | walks 1634.7
+28800 f1 k0 | lists 3 in 24 not 0 | 0 0.1:0 1 0.1:0 2 0.6:18 3 6.5:234 4 0.0:0 5 0.0:0 6 0.1:0 7 0.0:0 ends 0.3:0 | walks 7.8
+29000 f1 k0 | lists 14 in 179 not 0 | 0 0.3:0 1 0.3:0 2 363.3:5152 3 281.4:8869 4 4.5:222 5 24.3:1204 6 283.1:5142 7 6.9:0 8 0.2:0 9 0.2:0 10 119.7:5851 11 0.2:0 12 0.1:0 ends 43.0:0 | walks 1127.6
+29200 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 978.2:18400 3 692.0:31782 4 13.8:600 5 86.2:4300 6 955.3:18100 7 23.9:0 8 0.7:0 9 1.1:0 10 222.6:20894 11 0.2:0 ends 153.6:0 | walks 3130.4
+29400 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 874.3:14100 3 653.0:30025 4 13.7:600 5 86.1:4266 6 929.8:18100 7 24.0:0 8 0.6:0 9 1.1:0 10 221.2:20894 11 0.2:0 ends 206.1:0 | walks 3013.1
+29600 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 870.8:14100 3 675.1:30773 4 13.8:600 5 86.9:4352 6 937.4:18100 7 23.9:0 8 0.6:0 9 1.0:0 10 214.9:20894 11 0.3:0 ends 52.9:0 | walks 2880.6
+29800 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 870.6:14100 3 665.6:30447 4 13.7:600 5 85.9:4286 6 940.5:18100 7 24.0:0 8 0.6:0 9 1.1:0 10 214.6:20894 11 0.3:0 ends 52.5:0 | walks 2872.5
+30000 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 868.6:14100 3 656.5:30100 4 13.6:600 5 86.3:4300 6 942.1:18100 7 23.9:0 8 0.6:0 9 1.1:0 10 215.2:20894 11 0.2:0 ends 52.9:0 | walks 2863.9
+30200 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 873.8:14100 3 669.2:30528 4 13.6:600 5 86.5:4326 6 938.9:18180 7 24.3:0 8 0.6:0 9 1.1:0 10 214.4:20894 11 0.2:0 ends 52.8:0 | walks 2878.4
+30400 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 1023.7:14100 3 644.8:29650 4 13.7:600 5 84.5:4216 6 941.1:18100 7 23.9:0 8 0.7:0 9 1.0:0 10 213.6:20894 11 0.2:0 ends 54.4:0 | walks 3004.7
+30600 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 1003.1:19648 3 782.7:31700 4 13.6:600 5 85.5:4262 6 898.8:18580 7 24.4:0 8 0.7:0 9 1.1:0 10 215.5:20894 11 0.3:0 ends 179.0:0 | walks 3208.5
+30800 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.3:0 2 1000.7:19183 3 564.6:22724 4 54.8:600 5 60.5:2932 6 681.0:16856 7 23.9:0 8 0.6:0 9 1.0:0 10 206.3:19761 11 0.3:0 ends 173.6:0 | walks 2771.4
+31000 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 1096.3:20869 3 334.2:14784 4 13.9:600 5 75.9:1380 6 650.1:16283 7 65.9:0 8 0.6:0 9 1.0:0 10 235.0:23030 11 0.2:0 ends 219.7:0 | walks 2696.8
+31200 f1 k0 | lists 50 in 600 not 0 | 0 0.9:0 1 1.1:0 2 1060.8:19074 3 353.6:15606 4 55.2:600 5 44.7:2060 6 654.2:16244 7 23.9:0 8 0.6:0 9 1.2:0 10 187.0:15192 11 0.2:0 ends 189.9:0 | walks 2575.0
+  rain wait, keep 0, 7 ME turns (ms a turn): 0 0.9 1 1.1 2 908.6 3 665.2 4 13.7 5 86.0 6 940.7 7 24.0 8 0.6 9 1.1 10 216.6 11 0.2 ends 89.3 | walks 2949.1
+  rain walk, keep 0, 4 ME turns (ms a turn): 0 0.9 1 1.2 2 1040.2 3 508.8 4 34.4 5 66.7 6 721.0 7 34.5 8 0.6 9 1.1 10 210.9 11 0.3 ends 190.6 | walks 2812.9
+  steady deck d01t, keep 0, 13 ME turns (ms a turn): 0 0.9 1 0.6 2 1.0 3 363.3 4 71.1 5 13.6 6 11.3 7 40.2 8 0.6 9 1.1 10 341.1 11 11.2 12 37.7 13 0.6 14 154.9 15 56.8 16 0.2 ends 546.3 | walks 1654.3
+== NAT PROBLEMS (gl35): none | hinted pointers differing 0 | keeps' check differing 0 | display: turns with flip wait off 0 , lists drawn into the shown buffer 0
+== LINES:
+   nat: gl33 static streams in place: MGS2_NAT_INPL 1, MGS2_NAT_INPL_CYCLE none (1: a static group's streams stay in RAM for the ME's walk; by the same turns)
+   nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 0, MGS2_NAT_KEEP_CYCLE none (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns), MGS2_NAT_KCHK 0
+   nat: gl34 fast native front end: MGS2_NAT_FAST 1, MGS2_NAT_FAST_CYCLE none (1: arm 3's groups go to the translator's fast front end; by the same turns)
+   nat: MGS2_NAT 0, MGS2_NAT_CYCLE 3,3,3,3 (turns of 100 vblanks from vb 24001; 0 the builder, 3 native, 4 stubbed and not drawn); 2304 groups a picture, 48 B each
+   nat split (gl34, MGS2_NAT_SPLIT; the lines 'nat split' and 'me chains' of each ME turn): on; a group in about 32 timed by stage
+   native step 1: the groups' arrays: 2304 groups of 48 B a packet buffer, 216 KB of the system's memory outside newlib's heap: made, an array each (0bec8000, 0bfc0000); that memory before: largest block 224 KB, total 432 KB; after: 116 KB, 216 KB; the merge runs timed on the ME (MGS2_NAT_T): yes
+   eye: t 0 at vb 1 (t: ms from this hook)
+   picture heap: 1260 KB in 8 regions now (the first 767 KB; 492 KB added now, 492 KB at most: the hook gave 7 regions, took back 0, resized 2, refused 0), peak 1256 KB in use (extent 766 KB in the first), now 1250 KB; blocks peak 21; allocations 21, frees 1, reallocs 2 (moved 0); refused 0 (first 0 by
+   picture heap: the hooks' 9 events (vb: + KB given at, ! refused, - taken back, = resized in place, > resized and moved from, ? resize refused; newlib's break after it; its free top given back after a resize 1 times): vb 31: +152.0 KB (for 155672 B) at 0bdc2340 (0bdea000); vb 36: +64.0 KB (for 65560 
+== BATTERY: 12191 lines
+   start t 0 s, vb -1: 100%, -2147352262 mV, 0 C, 0 min left (charging status 0); external power 1, charging 0, low 0; Media Engine off; since power-on 0 s, CPU 333 MHz, bus
+   end t 1156 s, vb 31400: 100%, -2147352262 mV, 0 C, 0 min left (charging status 0); external power 1, charging 0, low 0; Media Engine off; since power-on 1156 s, CPU 333 M
+   levels: first 100, min 100, last 100; lines with external power 1: 10432
+== PICTURES (gl35 against gl34, same names; pixel data only; luma = (2R+5G+B)/8; count of pixels, lighter/darker by 6+):
+   0 of 0 gl35 pictures byte-equal gl34's; only in gl34: ['live_30512.bmp', 'live_30537.bmp', 'live_30562.bmp', 'live_30587.bmp', 'live_30612.bmp', 'live_30637.bmp', 'live_30662.bmp', 'live_30687.bmp', 'live_30712.bmp', 'live_30737.bmp', 'live_30762.bmp', 'live_30787.bmp', 'live_30812.bmp', 'live_30837.bmp', 'live_30862.bmp', 'live_30887.bmp', 'live_30912.bmp', 'live_30937.bmp', 'live_30962.bmp', 'live_30987.bmp', 'live_31012.bmp', 'live_31037.bmp', 'live_31062.bmp', 'live_31087.bmp', 'live_31112.bmp', 'live_31137.bmp', 'live_31162.bmp', 'live_31187.bmp', 'live_31212.bmp', 'live_31237.bmp', 'live_31262.bmp', 'live_31287.bmp', 'live_31312.bmp', 'live_31337.bmp', 'live_31362.bmp', 'live_31387.bmp', 'shot_10516.bmp', 'shot_15761.bmp', 'shot_23263.bmp', 'shot_24244.bmp', 'shot_24784.bmp', 'shot_29500.bmp', 'shot_30500.bmp', 'shot_30546.bmp', 'shot_30644.bmp', 'shot_30722.bmp', 'shot_30824.bmp', 'shot_30924.bmp', 'shot_31046.bmp', 'shot_31112.bmp', 'shot_31262.bmp', 'shot_8760.bmp']

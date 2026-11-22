@@ -1,0 +1,53 @@
+MGS2T_v30, PspProf cost model of the indoor route (2026-10-26; psp_harness.md "Build v30", play/w01a_route.md "The timing route")
+ms per step = (1.4 x instructions + 70 x (I-misses + D-misses)) / 333,000, per step, as since v16. Build d (v30's program without the ME
+layer, as v29's model), the indoor route's pad (play/pad_w01af.txt) and v30's pack, everything on, MGS2_HASH_EVERY=500,
+PPSSPP_VFPU_RN=1. ONE WINDOW PER RUN (/home/claude/v30/model/model.sh <tag> "<A B>" <vblanks>, chain /home/claude/v30/chain3.sh), so
+every window starts from the exact state: each run's hash lines equal prof/hashes_x86_in_v30.txt up to the window (walk 65 / 65,
+crawl 68 / 68, first person 70 / 70, evasion 74 / 74; alert 73 / 74: its one miss is the hash at vb 37000 inside the window, which
+PPSSPP's interpreter runs (the interpreted profile windows change the state, as in v28's and v29's models; the JIT runs are exact)).
+Dumps: container /home/claude/v30/model/{walk,crawl,fp,alert,evas} (+ .calls, cfg_*, log_*); link map /home/claude/v30/me/base/MGS2T.map
+(d's own link). Tool: tools/dev/prof_regions.py <map> 08ba0000 460000 0 <dumps>; the alert window with --ex-hash (its dump named
+alert.1, reference walk): the state hash at vb 37000 taken off (as dumped 59.03 ms: the hash is 19.2 ms per step of the window).
+
+1. Windows (100 steps each)
+  window                         steps         instr      I-miss    D-miss    ms
+  walk (port hallway)            32601-32700   4.560 M    31.5 k    29.2 k    31.92
+  crawl                          34301-34400   4.639 M    33.8 k    29.5 k    32.81
+  first person                   35101-35200   3.656 M    29.3 k    24.2 k    26.61
+  alert (ALERT on the frames     36901-37000   5.750 M    40.2 k    34.5 k    39.87   (state hash off)
+    at 36,803 and 37,003)
+  evasion (EVASION at 37,203)    37201-37300   5.099 M    38.3 k    31.3 k    36.08
+  mean                                                                        33.46
+  Against v29's deck free play (prof/model_v29_free.txt, four windows): 69.01 ms, so indoors is 48% of the deck in the model.
+  Instructions per step 3.7-5.8 M (deck 9.7-10.4 M); misses 53-75 k (deck 122-129 k).
+
+2. PSP estimate [I]. v29's PSP over its own model windows (prof/hw_v29/steps.csv, the same vblanks): walk 76.99 / 68.60 = 1.122,
+  crawl 78.89 / 71.03 = 1.111, first person 74.02 / 66.31 = 1.116, alert 78.20 / 70.09 = 1.116 (mean 1.116; route mean 78.25 /
+  window mean 69.01 = 1.134). The old crew deck route (v12, poked, logic + IOP only) read 1.081. So about 37 ms per step indoors on
+  the PSP (33.46 x 1.116 = 37.3; 36.2 with 1.081, 37.9 with 1.134), told to Ffm as "about 37". The route also has parts no window
+  covers (stand 31,800-32,300, punches and fire 34,530-34,840, sneak 35,520-36,440, the alert's entry and end).
+
+3. By code region (ms per step)
+  region                           walk    crawl    1st p    alert  evasion   deck walk v29
+  game ELF code (gen.o)           12.80    13.37    10.21    15.76    14.25    27.07
+  runtime (boot_rt.o)             11.05    11.40     8.62    14.00    12.08    22.35
+  stage reduced part               5.29     5.31     5.15     6.07     5.96    14.63
+  IOP + sound                      1.44     1.39     1.45     2.42     2.32     2.01
+  libraries                        0.91     0.92     0.76     1.14     1.01     1.74
+  dispatch (gen_dispatch.o)        0.31     0.31     0.29     0.34     0.33     0.59
+  harness                          0.12     0.12     0.12     0.13     0.13     0.21
+  total                           31.92    32.81    26.61    39.87    36.08    68.60
+  The alert and evasion windows cost 4-8 ms more than the walk: game code +1.5-3, runtime +1-3, sound +1 (more sounds: the alarm,
+  radio calls, gunfire [I]).
+
+4. Walk window by function (top of a flat profile; scratch topfn.py over the ELF and d's ovl_w01a.elf symbols): io_flush 4.21 ms
+  (0.814 M instructions; the DMA / VIF walk, also the deck's biggest runtime function), P12e8b8 0.99, vup_33268338_0 0.94 (a VU0
+  micro program), rt_qcopy_nov 0.93, vupv_96936c0f_0 0.89, P120860 0.81, memcpy 0.67, S_w01a_P3a4ce8 0.61 (the stage's top), rt_store
+  0.59, P11fa58 0.51, P11fde8 0.48, nat_dbc0 0.45; the top 25 make about 17 of the 32 ms.
+
+5. Run length on the PSP [I]. v29's battery.txt: vb 30,500 at t 1,843 s, end 2,431 s. In every run since v25f about 111 s of each
+  ~5,800-vblank timed range lie outside the step timer (v25f 114, v26me 108, v26me4 111, v28 111, v29 111 s) whatever the step time:
+  the state hashes taken between host_vb_begin and host_vb_end (57-61 in the range; FNV-1a 64 over 34 MB, about 1.8-1.9 s each on
+  the PSP [I]); whole run: 1,590 s of steps in v29's 2,431 s, the rest mainly the 311 hashes of the dense range 15,700-16,010 and the
+  hashes every 500. Harness only: no step time is missing. v30: about 1,843 s to vb 30,500, about 105 s to 31,800 (1,300 deck steps
+  and two hashes), about 330 s for the 6,000 indoor steps and their 61 hashes: about 38 minutes (README: about 40).

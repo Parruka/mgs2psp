@@ -1,0 +1,588 @@
+diff -ruN -x '*.o' -x '*.orig' t36/boot/nat_stub.h t37d/boot/nat_stub.h
+--- t36/boot/nat_stub.h	2026-11-22 03:47:57.758549638 +0000
++++ t37d/boot/nat_stub.h	2026-11-22 05:47:10.513349211 +0000
+@@ -63,6 +63,14 @@
+ int g_nat_reuse, g_nat_rchk, g_nat_rcfg;   /* g_nat_rcfg: 1 when MGS2_NAT_REUSE or MGS2_NAT_REUSE_CYCLE names a 1 (the host makes the table) */
+ struct NrEnt; void xl_nr_table(struct NrEnt *t, int cap, int chk);   /* (ge/xlate.h) */
+ static int nat_reuse_all, nat_reuse_ncyc; static uint8_t nat_reuse_cyc[32];
++#ifndef __psp__
++/* cull study (ge/xconv.h XcHost.cull; attic/cull/cull_v3.md): MGS2_NAT_CULL=<bits> for the whole run, MGS2_NAT_CULL_CYCLE=<bits>,...
++   by the same turns: bit 1 the effect strips (25f0 / 2870) that would draw nothing left out before their conversion.  MGS2_NAT_CULLCHK=1:
++   the check mode (such a call converted anyway and compared).  Taken at each picture's start (rt_nat_cull_at).  The twin's; the PSP's is
++   psp/xl_psp.c rt_nat_cull_at (the same keys and turns), so that the PSP's boot_rt.o is gl36's.  Its own reader, as the PSP's, not
++   nat_setup: that at the first picture would set the native switches up early and start the twin walk's counts there */
++static int nat_cull_set, nat_cull_all, nat_cull_ncyc, nat_cull_chk; static long nat_cull_from, nat_cull_turn = 1; static uint8_t nat_cull_cyc[32];
++#endif
+ static uint32_t nat_seq_seen;
+ #ifndef __psp__
+ static int nat_cap_dev;          /* dev (x86): MGS2_NAT_CAP=<n>: the array's entries (the fallback's test) */
+@@ -162,6 +170,25 @@
+   if (nat_reuse_ncyc && vb > nat_from) return nat_reuse_cyc[((vb - nat_from - 1) / nat_turn) % nat_reuse_ncyc];
+   return nat_reuse_all;
+ }
++#ifndef __psp__
++int rt_nat_cull_at(long vb)   /* cull study: XcHost.cull at vblank vb (its bits, and 0x80 in the check mode) */
++{
++  if (!nat_cull_set) {
++    const char *e, *c = getenv("MGS2_OPT_CYCLE"); long f = -1, n = 0; nat_cull_set = 1;
++    nat_cull_all = (e = getenv("MGS2_NAT_CULL")) ? atoi(e) & 1 : 0;
++    if ((e = getenv("MGS2_NAT_CULL_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++      char *p = (char *)e;
++      while (nat_cull_ncyc < 32 && *p) { nat_cull_cyc[nat_cull_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
++      if (nat_cull_ncyc) { nat_cull_from = f; nat_cull_turn = n; } }
++    nat_cull_chk = (e = getenv("MGS2_NAT_CULLCHK")) ? atoi(e) & 1 : 0;
++    if (nat_cull_all || nat_cull_ncyc || nat_cull_chk) fprintf(stderr, "nat: cull study v3: MGS2_NAT_CULL %d, MGS2_NAT_CULL_CYCLE %s (bit 1: the effect strips "
++                           "that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK %d\n", nat_cull_all,
++                           nat_cull_ncyc ? getenv("MGS2_NAT_CULL_CYCLE") : "none", nat_cull_chk);
++  }
++  int k = nat_cull_ncyc && vb > nat_cull_from ? nat_cull_cyc[((vb - nat_cull_from - 1) / nat_cull_turn) % nat_cull_ncyc] : nat_cull_all;
++  return k ? k | (nat_cull_chk ? 0x80 : 0) : 0;
++}
++#endif
+ int rt_nat_fast_at(long vb)   /* gl34: the fast front end's switch at vblank vb */
+ {
+   if (nat_set < 0) nat_setup();
+diff -ruN -x '*.o' -x '*.orig' t36/boot/xlive_chk.c t37d/boot/xlive_chk.c
+--- t36/boot/xlive_chk.c	2026-11-21 22:29:58.383440973 +0000
++++ t37d/boot/xlive_chk.c	2026-11-22 05:48:40.641253780 +0000
+@@ -100,6 +100,7 @@
+ #include "../ge/gelive.h"
+ #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
+ #include "../ge/fxthin.h"    /* task #114 */
++#include "../ge/natsplit.h"  /* cull study census: NS_CH */
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+@@ -1086,6 +1087,17 @@
+     if (tkc && u != um) { tk_umemo(tkc, u); um = u; }
+     { static int uf = -1; int f = (g_opt2 & OPT2_TX_FRONT) ? 1 + uf_chk : 0; if (tkc && f != uf) { tk_ufront(tkc, f); uf = f; } }   /* sb10 T1 */
+     if (map && l != li) { gu_ld_ident(map, l); li = l; } }
++  { /* cull study census (ge/gelive.c gl_cen): the transfer's chain as psp/xl_psp.c ns_chain finds it (reads only) */
++    extern int gl_cen_chi; extern long gl_cen_vb; static uint32_t cha[NS_CH]; static int chn;
++    gl_cen_vb = cur_vb; gl_cen_chi = NS_CH_OTHER;
++    if (ch == 1 && !(tadr & 0x80000000u) && mem) {
++      uint32_t a = tadr & (GSZ - 1) & ~15u, lp = *(const uint32_t *)(mem + 0x1b9348) & (GSZ - 1) & ~3u, n; int got = 0;
++      if (lp && lp + 12 + 16 * NS_CH + 16 <= GSZ) {
++        n = *(const uint32_t *)(mem + lp);
++        if (n && n <= NS_CH && (*(const uint32_t *)(mem + lp + 16) & (GSZ - 1) & ~15u) == a) {
++          for (uint32_t i = 0; i < n; i++) cha[i] = *(const uint32_t *)(mem + lp + 16 + 16 * i) & (GSZ - 1) & ~15u;
++          chn = (int)n; gl_cen_chi = 0; got = 1; } }
++      for (int i = 1; !got && i < chn; i++) if (cha[i] == a) { cha[i] = 0xffffffffu; gl_cen_chi = i; break; } } }
+   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
+   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
+@@ -1180,6 +1192,11 @@
+       fprintf(stderr, "picture: texture conversions: %ld a block at a time, %ld handed back to the texel path, %ld differing from it; GS blocks "
+               "read %ld, %ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
+       step0_line("picture: step 0:"); }
++    { const XcStats *q = xc_stats(); const long *u = q->cull_n;   /* cull study (ge/xconv.h XcStats.cull_n) */
++      fprintf(stderr, "natcull: totals (v3): effect calls tested %ld, left out %ld (%ld vertices); kept: vertex 0 inside %ld, no plane proven %ld, "
++              "a bad attribute %ld, count %ld, out of the clamps' range %ld, thinned %ld; check mode: left-out calls converted %ld, DIFFERING "
++              "%ld, kept calls that drew nothing %ld; vertices read %ld, %ld of them in calls kept; left-out vertices on the clamped path %ld, "
++              "check mode: converted through the clamps %ld\n", u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], u[11], u[8], u[9], u[10], u[12], u[13], u[14], u[15]); }
+     const XcStats *x = xc_stats(); fprintf(stderr, "xlive gb: converters: calls %ld / %ld / %ld, batches %ld / %ld / %ld, empty %ld / %ld / %ld, bad %ld / %ld / %ld; "
+               "effect triangles by class %ld %ld %ld %ld %ld (2870 culled %ld); polygons %ld (%ld vertices), empty %ld, culled %ld, no room %ld; "
+               "df0 calls left out off the scissor %ld (%ld vertices)\n",
+@@ -1412,7 +1429,17 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.h.c4 = (g_opt2 & OPT2_C4) != 0; glf.h.c4x = (g_opt2 & OPT2_C4X) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.h.c4 = (g_opt2 & OPT2_C4) != 0; glf.h.c4x = (g_opt2 & OPT2_C4X) != 0; glf.ram = M.mem;
++#ifdef NAT_HOOK
++      { extern int rt_nat_cull_at(long); glf.h.cull = rt_nat_cull_at(vb); }   /* cull study */
++#endif
++      { static long cw = -2, cnx; if (cw == -2) cw = getenv("MGS2_CULL_WIN") ? atol(getenv("MGS2_CULL_WIN")) : 0;   /* cull study v3: the
++                                                    totals at the first frame start on or after each multiple of MGS2_CULL_WIN vblanks
++                                                    (study only; off by default) */
++        if (cw > 0 && vb >= cnx) { const long *u = xc_stats()->cull_n; fprintf(stderr, "natcull win: vb %ld:", vb); cnx = (vb / cw + 1) * cw;
++          for (int k = 0; k < 16; k++) { fprintf(stderr, " %ld", u[k]); }
++          fprintf(stderr, "\n"); } }
++      gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_cline(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+diff -ruN -x '*.o' -x '*.orig' t36/ge/gelive.c t37d/ge/gelive.c
+--- t36/ge/gelive.c	2026-11-21 22:29:15.148225829 +0000
++++ t37d/ge/gelive.c	2026-11-22 04:30:51.878753451 +0000
+@@ -350,6 +350,61 @@
+     if (r->line && src - r->lo < r->hi - r->lo && (!r->keep || (r->kcall > 1 && (src - r->lo) / FX_STREAK_BLOCK % (uint32_t)r->kcall))) return 1; }
+   return 0;
+ }
++#ifndef __psp__
++/* ---- cull study (x86 census, MGS2_CULL_CEN=<file>): every converter call by 100-vblank window, chain (gl_cen_chi: the transfer's
++   place in the frame's chain list, as psp/xl_psp.c ns_chain finds it; NS_CH_OTHER: not in it), kind and outcome (xconv.c xc_cen_why);
++   the effects' calls also by owner (fxthin.c fx_who_name).  Reads only: nothing here changes what is drawn ---- */
++#include <stdio.h>
++extern int xc_cen_why, xc_cen_n, xc_cen_plane;
++int gl_cen_chi = NS_CH_OTHER; long gl_cen_vb;
++enum { CEN_W = 380, CEN_C = NS_CH_N, CEN_K = 9, CEN_Y = 11, CEN_O = 48, CEN_FK = 5 };
++static int cen_on = -1; static const char *cen_path;
++static int (*cen_t)[CEN_C][CEN_K][CEN_Y]; static long (*cen_v)[CEN_C][CEN_K][CEN_Y];
++static int (*cen_o)[CEN_O][CEN_FK][CEN_Y]; static long (*cen_ov)[CEN_O][CEN_FK][CEN_Y]; static int cen_pl[CEN_W][CEN_O][64];
++static char cen_on_[CEN_O][40]; static int cen_no, cen_over;
++static int cen_kind(uint32_t e)
++{
++  return e == 0x1991d8u ? 0 : e == 0x19a9f0u ? 1 : e == 0x19ac78u ? 2 : e == VC_P07 ? 4 : e == 0x19bb50u ? 5 : e == 0x19be50u ? 6 : e == 0x19af68u ? 7 :
++         gl_conv_entry(e) ? 3 : 8;
++}
++static void cen_print(void)
++{
++  FILE *fp = fopen(cen_path, "w"); if (!fp) return;
++  static const char *K[CEN_K] = { "df0", "fx25f0", "fx2870", "p06", "p07", "spr", "quad", "line", "other" };
++  fprintf(fp, "# cull census: win vb0 chain kind why calls verts (why: 0 drawn 1 fpos-one-point 2 fpos-all-off-one-plane 3 fpos-each-triangle-off 4 df0-cut 5 empty-other 6 bad 7 c4-none 8 left-before 9 held 10 fpos-empty-other)\n");
++  for (int w = 0; w < CEN_W; w++) for (int c = 0; c < CEN_C; c++) for (int k = 0; k < CEN_K; k++) for (int y = 0; y < CEN_Y; y++)
++    if (cen_t[w][c][k][y]) fprintf(fp, "c %d %d %s %d %d %ld\n", w * 100, c, K[k], y, cen_t[w][c][k][y], cen_v[w][c][k][y]);
++  static const char *FK[CEN_FK] = { "fx25f0", "fx2870", "spr", "quad", "line" };
++  for (int w = 0; w < CEN_W; w++) for (int o = 0; o < cen_no; o++) for (int k = 0; k < CEN_FK; k++) for (int y = 0; y < CEN_Y; y++)
++    if (cen_o[w][o][k][y]) fprintf(fp, "o %d %s %s %d %d %ld\n", w * 100, cen_on_[o], FK[k], y, cen_o[w][o][k][y], cen_ov[w][o][k][y]);
++  for (int w = 0; w < CEN_W; w++) for (int o = 0; o < cen_no; o++) for (int b = 1; b < 64; b++)
++    if (cen_pl[w][o][b]) fprintf(fp, "p %d %s %02x %d\n", w * 100, cen_on_[o], b, cen_pl[w][o][b]);
++  fprintf(fp, "# owners %d, over %d\n", cen_no, cen_over);
++  fclose(fp);
++}
++static void gl_cen(GlFrame *f, const XlCall *c, int why, int n)
++{
++  if (cen_on < 0) { cen_path = getenv("MGS2_CULL_CEN"); cen_on = cen_path && *cen_path;
++    if (cen_on) { cen_t = calloc(CEN_W, sizeof *cen_t); cen_v = calloc(CEN_W, sizeof *cen_v); cen_o = calloc(CEN_W, sizeof *cen_o); cen_ov = calloc(CEN_W, sizeof *cen_ov);
++      if (!cen_t || !cen_v || !cen_o || !cen_ov) cen_on = 0; else atexit(cen_print); } }
++  if (!cen_on) return;
++  int w = (int)(gl_cen_vb / 100); if (w < 0 || w >= CEN_W) return;
++  int ch = gl_cen_chi < 0 || gl_cen_chi >= CEN_C ? NS_CH_OTHER : gl_cen_chi, k = cen_kind(c->entry), y = why < 0 || why >= CEN_Y ? 5 : why;
++  cen_t[w][ch][k][y]++; cen_v[w][ch][k][y] += n > 0 ? n : 0;
++  int fk = k == 1 ? 0 : k == 2 ? 1 : k == 5 ? 2 : k == 6 ? 3 : k == 7 ? 4 : -1;
++  if (fk < 0 || !f->ram) return;
++  char nm[40]; int o;
++  if (fx_who_name(f->ram, c->src, nm, sizeof nm)) snprintf(nm, sizeof nm, "(none)");
++  for (o = 0; o < cen_no && strcmp(cen_on_[o], nm); o++) ;
++  if (o == cen_no) { if (cen_no == CEN_O) { cen_over++; return; } snprintf(cen_on_[o], sizeof cen_on_[o], "%s", nm); cen_no++; }
++  for (char *q = cen_on_[o]; *q; q++) if (*q == ' ') *q = '_';
++  cen_o[w][o][fk][y]++; cen_ov[w][o][fk][y] += n > 0 ? n : 0;
++  if (y == 2) cen_pl[w][o][xc_cen_plane & 63]++;
++}
++#define GL_CEN(why, n) gl_cen(f, c, why, n)
++#else
++#define GL_CEN(why, n) ((void)0)
++#endif
+ void gl_call(GlFrame *f, const XlCall *c)
+ {
+   f->lit_ok = 0; f->held_cur = -1; f->held_gone = 0;
+@@ -369,8 +424,8 @@
+   if (f->ft && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2 || c->entry == VC_LINE || (c->entry == VC_SPR && !f->ft->keep[3]))) {   /* task #114: the frame's thinned
+                                                                      effects, as they are now (task #154: the streaks too, C4 on) */
+     f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram, f->h.c4); f->h.thin = f->ft->r; }
+-  if (c->entry == VC_LINE && f->h.nthin && gl_line_none(&f->h, c->src)) { f->n.calls--; f->n.other++; f->ft->line_none++; return; }   /* task #158 */
+-  if (c->entry == VC_SPR && f->ft && f->ft->nd && fx_drop_has(f->ft, c->src)) { f->n.calls--; f->n.other++; f->ft->spr_none++; return; }   /* task #161 */
++  if (c->entry == VC_LINE && f->h.nthin && gl_line_none(&f->h, c->src)) { GL_CEN(8, -1); f->n.calls--; f->n.other++; f->ft->line_none++; return; }   /* task #158 */
++  if (c->entry == VC_SPR && f->ft && f->ft->nd && fx_drop_has(f->ft, c->src)) { GL_CEN(8, -1); f->n.calls--; f->n.other++; f->ft->spr_none++; return; }   /* task #161 */
+ #endif
+   /* sb4, step c (renderer_notes 11.29): a call xc_hold_test takes is held when the frame has a record, its batch slots and data room
+      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
+@@ -387,6 +442,7 @@
+       r->slot = gb_slot(&f->o);
+       f->pend += need; f->held_cur = f->nheld++; f->held_n++; f->held7_n += c->rec->lane == 4;
+       f->n.conv++; f->n.lit_calls++;   /* (xc_hold_test: the call converts and has a strip) */
++      GL_CEN(9, -1);
+       return;
+     }
+   }
+@@ -413,6 +469,7 @@
+   int r = xc_call(c, &f->h, &b, blob, cap, &size);
+ #ifndef __psp__
+   rp_call(f, c, r, &b, blob, size);   /* gl36 probe */
++  GL_CEN(gl_conv_entry(c->entry) || gl_c4_entry(c->entry) ? xc_cen_why : 5, xc_cen_n);
+ #endif
+   if (r == -5) { f->n.conv_full++; return; }
+   if (r < 0) { f->n.conv_bad++; return; }
+diff -ruN -x '*.o' -x '*.orig' t36/ge/xconv.c t37d/ge/xconv.c
+--- t36/ge/xconv.c	2026-11-21 22:28:10.438281075 +0000
++++ t37d/ge/xconv.c	2026-11-22 04:48:11.198634959 +0000
+@@ -15,6 +15,14 @@
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
++#ifndef __psp__
++/* cull study (x86 census, ge/gelive.c gl_cen): the last call's outcome by reason (xconv.h XC_CEN_*), the vertices its converter saw and,
++   for an empty 25f0 / 2870 call, the clip bits every vertex shares.  Reads only */
++int xc_cen_why = -1, xc_cen_n = -1, xc_cen_plane;
++#define CEN(w) (xc_cen_why = (w))
++#else
++#define CEN(w) ((void)0)
++#endif
+ 
+ /* the GS state of the call's first primitive (xconv.h XcGs), as gsref's setup() reads it from the registers (PRMODECONT picks PRIM or
+    PRMODE) */
+@@ -314,7 +322,134 @@
+   struct { VcVertF v[4 * 256], pv[2048]; VcCv cv[4 * 256]; uint8_t st[256], cls[4 * 256]; uint16_t pfan[512][2]; } q;
+   struct { VcVertF v[1024], sv[1024], pv[2048]; uint16_t fl[1024], run[512][2]; float cc[1024][4]; uint8_t cls[1024]; } l;
+ } Fx;
+-static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++/* ---- cull study v3 (XcHost.cull XC_CULL_FX; attic/cull/cull_v3.md): a 25f0 / 2870 call that would draw nothing, found before its
++   conversion by a BOUND.  xc_fpos_off says 1 only when one CLIP plane's flag bit is proven set on every vertex as the conversion
++   computes it:
++   1. vertex 0's clip position as the conversion computes it (vc_vu_clip_nc; with the matrix and the position within vc_clip_in's
++      range the clamped vc_vu_clip gives the same bits, vu1conv.h): its flag bits are the candidate planes; none: kept at once;
++   2. pass 1, the positions only: their box (per axis the least and the largest, as int keys that order floats);
++   3. the bound: the matrix and the box's six values within vc_clip_in's range; for a candidate plane both linear forms that
++      vc_cflags's comparison comes to (odd bit b, axis a = b >> 1: c_a + c_w < 0 and c_a - c_w < 0; even: -c_a - c_w < 0 and
++      -c_a + c_w < 0), each maximised over the box, below -(2^-16 S + 2^-60), S = sum over the two matrix columns of |m| times the
++      box's largest |p| (and their constant terms): the margin is at least 28 times every rounding error of the conversion's sums and
++      of this bound's own float steps (the proof: cull_v3.md 3);
++   4. pass 2, only for a call proven: every vertex's position within vc_clip_in's range (the box gives the upper end; the lower end
++      checked per value), so both of the conversion's clip paths give these bits and the clamps' counter adds 0; no attribute that
++      makes vc_fpos refuse the call (-4); the counts the conversion adds (ADC triangles in class 0, every other triangle in class 2).
++   A thinned call (task #114), a count out of 2..1024 and a call with a trace are converted as before.  The test writes nothing but
++   St.cull_n and *D: the counters the conversion would add and the proven plane (the check mode tests each vertex's flags for it) ---- */
++typedef struct { long clip0, t0, t2; int b; } XcCullD;
++static inline float xc_f(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
++static inline float xc_abs(float f) { return f < 0 ? -f : f; }
++static inline int xc_in(uint32_t u) { return !(u & 0x7fffffffu) || (u >> 23 & 0xffu) - 99u <= 87u; }   /* vc_clip_in on the bits */
++static inline int xc_cflags(const float *c)   /* vu1conv.c vc_cflags (fabs_ is xc_abs), inline: the test's own cost in its own functions */
++{
++  const float w = xc_abs(c[3]);
++  return (c[0] > w) | (c[0] < -w) << 1 | (c[1] > w) << 2 | (c[1] < -w) << 3 | (c[2] > w) << 4 | (c[2] < -w) << 5;
++}
++static inline int32_t xc_key(uint32_t u) { return (int32_t)(u ^ ((uint32_t)((int32_t)u >> 31) & 0x7fffffffu)); }   /* float order as
++                                                       int32 order (-0 just below +0); its own inverse */
++/* 1 when both forms of plane b are below the margin over the box lo..hi (P: the largest |p| per axis) */
++static int xc_bound(const float *m, const float *lo, const float *hi, const float *P, int b)
++{
++  const int a = b >> 1; const float s = b & 1 ? 1.0f : -1.0f;
++  float S = (xc_abs(m[a]) + xc_abs(m[3])) * P[0];
++  S = S + (xc_abs(m[4 + a]) + xc_abs(m[7])) * P[1];
++  S = S + (xc_abs(m[8 + a]) + xc_abs(m[11])) * P[2];
++  S = S + (xc_abs(m[12 + a]) + xc_abs(m[15]));
++  const float M = S * 0x1p-16f + 0x1p-60f;
++  for (int t = 0; t < 2; t++) { const float tw = t ? -1.0f : 1.0f; float G = 0;
++    for (int i = 0; i < 3; i++) { const float g = s * m[4 * i + a] + tw * m[4 * i + 3]; G = G + (g >= 0 ? g * hi[i] : g * lo[i]); }
++    G = G + (s * m[12 + a] + tw * m[15]);
++    if (!(G + M < 0)) return 0; }
++  return 1;
++}
++/* pass 2 on the prim's streams (K: the attributes' kind, vu1conv.c fpos_rec_loop's decode): 0 when every position is within the
++   range and no attribute is out, else the reason (xconv.h XcStats.cull_n: 7, 5); *adc: the vertices with ADC */
++static inline __attribute__((always_inline)) int xc_cull_p2r(const uint32_t *P, const xc_h16 *A, const uint32_t *row, int n, int tme, const int K,
++                                                             long *adc)
++{
++  const uint32_t r0 = K == 3 ? row[0] : 0, r1 = K == 3 ? row[1] : 0, r2 = K == 3 ? row[2] : 0, r3 = K == 3 ? row[3] : 0;
++  uint32_t tiny = 0, col = 0, uvq = 0; long na = 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t *pp = P + 4 * i; const xc_h16 *x = A + 8 * i;
++    tiny |= ((pp[0] << 1) - 1u < (99u << 24) - 1u) | ((pp[1] << 1) - 1u < (99u << 24) - 1u) | ((pp[2] << 1) - 1u < (99u << 24) - 1u);
++    if (K == 2) { col |= (uint32_t)(uint16_t)x[0] | (uint16_t)x[1] | (uint16_t)x[2] | (uint16_t)x[3]; uvq |= (uint32_t)(uint16_t)x[6] ^ 0x1000u; }
++    else { col |= ((uint32_t)(int32_t)x[0] + r0) | ((uint32_t)(int32_t)x[1] + r1) | ((uint32_t)(int32_t)x[2] + r2) | ((uint32_t)(int32_t)x[3] + r3);
++           uvq |= ((uint32_t)(int32_t)x[6] + r2) ^ 0x1000u; }
++    na += ((uint32_t)(int32_t)x[7] + r3) >> 15 & 1u;
++  }
++  *adc = na;
++  return tiny ? 7 : col > 255 || (tme && uvq) ? 5 : 0;
++}
++static uint32_t xc_flag(const XlCall *c, const XlRec *rr, int i)   /* vertex i's flag word (the UV quadword's w) as xc_fpos takes it */
++{
++  if (!rr) return vq(c->vm, c->top + 0x102 + 3 * (uint32_t)i)[3];
++  return (uint32_t)(int32_t)((const xc_h16 *)rr->p[1])[8 * i + 7] + (rr->kind[1] == 3 ? rr->row[3] : 0);
++}
++/* 4. pass 2 (a call proven): the positions' lower end, the attributes, the ADC count; 0 or the reason to keep it */
++static __attribute__((noinline)) int xc_cull_p2(const XlCall *c, const XlRec *rr, int n, int tme, long *adc)
++{
++  if (rr) return rr->kind[1] == 2 ? xc_cull_p2r((const uint32_t *)rr->p[0], (const xc_h16 *)rr->p[1], rr->row, n, tme, 2, adc) :
++                                    xc_cull_p2r((const uint32_t *)rr->p[0], (const xc_h16 *)rr->p[1], rr->row, n, tme, 3, adc);
++  uint32_t tiny = 0, col = 0, uvq = 0; long na = 0;
++  for (int i = 0; i < n; i++) { const uint32_t *pp = vq(c->vm, c->top + 0x100 + 3 * (uint32_t)i), *cq = vq(c->vm, c->top + 0x101 + 3 * (uint32_t)i),
++                                               *tq = vq(c->vm, c->top + 0x102 + 3 * (uint32_t)i);
++    tiny |= ((pp[0] << 1) - 1u < (99u << 24) - 1u) | ((pp[1] << 1) - 1u < (99u << 24) - 1u) | ((pp[2] << 1) - 1u < (99u << 24) - 1u);
++    col |= cq[0] | cq[1] | cq[2] | cq[3]; uvq |= tq[2] ^ 0x1000u; na += tq[3] >> 15 & 1u; }
++  *adc = na;
++  return tiny ? 7 : col > 255 || (tme && uvq) ? 5 : 0;
++}
++/* 2. and 3. (vertex 0 beyond the planes f0): pass 1, the box of the positions, and the bound; the plane proven, or -1 (*why: 7 the box
++   out of the range, 4 no plane proven) */
++static __attribute__((noinline)) int xc_cull_box(const XlCall *c, const XlRec *rr, const float *m, int n, int f0, int *why)
++{
++  int32_t l0 = INT32_MAX, l1 = INT32_MAX, l2 = INT32_MAX, h0 = INT32_MIN, h1 = INT32_MIN, h2 = INT32_MIN;
++  if (rr) { const uint32_t *P = (const uint32_t *)rr->p[0];
++    for (int i = 0; i < n; i++) { const uint32_t *pp = P + 4 * i;
++      const int32_t k0 = xc_key(pp[0]), k1 = xc_key(pp[1]), k2 = xc_key(pp[2]);
++      l0 = k0 < l0 ? k0 : l0; h0 = k0 > h0 ? k0 : h0; l1 = k1 < l1 ? k1 : l1; h1 = k1 > h1 ? k1 : h1; l2 = k2 < l2 ? k2 : l2; h2 = k2 > h2 ? k2 : h2; } }
++  else for (int i = 0; i < n; i++) { const uint32_t *pp = vq(c->vm, c->top + 0x100 + 3 * (uint32_t)i);
++      const int32_t k0 = xc_key(pp[0]), k1 = xc_key(pp[1]), k2 = xc_key(pp[2]);
++      l0 = k0 < l0 ? k0 : l0; h0 = k0 > h0 ? k0 : h0; l1 = k1 < l1 ? k1 : l1; h1 = k1 > h1 ? k1 : h1; l2 = k2 < l2 ? k2 : l2; h2 = k2 > h2 ? k2 : h2; }
++  const uint32_t bl[3] = { (uint32_t)xc_key((uint32_t)l0), (uint32_t)xc_key((uint32_t)l1), (uint32_t)xc_key((uint32_t)l2) },
++                 bh[3] = { (uint32_t)xc_key((uint32_t)h0), (uint32_t)xc_key((uint32_t)h1), (uint32_t)xc_key((uint32_t)h2) };
++  if (!(xc_in(bl[0]) & xc_in(bl[1]) & xc_in(bl[2]) & xc_in(bh[0]) & xc_in(bh[1]) & xc_in(bh[2]))) { *why = 7; return -1; }
++  float lo[3], hi[3], Pm[3];
++  for (int k = 0; k < 3; k++) { lo[k] = xc_f(bl[k]); hi[k] = xc_f(bh[k]); Pm[k] = xc_abs(lo[k]) > xc_abs(hi[k]) ? xc_abs(lo[k]) : xc_abs(hi[k]); }
++  for (int j = 0; j < 6; j++) if ((f0 >> j & 1) && xc_bound(m, lo, hi, Pm, j)) return j;
++  *why = 4; return -1;
++}
++static __attribute__((noinline)) int xc_fpos_off(const XlCall *c, const XcHost *h, const XlRec *rr, int n, int tme, XcCullD *D)
++{
++  long *const cn = St.cull_n;
++  cn[0]++;
++  if (n < 2 || n > 1024) { cn[6]++; return 0; }
++  for (int k = 0; k < h->nthin; k++) if (!h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { if (h->thin[k].keep > 1) { cn[11]++; return 0; } break; }
++  /* the matrix (vc_xform: T + 0x10 .. 0x13, each word as vfl reads it; within the range vfl leaves it as it is) */
++  float m[16]; uint32_t mi = 1;
++  for (int k = 0; k < 4; k++) { const uint32_t *q = vq(c->vm, c->top + 0x10 + (uint32_t)k);
++    for (int j = 0; j < 4; j++) { mi &= (uint32_t)xc_in(q[j]); m[4 * k + j] = xc_f(q[j]); } }
++  /* 1. vertex 0 */
++  const uint32_t *p0 = rr ? (const uint32_t *)rr->p[0] : vq(c->vm, c->top + 0x100);
++  cn[12]++;
++  if (!mi || !xc_in(p0[0]) || !xc_in(p0[1]) || !xc_in(p0[2])) { cn[7]++; return 0; }
++  int f0;
++  { const float p[3] = { xc_f(p0[0]), xc_f(p0[1]), xc_f(p0[2]) }; float cc[4]; vc_vu_clip_nc(m, p, cc); f0 = xc_cflags(cc); }
++  if (!f0) { cn[3]++; return 0; }
++  cn[12] += n - 1;
++  int why = 0; const int b = xc_cull_box(c, rr, m, n, f0, &why);
++  long na = 0;
++  if (b < 0 || (why = xc_cull_p2(c, rr, n, tme, &na))) { cn[why]++; cn[13] += n; return 0; }
++  na -= (xc_flag(c, rr, 0) >> 15 & 1u) + (xc_flag(c, rr, 1) >> 15 & 1u);   /* (the triangles start at vertex 2) */
++  D->clip0 = n; D->t0 = na; D->t2 = n - 2 - na; D->b = b;
++  return 1;
++}
++static void xc_cull_add(XcStats *S, const XcCullD *D) { S->clip[0] += D->clip0; S->tris[0] += D->t0; S->tris[2] += D->t2; }
++static XcStats Cpred; static int Cdue, Cb, Cn;   /* the check mode (XC_CULL_CHK): the counters a left-out call would have, its plane and
++                                                    count; Cdue 1: compare (xc_fpos), 2: a kept call */
++
++static int xc_fpos_full(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   VcVertF *const v = Fx.f.v, *const pv = Fx.f.pv; uint16_t *const fl = Fx.f.fl, (*const pfan)[2] = Fx.f.pfan; uint8_t *const cls = Fx.f.cls, *const cf = Fx.f.cf;
+   float (*const cc)[4] = Fx.f.cc;
+@@ -343,9 +478,22 @@
+   else for (int i = 1; i < n0 && same; i++) same = !memcmp(vq(c->vm, c->top + 0x100 + 3 * i), vq(c->vm, c->top + 0x100), 12);
+ #ifndef __psp__
+   if (chk && same) xc_rec3_diff += chk == 2;
++  xc_cen_n = n0;
+ #endif
+-  if (same) return 0;
++  if (same) { CEN(1); return 0; }
+   VcXform x; int n; const int tq = h->c4x ? d->tme : 1;   /* sb15 4x: an untextured call's UV q not checked */
++  if ((h->cull & XC_CULL_FX) && !h->trace
++#ifndef __psp__
++      && !chk
++#endif
++     ) {   /* cull study: a call that would draw nothing, its counters added as its conversion adds them */
++    XcCullD D;
++    if (xc_fpos_off(c, h, rr, n0, tq, &D)) {
++      St.cull_n[14] += h->clipfast ? 0 : n0;   /* (its vertices would take the clamped path: every one is within the range) */
++      if (!(h->cull & XC_CULL_CHK)) { xc_cull_add(&St, &D); St.cull_n[1]++; St.cull_n[2] += n0; CEN(2); return 0; }
++      Cpred = St; xc_cull_add(&Cpred, &D); Cdue = 1; Cb = D.b; Cn = n0;   /* check mode: converted anyway, then compared (xc_fpos) */
++    } else if (h->cull & XC_CULL_CHK) Cdue = 2;
++  }
+   if (rr) {
+     n = vc_fpos_rec(c->vm, c->top, rr->p, rr->num, rr->kind, rr->row, &x, v, fl, 1024, tq);
+     if (n == -8) { rr = 0; xc_rec3_calls--; xc_rec3_vm++; xl_vm_sync(); n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, tq); }   /* (not expected:
+@@ -378,7 +526,8 @@
+     if (keep > 1 && drop[i] && !tr) { cf[i] = 0; continue; }   /* (its triangles are not drawn; a trace gets every position) */
+     St.clip[0]++;
+     if (fm && vc_clip_in(p[0]) && vc_clip_in(p[1]) && vc_clip_in(p[2])) vc_vu_clip_nc(x.m, p, cc[i]);
+-    else { vc_vu_clip(x.m, p, cc[i]); St.clip[1] += h->clipfast; }
++    else { vc_vu_clip(x.m, p, cc[i]); St.clip[1] += h->clipfast; St.cull_n[15] += Cdue == 1; }   /* (cull study: the check mode's
++                                                         left-out calls through the clamps) */
+     cf[i] = (uint8_t)vc_cflags(cc[i]); }
+   if (tr) { tr->n = n;
+     for (int i = 0; i < n; i++) { int f = cf[i] | (i >= 1 ? cf[i - 1] : 0) | (i >= 2 ? cf[i - 2] : 0);   /* FCSET 0 before the loop */
+@@ -427,6 +576,12 @@
+     }
+   }
+   if (tr) memcpy(tr->cls, cls, n);
++#ifndef __psp__
++  if (!drawn) { unsigned a = 0x3f; int any = 0;   /* (census) the clip bits every vertex with a clip position shares */
++    for (int i = 0; i < n; i++) if (!(keep > 1 && drop[i] && !tr)) { a &= cf[i]; any = 1; }
++    int tr3 = 1; for (int i = 2; i < n && tr3; i++) if (!(fl[i] & 0x8000) && !(keep > 1 && drop[i])) tr3 = (cf[i - 2] & cf[i - 1] & cf[i]) != 0;
++    xc_cen_plane = any ? (int)a : 0; CEN(any && a ? 2 : tr3 ? 3 : 10); }   /* (3: every classed triangle trivially rejected, no common plane) */
++#endif
+   if (!drawn) return 0;
+   if (h->c4x)   /* sb15 4x: each vertex's clip position as the micro program computes it (x, y, with w in z); a thinned strip's vertices,
+                    whose triangles are not drawn, keep what they hold */
+@@ -443,6 +598,21 @@
+   *size = o; return 1;
+ }
+ 
++/* cull study: xc_fpos_full, and in the check mode the comparison: a call the test left out must convert to 0 with the counters
++   it predicted (every XcStats field before cull_n), and every one of its vertices must have the proven plane's bit in the flags the
++   conversion computed (Fx.f.cf) */
++static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  Cdue = 0;
++  int r = xc_fpos_full(c, h, d, ti, t, k2870, b, blob, cap, size);
++  if (Cdue == 1) { int bad = r || memcmp(&St, &Cpred, offsetof(XcStats, cull_n));
++    for (int i = 0; i < Cn && !bad; i++) bad = !(Fx.f.cf[i] >> Cb & 1);
++    St.cull_n[8]++; St.cull_n[9] += bad; }
++  else if (Cdue == 2 && !r) St.cull_n[10]++;
++  Cdue = 0;
++  return r;
++}
++
+ /* ---- sb15, Stage C step 4 (stagec_notes.md step 4; XcHost.c4): P04+3740's sprites, +3a38's quads, +2b60's streaks as GERK_XFORMF
+    batches (ge/replay_fmt.h), the primitive in GerBatch.prim: the converters (ge/vu1conv.h vc_spr, vc_quad, vc_line, vc_clip_seg) as gsref's
+    spchk, qdchk and lnchk check them against the PS2's micro code.  The texture is looked up only for a call that draws something ---- */
+@@ -618,8 +788,12 @@
+   const int j = c->entry == VC_SPR ? 0 : c->entry == VC_QUAD ? 1 : 2;
+   St.c4_calls[j]++;
+   XcGs d; xc_gs(c->gr, &d);
++#ifndef __psp__
++  xc_cen_why = -1; xc_cen_n = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff);
++#endif
+   int r = j == 0 ? xc_spr(c, h, &d, b, blob, cap, size) : j == 1 ? xc_quad(c, h, &d, b, blob, cap, size) : xc_line(c, h, &d, b, blob, cap, size);
+   if (r < 0) St.c4_bad[j]++; else if (!r) St.c4_empty[j]++; else St.c4_batches[j]++;
++  CEN(r < 0 ? 6 : r > 0 ? 0 : 7);
+ #ifdef XC_C4_DBG   /* x86 diagnosis only (mk.sh <dir> -DXC_C4_DBG): what a refused call holds */
+   if (r < 0 && r != -5) {
+     static int nd; const int st = j == 0 ? 6 : j == 1 ? 12 : 3; const int n = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff);
+@@ -1112,6 +1286,9 @@
+   if (k < 0 || c->cont) return 0;
+   St.calls[k]++;
+ #ifndef __psp__
++  xc_cen_why = -1; xc_cen_n = -1;
++#endif
++#ifndef __psp__
+   if (c3m_on) c3m_kind(k);   /* sb13 */
+ #endif
+   XcGs d; xc_gs(c->gr, &d);
+@@ -1169,7 +1346,10 @@
+       if (!Datt && Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn);
+       Datt = 1; c3m_call(c, &d, h, Dn, Dvp, Dfl, &Dx, off); }
+ #endif
+-    if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
++#ifndef __psp__
++    xc_cen_n = Dn;
++#endif
++    if (off) { CEN(4); if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+       if (Dpos) xl_nr_n[11]++;
+       xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
+     xc_df0_pos_now();   /* gl36: a kept box's call the cut keeps: its positions now */
+@@ -1182,6 +1362,9 @@
+   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
+           k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
+   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
++#ifndef __psp__
++  if (r < 0) CEN(6); else if (r > 0) CEN(0); else if (xc_cen_why < 0) CEN(5);
++#endif
+   return r;
+ }
+ 
+diff -ruN -x '*.o' -x '*.orig' t36/ge/xconv.h t37d/ge/xconv.h
+--- t36/ge/xconv.h	2026-11-21 02:56:27.577638849 +0000
++++ t37d/ge/xconv.h	2026-11-22 04:38:52.350547857 +0000
+@@ -82,7 +82,15 @@
+                               GU_LINE_STRIP); 0 (older hosts): not drawn */
+   int c4x;                 /* sb15 4x (g_opt2 OPT2_C4X; stagec_notes.md 4.7): 1: P04+25f0 / +2870's strips and polygons from their clip positions
+                               (the GerXform's world the identity), an untextured call's UV q not checked; 0 (older hosts): world positions, q checked */
++  int cull;                /* cull study v3 (attic/cull/cull_v3.md; boot/nat_stub.h, psp/xl_psp.c MGS2_NAT_CULL, _CYCLE, MGS2_NAT_CULLCHK):
++                              bit 1 (XC_CULL_FX): a 25f0 / 2870 call is first tested (xconv.c xc_fpos_off): when a bound proves that one
++                              clip plane's flag bit is set on every vertex as the conversion computes it (so every triangle it classes is
++                              trivially rejected and it draws nothing), the conversion is not run and its counters are added as it would
++                              add them.  XC_CULL_CHK: the check mode (the conversion runs anyway; its result, counters and every vertex's
++                              flags are compared with the claim).  0 (older hosts): every call converted */
+ } XcHost;
++#define XC_CULL_FX 1
++#define XC_CULL_CHK 0x80
+ /* counters since the start, for a report */
+ typedef struct {
+   long calls[5], bad[5], batches[5], empty[5];   /* by entry: df0, 25f0, 2870, P06 (its four entries), P07; bad input; batches (P06,
+@@ -129,6 +137,14 @@
+   long c4_drawn[3], c4_poly, c4_poly_v, c4_poly_empty, c4_lines, c4_line_drop, c4_full;   /* drawn whole (sprites, quads, strip
+                                                 segments); the quads' clipped polygons kept, their vertices, empty; the streaks'
+                                                 clipped lines kept, dropped by the clipper; left out for want of room */
++  long cull_n[16];          /* cull study v3 (XcHost.cull), kept last (the check mode compares the stats before them), by index: 0 25f0 /
++                              2870 calls tested; 1 left out, 2 their vertices; kept: 3 vertex 0 inside every plane, 4 no plane proven by
++                              the bound, 5 a bad attribute (the conversion's -4), 6 the count out of 2..1024, 7 the matrix or a position
++                              out of vc_clip_in's range; check mode: 8 left-out calls converted anyway, 9 those whose result, counters or
++                              a vertex's flags DIFFER from the claim (PROBLEM if not 0), 10 kept calls whose conversion drew nothing; 11
++                              kept: a thinned call; 12 vertices the test read (vertex 0, then the whole call's in pass 1), 13 of them in
++                              calls then kept; 14 left-out (or checked) calls' vertices whose conversion takes the clamped path
++                              (XcHost.clipfast 0); 15 check mode: the left-out calls' vertices the conversion took through the clamps */
+ } XcStats;
+ const XcStats *xc_stats(void);
+ /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
+diff -ruN -x '*.o' -x '*.orig' t36/ge/xme.c t37d/ge/xme.c
+--- t36/ge/xme.c	2026-11-21 22:34:34.619437959 +0000
++++ t37d/ge/xme.c	2026-11-22 04:39:06.500985002 +0000
+@@ -145,7 +145,7 @@
+       x->fm_k ^= 1; gb_arena(&p->glf->o, x->fm[x->fm_k], x->fm_arena, x->fm_nb, x->fm_nv); p->gxl = x->fl[x->fm_k];
+     } else tk_guard(p->tk, TK_NO_GUARD);
+     x->tk_fb = tk_now(p->tk);
+-    XS(x)->at = XME_AT_BEGIN; xm_begin(p, h->opt, h->opt2); x->n_begin++;
++    XS(x)->at = XME_AT_BEGIN; xm_begin(p, h->opt, h->opt2); p->glf->h.cull = h->begin >> 8 & 0xff; x->n_begin++;   /* (cull study v3: xme.h XmeHook.begin) */
+   }
+   XS(x)->at = XME_AT_TKFRAME; tk_frame(p->tk);
+ }
+diff -ruN -x '*.o' -x '*.orig' t36/ge/xme.h t37d/ge/xme.h
+--- t36/ge/xme.h	2026-11-22 03:48:17.250842053 +0000
++++ t37d/ge/xme.h	2026-11-22 04:39:06.500512652 +0000
+@@ -67,9 +67,12 @@
+                                                  ng0 / ngn each buffer's groups not yet taken; the walk reads the array in place (the main
+                                                  CPU waits for it) and answers in XmeSh nat_b / nat_used */
+ typedef struct { int32_t vb; int end, d, dig, begin, stop; uint32_t opt, opt2; int dz, dzn; } XmeHook;   /* gl29: dz, dzn the ending frame's
+-                                                 MGS2_GL_DZ arm and steps (gelist.h GxList.dz, dzn; 0, 0: none) */
++                                                 MGS2_GL_DZ arm and steps (gelist.h GxList.dz, dzn; 0, 0: none).  cull study v3: begin
++                                                 is 1 | the frame's XcHost.cull << 8 (in the word gl35 had: XmeE keeps its size) */
+ typedef char xme_rec_size_check[sizeof(XmeRec) == 80 ? 1 : -1];   /* gl36 fix B: gl35's 80 B */
+ typedef struct { int kind, why, nlog; XmeRec r; XmeHook h; } XmeE;
++typedef char xme_hook_size_check[sizeof(XmeHook) == 40 ? 1 : -1];   /* cull study v3: gl35's 40 B */
++typedef char xme_e_size_check[sizeof(XmeE) == 132 ? 1 : -1];       /* cull study v3: gl35's 132 B (the queue's entry) */
+ typedef struct { int32_t fvb; int d, r, nt, dig; uint32_t *list; uint64_t dig_list, dig_frame; GxCount c;
+                  int dz, dzn; GxDzCount dc; uint32_t t_list; int t_me, me_turn; int32_t a_nb, a_nv, a_nd; } XmeRes;   /* gl29: the list's arm, steps and counts; xm_list's
+                                                  own time in the loop's clock's ticks (t_me 1: the ME's Count, else microseconds); me_turn 1:
+diff -ruN -x '*.o' -x '*.orig' t36/psp/xl_psp.c t37d/psp/xl_psp.c
+--- t36/psp/xl_psp.c	2026-11-22 03:47:57.760793000 +0000
++++ t37d/psp/xl_psp.c	2026-11-22 04:48:11.200622212 +0000
+@@ -116,6 +116,28 @@
+ int rt_nat_fast_at(long vb); extern long g_nat_fst;   /* gl34: the fast native front end (boot/nat_stub.h) */
+ int rt_nat_keep_at(long vb); extern long g_nat_kpt;   /* gl35: the keeps (boot/nat_stub.h) */
+ static long nk_kpt0, nk_n0[9];
++/* cull study (ge/xconv.h XcHost.cull; attic/cull/cull_v3.md): XcHost.cull at vblank vb, as the twin's boot/nat_stub.h
++   rt_nat_cull_at: MGS2_NAT_CULL=<bits> for the whole run, MGS2_NAT_CULL_CYCLE=<bits>,... by MGS2_OPT_CYCLE's turns (turn k from vb
++   from + 1 + 100 k with MGS2_OPT_CYCLE=from:100:...), MGS2_NAT_CULLCHK=1 the check mode (0x80) */
++char *mgs2_getenv(const char *k);   /* (main_psp.c; declared again below) */
++static int cull_set, cull_all, cull_ncyc, cull_chk; static long cull_from, cull_turn = 1; static uint8_t cull_cyc[32];
++static int rt_nat_cull_at(long vb)
++{
++  if (!cull_set) {
++    const char *e, *c = mgs2_getenv("MGS2_OPT_CYCLE"); long f = -1, n = 0; cull_set = 1;
++    cull_all = (e = mgs2_getenv("MGS2_NAT_CULL")) ? atoi(e) & 1 : 0;
++    if ((e = mgs2_getenv("MGS2_NAT_CULL_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++      char *p = (char *)e;
++      while (cull_ncyc < 32 && *p) { cull_cyc[cull_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
++      if (cull_ncyc) { cull_from = f; cull_turn = n; } }
++    cull_chk = (e = mgs2_getenv("MGS2_NAT_CULLCHK")) ? atoi(e) & 1 : 0;
++    if (cull_all || cull_ncyc || cull_chk) fprintf(stderr, "nat: cull study v3: MGS2_NAT_CULL %d, MGS2_NAT_CULL_CYCLE %s (bit 1: the effect strips that "
++                         "would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK %d\n", cull_all,
++                         cull_ncyc ? mgs2_getenv("MGS2_NAT_CULL_CYCLE") : "none", cull_chk);
++  }
++  int k = cull_ncyc && vb > cull_from ? cull_cyc[((vb - cull_from - 1) / cull_turn) % cull_ncyc] : cull_all;
++  return k ? k | (cull_chk ? 0x80 : 0) : 0;
++}
+ int rt_nat_reuse_at(long vb); extern int g_nat_rcfg, g_nat_rchk; static long nr_n0[20];   /* gl36: the reuse (boot/nat_stub.h, ge/xlate.h) */
+ #include "../ge/vu1conv.h"   /* gl34: vc_km_n */
+ #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
+@@ -520,6 +542,7 @@
+       glf.h.c3w = (g_opt2 & OPT2_C3W) != 0;      /* sb14 3w: two-pass df0 vertices straight into the frame */
+       glf.h.c4 = (g_opt2 & OPT2_C4) != 0;        /* sb15 step 4: the sprites, quads and streaks drawn */
+       glf.h.c4x = (g_opt2 & OPT2_C4X) != 0;      /* sb15 4x: the effect strips from their clip positions */
++      glf.h.cull = rt_nat_cull_at(vb);           /* cull study */
+       gl_begin(&glf); gl_now = 1; thin_due = 1;   /* task #149 */
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -2649,7 +2672,7 @@
+   if (gl_now) { gl_now = 0; e.h.end = 1; e.h.d = (int)(gl_built++ & 1); e.h.dig = vb - 1 >= dig_from && vb - 1 <= dig_to;
+     if (dz_on) e.h.dz = gx_dz_arm(&dz_t, vb - 1, &e.h.dzn, 0); }   /* gl29: MGS2_GL_DZ's arm for the frame that ended */
+   if (gl_full && state == 1 && (g_opt & (OPT_XL | OPT_GL)) == (OPT_XL | OPT_GL)) {
+-    e.h.begin = 1; e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
++    e.h.begin = 1 | rt_nat_cull_at(vb) << 8; e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
+     if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } }
+   mq_post(&e);
+   mq_service();
+@@ -3087,6 +3110,11 @@
+             x->calls[2], x->batches[1], x->batches[2], x->calls[3], x->batches[3], x->lit_pass[2], x->lit_pass[3], x->calls[4], x->batches[4],
+             x->bad[4], x->face_unseen, x->face_exact, x->face_pass[2], x->face_pass[3]);
+     fprintf(f, "picture: effect vertices %ld, %ld of them through the clamps with the fast path on\n", x->clip[0], x->clip[1]);
++    { const long *u = x->cull_n;   /* cull study v3 (ge/xconv.h XcStats.cull_n) */
++      fprintf(f, "natcull: totals (v3): effect calls tested %ld, left out %ld (%ld vertices); kept: vertex 0 inside %ld, no plane proven %ld, "
++              "a bad attribute %ld, count %ld, out of the clamps' range %ld, thinned %ld; check mode: left-out calls converted %ld, DIFFERING "
++              "%ld, kept calls that drew nothing %ld; vertices read %ld, %ld of them in calls kept; left-out vertices on the clamped path %ld, "
++              "check mode: converted through the clamps %ld\n", u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], u[11], u[8], u[9], u[10], u[12], u[13], u[14], u[15]); }
+     fprintf(f, "picture: step c: %ld calls held (%ld of them P07); flushes at a transfer's end %ld, for a call's room %ld, records full %ld, "
+             "P07 copies full %ld, at a frame's end %ld; faults: held calls not placed %ld, passes after their call ran %ld\n", glf.held_n,
+             glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late);

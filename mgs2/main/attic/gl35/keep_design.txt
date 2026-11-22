@@ -1,0 +1,108 @@
+gl35 KEEP DESIGN (written before the code; 2026-11-21 17:50 UTC; build thread)
+Marks: [C] measured or read in code, [C model] cost model, [I] inferred (basis named), UNKNOWN.
+
+1. WHAT "KEEP" CAN MEAN HERE, FROM A PROBE ON THE TWIN [C]
+t35 = t34 with counters only, run to vblank 31,400 with the fast front end in every turn (build_gl35/tw/x86/out_probe.log,
+out_probe2.log):
+  fast native groups                                          872,659
+  ... material packet byte-equal to the group before           144,343 (16.5 percent)
+  ... no GS traffic of the translator since the group before   866,954 (99.3 percent)
+  ... with a constant block sent (q0)                          269,242 (30.9 percent)
+  texture look-ups past the one-entry memo (all callers)     3,422,323
+  ... same TEX0 and CLAMP seen earlier in the same picture   2,709,562 (79 percent; 64-slot table, 537,638 slot conflicts)
+The ship's material packet is 7 quadwords: CLAMP_1, TEX2_1 (CLD 4: load the CLUT if CBP differs from CBP0), TEX0_1 (CLD 0),
+ALPHA_1, register 7f (no-op), and two data quadwords written to PRIM; then PRIM is set from the tag template [C, sampled].
+Consequences:
+  - "the same as the group before" covers the material in only one group of six: each material has its own CLUT (CBP), so a
+    real CLUT load and a texture look-up with new inputs happen at five groups of six. A keep by "equal to the last one" cannot
+    reach the texture or the CLUT.
+  - what does stay equal from group to group in 99.3 percent: every register the material packet does not write (FRAME, ZBUF,
+    SCISSOR, TEST, PRMODE...), i.e. everything the drawn-areas bookkeeping reads.
+  - the texture a material asks for was asked for earlier in the same picture in 79 percent of look-ups: a keep by "this
+    material's answer of this picture" does reach the texture.
+
+2. THE RULE FOR EVERY PART
+A kept step is a REPLAY: it leaves every byte of state the full step would leave (counters, stamps, LRU links included), so the
+translator's, the GS model's and the texture cache's state are equal after EVERY group, not only where they are read. So no
+reader needs a rule of its own, the GE words cannot differ, and every log counter stays equal. A replay is taken only when
+tokens show that nothing the full step reads has changed since the full step that was recorded; otherwise the full step runs
+(and records). Nothing in gl35 is "pixel-identical but not word-identical".
+
+3. THE PARTS (own key MGS2_NAT_KEEP=<bits>, MGS2_NAT_KEEP_CYCLE=<bits>,<bits>,... by the turns; fast groups only)
+
+K1, bit 1: drawn areas (PSP: 4.6 us a group [C]; model: gu_drawn 2.97 ms a picture + gf_drew [C model])
+  Full step: gf_drew(F, dctx) -> for each context in dctx: gu_drawn(frame area) and, with depth writes on, gu_drawn(depth area).
+  For the ship both calls take gu_drawn's first return ("one of the last two calls again, area not written since").
+  That return's effects [C, gsup2.c gu_drawn]: settle(m) (nothing to do unless a transfer is waiting to go in), st.drawn_kept++,
+  the area's last = ++dt_clock, the development counters. Nothing else.
+  Reads it relies on:
+    a. its arguments: F.gr[0x40+c], [0x4c+c], [0x4e+c], [0x47+c], and dctx from PRIM / PRMODE / PRMODECONT (0x00, 0x1b, 0x1a);
+    b. in the GS model: the two last-calls records dl[0..1], the area's dirty flag, and settle's condition (cur, r[cur].in).
+  Tokens:
+    a. xl_gs_gen: moves at every GS traffic of the translator that is not a kept fast group's own (gif_qw, image_run, call(),
+       xl_reset) AND when a fast group's own packet writes a register outside the set {06 07 08 09 14 15 16 17 42 43 7f, 00};
+       dctx is computed for real at every group and compared with the recorded one.
+    b. GuMap.dgen (new): moves in gu_drawn whenever it goes past the kept return, in commit(), where an area is marked dirty,
+       at gu_trxdir / gu_image / gu_image_run, at init. While it stands still, dl[], every dirty flag and settle's condition
+       are as they were after the recorded step (which had settled).
+  Record: after a full gf_drew of a fast group in which every gu_drawn call took the kept return (GuMap counts calls and kept
+  returns since a mark and lists the areas, at most 2): the areas in order, dctx, both tokens.
+  Replay: per area, in order: st.drawn_kept++, last = ++dt_clock, the development counters (gu_drawn_again).
+  Check (MGS2_NAT_KCHK=1): the full step runs anyway; counted "differing" if its calls did not all take the kept return, or
+  not on the recorded areas in the recorded order, or dgen moved.
+
+K2, bit 2: the A+D packet (PSP: 6.0 us a group [C]; model: gf_reg 2.42 ms a picture, gu_clut_load 3.24 [C model])
+  Not a replay but the same statements with the calls taken out where the call can do nothing:
+    - PRIM (register 0, two data quadwords and the tag): gf_reg's case 0 and gs_write's store written in line;
+    - TEX0 (06 / 07): gu_clut_load is called only when it could do something: the texture format is indexed and CLD is 1..5
+      (gu_clut_load returns at once otherwise [C]). TEX2's call stays (five groups of six load a CLUT for real).
+  Reads it relies on: none beyond the full step's own. Check: plain = keep on the twin (every counter, every frame).
+
+K3, bit 4 (native fast groups' look-ups) and bit 8 (every look-up, for the people in gl36): the texture
+  (PSP: 8.2 us a group [C]; model: gl_tex 1.89 + tk_get_um 3.59 ms a picture [C model])
+  Full step for a look-up past gl_tex's one-entry memo: tk_get_um (front hit -> um_hit -> gu_clut_id -> tk_pal by hint or
+  find) -> the picture's texture table (add_tex: found) -> memo. On that "pure" path its effects are [C, texcache.c, gelive.c]:
+  st.um_asks++, uclk++, ufm[set] = way, g->use = t->use = uclk, st.uf_hits++, st.uses++, st.um_hits++, gu_clut_id's own
+  note in the load, st.hits++, touch(texture entry), st.pal_uses++, st.pal_hits++, touch(palette entry), the texture's lowest
+  alpha worked out again if the palette differs from the last one used with it, t->pid, t->pent, then gl_tex's memo fields.
+  Record (per picture, a small table by TEX0 / CLAMP / TEXA in the frame): made when a full look-up took exactly that path:
+  set and way, g, t, the two entries, the palette identity gu_clut_id gave (pid_in) and the palette id, the picture's texture
+  index and key, and the tokens.
+  Reads it relies on, and what guards each:
+    a. TEX0, CLAMP, TEXA: compared in full with the record;
+    b. the front entry (key, generation), g, t, the entries' ids: TkCache.kgen (new) moves at every look-up that is not on the
+       pure path and at every other entry point that changes the cache (tk_get_cl called directly, tk_pool, mode setters); on
+       the pure path nothing of these changes. The front's own generation (transfers + local copies + drawn + failures of the
+       GS model) is compared with the recorded one;
+    c. the palette: gu_clut_id is CALLED for real (as the full step calls it, so its note in the load is the same) and must
+       return pid_in without the lost flag; so no token of the CLUT state is needed, and the group's own CLUT load is real;
+    d. the picture's texture table: the frame's generation (gl_begin) and tkey[index] == key.
+  Replay: the effects listed above, in the same order, by one function in texcache.c next to the full path (tk_keep_again),
+  then gl_tex's own answer and memo fields.
+  Not kept: look-ups in the check modes of the cache (um 2, uf 2, memo_check), frame-buffer textures, any other path.
+  Check (MGS2_NAT_KCHK=1): the full look-up runs instead of the replay and is compared with the record: path pure, same set,
+  way, g, t, entries, palette id, index, minalpha; "differing" counted.
+
+Checks common to all parts: twin runs with keep on in every turn, off in every turn, and by turns, in both orders: all 685
+state hashes, all 17,664 frame digests and the counters' lines equal between them; the check key on the twin (whole run) and on
+the emulator: 0 differing; then the emulator's hashes and pictures against gl34's.
+
+4. LEFT OUT OF gl35, AND WHAT EACH WOULD GIVE
+  - batching the groups of one mesh / material into one GE batch: the GE words change (fewer state words, merged vertex runs),
+    so it fails the hard gate by definition. Reach: 16.5 percent of groups follow a group with the same material [C]; it
+    would save their state set-up on the GE and the GE transform + batch stage (4.2 us a group [C]) for those: about 0.7 us
+    a group on average [I: 16.5 percent of 4.2] plus GE time (UNKNOWN).
+  - the CLUT load itself (gu_clut_load's kept-load path: about 2.5 of its 3.24 ms a picture [C model, I for the share]):
+    a replay needs the state of the 32 CLUT rows and of the load's source blocks equal; the path it would replace is already
+    the "load kept for these parameters" one. Expected gain about 1 ms a picture [I]; left for gl36 with the people.
+  - the register stage (9.1 us [C]): the three stream descriptors and their owner marks are what lets a later reader of VU
+    memory see the group's data; a cheaper form (one descriptor for the interleaved triple) changes the translator's tables
+    and counters, so it needs its own design. Not in gl35.
+  - the host call's GS decode (xc_gs, 2.08 ms a picture [C model]): depends on TEX0 / ALPHA / PRIM of the material; a keep
+    would be per material as K3; small. Not in gl35.
+  - the walk and the hand-off (7.6 us [C]): not part of this lever.
+Expectation before measuring [I, from the model's per-function costs of gl34's fast arm]: K1 about -3, K2 about -3, K3 about
+-4 ms a picture of the ship's 65.7 in the rain wait ME turn: about -10 ms (-15 percent), short of the plan's -35 percent.
+The reason is the probe's first line: only the drawn areas are "equal to the group before"; the rest of the fixed work is
+real per-material work whose inputs change with five groups of six, and its cost is the length of the code path per group
+(123 instruction-cache misses a group [C model]).

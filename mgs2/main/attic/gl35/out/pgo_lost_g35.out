@@ -1,0 +1,41 @@
+GCC dropped profiles (warnings-on compile): 0 functions: none
+windows: 13829924648 instructions; in profiled objects: 1361 functions ran
+  hot               1127 functions,  13006496012 instructions (94.05%)
+  normal             233 functions,     65149873 instructions (0.47%)
+  unlikely             1 functions,         1008 instructions (0.00%)
+  shared section       0 functions,            0 instructions (0.00%)
+  cold part            0 functions,            0 instructions (0.00%)
+  (not a profiled object)      758081783 instructions (5.48%)
+  (no symbol)                     195972 instructions (0.00%)
+ran and dropped by GCC: 0 functions, 0 instructions
+top 25 not hot:
+    29684600   140368 boot_rt.o      vup_f28803a2_166.isra.0                  normal 
+    18834352      699 xl_psp.o       gl_bmp                                   normal 
+     4766592    67394 boot_rt.o      vup_f28803a2_155.isra.0                  normal 
+     4439566    86181 boot_rt.o      vup_f28803a2_153.isra.0                  normal 
+     1876422    76410 boot_rt.o      vup_bc35d9d2_0.isra.0                    normal 
+     1318736    67572 boot_rt.o      vup_f28803a2_22.isra.0                   normal 
+      851706    38870 boot_rt.o      vup_f28803a2_35.isra.0                   normal 
+      578416    19740 boot_rt.o      vup_f28803a2_158.isra.0                  normal 
+      252408     4508 ge_xme.o       xme_run                                  normal 
+      220074    15664 gen.o          P1121f8                                  normal 
+      139060     9816 gen.o          P111fa8                                  normal 
+      132392    12302 xl_psp.o       xl_psp_frame                             normal 
+      127620     9548 boot_rt.o      vup_bc35d9d2_152.isra.0                  normal 
+      111248     8180 gen.o          P111420                                  normal 
+       77440     6720 boot_rt.o      rt_dg_call                               normal 
+       77280     2918 gen.o          P1431f8                                  normal 
+       58524      928 gen_s_w00a.o   S_w00a_P3a0618                           normal 
+       53132     3598 gen.o          P1123b8                                  normal 
+       51692     3862 gen_s_w00a.o   S_w00a_P29cf98                           normal 
+       49274     2754 boot_rt.o      vup_f28803a2_27.isra.0                   normal 
+       47656     2516 gen.o          P10d2a8                                  normal 
+       44540     2970 gen.o          P11b5c8                                  normal 
+       44168     3448 ge_xlme.o      lw_nat_end                               normal 
+       44160      840 gen_dispatch.o GLDU                                     normal 
+       41600     1280 ge_xconv.o     xc_held_end                              normal 
+gcno names: 16435 functions of 20 objects; untrained (all counts zero) 12558, ident not in the .gcda 0
+LOST: ran in the windows without a profile: 1 functions, 1008 instructions (0.000%), 72 I-misses
+  gen_s_w00a.o     1
+        1008       72 gen_s_w00a.o   S_w00a_P26bed0                           all counts zero
+"source locations changed" (profile used): none

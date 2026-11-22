@@ -1,0 +1,14 @@
+../build_gl34/emu_e2/pic (reference) against emu_e2/pic: 52 names in both, only in the reference 0, only in the new 0 []
+  live  arm 0, in 29490-31400                                      byte-identical                   16
+  live  arm 0, in 29490-31400                                      pictures                         16
+  live  arm 15, in 29490-31400                                     byte-identical                   20
+  live  arm 15, in 29490-31400                                     pictures                         20
+  shot  arm 0, in 29490-31400                                      byte-identical                   5
+  shot  arm 0, in 29490-31400                                      pictures                         5
+  shot  arm 0, outside 29490-31400                                 byte-identical                   5
+  shot  arm 0, outside 29490-31400                                 differing                        1
+  shot  arm 0, outside 29490-31400                                 pictures                         6
+  shot  arm 15, in 29490-31400                                     byte-identical                   5
+  shot  arm 15, in 29490-31400                                     pictures                         5
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_24784.bmp', 24784, 'arm 0, outside 29490-31400', 191, 1, 0, 0, 3)

@@ -1,0 +1,20 @@
+=== rx against c8r
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines (but the reuse's and keeps' own lines and times): differing 0
+=== rx against c8k
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines (but the reuse's and keeps' own lines and times): differing 0

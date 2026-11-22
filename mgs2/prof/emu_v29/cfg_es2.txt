@@ -1,0 +1,41 @@
+# v29: v28 with the game's code made by the leaner code generator's third step, cheaper memory accesses (README.txt); the
+# settings below are v28's, and hashref.txt is v28's (the same PC reference).
+# v28: v26me4 with the game's code made by the leaner code generator's first two steps (README.txt); the settings below
+# are v26me4's, and hashref.txt is the corrected PC reference.
+# v26me4: v26me3 with the crash catcher rebuilt and more readings in battery.txt (README.txt); the settings below are v26me3's,
+# with the catcher's line at the end on.
+# v26me3: v26me2 with more logging and a crash catcher (README.txt): battery.txt every 5 s with the Media Engine's state; the
+# settings below are v26me2's, then the crash catcher's line at the end.
+# v26me2: v26me with the Media Engine's start routine fixed (README.txt); the settings below are v26me's.
+# v26me: v26 (stage calls by table, free play's functions compiled in, profile and code order from three routes; v25f's route)
+# with the voice mix on the Media Engine (the lines at the end).
+# pad.txt plays the opening as before, then START at vblank 23410
+# and every 1000 vblanks from 24000 to 29000 skips Otacon's deck tutorial and the boarding cutscene; Snake is free on the aft deck
+# from about vblank 30000. From vblank 30500 to the end (36500) it plays 2 minutes on the deck: stand 10 s, walk the deck 36 s,
+# crawl 8 s, punch and shoot 8 s, look around in first person 12 s, then walk into the guards' view (an alert) 46 s.
+# Those 2 minutes are the timed steps ("deck 30500"); v24 timed the tutorial.
+vblanks 36500
+deck 30500
+# v21-v26: every speedup is on from the start, the reduced renderer included (it runs on the steps whose picture is never shown).
+# That is the build's own default, so there is no MGS2_OPT line. hashref.txt holds the PC reference for this route and setting.
+# v12: the hash lines also print how many vector-op runs fell back to the exact slow path so far (diagnostic only).
+MGS2_VFPU_STAT=1
+# Split finder (v15): every state hash is compared on the PSP with the PC's value in hashref.txt, and from vblank 15700 to 16010
+# there is a hash at every vblank. At the first difference it prints "split:" lines and writes the game RAM to split.<vblank>
+# (32 MB) in this folder. Measurement only.
+MGS2_HASH_DENSE=15700:16010
+MGS2_HASH_REF=hashref.txt
+# v25f, v26: a state hash every 500 vblanks, and every 100 in the timed free play from vblank 30500 to the end (36500): 61 checks.
+MGS2_HASH_EVERY=500,30500:100
+# v26me: the voice mix split. The game's sound model stays on the main CPU; every sound command also goes to the Media Engine,
+# which runs the full voice mix (decode, interpolation, envelopes, volumes; no reverb yet) into a checksum: nothing is played.
+# "mix: ck" lines compare it with the PC every 10 s of sound; "mix vb" lines every 100 vblanks give the Media Engine's time and
+# the main CPU's waits. Without this line the program is v26.
+MGS2_SPU_ME=2
+# me_steps.csv: the Media Engine's time, commands and renders per step, from the first timed step (vblank 30500).
+MGS2_ME_STEPS_FROM=30500
+# v26me4: the crash catcher, rebuilt. 1 = on: at a crash the record stays on the screen (red text) and the PSP stays on until the
+# power switch; nothing is written then. At the start the screen offers the self-test: X makes a deliberate error that must end on
+# that screen titled SELF-TEST; O, or 15 s without an answer, starts the run. 0 = off.
+MGS2_EXC=1
+MGS2_EXC_DRY=30000

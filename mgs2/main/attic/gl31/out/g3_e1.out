@@ -1,0 +1,24 @@
+== e1: the plan's first cfg (16149c74: gl30's settings + MGS2_NAT_CYCLE=0,0,3,3), EBOOT 024bedf5, hashref 177108d4
+/home/claude/main/build_gl31/emu_e1/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl31/deliver/hashref.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0
+emu_e1/log.txt: 916 pictures with digests (vb 29490..31320); in the twin 916; equal lines 916; differing 0 (list or frame digest differs: 0); first differing: []
+emcmp rc 0
+../build_gl30/emu_g3/pic (reference) against emu_e1/pic: 52 names in both, only in the reference 403, only in the new 0 []
+  live  arm 0, in 29490-31400                                      against the reference's shot of the same frame 20
+  live  arm 0, in 29490-31400                                      byte-identical                   20
+  live  arm 0, in 29490-31400                                      pictures                         20
+  live  arm 3, in 29490-31400                                      against the reference's shot of the same frame 16
+  live  arm 3, in 29490-31400                                      byte-identical                   16
+  live  arm 3, in 29490-31400                                      pictures                         16
+  shot  arm 0, in 29490-31400                                      byte-identical                   5
+  shot  arm 0, in 29490-31400                                      pictures                         5
+  shot  arm 0, outside 29490-31400                                 byte-identical                   4
+  shot  arm 0, outside 29490-31400                                 pictures                         4
+  shot  arm 3, in 29490-31400                                      byte-identical                   5
+  shot  arm 3, in 29490-31400                                      pictures                         5
+  shot  arm 3, outside 29490-31400                                 byte-identical                   1
+  shot  arm 3, outside 29490-31400                                 differing                        1
+  shot  arm 3, outside 29490-31400                                 pictures                         2
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_24784.bmp', 24784, 'arm 3, outside 29490-31400', 335, 5, 0, 0, 3)

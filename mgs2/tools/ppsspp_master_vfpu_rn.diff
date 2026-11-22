@@ -1,0 +1,64 @@
+# PPSSPP master 83e616eaf97bd493f91944e5eced70d914b4bc18 (2026-10-28): PPSSPP_VFPU_RN=1 makes vadd/vsub/vmul/vdiv round to nearest with FTZ+DAZ, as the PSP-3000 (dev tool only, never shipped).
+# Build: cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=ON -DHEADLESS_CROSS=ON -DUSING_QT_UI=OFF -DLIBRETRO=OFF -DUNITTEST=OFF -DUSE_DISCORD=OFF; ninja PPSSPPHeadless (needs libgl1-mesa-dev). Run with --memstick=<dir containing PSP/GAME>.
+diff --git a/Core/MIPS/IR/IRCompVFPU.cpp b/Core/MIPS/IR/IRCompVFPU.cpp
+index caaade1..019dbaa 100644
+--- a/Core/MIPS/IR/IRCompVFPU.cpp
++++ b/Core/MIPS/IR/IRCompVFPU.cpp
+@@ -1,3 +1,4 @@
++#include <cstdlib>
+ // Copyright (c) 2012- PPSSPP Project.
+ 
+ // This program is free software: you can redistribute it and/or modify
+@@ -1072,6 +1073,12 @@ namespace MIPSComp {
+ 
+ 	void IRFrontend::Comp_VecDo3(MIPSOpcode op) {
+ 		CONDITIONAL_DISABLE(VFPU_VEC);
++		{	// local change (MGS2 port): PPSSPP_VFPU_RN=1 sends vadd / vsub / vdiv / vmul to Int_VecDo3, which rounds as the PSP-3000 does
++			static const bool rn = [] { const char *e = getenv("PPSSPP_VFPU_RN"); return e && *e == '1'; }();
++			const u32 top = op >> 26, sub = (op >> 23) & 7;
++			if (rn && ((top == 24 && (sub == 0 || sub == 1 || sub == 7)) || (top == 25 && sub == 0)))
++				DISABLE;
++		}
+ 		if (js.HasUnknownPrefix() || !IsPrefixWithinSize(js.prefixS, op) || !IsPrefixWithinSize(js.prefixT, op)) {
+ 			DISABLE;
+ 		}
+diff --git a/Core/MIPS/InterpreterVFPU.cpp b/Core/MIPS/InterpreterVFPU.cpp
+index fa091cb..9615a37 100644
+--- a/Core/MIPS/InterpreterVFPU.cpp
++++ b/Core/MIPS/InterpreterVFPU.cpp
+@@ -20,6 +20,11 @@
+ #include <cmath>
+ #include <limits>
+ #include <algorithm>
++#include <cstdlib>
++#if defined(__SSE__) || defined(_M_X64) || defined(__x86_64__)
++#include <xmmintrin.h>
++#define MGS2_VFPU_RN_HOST 1
++#endif
+ 
+ #include "Common/Data/Convert/SmallDataConvert.h"
+ #include "Common/Math/math_util.h"
+@@ -2103,6 +2108,13 @@ namespace MIPSInt
+ 			ApplySwizzleT(mips, &t[n - 1], V_Single, -INFINITY);
+ 		}
+ 
++#ifdef MGS2_VFPU_RN_HOST
++		// local change (MGS2 port, PPSSPP_VFPU_RN=1): the PSP-3000's VFPU rounds vadd / vsub / vmul / vdiv to nearest and
++		// flushes denormal inputs and results whatever FCR31 says; PPSSPP runs them in FCR31's mode.
++		static const bool rn = [] { const char *e = getenv("PPSSPP_VFPU_RN"); return e && *e == '1'; }();
++		const unsigned int csr = rn ? _mm_getcsr() : 0;
++		if (rn) _mm_setcsr((csr & ~0x6000u) | 0x8040u);
++#endif
+ 		for (int i = 0; i < (int)n; i++) {
+ 			switch (optype) {
+ 			case 0: d.f[i] = s[i] + t[i]; break; //vadd
+@@ -2120,6 +2132,9 @@ namespace MIPSInt
+ 			}
+ 		}
+ 
++#ifdef MGS2_VFPU_RN_HOST
++		if (rn) _mm_setcsr(csr);
++#endif
+ 		// For vdiv only, the D prefix only applies mask (and like S/T, x applied to last.)
+ 		if (optype == 7) {
+ 			if (LastLaneSwizzleInvalid(mips, VFPU_CTRL_SPREFIX) || LastLaneSwizzleInvalid(mips, VFPU_CTRL_TPREFIX)) {

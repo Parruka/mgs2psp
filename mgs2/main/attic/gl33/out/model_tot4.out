@@ -1,0 +1,29 @@
+waiting deck, ME turn 29,810-29,890
+   m32n3    48458752 instr  347263 I-miss (fully associative  272225)  332263 D-miss =  396.83 ms a picture; against m32n3   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33p     47993242 instr  241036 I-miss (fully associative  242647)  330445 D-miss =  372.37 ms a picture; against m32n3  -24.47 ms (instr  -465510, I-miss -106227, D-miss  -1818)
+   g33i     47092429 instr  240243 I-miss (fully associative  242310)  303480 D-miss =  360.78 ms a picture; against m32n3  -36.06 ms (instr -1366323, I-miss -107020, D-miss -28783)
+waiting deck, main turn 29,910-29,990
+   m32n3    42663117 instr  321383 I-miss (fully associative  246504)  251721 D-miss =  342.03 ms a picture; against m32n3   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33p     42373222 instr  219540 I-miss (fully associative  199708)  255115 D-miss =  320.67 ms a picture; against m32n3  -21.36 ms (instr  -289894, I-miss -101843, D-miss  +3394)
+   g33i     42407014 instr  219550 I-miss (fully associative  199751)  255200 D-miss =  320.87 ms a picture; against m32n3  -21.17 ms (instr  -256102, I-miss -101833, D-miss  +3478)
+rain walk, ME turn 31,010-31,090 (after two windows)
+   m32n3    46394266 instr  316688 I-miss (fully associative  232752)  300537 D-miss =  372.17 ms a picture; against m32n3   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33p     46046925 instr  216998 I-miss (fully associative  199812)  302098 D-miss =  350.49 ms a picture; against m32n3  -21.68 ms (instr  -347341, I-miss -99690, D-miss  +1561)
+   g33i     45628723 instr  216412 I-miss (fully associative  199379)  295536 D-miss =  346.61 ms a picture; against m32n3  -25.56 ms (instr  -765542, I-miss -100276, D-miss  -5001)
+rain walk, main turn 31,110-31,190 (after three windows)
+   m32n3    39571251 instr  280262 I-miss (fully associative  196040)  226879 D-miss =  311.90 ms a picture; against m32n3   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33p     39412429 instr  190078 I-miss (fully associative  157920)  229542 D-miss =  293.38 ms a picture; against m32n3  -18.52 ms (instr  -158822, I-miss -90184, D-miss  +2663)
+   g33i     39438848 instr  190123 I-miss (fully associative  158009)  229611 D-miss =  293.54 ms a picture; against m32n3  -18.36 ms (instr  -132403, I-miss -90139, D-miss  +2732)
+the same, against gl33 plain
+waiting deck, ME turn 29,810-29,890
+   g33p     47993242 instr  241036 I-miss (fully associative  242647)  330445 D-miss =  372.37 ms a picture; against g33p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33i     47092429 instr  240243 I-miss (fully associative  242310)  303480 D-miss =  360.78 ms a picture; against g33p  -11.59 ms (instr  -900813, I-miss   -793, D-miss -26965)
+waiting deck, main turn 29,910-29,990
+   g33p     42373222 instr  219540 I-miss (fully associative  199708)  255115 D-miss =  320.67 ms a picture; against g33p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33i     42407014 instr  219550 I-miss (fully associative  199751)  255200 D-miss =  320.87 ms a picture; against g33p   +0.19 ms (instr   +33792, I-miss    +11, D-miss    +84)
+rain walk, ME turn 31,010-31,090 (after two windows)
+   g33p     46046925 instr  216998 I-miss (fully associative  199812)  302098 D-miss =  350.49 ms a picture; against g33p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33i     45628723 instr  216412 I-miss (fully associative  199379)  295536 D-miss =  346.61 ms a picture; against g33p   -3.89 ms (instr  -418202, I-miss   -585, D-miss  -6562)
+rain walk, main turn 31,110-31,190 (after three windows)
+   g33p     39412429 instr  190078 I-miss (fully associative  157920)  229542 D-miss =  293.38 ms a picture; against g33p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g33i     39438848 instr  190123 I-miss (fully associative  158009)  229611 D-miss =  293.54 ms a picture; against g33p   +0.16 ms (instr   +26419, I-miss    +45, D-miss    +69)

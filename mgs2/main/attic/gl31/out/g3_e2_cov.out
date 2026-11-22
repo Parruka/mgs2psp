@@ -1,0 +1,2 @@
+shot_10516.bmp: luma differs by 1+ in 0 px, 2+ 0, 6+ 0, over 8 0 (largest 0); outside the 0x42 coverage of this frame and the one before: 1+ 0, 2+ 0, 6+ 0, over 8 0; frame 10516: 566 batches, 2 targets, coverage 0 px; frame 10513: 0 batches, 0 targets, coverage 0 px
+shot_23263.bmp: luma differs by 1+ in 131 px, 2+ 0, 6+ 0, over 8 0 (largest 1); outside the 0x42 coverage of this frame and the one before: 1+ 0, 2+ 0, 6+ 0, over 8 0; frame 23263: 869 batches, 14 targets, coverage 110309 px; frame 23261: 866 batches, 14 targets, coverage 110886 px

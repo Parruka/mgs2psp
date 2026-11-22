@@ -1,0 +1,74 @@
+MGS2 GE replay v6
+clock 333/166: set (cpu 333 MHz, bus 166 MHz)
+ms0:/PSP/GAME/MGS2GE_v6/deck_ge.bin: vb 24056, 13738 batches, 59312 vertices, 322 textures, 2725312 data bytes, depth = Z24 x 0.2
+other           4409 batches,   975975 GE pixels
+mist               1 batches,   930237 GE pixels
+small sprites     85 batches,   117042 GE pixels
+depth blur         1 batches,   261120 GE pixels
+motion trail       1 batches,   130050 GE pixels
+df0 meshes      8708 batches,  1790475 GE pixels
+effect meshes    533 batches,  2071091 GE pixels
+df0: 31960 screen-space vertices in its PS2 primitives; 1439 calls with hardware transform: 32118 vertices, 7305 strips of 32118 vertices, 43850 indices joined
+effects: 49 calls with hardware transform, 2444 vertices + 1266 clipped-polygon vertices; 196 strip runs of 764 vertices; clipped triangles drawn as 420 (GE cuts) / 564 (CPU cuts) triangles
+textures in VRAM: 175 of them, 688 KB, 99.0% of the palette-textured GE pixels
+  part effects transformed, GE cuts      7.73 ms per draw (min    7.73)
+  part effects GE cuts, no index list    7.66 ms per draw (min    7.66)
+cuts (v3's fastest exact ones on the PSP): depth blur top-left first, 16-row tiles, motion trail 16-pixel columns
+CPU load calibration, line reads: loop count 17 (2065 accesses per ms; 4169 with none)
+CPU load calibration, reads + written lines: loop count 16 (2013 accesses per ms; 3586 with none)
+CPU work alone (before part 2), per ms: line reads 2065, reads + written lines 2014, 22.93 ms per list built, copies 74 KB
+  picture of mode 1 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_1_r1.bmp
+  (round 1) reference (v5's mode 4)      GE   38.92  min   38.84   build  23.17
+  picture of mode 2 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_2_r1.bmp
+  (round 1) effects, no index list       GE   38.84  min   38.76   build  23.18
+  picture of mode 3 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_3_r1.bmp
+  (round 1) no depth blur, no trail (*)  GE   34.93  min   34.85   build  22.77
+  picture of mode 4 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_4_r1.bmp
+  (round 1) CPU: line reads              GE   43.67  min   43.62   build  23.18   CPU 1712 per ms (82.9% of alone)
+  picture of mode 5 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_5_r1.bmp
+  (round 1) CPU: reads + written lines   GE   43.98  min   43.93   build  23.19   CPU 1630 per ms (80.9% of alone)
+  picture of mode 6 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_6_r1.bmp
+  (round 1) CPU: next list built         GE   41.82  min   41.76   build  23.18   CPU 0.03277 per ms (75.2% of alone)
+  picture of mode 7 round 1 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_7_r1.bmp
+  (round 1) CPU: 64 KB copies            GE   45.13  min   45.10   build  23.19   CPU 56.81 per ms (76.6% of alone)
+  picture of mode 1 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_1_r2.bmp
+  (round 2) reference (v5's mode 4)      GE   38.92  min   38.84   build  23.18
+  picture of mode 2 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_2_r2.bmp
+  (round 2) effects, no index list       GE   38.84  min   38.75   build  23.18
+  picture of mode 3 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_3_r2.bmp
+  (round 2) no depth blur, no trail (*)  GE   34.93  min   34.85   build  22.77
+  picture of mode 4 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_4_r2.bmp
+  (round 2) CPU: line reads              GE   43.67  min   43.60   build  23.18   CPU 1712 per ms (82.9% of alone)
+  picture of mode 5 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_5_r2.bmp
+  (round 2) CPU: reads + written lines   GE   43.98  min   43.93   build  23.19   CPU 1630 per ms (80.9% of alone)
+  picture of mode 6 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_6_r2.bmp
+  (round 2) CPU: next list built         GE   41.82  min   41.74   build  23.18   CPU 0.03277 per ms (75.2% of alone)
+  picture of mode 7 round 2 saved: ms0:/PSP/GAME/MGS2GE_v6/shot_7_r2.bmp
+  (round 2) CPU: 64 KB copies            GE   45.14  min   45.10   build  23.19   CPU 56.79 per ms (76.5% of alone)
+  (round 3) reference (v5's mode 4)      GE   38.93  min   38.84   build  23.18
+  (round 3) effects, no index list       GE   38.85  min   38.75   build  23.18
+  (round 3) no depth blur, no trail (*)  GE   34.93  min   34.84   build  22.77
+  (round 3) CPU: line reads              GE   43.67  min   43.60   build  23.18   CPU 1712 per ms (82.9% of alone)
+  (round 3) CPU: reads + written lines   GE   43.98  min   43.93   build  23.19   CPU 1630 per ms (80.9% of alone)
+  (round 3) CPU: next list built         GE   41.82  min   41.74   build  23.18   CPU 0.03277 per ms (75.2% of alone)
+  (round 3) CPU: 64 KB copies            GE   45.14  min   45.10   build  23.19   CPU 56.78 per ms (76.5% of alone)
+CPU work alone (after part 2), per ms: line reads 2066, reads + written lines 2015, 22.92 ms per list built, copies 74 KB
+Each part alone, GE time per draw (ms; mean, min), 30 x 3 draws:
+  effects transformed, GE cuts      7.73  min    7.73
+  effects GE cuts, no index list    7.66  min    7.66
+Full frame, GE time (ms; mean, min) and CPU time to build its list (ms), 39 frames x 3 rounds per mode; (*) changes the picture,
+measured only:
+  reference (v5's mode 4)      GE   38.93  min   38.84   build  23.18
+  effects, no index list       GE   38.85  min   38.75   build  23.18
+  no depth blur, no trail (*)  GE   34.93  min   34.84   build  22.77
+  CPU: line reads              GE   43.67  min   43.60   build  23.18
+  CPU: reads + written lines   GE   43.98  min   43.93   build  23.19
+  CPU: next list built         GE   41.82  min   41.74   build  23.18
+  CPU: 64 KB copies            GE   45.14  min   45.10   build  23.19
+CPU work, per ms: alone before / after part 2; while the GE draws, and its share of the rate alone before:
+  line reads             2065 / 2066 accesses; while the GE draws 1712 (82.9%)
+  reads + written lines  2014 / 2015 accesses; while the GE draws 1630 (80.9%)
+  next list built        22.93 / 22.92 ms per list; while the GE draws 30.51 ms (75.2% of the speed)
+  64 KB copies           74 / 74 KB; while the GE draws 57 (76.5%)
+largest list 456 KB (of 4096); blends with no GE mapping: 0
+Press X (or HOME) to exit.

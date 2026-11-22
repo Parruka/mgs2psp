@@ -1,0 +1,40 @@
+Ir                    file:function
+--------------------------------------------------------------------------------
+207,520,475 (100.0%)  /mnt/project-files/mgs2/boot/xlive_chk.c:xlive_chk_dma [/home/claude/xlive/xcg/boot]
+207,520,475 (100.0%)  /mnt/project-files/mgs2/ge/xlive.c:xlv_dma [/home/claude/xlive/xcg/boot]
+190,378,202 (91.74%)  /mnt/project-files/mgs2/ge/xlate.c:xl_vif1_span [/home/claude/xlive/xcg/boot]
+175,645,122 (84.64%)  /mnt/project-files/mgs2/ge/xlive.c:run [/home/claude/xlive/xcg/boot]
+128,798,584 (62.07%)  /mnt/project-files/mgs2/ge/xlate.c:gif_qw [/home/claude/xlive/xcg/boot]
+117,848,723 (56.79%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_packed [/home/claude/xlive/xcg/boot]
+117,550,265 (56.65%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_reg [/home/claude/xlive/xcg/boot]
+ 77,210,354 (37.21%)  /mnt/project-files/mgs2/ge/gsup.c:gu_trxdir [/home/claude/xlive/xcg/boot]
+ 76,990,328 (37.10%)  /mnt/project-files/mgs2/ge/gsup.c:cover [/home/claude/xlive/xcg/boot]
+ 72,692,859 (35.03%)  /mnt/project-files/mgs2/ge/xlate.c:vif_cmd [/home/claude/xlive/xcg/boot]
+ 64,788,281 (31.22%)  /mnt/project-files/mgs2/ge/xlate.c:call [/home/claude/xlive/xcg/boot]
+ 55,840,796 (26.91%)  /mnt/project-files/mgs2/ge/gsup.c:bl_push [/home/claude/xlive/xcg/boot]
+ 55,025,014 (26.52%)  /mnt/project-files/mgs2/ge/xlate.c:kick_vm [/home/claude/xlive/xcg/boot]
+ 34,581,422 (16.66%)  /mnt/project-files/mgs2/ge/gsup.c:gu_clut_load [/home/claude/xlive/xcg/boot]
+ 16,180,332 ( 7.80%)  /mnt/project-files/mgs2/ge/gsup.c:cell_bn [/home/claude/xlive/xcg/boot]
+ 14,172,170 ( 6.83%)  /mnt/project-files/mgs2/ge/gsup.c:ld_unref [/home/claude/xlive/xcg/boot]
+ 12,782,812 ( 6.16%)  /mnt/project-files/mgs2/ge/xlate.c:vm_one [/home/claude/xlive/xcg/boot]
+ 10,110,040 ( 4.87%)  /mnt/project-files/mgs2/ge/gslayout.h:cell_bn
+  8,763,724 ( 4.22%)  /mnt/project-files/mgs2/ge/xlate.c:ud_vec [/home/claude/xlive/xcg/boot]
+  7,295,367 ( 3.52%)  /mnt/project-files/mgs2/ge/gsfront.c:drew_ctx [/home/claude/xlive/xcg/boot]
+  6,297,408 ( 3.03%)  /usr/include/x86_64-linux-gnu/bits/string_fortified.h:bl_push
+  6,099,576 ( 2.94%)  /mnt/project-files/mgs2/ge/gsup.c:gu_drawn [/home/claude/xlive/xcg/boot]
+  5,899,520 ( 2.84%)  /mnt/project-files/mgs2/ge/xlate.c:xl_flush [/home/claude/xlive/xcg/boot]
+  5,379,168 ( 2.59%)  /mnt/project-files/mgs2/ge/gsup.c:xf_unref [/home/claude/xlive/xcg/boot]
+  4,601,926 ( 2.22%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_drew [/home/claude/xlive/xcg/boot]
+  4,549,556 ( 2.19%)  ./string/../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S:__memcpy_avx_unaligned_erms [/usr/lib/x86_64-linux-gnu/libc.so.6]
+  3,852,224 ( 1.86%)  ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:__memset_avx2_unaligned_erms [/usr/lib/x86_64-linux-gnu/libc.so.6]
+  3,446,743 ( 1.66%)  /mnt/project-files/mgs2/ge/gsfront.c:kick [/home/claude/xlive/xcg/boot]
+  3,341,685 ( 1.61%)  /mnt/project-files/mgs2/ge/gsfront.c:emit [/home/claude/xlive/xcg/boot]
+    736,734 ( 0.36%)  /usr/include/x86_64-linux-gnu/bits/string_fortified.h:gu_clut_load
+
+--------------------------------------------------------------------------------
+-- Auto-annotated source: /mnt/project-files/mgs2/ge/xlive.c
+--------------------------------------------------------------------------------
+Ir                 
+
+        .           /* xlive.c: see xlive.h.  The chain rules are runtime/ee_io.h dma_feed's (and dma_run's addressing), so this walk takes the same
+        .              quadwords in the same order as the exact walk; what it hands the translator is what dma_vif1_qw / dma_gif_qw hand VIF1 and the GIF. */

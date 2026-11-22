@@ -1,0 +1,43 @@
+writer                   ms | words read per step by:   render   self+1   self+2   others  main/th | top other readers (words/step)
+ropemain.c             8.28 |      180       42        0      912        0 | dma0 864, rain.c 9, body_sph.c 7, charaspread.c 7
+raiden.c               6.30 |      298      447       14     1354        0 | ropemain.c 214, dma0 209, lodctrl.c 172, body_sph.c 170
+line_sph.c             4.26 |    25652      164    19392        6        0 | dma0 4, ripple.c 1, chim_smo.c 1
+DG_ActFirst            3.51 |       27       14        1       19        5 | gvd_Act 8, radar.c 2, sprite_dma.c 1, d_fade_io.c 1
+wt_door.c              3.18 |      104      172        0        0        0 | 
+pl_arm.c               2.44 |        9      533      451       11        0 | crtrg.c 3, wp_mng.c 3, lodctrl.c 1, ropemain.c 1
+wave2.c                2.32 |     8091      516        0       43        0 | wt_door.c 23, wave.c 4, set_t_dr.c 4, rain_gas_pers.c 3
+d_splash_floor.c       2.30 |    12196     2584     2583       20        0 | d_splash_fall.c 5, wp_chng2.c 4, charaspread.c 3, sdmanage.c 2
+body_sph.c             1.85 |     1125        4        0        6        0 | fade_lgt.c 5, d_splash_floor.c 0, d_splash_camera.c 0, charaspread.c 0
+rain.c                 1.63 |    10306     2115       28       59        0 | charaspread.c 15, wp_chng2.c 11, radar.c 9, d_splash_camera.c 9
+d_splash_fall.c        1.37 |    21295      546     1317       16        0 | charaspread.c 2, emb_control.c 2, it_chng2.c 2, gaged.c 2
+charaspread.c          1.21 |     8071     4152        3        8        0 | sprite_dma.c 3, wp_chng2.c 2, wave2.c 1, line_sph.c 1
+item_box.c             1.19 |      968       30        0       19        0 | mirror.c 8, ropemain.c 6, rain.c 2, cinema_scr.c 2
+bgmfader.c             0.96 |        0        4        0       58        0 | wt_door.c 16, windnois.c 16, camera.c 10, camerad.c 9
+radar.c                0.82 |     4907       18        2       71        0 | sprite_dma.c 24, line_sph.c 4, 104f10 3, raiden.c 3
+fade_lgt.c             0.78 |      550      120        0       10        0 | rain.c 5, wp_chng2.c 2, d_splash_camera.c 1, d_splash_fall.c 1
+gvd_Act                0.74 |        0       11        0      135        0 | wind_man.c 9, raiden.c 7, mapcnct.c 5, line_sph.c 5
+sprite_dma.c           0.67 |      130        0        9       47        0 | mtstream.c 10, gvd_Act 9, wind_man.c 4, DG_ActFirst 4
+ropemain2.c            0.64 |      162      172        0       22        0 | rain_gas_pers.c 5, line_sph.c 4, body_sdw.c 4, ripple.c 4
+d_splash_camera.c      0.58 |     2219      519      469       49        0 | d_splash_floor.c 9, d_splash_fall.c 9, wp_chng2.c 6, radar.c 5
+manhat3d.c             0.51 |      935       32        0       31        0 | ropemain.c 12, rain.c 8, actblur.c 1, body_sph.c 1
+windnois.c             0.47 |        0        2        0       15        0 | camerad.c 3, brooklyn.c 2, wt_door.c 2, manhat3d.c 2
+ripple.c               0.43 |     4616       76        1      150        0 | putobj.c 16, rain_cm.c 9, ft_splsh.c 9, blur.c 9
+wp_chng2.c             0.36 |      354        1        2       85        9 | sprite_dma.c 13, raiden.c 10, radar.c 7, gvd_Act 5
+mtstream.c             0.35 |        0      329        5       35        0 | delay.c 6, strctrl.c 3, wave2.c 3, line_sph.c 3
+sky_prev.c             0.33 |     1508      837       10        0        0 | 
+camerad.c              0.32 |       66       22        0      262        0 | item_box.c 26, brooklyn.c 26, manhat3d.c 24, rain_gas_pers.c 17
+usp.c                  0.26 |       32       20        0      100        0 | mirror.c 15, line_sph.c 14, ropemain2.c 10, rain_gas_pers.c 7
+mirror.c               0.26 |     2644       47        4       95        0 | ropemain.c 16, body_sph.c 14, d_splash_camera.c 7, rain.c 6
+brooklyn.c             0.26 |      434       30        0        1        0 | manhat3d.c 1
+chim_smo.c             0.25 |      783      481       15       22        0 | line_sph.c 5, set_t_dr.c 4, wave.c 4, ripple.c 4
+set_t_dr.c             0.23 |      480        8      144       10        0 | line_sph.c 3, rain_gas_pers.c 3, ripple.c 3, set_t_fw.c 1
+f_focus.c              0.23 |     2273        3        0        0        0 | 
+rain_gas_pers.c        0.20 |      211       37       96       40        0 | rain_cm.c 7, bgmfader.c 7, camera.c 4, camerad.c 4
+dumstream.c            0.20 |        0        0        0        1        0 | mtstream.c 1, strctrl.c 0
+camera.c               0.19 |        0        3        0       67        0 | camerad.c 15, manhat3d.c 6, brooklyn.c 6, raiden.c 4
+wind_man.c             0.16 |        0        6        0       43        0 | ropemain2.c 5, chim_smo.c 5, usp.c 3, line_sph.c 3
+blood_sp.c             0.13 |      330        5        0       27        0 | brooklyn.c 3, camerad.c 2, manhat3d.c 2, windnois.c 2
+delay.c                0.12 |        0        2        0       15        0 | raiden.c 10, usp.c 2, sprite_dma.c 1, pl_arm.c 1
+attachments.c          0.11 |       72        8       36        0        0 | 
+strctrl.c              0.10 |        0        1        4       17        0 | dumstream.c 3, mtstream.c 2, delay.c 2, raiden.c 2
+lodctrl.c              0.10 |      204        1        0        8        0 | lodctrl.c 2, raiden.c 2, actblur.c 2, rai_action_blur.c 1

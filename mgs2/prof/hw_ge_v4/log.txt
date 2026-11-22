@@ -1,0 +1,44 @@
+MGS2 GE replay v4
+clock 333/166: set (cpu 333 MHz, bus 166 MHz)
+ms0:/PSP/GAME/MGS2GE_v4/deck_ge.bin: vb 24056, 13689 batches, 59312 vertices, 322 textures, 2621952 data bytes, depth = Z24 x 0.2
+other           4893 batches,  3047066 GE pixels
+mist               1 batches,   930237 GE pixels
+small sprites     85 batches,   117042 GE pixels
+depth blur         1 batches,   261120 GE pixels
+motion trail       1 batches,   130050 GE pixels
+df0 meshes      8708 batches,  1790475 GE pixels
+df0: 31960 screen-space vertices in its PS2 primitives; 1439 calls with hardware transform: 32118 vertices, 7305 strips of 32118 vertices, 43850 indices joined
+textures in VRAM: 175 of them, 688 KB, 99.0% of the palette-textured GE pixels
+  part df0 as the PS2 draws it          11.71 ms per draw (min   11.70)
+  part df0 transformed                  11.43 ms per draw (min   11.42)
+  part df0 transformed, fog             11.90 ms per draw (min   11.89)
+  part df0 transformed, fog, joined     16.55 ms per draw (min   16.54)
+cuts (v3's fastest exact ones on the PSP): depth blur top-left first, 16-row tiles, motion trail 16-pixel columns
+  picture of mode 1 saved: ms0:/PSP/GAME/MGS2GE_v4/shot_1.bmp
+  (round 1) best (as v3)               GE   38.71  min   38.62   build  20.02
+  picture of mode 2 saved: ms0:/PSP/GAME/MGS2GE_v4/shot_2.bmp
+  (round 1) best, df0 transformed      GE   38.42  min   38.34   build  21.22
+  picture of mode 3 saved: ms0:/PSP/GAME/MGS2GE_v4/shot_3.bmp
+  (round 1) best, df0 tr. + fog        GE   38.90  min   38.81   build  21.35
+  picture of mode 4 saved: ms0:/PSP/GAME/MGS2GE_v4/shot_4.bmp
+  (round 1) best, df0 tr. + fog, joined GE   43.53  min   43.43   build  19.54
+  (round 2) best (as v3)               GE   38.71  min   38.62   build  20.02
+  (round 2) best, df0 transformed      GE   38.41  min   38.33   build  21.22
+  (round 2) best, df0 tr. + fog        GE   38.90  min   38.81   build  21.35
+  (round 2) best, df0 tr. + fog, joined GE   43.53  min   43.42   build  19.54
+  (round 3) best (as v3)               GE   38.70  min   38.62   build  20.02
+  (round 3) best, df0 transformed      GE   38.42  min   38.33   build  21.22
+  (round 3) best, df0 tr. + fog        GE   38.90  min   38.81   build  21.35
+  (round 3) best, df0 tr. + fog, joined GE   43.53  min   43.42   build  19.54
+Each part alone, GE time per draw (ms; mean, min), 30 x 3 draws; (*) changes the picture, measured only:
+  df0 as the PS2 draws it          11.71  min   11.70
+  df0 transformed                  11.43  min   11.42
+  df0 transformed, fog             11.90  min   11.89
+  df0 transformed, fog, joined     16.55  min   16.54
+Full frame, GE time (ms; mean, min) and CPU time to build its list (ms), 39 frames x 3 rounds per mode:
+  best (as v3)               GE   38.70  min   38.62   build  20.02
+  best, df0 transformed      GE   38.42  min   38.33   build  21.22
+  best, df0 tr. + fog        GE   38.90  min   38.81   build  21.35
+  best, df0 tr. + fog, joined GE   43.53  min   43.42   build  19.54
+largest list 2779 KB (of 4096); blends with no GE mapping: 0
+Press X (or HOME) to exit.

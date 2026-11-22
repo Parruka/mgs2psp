@@ -1,0 +1,19 @@
+# gl35 G4 against gl34's final build (A=build_gl34/psp): where the lines below say gl33, read gl34
+gl35 G4: undefined symbols of each object against gl33's object (psp-nm -u); < only gl33's, > only gl35's
+  boot_rt.o: > xl_keep_chk 
+  ge_gelive.o: > tk_keep_again > tk_keep_last > tk_keep_ok > xl_keep_bits > xl_keep_chk > xl_keep_nf > xl_nk_n 
+  ge_xlate.o: > gu_dgen > gu_drawn_again > gu_keep_got > gu_keep_mark 
+  xl_psp.o: > g_nat_kpt > rt_nat_keep_at > xl_keep_chk > xl_nk_n 
+objects: 45; byte-identical to gl33's objects: 35
+new names and where the ELF defines them: xl_keep_chk(B) tk_keep_again(T) tk_keep_last(T) tk_keep_ok(T) xl_keep_bits(B) xl_keep_chk(B) xl_keep_nf(B) xl_nk_n(B) gu_dgen(T) gu_drawn_again(T) gu_keep_got(T) gu_keep_mark(T) g_nat_kpt(B) rt_nat_keep_at(T) xl_keep_chk(B) xl_nk_n(B)
+imports of the ELF (sce* names) against gl33's: 133 / 133 names; differences: 0
+  section .lib.stub: gl33 00000154 bytes, gl35 00000154 bytes
+  section .lib.ent: gl33 00000010 bytes, gl35 00000010 bytes
+  section .rodata.sceResident: gl33 0000015c bytes, gl35 0000015c bytes
+  section .rodata.sceNid: gl33 000001c4 bytes, gl35 000001c4 bytes
+  section .sceStub.text: gl33 00000388 bytes, gl35 00000388 bytes
+ge_xme_me.o: gl33 4d964c8c, gl35 4d964c8c; instruction lines differing: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

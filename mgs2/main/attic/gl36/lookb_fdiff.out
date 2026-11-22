@@ -1,0 +1,140 @@
+##### gl35 g35pc2 (A) -> gl36 g36pc2 (B)
+A model/g35pc2: 17808978 instr, 81990 I-miss, 135643 D-miss = 140.02 ms a picture
+B model/g36pc2: 17795666 instr, 84902 I-miss, 139836 D-miss = 141.63 ms a picture
+B - A: instr -13312 (-0.07 ms), I-miss +2912 (+0.59 ms), D-miss +4192 (+1.08 ms) = +1.61 ms a picture [C model]
+functions only in A: 5 (0.000 ms), only in B: 0 (0.000 ms): 
+spread: functions slower in B sum +4.50 ms, faster -2.88 ms; I-miss up +16613 in the functions that gained, -13701 in those that lost
+function (B - A a picture)              ms     instr    I-miss    D-miss |   A instr  A I-miss  A D-miss
+xc_lit                              +0.551        -3     +2570      +103 |    514156      1340      3134
+xc_hold_test                        -0.420        +0     -2096       +33 |    214069      3442      3681
+xc_held_run                         +0.363        +0     +2161      -303 |    143622       403      2890
+lw_walk                             +0.357      +868      +699      +814 |    821552      2858      5828
+vc_p07_c1                           +0.329        +0     +1706       -76 |     99513       731       396
+xc_hold                             +0.276      +644      +274      +841 |    160474      2225      3011
+ud_new                              -0.226        +0     -1111        +2 |    299833      3238      1889
+gl_call                             +0.226        +0      +567      +427 |     46817      1312       164
+xc_hold_pass                        +0.208        +0      +994       +20 |     30733       315         7
+gu_drawn                            -0.177        +0     -1701      +658 |     99925      1884       836
+gl_flush                            +0.171        +0      +530      +244 |     18354       109       161
+gif_qw                              +0.139     -1466      +160      +440 |    805614       811      2814
+xc_gs                               -0.134        +0      -145      -405 |     62834       296      2058
+gl_tex                              +0.121        +0      +243      +278 |    136506      2131       403
+xl_lane_p07                         -0.121        +0      -579       -11 |    306730      3485       786
+gu_clut_load                        +0.114        -0      +105      +358 |    174247      2180      1710
+gf_reg                              -0.113        +0      -214      -268 |    135102       797       794
+drew_ctx                            -0.111        +0      -516       -22 |     32801       864       360
+xc_c1_hold_bound                    +0.109        +0      +532        +0 |      8961        86         1
+call                                -0.103        +0      +189      -550 |    237234      2114      2132
+vc_p07_c1s                          -0.100        +0      -378       -89 |    519548       526      3333
+gb_fill_at                          -0.097        +0      -471        -2 |     18816       483       243
+rows                                +0.096        +0      +208      +207 |     71318       353        48
+me_memset                           +0.086        +0      +320       +78 |    332568       311      2203
+gu_pages_sig                        +0.071        +0      +327       +18 |     47125       394       341
+
+##### gl35 g35pc2.1 (A) -> gl36 g36pc2.1 (B)
+A model/g35pc2.1: 15717975 instr, 76461 I-miss, 113289 D-miss = 122.75 ms a picture
+B model/g36pc2.1: 15701591 instr, 79815 I-miss, 110365 D-miss = 122.60 ms a picture
+B - A: instr -16384 (-0.08 ms), I-miss +3354 (+0.68 ms), D-miss -2924 (-0.76 ms) = -0.15 ms a picture [C model]
+functions only in A: 0 (0.000 ms), only in B: 0 (0.000 ms): 
+spread: functions slower in B sum +3.47 ms, faster -3.62 ms; I-miss up +16413 in the functions that gained, -13058 in those that lost
+function (B - A a picture)              ms     instr    I-miss    D-miss |   A instr  A I-miss  A D-miss
+xc_hold_test                        -0.409       -98     -2068       +55 |    211153      3395      3588
+gu_clut_load                        +0.289      -157      +497      +730 |    172021      1163      1461
+xc_lit                              +0.254       +55     +2472      -972 |    507817      1150      3788
+xc_held_run                         +0.250        +0     +2051      -654 |    141529       408      3272
+xc_gs                               -0.223       -30      -143      -749 |     62004       292      2258
+gu_drawn                            -0.218      -165     -1682      +490 |     98903      1866       977
+xc_hold_pass                        +0.215       -17      +990       +51 |     30357       299        31
+vc_p07_c1                           +0.215        +0     +1934      -697 |     98191       345       999
+me_memset                           -0.211      -163      +331     -1076 |    338145       327      3063
+rows                                +0.191       -42      +183      +596 |     70441       352        36
+gl_call                             +0.186       -18      +726      +147 |     46147      1082       194
+gif_qw                              -0.184      -894      -107      -609 |    799602       958      3533
+ud_new                              -0.173      -141     -1096      +199 |    295664      3193      1526
+lw_walk                             +0.169      +433      +773       +37 |    498421      1872      4699
+call                                -0.164      -104      +173      -770 |    233930      2093      2623
+tk_get_um                           -0.154      -418      +554     -1028 |    207712      1795      6072
+xl_lane_p07                         -0.145      -127      -677       -25 |    302482      3436       837
+gl_flush                            +0.138        +0      +603       +57 |     18104        27       156
+gl_tex                              -0.129       -70      +238      -686 |    134789      2108      1344
+me_memcmp                           -0.112       -75       -24      -414 |    255935        49       768
+vc_p07_c1b                          +0.110     -1459      -203      +613 |    761588       501      3834
+gx_batch                            -0.105     -2347        +1      -361 |    887431       115      4449
+xc_c1_hold_bound                    +0.103        -4      +524       -14 |      8836        85        14
+vc_p07_c1s                          -0.097        +0      -470        -2 |    512747       520      3214
+gb_fill_at                          -0.096        +0      -465        -5 |     18586       477       244
+
+##### gl35 g35pc1 (A) -> gl36 g36pc1 (B)
+A model/g35pc1: 17192122 instr, 82764 I-miss, 127039 D-miss = 134.90 ms a picture
+B model/g36pc1: 17230625 instr, 85672 I-miss, 131497 D-miss = 136.83 ms a picture
+B - A: instr +38503 (+0.19 ms), I-miss +2908 (+0.59 ms), D-miss +4459 (+1.15 ms) = +1.94 ms a picture [C model]
+functions only in A: 0 (0.000 ms), only in B: 5 (0.000 ms): __sfvwrite_r, log_write, funwriter, __sprint_r, __errno
+spread: functions slower in B sum +4.84 ms, faster -2.91 ms; I-miss up +16889 in the functions that gained, -13981 in those that lost
+function (B - A a picture)              ms     instr    I-miss    D-miss |   A instr  A I-miss  A D-miss
+xc_lit                              +0.547       -52     +2554       +99 |    515075      1335      3152
+xc_held_run                         +0.399        +0     +2151      -158 |    143622       413      2711
+xc_hold_test                        -0.341     +2160     -2060      +265 |    211782      3405      3505
+vc_p07_c1                           +0.336        +0     +1711       -52 |     99513       705       362
+lw_walk                             +0.321     +5083      +715      +580 |    817795      2844      5565
+gl_call                             +0.297      +482      +580      +682 |     46313      1300       260
+xc_hold                             +0.290     +2301      +296      +845 |    158738      2202      2913
+tk_get_um                           +0.271     +1551      +520      +609 |    207961      1978      2761
+call                                -0.268     +2359      +205     -1246 |    234786      2094      2466
+gu_drawn                            -0.240      +630     -1681      +390 |     99185      1864       811
+xc_hold_pass                        +0.200      +272      +996       -18 |     30461       313        27
+ud_new                              -0.200     +2997     -1076       +20 |    296688      3203      1961
+xc_gs                               -0.168      +596      -142      -548 |     62224       293      1987
+gl_flush                            +0.155        +0      +531      +182 |     18354       108       205
+me_memset                           +0.137     +1531      +327      +244 |    330917       304      1966
+gl_tex                              +0.128     +1235      +264      +262 |    135151      2103       553
+xc_c1_hold_bound                    +0.109       +96      +532        +0 |      8861        86         0
+vc_p07_c1s                          -0.098        +0      -377       -81 |    519548       526      3323
+gb_fill_at                          -0.096        +0      -471        +1 |     18816       483       242
+ud_eager                            +0.092     +1774      -297      +556 |    168964       420      1538
+gif_qw                              +0.083     +4365      +161      +109 |    800603       808      2912
+gu_pages_sig                        +0.079      +285      +330       +39 |     46681       390       347
+drew_ctx                            -0.075      +188      -506      +107 |     32570       854       326
+vc_p07_c1b                          -0.071      +735      -341       -21 |    774260       732      3944
+touch                               +0.067      +451      -290      +480 |     51034       753      1480
+
+##### gl35 g35pc1.1 (A) -> gl36 g36pc1.1 (B)
+A model/g35pc1.1: 15395211 instr, 77917 I-miss, 111422 D-miss = 120.97 ms a picture
+B model/g36pc1.1: 15438628 instr, 81367 I-miss, 102147 D-miss = 119.49 ms a picture
+B - A: instr +43418 (+0.22 ms), I-miss +3450 (+0.70 ms), D-miss -9275 (-2.40 ms) = -1.48 ms a picture [C model]
+functions only in A: 0 (0.000 ms), only in B: 0 (0.000 ms): 
+spread: functions slower in B sum +3.17 ms, faster -4.64 ms; I-miss up +16904 in the functions that gained, -13454 in those that lost
+function (B - A a picture)              ms     instr    I-miss    D-miss |   A instr  A I-miss  A D-miss
+gu_drawn                            -0.488        +0     -1701      -543 |     99908      1887      1329
+tk_get_um                           -0.385      -306      +564     -1929 |    209929      1814      5133
+xc_hold_test                        -0.353        +0     -2096      +292 |    214069      3442      3490
+gif_qw                              -0.331     +1478      -102     -1231 |    803244       965      4076
+gl_tex                              -0.312        +0      +248     -1405 |    136462      2126      1923
+xc_gs                               -0.312        +0      -145     -1094 |     62834       296      2373
+xc_lit                              +0.277      -248     +2523      -918 |    514727      1166      3842
+xc_held_run                         +0.242        +0     +2081      -708 |    143622       412      3437
+vc_p07_c1                           +0.225        +0     +1967      -683 |     99513       354       971
+xc_hold                             +0.223      +644      +268      +640 |    160474      2213      2861
+gl_call                             +0.214        +0      +736      +248 |     46817      1097       258
+me_memset                           -0.211        +0      +342     -1089 |    352345       326      3112
+xc_hold_pass                        +0.211        +0     +1002       +25 |     30733       303        30
+call                                -0.179        +0      +174      -832 |    237234      2122      2150
+ud_new                              -0.151        +0     -1111      +293 |    299833      3239      1619
+xl_lane_p07                         -0.144        +0      -685       -16 |    306730      3481       846
+vc_p07_c1b                          +0.142     +8797      -203      +541 |    777456       512      3929
+lw_walk                             +0.129      +616      +789      -135 |    505924      1921      4496
+gl_flush                            +0.115        +0      +611       -38 |     18354        28       174
+gu_clut_id                          -0.112        +0      -158      -309 |     55423       394       629
+gu_clut_load                        -0.110        +0      +506      -828 |    174217      1176      2529
+xc_c1_hold_bound                    +0.105        +0      +532       -14 |      8961        86        14
+vc_p07_c1s                          -0.104        +0      -476       -26 |    519548       526      3284
+vc_xform                            -0.099        -4        +0      -384 |    113187        83       500
+gb_fill_at                          -0.097        +0      -471        -5 |     18816       483       246
+
+gl35 same-ELF noise g35pc2 -> g35kc2: B - A: instr -79565 (-0.39 ms), I-miss +1523 (+0.31 ms), D-miss -151 (-0.04 ms) = -0.12 ms a picture [C model]
+gl35 same-ELF noise g35pc2.1 -> g35kc2.1: B - A: instr -63386 (-0.31 ms), I-miss +1807 (+0.37 ms), D-miss +105 (+0.03 ms) = +0.08 ms a picture [C model]
+gl35 same-ELF noise g35pc1 -> g35kc1: B - A: instr +42700 (+0.21 ms), I-miss +404 (+0.08 ms), D-miss +344 (+0.09 ms) = +0.38 ms a picture [C model]
+gl35 same-ELF noise g35pc1.1 -> g35kc1.1: B - A: instr +48435 (+0.24 ms), I-miss +235 (+0.05 ms), D-miss +229 (+0.06 ms) = +0.35 ms a picture [C model]
+gl36 same-ELF g36pc2 -> g36rc2: B - A: instr +37275 (+0.18 ms), I-miss +115 (+0.02 ms), D-miss +172 (+0.04 ms) = +0.25 ms a picture [C model]
+gl36 same-ELF g36pc2.1 -> g36rc2.1: B - A: instr +126157 (+0.63 ms), I-miss +707 (+0.14 ms), D-miss +938 (+0.24 ms) = +1.01 ms a picture [C model]
+gl36 same-ELF g36pc1 -> g36rc1: B - A: instr -18740 (-0.09 ms), I-miss -214 (-0.04 ms), D-miss -220 (-0.06 ms) = -0.19 ms a picture [C model]
+gl36 same-ELF g36pc1.1 -> g36rc1.1: B - A: instr +5018 (+0.02 ms), I-miss -14 (-0.00 ms), D-miss +22 (+0.01 ms) = +0.03 ms a picture [C model]

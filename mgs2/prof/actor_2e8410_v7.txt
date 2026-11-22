@@ -1,0 +1,70 @@
+# total 84058342 imiss 1068679 dmiss 463844 dacc 30079158 fa_imiss 0
+per step (100 steps): 0.84 M instructions, 10.7 k I-miss, 4.6 k D-miss; estimate 8.3 ms at 333 MHz (instructions alone 2.5 ms)
+
+by group:
+  other runtime                 0.28 M instr    3.8 k imiss    1.1 k dmiss    2.67 ms  32.2%
+  game code (stage)             0.30 M instr    2.9 k imiss    1.3 k dmiss    2.48 ms  29.9%
+  game code (ELF)               0.08 M instr    3.3 k imiss    0.9 k dmiss    1.82 ms  22.0%
+  DMA / GS walk                 0.06 M instr    0.3 k imiss    0.8 k dmiss    0.59 ms   7.1%
+  VU0 / VIF0 model              0.11 M instr    0.1 k imiss    0.5 k dmiss    0.57 ms   6.9%
+  kernel / poll / syscalls      0.00 M instr    0.2 k imiss    0.1 k dmiss    0.12 ms   1.4%
+  libc / libgcc                 0.00 M instr    0.1 k imiss    0.0 k dmiss    0.03 ms   0.4%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+S_w00a_P3b89e0                          220.2    0.85    0.77    1.27  15.3%
+io_flush                                193.0    0.67    0.74    1.11  13.4%
+S_w00a_P2ec188                           71.9    1.73    0.44    1.03  12.5%
+vup_43da1f40_0.isra.0                    42.0    1.70    0.24    0.85  10.3%
+P14d860                                  25.6    1.26    0.33    0.67   8.1%
+vif0_mscal                              112.3    0.09    0.54    0.57   6.9%
+dma_run.isra.0                           49.1    0.09    0.69    0.44   5.3%
+P14d1c8                                  22.8    0.52    0.13    0.31   3.8%
+vup_43da1f40_6.isra.0                     9.3    0.59    0.02    0.26   3.1%
+P14d510                                   6.3    0.41    0.17    0.24   2.9%
+P14d000                                  12.3    0.37    0.06    0.20   2.4%
+P161ec0                                   3.8    0.27    0.11    0.15   1.9%
+S_w00a_P328f58                            3.3    0.22    0.05    0.11   1.3%
+dma_feed                                  8.5    0.16    0.06    0.11   1.3%
+rt_mm                                     9.1    0.11    0.06    0.09   1.1%
+P162410                                   2.9    0.16    0.00    0.07   0.8%
+rt_store                                  3.7    0.13    0.00    0.06   0.7%
+P14cf70                                   1.3    0.11    0.04    0.06   0.7%
+k_poll_rest                               1.2    0.11    0.04    0.06   0.7%
+vuc_dispatch                              3.0    0.09    0.02    0.05   0.6%
+k_take_interrupts                         3.5    0.07    0.02    0.04   0.5%
+dma_vif0_qw                               3.8    0.05    0.03    0.04   0.5%
+P143e68                                   1.3    0.09    0.00    0.04   0.5%
+P11c828                                   4.3    0.03    0.03    0.04   0.4%
+GSDL                                      1.6    0.08    0.00    0.03   0.4%
+GSDR                                      1.6    0.07    0.00    0.03   0.4%
+memcpy                                    1.2    0.07    0.00    0.03   0.4%
+GLDL                                      1.7    0.05    0.00    0.03   0.3%
+S_w00a_P11cdc0                            4.2    0.03    0.00    0.03   0.3%
+GLDR                                      1.7    0.06    0.00    0.03   0.3%
+
+most called (calls per step):
+  gen_mm                                     654
+  rt_mm                                      198
+  dma_vif0_qw                                198
+  dma_run.isra.0                             180
+  rt_st32                                     54
+  memcpy                                      54
+  rt_store                                    54
+  VLQC2                                       49
+  GLDL                                        38
+  GSDL                                        38
+  GSDR                                        38
+  GLDR                                        38
+  vuc_entry                                   36
+  vif0_mscal                                  36
+  P14d000                                     36
+  P14d1c8                                     36
+  vuc_dispatch                                36
+  VSQC2                                       19
+  VQMTC2                                      19
+  P11cd68                                     18
+  rt_poll_slow                                18
+  k_take_interrupts                           18
+  dma_feed                                    18
+  P161ec0                                     18
+  P14cf70                                     18

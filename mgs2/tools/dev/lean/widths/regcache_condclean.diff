@@ -1,0 +1,98 @@
+--- /mnt/project-files/mgs2/recomp/regcache.py	2026-10-24 22:13:51.902047000 +0000
++++ rcfix/regcache.py	2026-10-25 01:51:15.181035190 +0000
+@@ -606,6 +606,21 @@
+     if sp is not None: return sp
+     if XUNIT: return IPO[name] if name in IPO else XIPO.get(name)
+     return IPO.get(name) if name.startswith(('P', 'O')) else None
++CONDCLEAN = bool(os.environ.get('RC_CONDCLEAN'))
++GOTO_AT = re.compile(r'goto L([0-9a-f]+);')
++def cspans(s):
++    """the spans (from its opening brace to after its closing one) of each if-block of line s: if (...) { ... }"""
++    out = []
++    for m in re.finditer(r'\bif \(', s):
++        d = 1; j = m.end()
++        while d and j < len(s): c = s[j]; d += (c == '(') - (c == ')'); j += 1
++        k = j
++        while k < len(s) and s[k] == ' ': k += 1
++        if k >= len(s) or s[k] != '{': continue
++        d = 1; e = k + 1
++        while d and e < len(s): c = s[e]; d += (c == '{') - (c == '}'); e += 1
++        out.append((k, e))
++    return out
+ def process(body):
+     nor = 'R[' not in body
+     if nor and PROBE[0] is None: return body
+@@ -642,14 +657,16 @@
+             info.append((cs, w, [lab[g] for g in gotos(s) if g in lab], 'return;' in s))
+         return info
+     def flow(info, xfer):
++        """xfer gives one set for every successor, or (fallthrough set, {goto target line: set})"""
+         din = [set() for _ in range(N)]; dout = [None] * N; work = list(range(N))
+         while work:
+             i = work.pop()
+             o = xfer(i, din[i])
+             if o != dout[i]:
+                 dout[i] = o
+-                for t in info[i][2] + ([i + 1] if i + 1 < N else []):
+-                    if not o <= din[t]: din[t] |= o; work.append(t)
++                fo, go = o if isinstance(o, tuple) else (o, {})
++                for t, ot in [(t, go.get(t, fo)) for t in info[i][2]] + ([(i + 1, fo)] if i + 1 < N else []):
++                    if not ot <= din[t]: din[t] |= ot; work.append(t)
+         return din, dout
+     if len(WR) < 64:
+         # 64-bit pass-through of the registers the function has not written (their R[] still holds the caller's full value: a 64-bit
+@@ -678,21 +695,42 @@
+         for a, b, nm in cs:
+             t = ipo_sets(nm); t = ALLR if t is None else (t[0] | t[1]); touched = t if touched is None else touched & t
+             if 'if (' in s[:a]: touched = set()   # MGS2: a call inside a branch (if (c_) { ...; IRQ_POLL(); goto }, BREAK of a division by zero): the fallthrough path stays dirty
++        if not CONDCLEAN:
++            for p, n, k in ev:
++                if k == 2: d = d - touched
++                elif k == 1: d = d | {n}
++                else: d = d - {n}
++            return d
++        # RC_CONDCLEAN: an RCLD / RCMV inside an if-block (a branch-likely delay slot: if (c) { RCLD(..); goto L; }) cleans only the
++        # paths through that block: the goto edges inside it, not the line's fallthrough (where the register stays dirty, and a call
++        # on that path must get its local in R[] first)
++        sp = cspans(s); d0 = d; d = set(d0)
+         for p, n, k in ev:
+             if k == 2: d = d - touched
+             elif k == 1: d = d | {n}
+-            else: d = d - {n}
+-        return d
++            elif not [x for x in sp if x[0] <= p < x[1]]: d = d - {n}
++        go = {}
++        for g, lb in [(m.start(), m.group(1)) for m in GOTO_AT.finditer(s)]:
++            t = lab.get(lb)
++            if t is None: continue
++            dg = set(d0)
++            for p, n, k in ev:
++                if k == 2: dg = dg - touched
++                elif k == 1: dg = dg | {n}
++                elif p < g and all(x[0] <= g < x[1] for x in sp if x[0] <= p < x[1]): dg = dg - {n}
++            go[t] = go[t] | dg if t in go else dg
++        return (d, go) if go else d
+     din, dout = flow(info, xfer)
+     def xfer_to(i, pos):
+         """the dirty set at position pos of line i"""
+         cs, w, _, _ = info[i]; s = conv[i]; d = din[i]
+         cl = [(m.start(), int(m.group(1))) for m in CLEAN.finditer(s)]
++        sp = cspans(s) if CONDCLEAN else []
+         for p, n, k in sorted([(p, n, 1) for p, n in w] + [(p, n, 0) for p, n in cl] + [(b, None, 2) for a, b, nm in cs]):
+             if p >= pos: break
+             if k == 2: continue          # an earlier call on the same line is an alternative (if / else of the auto-dual sites): conservative
+             elif k == 1: d = d | {n}
+-            else: d = d - {n}
++            elif all(x[0] <= pos < x[1] for x in sp if x[0] <= p < x[1]): d = d - {n}   # (RC_CONDCLEAN: a clean in an if-block only inside it)
+         return d
+     store = lambda ns: ''.join('R[%d] = r%d, ' % (n, n) for n in sorted(ns))
+     fid = fa.group(1) if fa else '0'
+@@ -712,7 +750,7 @@
+         if DSR: req = DSR_IN.get(name, DSR_ANY) if name.startswith(('P', 'O')) else DSR_ANY; d = (d - CALLEE) | (req & set(regs))
+         if t is None: return d
+         return d & (t[0] | (t[1] - (t[4] if len(t) > 4 else set()))) if SOUND else d & t[0]
+-    tail = dout[N - 1] if N else set()
++    tail = (dout[N - 1][0] if isinstance(dout[N - 1], tuple) else dout[N - 1]) if N else set()
+     uncond = lambda i: uncond_line(conv[i], '(r0 == r0)')
+     extra = []
+     for i, s in enumerate(conv):

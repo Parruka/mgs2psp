@@ -1,0 +1,50 @@
+pgo.sh: game 641 s
+794536 gen.gcda
+1752 gen_dispatch.gcda
+pgo: counts zeroed at vb 15000
+pgo: profile written to ms0:/pgo at vb 37790 in 300 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl33/pg/log_game.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)
+pgo.sh: pic 702 s
+1028 ge_fxthin.gcda
+2512 ge_gebatch.gcda
+9216 ge_gelist.gcda
+4012 ge_gelive.gcda
+1460 ge_gsfront.gcda
+14688 ge_gsup2.gcda
+5124 ge_texcache.gcda
+2856 ge_texconv.gcda
+7332 ge_vu1conv.gcda
+13324 ge_xconv.gcda
+8976 ge_xlate.gcda
+260 ge_xlive.gcda
+12244 ge_xlme.gcda
+3736 ge_xme.gcda
+1240 gen_dispatch.gcda
+18524 xl_psp.gcda
+pgo: counts zeroed at vb 15000
+pgo: profile written to ms0:/pgo at vb 37790 in 379 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl33/pg/log_pic.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)
+pgo.sh: rtb 672 s
+134360 boot_rt.gcda
+1240 gen_dispatch.gcda
+pgo: counts zeroed at vb 15000
+pgo: profile written to ms0:/pgo at vb 37790 in 86 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl33/pg/log_rtb.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)
+pgo.sh: w00a 396 s
+1107600 gen_s_w00a.gcda
+pgo: overlay w00a registered at vb 29100 (1 constructors)
+pgo: counts zeroed at vb 29100
+pgo: profile written to ms0:/pgo at vb 31550 in 386 ms (see stderr for libgcov errors)
+pgo: overlay w01a loaded after w00a was registered: no profile will be written
+/home/claude/main/build_gl33/pg/log_w00a.txt: 63 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 63 reference lines (0 with vuh): 0 differ; 622 reference lines not in the log (first 100, last 37800)
+pgo.sh: w01a 480 s
+1435648 gen_s_w01a.gcda
+pgo: overlay w01a registered at vb 31600 (1 constructors)
+pgo: counts zeroed at vb 31600
+pgo: profile written to ms0:/pgo at vb 37790 in 482 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl33/pg/log_w01a.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)

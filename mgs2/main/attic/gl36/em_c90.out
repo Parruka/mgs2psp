@@ -1,0 +1,7 @@
+em36.sh: STOPPED
+em36.sh: c90 5 s
+em36.sh: pictures 0
+em36.sh: split dumps in the game folder: 0
+/home/claude/main/build_gl36/emu_c90/log.txt: 0 hash lines, 0 vuh lines; reference /home/claude/main/build_gl36/pk_c/hashref.txt: 685 lines
+compared 0 reference lines (0 with vuh): 0 differ; 685 reference lines not in the log (first 100, last 37800)
+refcmp rc 1

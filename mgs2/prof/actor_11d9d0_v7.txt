@@ -1,0 +1,68 @@
+# total 29883932 imiss 326347 dmiss 368717 dacc 10154279 fa_imiss 0
+per step (100 steps): 0.30 M instructions, 3.3 k I-miss, 3.7 k D-miss; estimate 3.5 ms at 333 MHz (instructions alone 0.9 ms)
+
+by group:
+  other runtime                 0.24 M instr    2.3 k imiss    2.4 k dmiss    2.50 ms  71.2%
+  IOP / SIF / sound             0.03 M instr    0.4 k imiss    0.6 k dmiss    0.46 ms  13.2%
+  libc / libgcc                 0.02 M instr    0.2 k imiss    0.3 k dmiss    0.28 ms   7.9%
+  kernel / poll / syscalls      0.01 M instr    0.1 k imiss    0.2 k dmiss    0.16 ms   4.5%
+  game code (ELF)               0.01 M instr    0.2 k imiss    0.1 k dmiss    0.11 ms   3.1%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+render_block                             76.0    0.19    0.61    0.53  15.0%
+enter_block                              24.0    0.02    0.28    0.19   5.3%
+rt_syscall                                2.5    0.04    0.28    0.13   3.7%
+sif_iop_run                               4.7    0.04    0.26    0.13   3.7%
+memset                                    6.1    0.05    0.25    0.13   3.6%
+F_00049cc0                               12.8    0.11    0.12    0.12   3.5%
+F_0004dd04                               11.7    0.09    0.10    0.11   3.1%
+pick                                      3.6    0.01    0.21    0.09   2.6%
+F_0004bda0                                7.0    0.12    0.06    0.09   2.6%
+F_000433d0                                9.2    0.06    0.10    0.09   2.5%
+F_0004b388                                4.4    0.12    0.06    0.08   2.2%
+iop_rt_advance_us                         2.7    0.02    0.16    0.08   2.2%
+__udivdi3                                10.9    0.08    0.02    0.07   2.0%
+F_000444cc                                4.1    0.11    0.04    0.07   1.9%
+F_0004501c                                6.5    0.06    0.06    0.06   1.8%
+F_000537c4                                1.8    0.11    0.02    0.06   1.6%
+sif_ee_deliver                            7.3    0.05    0.01    0.05   1.3%
+ee_copy_from                             12.3    0.00    0.02    0.04   1.2%
+k_vblank_hook                             1.2    0.05    0.05    0.04   1.2%
+F_00040000                                1.1    0.06    0.04    0.04   1.1%
+F_0004bb2c                                3.7    0.04    0.04    0.04   1.1%
+F_00010544                                1.1    0.08    0.01    0.04   1.1%
+iop_rt_call_handler                       0.7    0.02    0.06    0.03   1.0%
+memcpy                                    1.2    0.03    0.04    0.03   0.9%
+F_00040788                                0.5    0.03    0.05    0.03   0.8%
+sd_set_param                              4.4    0.02    0.02    0.03   0.8%
+F_00044ee4                                0.9    0.06    0.01    0.03   0.8%
+rt_mm                                     7.9    0.01    0.01    0.03   0.8%
+op_set_param                              1.8    0.02    0.04    0.03   0.8%
+F_00052210                                3.7    0.03    0.02    0.03   0.8%
+
+most called (calls per step):
+  enter_block                                890
+  __udivdi3                                  180
+  iop_arg                                    179
+  rt_mm                                      153
+  io_timer_count                             152
+  env_params.isra.0                          136
+  sd_set_param                                80
+  op_set_param                                80
+  F_000433d0                                  68
+  F_00045e14                                  68
+  F_0004547c                                  68
+  F_00052210                                  48
+  F_0004501c                                  42
+  memset                                      42
+  F_0004bb2c                                  28
+  F_00049a60                                  26
+  F_000440c4                                  26
+  F_0004570c                                  26
+  F_00044340                                  26
+  F_00045824                                  26
+  F_00044ee4                                  26
+  F_00045618                                  26
+  F_0004b388                                  26
+  F_000444cc                                  25
+  gen_mm                                      22

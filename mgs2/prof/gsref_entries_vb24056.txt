@@ -1,0 +1,19 @@
+entry          calls    prims     pixels   px%  top states (prims)
+P04+25f0         151      808    2237363  40.0  trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd ates x245; trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest x229; tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd at x130
+P04+3740         172     2260    1707464  30.5  sprite flat fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd ate x1355; sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5 x442; sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/ x271
+P04+df0         1462    17422     733584  13.1  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x17109; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd x160; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a x137
+ram 202390         1       60     716706  12.8  sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 5/4 x34; sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 0/4 x10; linestrip flat ctx0 fb 0/80 z 31/180 always/write x8
+P04+780           83     1197      79834   1.4  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x1175; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+C x22
+P04+3a38          40       96      76552   1.4  trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/ x52; tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest x44
+P04+2b60          32      742      23957   0.4  linestrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd at x667; line gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5 x75
+P06+358           58     1782      10678   0.2  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x708; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a x527; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd a x527
+P06+0            153     5057      10388   0.2  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x2294; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a x1353; tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd a x1353
+ram 202008       415      823       1814   0.0  line flat ctx0 fb 0/80 z 31/180 gequal/write x823
+P04+a70           21      172        351   0.0  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x160; trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at x12
+P01+0              3        0          0   0.0  
+P01+48             3       26          0   0.0  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x26
+P04+1088           7       22          0   0.0  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x16; trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at x6
+P04+2870          96        0          0   0.0  
+P09+0            168     2046          0   0.0  tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd x1560; trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at x486
+ram 201f78         1        1          0   0.0  line flat ctx0 fb 0/80 z 31/180 gequal/write x1
+ram 202170         1       12          0   0.0  line flat ctx0 fb 0/80 z 31/180 gequal/write x12

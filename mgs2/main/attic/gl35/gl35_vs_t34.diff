@@ -1,0 +1,693 @@
+diff -ru t34/boot/nat_stub.h t35/boot/nat_stub.h
+--- t34/boot/nat_stub.h	2026-11-21 11:28:19.188843794 +0000
++++ t35/boot/nat_stub.h	2026-11-21 17:30:41.413070576 +0000
+@@ -48,6 +48,13 @@
+    MGS2_NAT_FAST_CYCLE=<a>,<b>,... by MGS2_OPT_CYCLE's turns (as MGS2_NAT_CYCLE): 1: every group arm 3 records is flagged, and the
+    picture's walk hands it to the fast front end.  0 (the default): gl33's path.  g_nat_fst: groups flagged */
+ int g_nat_fast; long g_nat_fst;
++/* gl35, the keeps for fast native groups (ge/natsnap.h NATG_KEEP; ge/xlate.h xl_p04_fast; attic/gl35/keep_design.txt).  MGS2_NAT_KEEP=<bits>
++   for the whole run, MGS2_NAT_KEEP_CYCLE=<bits>,<bits>,... by the same turns: 1 the drawn areas, 2 the A+D packet, 4 the texture of the
++   groups' own look-ups, 8 the texture of every look-up.  MGS2_NAT_KCHK=1: the check mode (the kept steps run in full and are compared).
++   g_nat_kpt: groups flagged with any bit */
++int g_nat_keep; long g_nat_kpt;
++static int nat_keep_all, nat_keep_ncyc; static uint8_t nat_keep_cyc[32];
++extern int xl_keep_chk;
+ static int nat_fast_all, nat_fast_ncyc; static uint8_t nat_fast_cyc[32];
+ static uint32_t nat_seq_seen;
+ #ifndef __psp__
+@@ -85,6 +92,15 @@
+     char *p = (char *)e;
+     while (nat_fast_ncyc < 32 && *p) { nat_fast_cyc[nat_fast_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
+     if (nat_fast_ncyc && !nat_ncyc && !nat_inpl_ncyc) { nat_from = f; nat_turn = n; } }
++  nat_keep_all = (e = getenv("MGS2_NAT_KEEP")) ? atoi(e) & 15 : 0;
++  if ((e = getenv("MGS2_NAT_KEEP_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++    char *p = (char *)e;
++    while (nat_keep_ncyc < 32 && *p) { nat_keep_cyc[nat_keep_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 15); if (*p != ',') break; p++; }
++    if (nat_keep_ncyc && !nat_ncyc && !nat_inpl_ncyc && !nat_fast_ncyc) { nat_from = f; nat_turn = n; } }
++  xl_keep_chk = (e = getenv("MGS2_NAT_KCHK")) ? atoi(e) & 1 : 0;
++  if (g_nat_cfg) fprintf(stderr, "nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP %d, MGS2_NAT_KEEP_CYCLE %s (bits: 1 drawn areas, 2 A+D "
++                         "packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns), MGS2_NAT_KCHK %d\n",
++                         nat_keep_all, nat_keep_ncyc ? getenv("MGS2_NAT_KEEP_CYCLE") : "none", xl_keep_chk);
+   if (g_nat_cfg) fprintf(stderr, "nat: gl34 fast native front end: MGS2_NAT_FAST %d, MGS2_NAT_FAST_CYCLE %s (1: arm 3's groups go to the "
+                          "translator's fast front end; by the same turns)\n", nat_fast_all, nat_fast_ncyc ? getenv("MGS2_NAT_FAST_CYCLE") : "none");
+ #ifndef __psp__
+@@ -111,6 +127,12 @@
+   if (nat_inpl_ncyc && vb > nat_from) return nat_inpl_cyc[((vb - nat_from - 1) / nat_turn) % nat_inpl_ncyc];
+   return nat_inpl_all;
+ }
++int rt_nat_keep_at(long vb)   /* gl35: the keep bits at vblank vb */
++{
++  if (nat_set < 0) nat_setup();
++  if (nat_keep_ncyc && vb > nat_from) return nat_keep_cyc[((vb - nat_from - 1) / nat_turn) % nat_keep_ncyc];
++  return nat_keep_all;
++}
+ int rt_nat_fast_at(long vb)   /* gl34: the fast front end's switch at vblank vb */
+ {
+   if (nat_set < 0) nat_setup();
+@@ -127,7 +149,7 @@
+ {
+   uint32_t mesh, desc, qwc, cap, dest, end, d, blk, fog, clip, pre, cur[3], key = 0, vq = 0, kq; int32_t ng; int b, arm, i, r30, stub; NatBuf *s; NatGrp *g;
+   static NatGrp tmp;
+-  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); }
++  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); g_nat_keep = rt_nat_keep_at(k_vblanks); }
+   arm = g_nat_arm;
+   if (arm <= 0) return 0;
+   if (arm == 4) { g_nat_c[NC_STUBC]++; return 1; }
+@@ -179,7 +201,8 @@
+       for (k = 0; k < 3; k++) { uint32_t a = g->s[k] & (GUEST_SIZE - 1); if ((g->s[k] >> 28) || (a >= NAT_PKT0 && a < NAT_PKT1)) break; }
+       if (k == 3) { g->flags |= NATG_INPL; g_nat_stc++; }
+     }
+-    if (stub && g_nat_fast) { g->flags |= NATG_FAST; g_nat_fst++; }   /* gl34 */
++    if (stub && g_nat_fast) { g->flags |= NATG_FAST; g_nat_fst++;   /* gl34 */
++      if (g_nat_keep) { g->flags |= (uint8_t)(g_nat_keep << 4); g_nat_kpt++; } }   /* gl35 */
+     if (stub) g->key = key;
+ #ifndef __psp__
+     else {   /* shadow: the group's own packet address, as the builder places it */
+diff -ru t34/boot/nat_x86.c t35/boot/nat_x86.c
+--- t34/boot/nat_x86.c	2026-11-21 12:09:47.481166187 +0000
++++ t35/boot/nat_x86.c	2026-11-21 17:31:15.198358977 +0000
+@@ -28,6 +28,7 @@
+    vblanks with groups drawn, and "natst:" at the exit. ---- */
+ extern long g_nat_stc;
+ extern long g_nat_fst, xl_nf_n[8], lw_nh_n[3]; int rt_nat_fast_at(long vb);   /* gl34 */
++extern long g_nat_kpt, xl_nk_n[16]; int rt_nat_keep_at(long vb);   /* gl35 */
+ #include "../ge/vu1conv.h"
+ static long ninp_vb0 = -1, ninp_st0, ninp_drawn, ninp_drawn0;
+ typedef struct { uint32_t s[3]; uint8_t n[3], bad; long vb; uint64_t h; uint32_t seq; } StE;
+@@ -96,6 +97,12 @@
+             g_nat_fst - f0, xl_nf_n[0] - n0[0], xl_nf_n[1] - n0[1], xl_nf_n[2] - n0[2], xl_nf_n[3] - n0[3], xl_nf_n[4] - n0[4], xl_nf_n[5] - n0[5],
+             xl_nf_n[6] - n0[6], xl_nf_n[7] - n0[7], vc_km_n[0] - k0[0], vc_km_n[1] - k0[1], vc_km_n[2] - k0[2], vc_km_n[3] - k0[3]);
+     f0 = g_nat_fst; for (int k = 0; k < 8; k++) n0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) k0[k] = vc_km_n[k]; }
++  { static long f0, n0[9];   /* gl35 */
++    fprintf(stderr, "natkeep: vb %ld-%ld%s arm %d keep %d turn %ld: groups flagged %ld; drawn areas replayed %ld, checked %ld, differing %ld; textures "
++            "replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n", ninp_vb0, vb, last ? " (exit)" : "", arm,
++            rt_nat_keep_at(ninp_vb0 + 1), turn, g_nat_kpt - f0, xl_nk_n[0] - n0[0], xl_nk_n[1] - n0[1], xl_nk_n[2] - n0[2], xl_nk_n[3] - n0[3], xl_nk_n[4] - n0[4],
++            xl_nk_n[5] - n0[5], xl_nk_n[6] - n0[6], xl_nk_n[7] - n0[7], xl_nk_n[8] - n0[8]);
++    f0 = g_nat_kpt; for (int k = 0; k < 9; k++) n0[k] = xl_nk_n[k]; }
+ }
+ static void nat_report(void);
+ static void nat_xfer(uint32_t tadr)
+@@ -195,6 +202,8 @@
+   if (g_nat_cfg) fprintf(stderr, "natinpl: totals: groups flagged static %ld (drawn %ld)\n", g_nat_stc, ninp_drawn);
+   if (g_nat_cfg) fprintf(stderr, "natfast: totals: groups flagged %ld; taken %ld, declined %ld %ld %ld %ld %ld %ld %ld; transforms taken %ld, kept %ld, checked %ld, DIFFERING %ld\n",
+                          g_nat_fst, xl_nf_n[0], xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], vc_km_n[2], vc_km_n[3]);
++  if (g_nat_cfg) fprintf(stderr, "natkeep: totals: groups flagged %ld; drawn areas replayed %ld, checked %ld, DIFFERING %ld; textures replayed %ld, checked %ld, DIFFERING %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n",
++                         g_nat_kpt, xl_nk_n[0], xl_nk_n[1], xl_nk_n[2], xl_nk_n[3], xl_nk_n[4], xl_nk_n[5], xl_nk_n[6], xl_nk_n[7], xl_nk_n[8]);
+   if (g_nat_cfg) fprintf(stderr, "natfast: totals: pointers by their own hints (MGS2_NAT_LW=2's views) %ld, checked %ld, DIFFERING %ld\n", lw_nh_n[0], lw_nh_n[2], lw_nh_n[1]);
+   if (st_win > 0) {
+     fprintf(stderr, "natst: static groups drawn %ld, each hashed again at every vblank's start for %ld vblanks: CHANGED %ld; by the vblanks since the draw:",
+diff -ru t34/ge/gelive.c t35/ge/gelive.c
+--- t34/ge/gelive.c	2026-11-21 11:27:18.399450493 +0000
++++ t35/ge/gelive.c	2026-11-21 17:29:57.226574823 +0000
+@@ -53,7 +53,23 @@
+     f->n.tex_memo++;
+     if (!f->memo_check) { *xt = f->memo.xt; return f->memo.ti; }
+   }
+-  TkTex k; int kind = tk_get_um(f->tk, gr, ctxt, cl, &k);   /* sb9: through the memo by uploads (OPT2_TX_UMEMO; off: tk_get_cl, as gl12) */
++  /* gl35, the texture kept by material (texcache.h tk_keep_ok; attic/gl35/keep_design.txt K3): a look-up with a record's TEX0, CLAMP and
++     TEXA that would take the cache's pure path to the record's entries again is replayed; the rest of this function is the same */
++  TkTex k; int kind = 0, kept = 0, kchk = 0; GlKeep *kr = 0;
++  if (((xl_keep_bits & 8) || ((xl_keep_bits & 4) && xl_keep_nf)) && !f->memo_check) {
++    kr = &f->kr[(uint32_t)(t0 ^ t0 >> 37 ^ cl * 0x9e3779b1u) & (GL_KEEP_N - 1)];
++    if (kr->k.ok && kr->t0 == t0 && kr->cl == cl && kr->texa == texa && tk_keep_ok(f->tk, &kr->k, t0)) {
++      if (xl_keep_chk) kchk = 1; else { tk_keep_again(f->tk, &kr->k, t0, &k); kind = TK_TEX; kept = 1; xl_nk_n[3]++; }
++    }
++  }
++  if (!kept) kind = tk_get_um(f->tk, gr, ctxt, cl, &k);
++  if (kr && !kept) {   /* the record of this look-up (none unless it took the pure path); the check mode: the kept one against it */
++    const TkKeep *L = tk_keep_last(f->tk);
++    if (kchk) { const TkKeep *K = &kr->k; xl_nk_n[4]++;
++      if (kind != TK_TEX || !L->ok || L->g != K->g || L->t != K->t || L->pid_in != K->pid_in || L->pid != K->pid || L->ufgen != K->ufgen || L->kgen != K->kgen
++          || L->fs != K->fs || L->i != K->i || L->j != K->j || L->w != K->w) xl_nk_n[5]++; }
++    if (kind == TK_TEX && L->ok) { if (!kchk) xl_nk_n[6]++; kr->k = *L; kr->t0 = t0; kr->cl = cl; kr->texa = texa; } else kr->k.ok = 0;
++  }   /* sb9: through the memo by uploads (OPT2_TX_UMEMO; off: tk_get_cl, as gl12) */
+   if (kind != TK_TEX) {
+     if (kind == TK_RT) f->n.tex_rt++; else if (kind == TK_LOST) f->n.tex_lost++; else f->n.tex_unsup++;
+     if (f->memo_check && f->memo.valid && f->memo.t0 == t0 && f->memo.cl == cl && f->memo.texa == texa && f->memo.gen == gen) f->memo_bad++;
+diff -ru t34/ge/gelive.h t35/ge/gelive.h
+--- t34/ge/gelive.h	2026-11-21 02:56:27.577078170 +0000
++++ t35/ge/gelive.h	2026-11-21 17:29:57.227279886 +0000
+@@ -20,6 +20,8 @@
+ #define GL_XCAP 226560u   /* the most data one converter call writes (ge/xconv.c: P04+25f0 with 1,024 vertices and 8,192 polygon vertices) */
+ #define GL_HASH 1024      /* the frame's texture table: slots of its hash (a power of two) */
+ 
++#define GL_KEEP_N 128
++typedef struct { uint64_t t0, cl, texa; TkKeep k; } GlKeep;   /* gl35 */
+ typedef struct {
+   long frames;
+   long prims, prims_tex, uncertain, path1;    /* front-end primitives: taken (of those textured); left out: an input written by code
+@@ -51,6 +53,7 @@
+   int16_t hash[GL_HASH];            /* tkey -> texture index in this frame, -1: none */
+   TkCache *tk; GuMap *map;
+   XcHost h;
++  GlKeep kr[GL_KEEP_N];             /* gl35: the textures kept by material (gl_tex; texcache.h tk_keep_ok) */
+   int memo_on, memo_check;          /* 1: a lookup with the last one's TEX0, CLAMP and TEXA and no texture source changed since takes its
+                                        answer; memo_check: the texture path asked as well and the answers compared (memo_bad) */
+   struct { uint64_t t0, cl, texa; long gen; uint32_t fbp; int ti, valid; XcTex xt; } memo;
+diff -ru t34/ge/gsup.h t35/ge/gsup.h
+--- t34/ge/gsup.h	2026-11-21 02:56:27.577165109 +0000
++++ t35/ge/gsup.h	2026-11-21 17:28:52.582509979 +0000
+@@ -45,6 +45,16 @@
+    frame or depth format psm (CT32, CT24, CT16, CT16S, Z32, Z24, Z16, Z16S; the Z formats as the GS lays them out), bits: the bits of
+    a pixel it writes (~FBMSK; ~0 for depth).  An area marked before is marked again only when a transfer wrote into it since. */
+ void gu_drawn(GuMap *m, int psm, uint32_t bp, uint32_t bw, uint32_t bits, int x0, int y0, int x1, int y1);
++/* gl35 (gsup2.c only), the drawn areas kept for consecutive native groups (attic/gl35/keep_design.txt K1).  gu_drawn's first return
++   ("one of the last two calls again, its area not written since") does only this: the area's stamp and the counter.  The map keeps a
++   generation, gu_dgen, that moves whenever anything that return reads may change (the two last calls, an area's dirty flag, a transfer
++   waiting to go in).  gu_keep_mark: start counting gu_drawn's calls, returns the generation.  gu_keep_got: after the calls: their
++   number (1 or 2) and areas when every one took that return and the generation is still gen, else 0.  gu_drawn_again: those n calls
++   again, exactly (only while gu_dgen is the generation gu_keep_got was given and the calls' arguments are the same) */
++uint32_t gu_keep_mark(GuMap *m);
++uint32_t gu_dgen(const GuMap *m);
++int gu_keep_got(const GuMap *m, uint32_t gen, int16_t k[2]);
++void gu_drawn_again(GuMap *m, int n, const int16_t *k);
+ /* the CLUT buffer as the GS reads it for CPSM cpsm: CT32 / CT24 entry k (0..255) as 32 bits; CT16 / CT16S half k (0..511) as 16 bits;
+    -1: not known */
+ int64_t gu_clut(const GuMap *m, int cpsm, int k);
+diff -ru t34/ge/gsup2.c t35/ge/gsup2.c
+--- t34/ge/gsup2.c	2026-11-21 02:56:27.577183314 +0000
++++ t35/ge/gsup2.c	2026-11-21 17:28:52.581972012 +0000
+@@ -163,6 +163,9 @@
+ 
+   int dt_hit[2]; uint32_t dt_clock;   /* the two drawn areas found last; a clock for the least recently drawn */
+   DlE dl[2];                   /* gu_drawn's last two calls with an area, as given, and the area (-1: none) */
++  /* gl35 (gsup.h gu_keep_mark): dgen moves whenever anything gu_drawn's kept return reads may change (dl[], an area's dirty flag,
++     settle's condition); dcn / dkn: gu_drawn's calls and kept returns since the mark, dkl: the kept returns' areas */
++  uint32_t dgen; int dcn, dkn; int16_t dkl[2];
+   int keys, zero_empty;
+   struct GuSrc *srct; uint32_t nsrc, capsrc;
+   int ldid; uint32_t itclk; ItE it[IT_N];   /* sb9 0b: gu_ld_ident's mode, a clock for the table's uses and the loads kept by identity */
+@@ -488,7 +491,7 @@
+ #ifdef GU_DEVCNT
+     if (e->dirty) DC.dtm_already++; else DC.dtm_set++;
+ #endif
+-    e->dirty = 1; m->dtm[bn] &= (uint16_t)~(1u << k);
++    e->dirty = 1; m->dgen++; m->dtm[bn] &= (uint16_t)~(1u << k);
+     if (e->ntl < TL_N) e->tl[e->ntl++] = (uint16_t)bn; else e->over = 1;
+   }
+ }
+@@ -576,6 +579,7 @@
+ {
+   Rec *x = &m->r[xi];
+   if (x->in) return;
++  m->dgen++;   /* gl35 */
+   if (x->got < x->need && !x->bad) m->st.early++;
+   x->in = 1; m->seq++; DC_(commits);
+   cover(m, xi);
+@@ -926,6 +930,7 @@
+ }
+ void gu_trxdir(GuMap *m, const uint64_t *gr)
+ {
++  m->dgen++;   /* gl35 */
+   uint64_t b = gr[0x50], p = gr[0x51], r = gr[0x52]; int dir = (int)(gr[0x53] & 3), w = (int)(r & 0xfff), h = (int)(r >> 32 & 0xfff);
+   if (m->cur >= 0) {   /* the transfer before ends; one whose data did not all come goes into the blocks as gsup.c holds it */
+     commit(m, m->cur);
+@@ -979,6 +984,7 @@
+ }
+ void gu_image(GuMap *m, uint32_t ee, uint32_t n)
+ {
++  m->dgen++;   /* gl35 */
+   if (m->cur < 0) { m->st.image_orphan++; return; }
+   Rec *x = &m->r[m->cur];
+   if (x->got >= x->need) { m->st.image_orphan++; return; }
+@@ -997,6 +1003,7 @@
+ }
+ void gu_image_run(GuMap *m, uint32_t ee, uint32_t n)
+ {
++  m->dgen++;   /* gl35 */
+   while (n) {
+     if (m->cur < 0 || m->r[m->cur].got >= m->r[m->cur].need) { m->st.image_orphan += n / 16; return; }
+     const Rec *x = &m->r[m->cur]; uint32_t k = (x->need - x->got + 15) & ~15u;
+@@ -1044,15 +1051,18 @@
+ void gu_drawn(GuMap *m, int psm, uint32_t bp, uint32_t bw, uint32_t bits, int x0, int y0, int x1, int y1)
+ {
+   uint32_t lanes; int ax0 = x0, ay0 = y0, ax1 = x1, ay1 = y1;
+-  DC_(drawn_calls);
++  DC_(drawn_calls); m->dcn++;
+   for (int j = 0; j < 2; j++) {   /* one of the last two calls again (a frame and a depth buffer): its area, unless a write went into it since */
+     const DlE *d = &m->dl[j];
+     if (d->k < 0 || d->bp != bp || d->psm != psm || d->x0 != x0 || d->y0 != y0 || d->x1 != x1 || d->y1 != y1 || d->bw != bw || d->bits != bits) continue;
+     settle(m);
+     DtE *e = &m->dt[d->k];
+-    if (!e->dirty) { m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); e->last = ++m->dt_clock; return; }
++    if (!e->dirty) { m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); e->last = ++m->dt_clock;
++      if (m->dkn < 2) m->dkl[m->dkn] = (int16_t)d->k;   /* gl35 */
++      m->dkn++; return; }
+     break;
+   }
++  m->dgen++;   /* gl35: past the kept return */
+   switch (psm) {
+     case GS_CT32: case GS_Z32: lanes = (bits & 0xffffffu ? 1 : 0) | (bits & 0x0f000000u ? 2 : 0) | (bits & 0xf0000000u ? 4 : 0); break;
+     case GS_CT24: case GS_Z24: lanes = bits & 0xffffffu ? 1 : 0; break;
+@@ -1128,6 +1138,18 @@
+ }
+ static int clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32);
+ /* ---- sb9 step 0b (stagec_notes.md 0.4): CLUT loads kept by identity ---- */
++/* gl35, the drawn areas kept for native groups (gsup.h) */
++uint32_t gu_keep_mark(GuMap *m) { m->dcn = m->dkn = 0; return m->dgen; }
++uint32_t gu_dgen(const GuMap *m) { return m->dgen; }
++int gu_keep_got(const GuMap *m, uint32_t gen, int16_t k[2])
++{
++  if (m->dgen != gen || m->dcn != m->dkn || m->dcn < 1 || m->dcn > 2) return 0;
++  k[0] = m->dkl[0]; k[1] = m->dkl[1]; return m->dcn;
++}
++void gu_drawn_again(GuMap *m, int n, const int16_t *k)
++{
++  for (int i = 0; i < n; i++) { DC_(drawn_calls); m->dcn++; m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); m->dt[k[i]].last = ++m->dt_clock; m->dkn++; }
++}
+ void gu_ld_ident(GuMap *m, int mode) { if (mode != m->ldid) { m->ldid = mode; for (int k = 0; k < IT_N; k++) { m->it[k].li = -1; m->it[k].use = 0; } } }
+ /* the identity of the records the blocks of load L hold now (L's blocks are those of any load with its parameters): 0, with *sig and each
+    block's and lane group's record identity in v (0: empty), when each state is empty or one plain final record (as gu_pages_sig); else 1 */
+diff -ru t34/ge/lw_lanes.h t35/ge/lw_lanes.h
+--- t34/ge/lw_lanes.h	2026-11-21 02:56:27.577350707 +0000
++++ t35/ge/lw_lanes.h	2026-11-21 17:41:21.598131042 +0000
+@@ -83,7 +83,7 @@
+    starts one, each handed to the translator (xl_lane_p07: one call each); afterwards the walk's state is what the generic walk leaves
+    (STCYCL 1 / 1, no data left, the last command the MSCAL) and *next the tag after the last slot taken; 0: no slot here, or the
+    translator declines the first */
+-static inline int lw_p07(const uint32_t *t, uint32_t tadr, LwLoc *s, uint32_t *next)
++static inline __attribute__((always_inline)) int lw_p07(const uint32_t *t, uint32_t tadr, LwLoc *s, uint32_t *next)   /* gl35: pinned in line of xm_walk (as gl33) */
+ {
+   int ns = 0;
+ #ifndef __psp__
+diff -ru t34/ge/natp04.h t35/ge/natp04.h
+--- t34/ge/natp04.h	2026-11-21 12:08:57.676608735 +0000
++++ t35/ge/natp04.h	2026-11-21 17:30:41.413287344 +0000
+@@ -47,7 +47,7 @@
+       if (!(x.dp[j] = NATP_PF(ad[j], n, 2 + k))) return NATP_BAD_PTR; }
+     else { x.unp[j] = 0; x.qwc[j] = 0; x.dp[j] = 0; ad[j] = 0; all = 0; }   /* not sent: CNT 0, the slot's STCYCL and a NOP */
+   }
+-  x.hunp = NATT_HDR; x.mscal = g->mscal; x.hdr = g->hdr; x.tadr = key; x.q0 = q0;
++  x.hunp = NATT_HDR; x.mscal = g->mscal; x.hdr = g->hdr; x.tadr = key; x.q0 = q0; x.keep = g->flags >> 4;
+   if (all && (g->flags & NATG_FAST) && xl_p04_fast(&x)) return NATP_CORE;   /* gl34: the fast front end (0: not its form) */
+   if (all && xl_p04_core(&x)) return NATP_CORE;   /* lane 1's case: every slot a REF (runtime/ee_io.h lane_p04's tests hold by construction) */
+   /* the generic walk's order: each tag's TTE words, then its data (a REF's where it lies; the CNT's: the header, MSCAL and three NOPs) */
+diff -ru t34/ge/natsnap.h t35/ge/natsnap.h
+--- t34/ge/natsnap.h	2026-11-21 11:24:48.894392195 +0000
++++ t35/ge/natsnap.h	2026-11-21 17:41:21.596745177 +0000
+@@ -23,10 +23,12 @@
+        NATG_INPL = 4,            /* gl33 (boot/nat_stub.h's rule; MGS2_NAT_INPL): a static group, the P04+df0 entry with its three streams sent
+                                     from outside packet memory: the main CPU's copy plan leaves the three streams in RAM, where the ME's
+                                     walk reads them (ge/xlme.c xc_nat) */
+-       NATG_FAST = 8 };          /* gl34 (MGS2_NAT_FAST, MGS2_NAT_FAST_CYCLE; boot/nat_stub.h flags every group of a pipeline call in a
++       NATG_FAST = 8,            /* gl34 (MGS2_NAT_FAST, MGS2_NAT_FAST_CYCLE; boot/nat_stub.h flags every group of a pipeline call in a
+                                     fast turn): the walk hands the group to the translator's fast front end (ge/xlate.h xl_p04_fast),
+                                     which leaves the same translator state and makes the same converter call as xl_p04_core, or
+                                     declines (then xl_p04_core takes it as always) */
++       NATG_KEEP = 0xf0 };       /* gl35 (MGS2_NAT_KEEP, MGS2_NAT_KEEP_CYCLE; fast groups only): flags >> 4 = the keep bits of the turn the
++                                    group was recorded in (ge/xlate.h xl_p04_fast: 1 drawn areas, 2 A+D packet, 4 / 8 texture) */
+ #define NAT_DF0_MSCAL 0x140001beu   /* gl33: MSCAL to P04+0xdf0 (pc 0x1be), the plain textured entry */
+ typedef struct {                 /* 48 B */
+   uint32_t key;                  /* the order key: the RAM address (as the packet control holds it) of the next packet item at the call
+diff -ru t34/ge/texcache.c t35/ge/texcache.c
+--- t34/ge/texcache.c	2026-11-21 02:56:27.577452563 +0000
++++ t35/ge/texcache.c	2026-11-21 17:29:38.648109666 +0000
+@@ -30,6 +30,7 @@
+   int um;                                  /* sb9 tk_umemo */
+   struct UgE *ug; struct UtE *ut; uint32_t uclk;   /* sb9 0a: the G and T tables (made at the first look-up with the memo on); a clock
+                                                        for their uses (the least recently used way goes) */
++  uint32_t kgen; TkKeep kl; uint64_t kpid;   /* gl35 (texcache.h tk_keep_ok): the generation, the last look-up's record, um_hit's palette identity */
+   int uf; struct UfE *ufe; uint8_t ufm[16];        /* sb10 T1 tk_ufront: the memo's front (made with G and T), each set's most recent way */
+ };
+ #define TK_NIL 0xffffffffu
+@@ -56,9 +57,9 @@
+   free(c->e); free(c->bucket); free(c->ug); free(c->ut); free(c->ufe); free(c);
+ }
+ const TkStats *tk_stats(const TkCache *c) { return &c->st; }
+-void tk_blk(TkCache *c, int mode) { c->blk = mode; }
+-void tk_flags(TkCache *c, int on) { c->flags = on; }
+-void tk_t16(TkCache *c, int on) { c->t16 = on; }
++void tk_blk(TkCache *c, int mode) { c->blk = mode; c->kgen++; }
++void tk_flags(TkCache *c, int on) { c->flags = on; c->kgen++; }
++void tk_t16(TkCache *c, int on) { c->t16 = on; c->kgen++; }
+ int tk_t16_on(const TkCache *c) { return c->t16; }
+ 
+ /* ---- tk_pool: a free run's first 8 bytes hold the next run's unit and its own length in units ---- */
+@@ -66,6 +67,7 @@
+ static Run *run_at(TkCache *c, uint32_t u) { return (Run *)(c->pool + (size_t)u * 64); }
+ int tk_pool(TkCache *c, void *mem, uint32_t size)
+ {
++  c->kgen++;   /* gl35 */
+   uintptr_t a = ((uintptr_t)mem + 63) & ~(uintptr_t)63; uint32_t skip = (uint32_t)(a - (uintptr_t)mem);
+   if (!mem || size < skip + 64 || c->cap) return -1;
+   c->pool = (uint8_t *)a; c->punits = (size - skip) / 64; c->pfree = 0;
+@@ -115,6 +117,7 @@
+ static void drop(TkCache *c, int i)
+ {
+   Ent *e = &c->e[i]; int *p = &c->bucket[e->id & (c->nbucket - 1)];
++  c->kgen++;   /* gl35 */
+   while (*p != i) p = &c->e[*p].hnext;
+   *p = e->hnext;
+   lru_unlink(c, i);
+@@ -169,6 +172,7 @@
+ }
+ static int insert(TkCache *c, uint64_t id, int pal, uint8_t *data, uint32_t size)
+ {
++  c->kgen++;   /* gl35 */
+   make_room(c, size);
+   if (c->freel < 0) {
+     int n = c->cap ? 2 * c->cap : 256; Ent *q = grow_table(c, n); if (!q) return -1;
+@@ -250,6 +254,15 @@
+ /* the palette of texture entry i, *pidp the CLUT identity (gu_clut_id), which becomes the palette's: its entry, found (the entry hint first,
+    taken only when it holds that key: keys are unique in the cache) or made, after which the texture's lowest alpha is worked out again if
+    it was for another palette; -1 when it cannot be made (counted unsup) */
++static inline void pal_ma(TkCache *c, int i, int j, int n, uint64_t pid)   /* (gl35: apart, tk_keep_again does the same) */
++{
++  Ent *e = &c->e[i];
++  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
++    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
++    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
++    e->ma = m; e->ma_pid = pid;
++  }
++}
+ static int tk_pal(TkCache *c, int i, uint64_t *pidp, int n, int csa, int cpsm, uint64_t texa, int hint, int *conv)
+ {
+   c->st.pal_uses++;
+@@ -265,17 +278,13 @@
+     c->e[j].npal = n; c->st.pal_misses++; c->st.unknown += unk; *conv = 1;
+   } else c->st.pal_hits++;
+   touch(c, j);
+-  Ent *e = &c->e[i];
+-  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
+-    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
+-    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
+-    e->ma = m; e->ma_pid = pid;
+-  }
++  pal_ma(c, i, j, n, pid);
+   return j;
+ }
+ int tk_get(TkCache *c, const uint64_t *gr, int ctxt, TkTex *o) { return tk_get_cl(c, gr, ctxt, gr[0x08 + ctxt], o); }
+ int tk_get_cl(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
+ {
++  c->kgen++; c->kl.ok = 0;   /* gl35 */
+   uint64_t t0 = gr[0x06 + ctxt], texa = gr[0x3b];
+   int psm = (int)(t0 >> 20 & 63), cpsm = (int)(t0 >> 51 & 15), csa = (int)(t0 >> 56 & 31), bits, u0, v0, w, h, f;
+   uint32_t tbp = (uint32_t)(t0 & 0x3fff), tbw = (uint32_t)(t0 >> 14 & 63);
+@@ -343,7 +352,7 @@
+ typedef struct UtE { uint64_t sig, k0, cl, texa, id, pid; uint32_t use; int ent, pent; } UtE;   /* the key (sig, G's key, TEXA); when last
+                                                                        used (0: never); the texture's entry and identity; the last palette
+                                                                        identity and entry (a hint) */
+-void tk_umemo(TkCache *c, int mode) { c->um = mode; }
++void tk_umemo(TkCache *c, int mode) { c->um = mode; c->kgen++; }
+ /* ---- sb10, Stage C step 1 T1 (stagec_notes.md 1.3): the memo's front.  Keyed by G's key (TEX0 & 0x3ffffffff, CLAMP) and the whole TEXA,
+    it names the G and T entries the memo's own path found or filled for that key, with the map's generation then (GuStats xfers +
+    xfer_local + drawn + dt_fail: every change to what a block holds moves it, CLUT loads do not).  The same generation: no block changed,
+@@ -352,7 +361,7 @@
+    the memo's own path (gu_pages_sig settles the map first, so no transfer is pending while an entry stands).  2 ways a set, 16 sets ---- */
+ #define UF_SB 4
+ typedef struct UfE { uint64_t k0, cl, texa, gen; struct UgE *g; struct UtE *t; } UfE;
+-void tk_ufront(TkCache *c, int mode) { c->uf = mode; }
++void tk_ufront(TkCache *c, int mode) { c->uf = mode; c->kgen++; }
+ static uint64_t uf_gen(const TkCache *c) { const GuStats *u = gu_stats(c->map); return (uint64_t)(u->xfers + u->xfer_local + u->drawn + u->dt_fail); }
+ static uint32_t uf_set(uint32_t h, uint64_t texa) { return (h ^ ((uint32_t)texa * 0x9e3779b1u ^ (uint32_t)(texa >> 32))) >> (32 - UF_SB); }
+ static void uf_put(TkCache *c, uint32_t s, uint64_t k0, uint64_t cl, uint64_t texa, uint64_t gen, struct UgE *g, struct UtE *t)
+@@ -450,6 +459,7 @@
+   int n = (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, pf = 0, pconv = 0;
+   uint64_t pid = gu_clut_id(c->map, cpsm, csa * 16, n, &pf);
+   if (pf & GU_ID_LOST) { memset(o, 0, sizeof *o); c->st.lost++; return o->kind = TK_LOST; }
++  c->kpid = pid;   /* gl35 */
+   c->st.hits++; touch(c, i);
+   int j = tk_pal(c, i, &pid, n, csa, cpsm, texa, t->pent, &pconv);
+   if (j < 0) { memset(o, 0, sizeof *o); return o->kind = TK_UNSUP; }
+@@ -471,7 +481,7 @@
+     if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = (uint32_t)tc_texture_size(t0, cl); }
+     return kind;
+   }
+-  c->st.um_asks++; c->uclk++;
++  c->st.um_asks++; c->uclk++; c->kl.ok = 0;
+   uint64_t k0 = (t0 & 0x3ffffffffull) | 1ull << 63; uint32_t h = ug_hash(k0, cl);
+   uint64_t fgen = 0; uint32_t fs = 0; int fhit = 0; UgE *g; UtE *t = 0;
+   if (c->uf) {   /* sb10 T1: the front */
+@@ -494,6 +504,7 @@
+       goto found;
+     }
+   }
++  c->kgen++;   /* gl35: not the front's answer */
+   g = ug_get(c, k0, t0, cl, h);
+ #ifdef UM_SIM
+   uint64_t sim_h = 0; sim_gl((t0 & 0x3ffffffffull) | 1ull << 63, cl);
+@@ -519,7 +530,13 @@
+   t->use = c->uclk;
+   if ((unsigned)t->ent >= (unsigned)c->cap || c->e[t->ent].id != t->id) { c->st.um_gone++; goto fill; }
+   if (c->uf && !fhit) uf_put(c, fs, k0, cl, texa, fgen, g, t);   /* sb10 T1 */
+-  if (c->um == 1) return um_hit(c, t0, texa, g, t, o);
++  if (c->um == 1) {
++    kind = um_hit(c, t0, texa, g, t, o);
++    if (fhit && c->uf == 1 && kind == TK_TEX && g->ok == 1 && !o->pal_conv) {   /* gl35: the pure path, as tk_keep_again does it again */
++      TkKeep *K = &c->kl; K->g = g; K->t = t; K->pid_in = c->kpid; K->pid = o->pal_id; K->ufgen = fgen; K->kgen = c->kgen;
++      K->fs = (uint16_t)fs; K->i = (int16_t)o->ent; K->j = (int16_t)o->pal_ent; K->w = c->ufm[fs]; K->ok = 1; }
++    return kind;
++  }
+   { /* the check mode: tk_get_cl's answer against the memo's */
+     int ent = t->ent, pent = t->pent; uint64_t id = t->id, pid = t->pid;
+     kind = tk_get_cl(c, gr, ctxt, cl, o); c->st.um_chk++;
+@@ -546,3 +563,28 @@
+   if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = g->ok ? g->size : (uint32_t)tc_texture_size(t0, cl); }
+   return kind;
+ }
++
++/* gl35, the texture kept by material (texcache.h; attic/gl35/keep_design.txt K3) */
++const TkKeep *tk_keep_last(const TkCache *c) { return &c->kl; }
++int tk_keep_ok(TkCache *c, const TkKeep *K, uint64_t t0)
++{
++  if (!K->ok || K->kgen != c->kgen || c->um != 1 || c->uf != 1 || K->ufgen != uf_gen(c)) return 0;
++  int psm = (int)(t0 >> 20 & 63), cpsm = (int)(t0 >> 51 & 15), csa = (int)(t0 >> 56 & 31), pf = 0;
++  uint64_t pid = gu_clut_id(c->map, cpsm, csa * 16, (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, &pf);   /* (um_hit's own call: the same note in the load) */
++  return !(pf & GU_ID_LOST) && pid == K->pid_in;
++}
++void tk_keep_again(TkCache *c, const TkKeep *K, uint64_t t0, TkTex *o)
++{
++  UgE *g = K->g; UtE *t = K->t; int psm = (int)(t0 >> 20 & 63), n = (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, i = K->i, j = K->j;
++  c->st.um_asks++; c->uclk++; c->kl = *K;
++  c->ufm[K->fs] = K->w; g->use = c->uclk; c->st.uf_hits++;   /* the front's answer */
++  t->use = c->uclk;
++  c->st.uses++; c->st.um_hits++;   /* um_hit */
++  c->kpid = K->pid_in;
++  c->st.hits++; touch(c, i);
++  c->st.pal_uses++; c->st.pal_hits++; touch(c, j); pal_ma(c, i, j, n, K->pid);   /* tk_pal: the palette is there */
++  t->pid = K->pid; t->pent = j;
++  const Ent *e = &c->e[i];
++  o->kind = TK_TEX; o->data = e->data; o->pal = (const uint32_t *)c->e[j].data; o->npal = n; o->id = t->id; o->pal_id = K->pid; o->minalpha = e->ma;
++  o->conv = 0; o->pal_conv = 0; o->ent = i; o->pal_ent = j; o->tp = &e->t; o->size = g->size;
++}
+diff -ru t34/ge/texcache.h t35/ge/texcache.h
+--- t34/ge/texcache.h	2026-11-21 02:56:27.577477580 +0000
++++ t35/ge/texcache.h	2026-11-21 17:29:38.648529211 +0000
+@@ -55,6 +55,16 @@
+    order, the lowest alpha).  Fills out->tp and out->size on TK_TEX.  Mode (tk_umemo): 1 (the default) on; 2 every answer the memo
+    would give is made by tk_get_cl and compared (TkStats um_chk, um_bad); 0 tk_get_cl alone, as before */
+ int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t clamp, TkTex *out);
++/* gl35, the texture kept by material (attic/gl35/keep_design.txt K3).  A tk_get_um look-up that the front answered, with an indexed
++   texture whose palette was in the cache (the "pure" path), changes only stamps, counters and the LRU order; tk_keep_last gives its
++   record (ok = 0 after any other look-up).  tk_keep_ok(K, TEX0): a look-up now with the TEX0, CLAMP and TEXA K was recorded for would
++   take that path again to the same entries: the cache's generation (it moves at every look-up off that path and at every other change
++   of the cache) and the front's are K's, and the palette identity, asked from the GS model as the look-up asks it, is K's.
++   tk_keep_again: that look-up's effects and answer, exactly, without the look-up (only after tk_keep_ok said 1, nothing between) */
++typedef struct { void *g, *t; uint64_t pid_in, pid, ufgen; uint32_t kgen; uint16_t fs; int16_t i, j; uint8_t w, ok; } TkKeep;
++const TkKeep *tk_keep_last(const TkCache *c);
++int tk_keep_ok(TkCache *c, const TkKeep *K, uint64_t t0);
++void tk_keep_again(TkCache *c, const TkKeep *K, uint64_t t0, TkTex *out);
+ void tk_umemo(TkCache *c, int mode);
+ /* sb10, Stage C step 1 T1 (stagec_notes.md 1.3): tk_get_um's front, 32 entries keyed by TEX0 & 0x3ffffffff, CLAMP and TEXA, valid while no
+    block of the map has changed: a look-up the memo answered before goes straight to its entries, skipping G's hash look-up, the pages'
+diff -ru t34/ge/xlate.c t35/ge/xlate.c
+--- t34/ge/xlate.c	2026-11-21 11:41:00.492209824 +0000
++++ t35/ge/xlate.c	2026-11-21 17:41:21.597495557 +0000
+@@ -8,6 +8,9 @@
+ #include "gsfront.h"
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #include "gsup.h"    /* gl34: gu_clut_load (xl_p04_fast) */
++#ifndef __psp__
++#include <stdio.h>
++#endif
+ #include "natsplit.h"   /* gl34: NS_MARK */
+ 
+ static XlStats St;
+@@ -16,6 +19,7 @@
+ #else
+ #define XC(x)
+ #endif
++uint32_t xl_gs_gen; int xl_keep_bits, xl_keep_nf, xl_keep_chk;   /* gl35 (xlate.h) */
+ static XlCallFn call_fn; static void *call_ctx;
+ static GfGs F; static GfPrimFn prim_fn; static void *prim_ctx; static struct GuMap *up_map; static XlPassFn pass_fn; static void *pass_ctx;   /* the GS front end (ge/gsfront.h): every GIF path's register writes and
+                                                                    vertices, as the GS takes them; a VU1 call's own kicks are not seen */
+@@ -34,6 +38,7 @@
+ static int gif_qw(int path, const uint32_t *q, uint32_t src)
+ {
+   Gif *g = &G[path];
++  xl_gs_gen++;   /* gl35 */
+   uint64_t lo = q[0] | (uint64_t)q[1] << 32, hi = q[2] | (uint64_t)q[3] << 32;
+   F.path = path; XC(St.gq[path]++);
+   if (!g->nloop) {
+@@ -61,6 +66,7 @@
+    IMAGE packet with at least m quadwords left) */
+ static void image_run(int path, uint32_t src, uint32_t m)
+ {
++  xl_gs_gen++;   /* gl35 */
+   F.path = path; XC(St.gq[path] += m); St.gif_image_qw += m; XC(St.img_qw[path] += m);
+   gf_image_run(&F, src, 16 * m); G[path].nloop -= (int)m;
+ }
+@@ -420,7 +426,7 @@
+ static unsigned ec_slot(uint32_t e) { unsigned h = (e * 2654435761u) >> 24, n = 0; while (EC[h].used && EC[h].entry != e && ++n < 256) h = (h + 1) & 255; return n < 256 ? h : 256; }
+ static const XlRule *rule_of(uint32_t e) { unsigned h = ec_slot(e); return h < 256 && EC[h].used ? EC[h].r : xl_rule(e); }
+ /* entry e's index in St.ent, added there if new (as the search in call did), and its rule (0 for entry 0) */
+-static int ent_index(uint32_t e, const XlRule **r)
++static inline __attribute__((always_inline)) int ent_index(uint32_t e, const XlRule **r)   /* gl35: pinned in line (gl33 had it so) */
+ {
+   unsigned h = ec_slot(e);
+   if (h < 256 && EC[h].used) { *r = EC[h].r; return EC[h].i; }
+@@ -456,6 +462,7 @@
+ static void call(uint32_t pc, int cont, const XlRec *rec)
+ {
+   XlCall c; memset(&c, 0, sizeof c);
++  xl_gs_gen++;   /* gl35 */
+   c.pc = pc; c.cont = cont; c.top = V.tops; c.itop = V.itops; c.src = usrc; usrc = 0;
+   if (V.dbf) { V.dbf = 0; V.tops = V.base; } else { V.dbf = 1; V.tops = V.base + V.ofst; }
+   if (cont) { const XlRule *p = rule_of(last_entry); c.entry = p ? p->cont : 0; }
+@@ -678,6 +685,7 @@
+    read back from the VU memory model (it was just copied there: the same bytes at g->dp), the GIF's general forms, the GS front end's
+    vertex cases.  A register that needs one of those (PRIM .. XYZ3, FOG, TEX2, TRXDIR, HWREG) goes to gf_reg and gs_write as always */
+ long xl_nf_n[8];
++long xl_nk_n[16];
+ static const uint32_t *nf_blk[2]; static uint32_t nf_gen[2], nf_top[2];   /* by V.dbf: the block last copied to that buffer by a fast group */
+ static inline __attribute__((always_inline)) void nf_copy(uint32_t a, const uint32_t *p, uint32_t num)   /* ud_eager's copy: num quadwords to a, VM owns them */
+ {
+@@ -706,6 +714,7 @@
+   if (G[1].nloop) { xl_nf_n[7]++; return 0; }
+   xl_nf_n[0]++;
+   static XlRec R;
++  const int kp = g->keep; xl_keep_bits = kp;   /* gl35 */
+   /* the REFs: STCYCL and the UNPACK (the block and the material copied, the streams' descriptors), as xl_p04_core counts them */
+   St.words += 2u * (uint32_t)nr + 10u + (q0 ? 96u : 0u) + 32u + 4u * (g->qwc[q0 + 1] + g->qwc[q0 + 2] + g->qwc[q0 + 3]);
+   St.cmds[1] += nr + 1; St.cmds[0x6c] += 2 + q0; St.cmds[0x6d] += 2; St.cmds[0x75]++; St.cmds[0x14]++;
+@@ -748,9 +757,15 @@
+       const uint32_t *q = mat + 4 * k; const uint32_t d = mat[2] >> (4 * ri) & 0xf, r = q[2] & 0xff; const uint64_t v = q[0] | (uint64_t)q[1] << 32;
+       if (++ri == nreg) ri = 0;
+       if (d != 0xe) continue;   /* a NOP */
+-      if (r > 0x17 ? r != 0x53 && r != 0x54 : r >= 0x06 && r != 0x0a && r != 0x0c && r != 0x0d && r < 0x16) {   /* gf_reg's and gs_write's plain case */
++      if (!(r < 0x18 ? 0x00f003c1u >> r & 1 : r == 0x42 || r == 0x43 || r == 0x7f)) xl_gs_gen++;   /* gl35: not PRIM, TEX0, CLAMP, TEX1, TEX2, ALPHA */
++      if (!r && (kp & 2)) {   /* gl35 K2: gf_reg's case 0 and gs_write's store */
++        F.gr[0] = v; F.vqn = 0; F.dirty = 1; F.unk &= ~(GF_U_PRIM | GF_U_QUEUE); gr[0] = v; xl_nk_n[8]++;
++      } else if (r > 0x17 ? r != 0x53 && r != 0x54 : r >= 0x06 && r != 0x0a && r != 0x0c && r != 0x0d && r < 0x16) {   /* gf_reg's and gs_write's plain case */
+         F.gr[r] = v; F.dirty = 1;
+-        if (r < 0x08 && F.up) gu_clut_load(F.up, F.gr, (int)(r & 1));
++        if (r < 0x08 && F.up) {   /* gl35 K2: gu_clut_load returns at once unless the format is indexed and CLD is 1 .. 5 */
++          const uint32_t psm = (uint32_t)(v >> 20 & 63), cld = (uint32_t)(v >> 61 & 7);
++          if (!(kp & 2) || ((psm == 0x13 || psm == 0x14 || psm == 0x1b || psm == 0x24 || psm == 0x2c) && cld >= 1 && cld <= 5)) gu_clut_load(F.up, F.gr, (int)(r & 1));
++          else xl_nk_n[7]++; }
+         gr[r] = v;
+       } else if (r == 0x16 || r == 0x17) {   /* TEX2: TEX0's CLUT fields */
+         const uint64_t M = 0xFFFFFFE003F00000ull;
+@@ -764,16 +779,31 @@
+   int dctx = 3;
+   c.tag_qa = (0x15 + T) & 0x3ff;
+   { const uint32_t *t = vmq(c.tag_qa);
+-    if (t[1] >> 14 & 1) { gs_write(0x00, t[1] >> 15 & 0x7ff); gf_reg(&F, 0x00, t[1] >> 15 & 0x7ff);
++    if (t[1] >> 14 & 1) {
++      if (kp & 2) { const uint64_t v = t[1] >> 15 & 0x7ff; gr[0] = v; F.gr[0] = v; F.vqn = 0; F.dirty = 1; F.unk &= ~(GF_U_PRIM | GF_U_QUEUE); }   /* gl35 K2 */
++      else { gs_write(0x00, t[1] >> 15 & 0x7ff); gf_reg(&F, 0x00, t[1] >> 15 & 0x7ff); }
+       uint64_t at = (F.gr[0x1a] & 1) ? F.gr[0x00] : F.gr[0x1b]; dctx = 1 << (int)(at >> 9 & 1); } }
+   gf_unknown(&F, GF_U_ALL);
+   for (uint32_t k = 0; k < 4; k++) vmq(T + k);
+   vmq(T + 0x14); for (uint32_t k = 2; k < 6; k++) vmq(k);
+   c.rec = &R; c.lane = 1; c.vm = VM; c.gr = gr;
+   NS_MARK(NS_PRE);
++  xl_keep_nf = 1;
+   if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
++  xl_keep_nf = 0;
+   NS_MARK(NS_BACK);
+-  gf_drew(&F, dctx);
++  if ((kp & 1) && F.up) {   /* gl35 K1: the drawn areas of the last full step again, while nothing it read has changed */
++    static int kd_n, kd_ctx; static int16_t kd_k[2]; static uint32_t kd_gs, kd_dg;
++    const int ok = kd_n > 0 && kd_gs == xl_gs_gen && kd_ctx == dctx && kd_dg == gu_dgen(F.up);
++    if (ok && !xl_keep_chk) { gu_drawn_again(F.up, kd_n, kd_k); xl_nk_n[0]++; }
++    else {
++      int16_t k2[2]; const uint32_t mk = gu_keep_mark(F.up);
++      gf_drew(&F, dctx);
++      const int n2 = gu_keep_got(F.up, mk, k2);
++      if (ok) { xl_nk_n[1]++; if (n2 != kd_n || k2[0] != kd_k[0] || (n2 > 1 && k2[1] != kd_k[1])) xl_nk_n[2]++; }
++      kd_n = n2; kd_k[0] = k2[0]; kd_k[1] = k2[1]; kd_gs = xl_gs_gen; kd_dg = mk; kd_ctx = dctx;
++    }
++  } else gf_drew(&F, dctx);
+   NS_MARK(NS_DREW);
+   St.cmds[0x00] += 3; vcmd = 0;
+   xl_lane_groups[1]++;
+@@ -936,6 +966,7 @@
+ #endif
+ void xl_reset(void)
+ {
++  xl_gs_gen++;   /* gl35 */
+   memset(&St, 0, sizeof St); memset(gr, 0, sizeof gr); memset(G, 0, sizeof G); memset(VM, 0, sizeof VM); memset(VPsrc, 0, sizeof VPsrc);
+   memset(&V, 0, sizeof V); V.cl = V.wl = 1; vleft = vn = dqn = 0; last_entry = 0; last_cont = 0; usrc = 0; uvert = 0;
+   lo_all();   /* sb10 T2 */
+diff -ru t34/ge/xlate.h t35/ge/xlate.h
+--- t34/ge/xlate.h	2026-11-21 11:30:52.486405906 +0000
++++ t35/ge/xlate.h	2026-11-21 17:30:41.413560774 +0000
+@@ -137,7 +137,7 @@
+    constant block first when q0), each tag's STCYCL, UNPACK and quadword count, hunp the CNT's UNPACK (0x6c018014), hdr its data (the
+    header quadword: count, 0, fog word, clip), mscal the MSCAL word after it, tadr the group's first tag's guest address (or the key of a
+    group no packet holds).  hdr and dp stay valid until the transfer's end (xl_flush).  Returns as xl_lane_p04 */
+-typedef struct { const uint32_t *dp[5]; uint32_t stc[5], unp[5], qwc[5]; uint32_t hunp, mscal; const uint32_t *hdr; uint32_t tadr; int q0; } XlP04;
++typedef struct { const uint32_t *dp[5]; uint32_t stc[5], unp[5], qwc[5]; uint32_t hunp, mscal; const uint32_t *hdr; uint32_t tadr; int q0; int keep; } XlP04;
+ int xl_p04_core(const XlP04 *g);
+ /* gl34, the fast front end for native ship groups (NATG_FAST, ge/natp04.h): xl_p04_core + call() for the one form nearly every group
+    has, in one piece of code with the general machinery left out: a group made by nat_p04_group with every slot sent (stc / unp the
+@@ -148,6 +148,15 @@
+    changed, counted in xl_nf_n): the caller goes on to xl_p04_core.  xl_nf_n: [0] groups taken, [1..7] declined by reason (xlate.c) */
+ int xl_p04_fast(const XlP04 *g);
+ extern long xl_nf_n[8];
++/* gl35, the keeps (XlP04.keep, the bits of ge/natsnap.h NATG_KEEP; attic/gl35/keep_design.txt): for a fast group, steps whose inputs are
++   those of a recorded full step are replayed (every byte of state the full step would leave), or done in line without calls that can do
++   nothing: 1 the drawn areas (gsup.h gu_drawn_again), 2 the A+D packet (PRIM and the tag's PRIM in line; gu_clut_load only when it can
++   load), 4 the texture of the group's own look-ups, 8 of every look-up (gelive.c gl_tex, texcache.h tk_keep_again).  xl_keep_bits: the
++   last fast group's bits; xl_keep_nf: in a fast group's converter call; xl_keep_chk: the check mode (MGS2_NAT_KCHK=1: the full step runs
++   and is compared with what would have been replayed).  xl_gs_gen: moves at every GS traffic of the translator that could change a
++   register the drawn areas read.  xl_nk_n: [0] drawn areas replayed, [1] checked, [2] differing; [3] textures replayed, [4] checked,
++   [5] differing, [6] records made; [7] gu_clut_load calls not made, [8] PRIM writes in line */
++extern int xl_keep_bits, xl_keep_nf, xl_keep_chk; extern uint32_t xl_gs_gen; extern long xl_nk_n[16];
+ #ifndef __psp__
+ void xl_state_dig(uint32_t *h);   /* gl34 (x86): the translator's state folded (xlate.c), for the twin's "nats:" line */
+ #endif
+diff -ru t34/psp/xl_psp.c t35/psp/xl_psp.c
+--- t34/psp/xl_psp.c	2026-11-21 12:09:30.223661957 +0000
++++ t35/psp/xl_psp.c	2026-11-21 17:31:15.200414415 +0000
+@@ -114,6 +114,8 @@
+ extern void (*g_nat_sync)(int b); int rt_nat_arm_at(long vb, long *turn);
+ int rt_nat_inpl_at(long vb); extern long g_nat_stc; static long nat_stc0;   /* gl33: static streams in place (boot/nat_stub.h) */
+ int rt_nat_fast_at(long vb); extern long g_nat_fst;   /* gl34: the fast native front end (boot/nat_stub.h) */
++int rt_nat_keep_at(long vb); extern long g_nat_kpt;   /* gl35: the keeps (boot/nat_stub.h) */
++static long nk_kpt0, nk_n0[9];
+ #include "../ge/vu1conv.h"   /* gl34: vc_km_n */
+ #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
+ #include <pspiofilemgr.h>
+@@ -2343,6 +2345,7 @@
+   nat_t0n[15] = xmp.nat_part; nat_t0t = xmp.nat_t; nat_w0[0] = mq_wus[MW_FILL]; nat_w0[1] = mq_wus[MW_NOW];
+   nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
+   nat_stc0 = g_nat_stc;   /* gl33 */
++  nk_kpt0 = g_nat_kpt; for (int k = 0; k < 9; k++) nk_n0[k] = xl_nk_n[k];   /* gl35 */
+   ns_s0 = g_ns; ns_fst0 = g_nat_fst; for (int k = 0; k < 8; k++) ns_nf0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) ns_km0[k] = vc_km_n[k];   /* gl34 */
+   for (int k = 0; k < 3; k++) ns_nh0[k] = lw_nh_n[k];
+   ns_wk0 = mq->t_k[XE_WALK]; ns_rec0 = mq->t_k[XE_REC]; ns_b0 = xmc.bytes; ns_q0 = xmc.nat_qw; ns_nb0 = mq->n_natb; ns_l0[0] = ns_ch_lists; ns_l0[1] = ns_ch_unl; ns_l0[2] = ns_ch_in;
+@@ -2388,6 +2391,12 @@
+           xl_nf_n[0] - ns_nf0[0], xl_nf_n[1] - ns_nf0[1], xl_nf_n[2] - ns_nf0[2], xl_nf_n[3] - ns_nf0[3], xl_nf_n[4] - ns_nf0[4],
+           xl_nf_n[5] - ns_nf0[5], xl_nf_n[6] - ns_nf0[6], xl_nf_n[7] - ns_nf0[7], vc_km_n[0] - ns_km0[0], vc_km_n[1] - ns_km0[1],
+           lw_nh_n[0] - ns_nh0[0], mq->nh_chk, lw_nh_n[2] - ns_nh0[2], lw_nh_n[1] - ns_nh0[1]);
++  /* gl35: the keeps' counts (the picture's side; the flags are the recorder's) */
++  fprintf(stderr, "nat keep vb %ld-%ld %s arm %d keep %d (gl35; bits: 1 drawn areas, 2 A+D packet, 4 / 8 texture): groups flagged %ld; the picture's "
++          "side: drawn areas replayed %ld, checked %ld, differing %ld; textures replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not "
++          "made %ld, PRIM writes in line %ld (MGS2_NAT_KCHK %d)\n", vb0, vb, who, arm, rt_nat_keep_at(vb0 + 1), g_nat_kpt - nk_kpt0,
++          xl_nk_n[0] - nk_n0[0], xl_nk_n[1] - nk_n0[1], xl_nk_n[2] - nk_n0[2], xl_nk_n[3] - nk_n0[3], xl_nk_n[4] - nk_n0[4], xl_nk_n[5] - nk_n0[5],
++          xl_nk_n[6] - nk_n0[6], xl_nk_n[7] - nk_n0[7], xl_nk_n[8] - nk_n0[8], xl_keep_chk);
+   if (me && mq->ns_on) {   /* gl34 (ge/natsplit.h): the ME's time inside the native path, and the walks' time by chain */
+     const NatSplit *s = &g_ns; long n = s->n - ns_s0.n, seen = s->seen - ns_s0.seen, cn = s->cal_n - ns_s0.cal_n; double us = (double)mq_tdiv / 1000.0, sum = 0;
+     double nat = (double)(xmp.nat_t - nat_t0t) / mq_tdiv;
+@@ -2662,6 +2671,9 @@
+             nat_n_dirg, nat_n_room, nat_n_sync, mq->n_natrec, mq->n_natg, (unsigned long long)mq->n_natb, xmp.nat_runs, xmp.nat_core, xmp.nat_fed,
+             xmp.nat_bad, xmp.nat_late, xmp.nat_stop, xmp.nat_in, xmp.nat_out, xmp.nat_part);
+   if (g_nat_cfg) fprintf(f, "static streams in place totals (gl33): groups flagged static %ld\n", g_nat_stc);
++  if (g_nat_cfg) fprintf(f, "keeps for fast native groups totals (gl35): groups flagged %ld; drawn areas replayed %ld, checked %ld, differing %ld; textures "
++                         "replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n", g_nat_kpt, xl_nk_n[0],
++                         xl_nk_n[1], xl_nk_n[2], xl_nk_n[3], xl_nk_n[4], xl_nk_n[5], xl_nk_n[6], xl_nk_n[7], xl_nk_n[8]);
+   if (g_nat_cfg) fprintf(f, "fast native front end totals (gl34): groups flagged %ld; taken %ld, declined: state %ld, entry %ld, buffers %ld, stream counts "
+                          "%ld, material tag %ld, tables full %ld, path 1 busy %ld; transforms taken %ld, computed and kept %ld; pointers by their own hints %ld "
+                          "(checked %ld, differing %ld); nat split: groups timed by "

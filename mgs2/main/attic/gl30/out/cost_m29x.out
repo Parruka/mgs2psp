@@ -1,0 +1,15 @@
+gl29xX model/m29x: gelist functions 23 found in the ELF (not found or not unique: [])
+gl29xX window total: # total 1974468608 imiss 15551824 dmiss 11129003 dacc 495949586 fa_imiss 10869021 cde 941821 pref 0 cinv 0 dskip 0 dst 3059706 dwb 5315274
+gl29xX gelist: instructions 193419574, I-misses 1122839, D-misses 472075 = 1309.59 ms in the window, 32.740 ms a frame over 40 frames [C model]
+   gx_batch       instr  66890907  I-miss  464613  D-miss  368604  13.038 ms/frame
+   dz_sortk       instr  38781621  I-miss    2666  D-miss     407  4.820 ms/frame
+   texture        instr  17379214  I-miss  250959  D-miss   22230  3.578 ms/frame
+   put_sym        instr  23302935  I-miss     161  D-miss   11624  2.962 ms/frame
+   put            instr  19062326  I-miss   70751  D-miss   16949  2.832 ms/frame
+   xf_setup       instr  10493682  I-miss   49379  D-miss   19861  1.680 ms/frame
+   xf_rest        instr   5852308  I-miss  118340  D-miss    7779  1.379 ms/frame
+   addr_cmd       instr   3509926  I-miss  149640  D-miss    1289  1.207 ms/frame
+   dz_uniq        instr   4433151  I-miss    1998  D-miss       0  0.559 ms/frame
+   cut_draw       instr   1863360  I-miss    1240  D-miss   18944  0.359 ms/frame
+   gx_frame       instr    803115  I-miss    1000  D-miss    3788  0.129 ms/frame
+   dz_sortt       instr    395412  I-miss    4837  D-miss       0  0.074 ms/frame

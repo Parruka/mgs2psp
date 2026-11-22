@@ -1,0 +1,6 @@
+== base (rb) vs gl30n's base (xt30/out_b.log)
+../build_gl30n/xt30/out_b.log: 31399 vblanks (0..31398); xt31/out_rb.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== base (rb) vs MGS2_NAT_CYCLE=0,0,3,3 (rc)
+xt31/out_rb.log: 31399 vblanks (0..31398); xt31/out_rc.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+rc 1

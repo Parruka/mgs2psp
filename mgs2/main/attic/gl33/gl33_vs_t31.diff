@@ -1,0 +1,254 @@
+diff -ru t31/boot/boot_x86.c t33/boot/boot_x86.c
+--- t31/boot/boot_x86.c	2026-11-20 19:15:08.121296816 +0000
++++ t33/boot/boot_x86.c	2026-11-21 03:25:33.108006494 +0000
+@@ -177,9 +177,11 @@
+   if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; }
+   K_POLL_KICK();                                 /* (OPT_POLL_DUE may have changed) */
+ }
++static void st_tick(long vb);   /* gl33 (nat_x86.c): the static streams' check */
+ static void k_vblank_hook(int start)
+ {
+   io_vblank(start);
++  if (start) st_tick(k_vblanks);
+ #if !defined(__psp__)
+   if (start) { void vb_time(long vb); vb_time(k_vblanks); void pkt_vblank(long vb); pkt_vblank(k_vblanks); }
+ #ifdef MGS2_XLIVE
+@@ -1193,6 +1195,7 @@
+   if ((g_opt & OPT_LITE) && k_vblanks != dg_shown_vb && k_vblanks - dg_shown_vb < 2) g_dg_lite = 1; else dg_shown_vb = k_vblanks;
+   g_dg_calls[g_dg_lite]++;
+   g_dg_seq++; g_nat_bseq[NAT_WPB(*(const uint32_t *)(g_mem + 0x1e50a0))] = g_dg_seq;   /* native step 1 (nat_stub.h): no branch added */
++  st_seq_tick(g_dg_seq);   /* gl33 (nat_x86.c): the static streams' check by pipeline calls */
+ #ifndef __psp__
+   if (g_pkt_on) fprintf(stderr, "dgc: vb %ld %d\n", k_vblanks, g_dg_lite | DGC_DEV);   /* dev (MGS2_PKT_HASH window): each call, 1 = reduced (tools/dev/lite_cmp.py) */
+ #endif
+diff -ru t31/boot/nat_stub.h t33/boot/nat_stub.h
+--- t31/boot/nat_stub.h	2026-11-20 19:13:48.497876191 +0000
++++ t33/boot/nat_stub.h	2026-11-21 03:05:35.076717610 +0000
+@@ -38,6 +38,12 @@
+ long g_nat_c[NC_N];              /* counts (the host prints them) */
+ void (*g_nat_sync)(int b);       /* the host's, before a buffer's array is written again (psp/xl_psp.c: its copies still owed) */
+ static int nat_set = -1, nat_all, nat_ncyc; static long nat_from = -1, nat_turn = 1; static uint8_t nat_cyc[32];
++/* gl33, static streams read in place (ge/natsnap.h NATG_INPL).  MGS2_NAT_INPL=1 for the whole run, MGS2_NAT_INPL_CYCLE=<a>,<b>,... by
++   MGS2_OPT_CYCLE's turns (as MGS2_NAT_CYCLE): 1: a native group with the P04+df0 entry whose three streams lie outside packet memory is
++   flagged, and the PSP's copy plan leaves its streams in RAM (the ME's walk reads them there).  0 (the default): gl31's path.  Only
++   arm 3 (native) flags its groups.  g_nat_stc: groups flagged */
++int g_nat_inpl; long g_nat_stc;
++static int nat_inpl_all, nat_inpl_ncyc; static uint8_t nat_inpl_cyc[32];
+ static uint32_t nat_seq_seen;
+ #ifndef __psp__
+ static int nat_cap_dev;          /* dev (x86): MGS2_NAT_CAP=<n>: the array's entries (the fallback's test) */
+@@ -62,6 +68,13 @@
+     while (nat_ncyc < 32 && *p) { nat_cyc[nat_ncyc++] = (uint8_t)strtoul(p, &p, 10); if (*p != ',') break; p++; }
+     if (nat_ncyc) { nat_from = f; nat_turn = n; } }
+   g_nat_cfg = nat_all != 0; for (int i = 0; i < nat_ncyc; i++) if (nat_cyc[i]) g_nat_cfg = 1;
++  nat_inpl_all = (e = getenv("MGS2_NAT_INPL")) ? atoi(e) & 1 : 0;
++  if ((e = getenv("MGS2_NAT_INPL_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++    char *p = (char *)e;
++    while (nat_inpl_ncyc < 32 && *p) { nat_inpl_cyc[nat_inpl_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
++    if (nat_inpl_ncyc && !nat_ncyc) { nat_from = f; nat_turn = n; } }
++  if (g_nat_cfg) fprintf(stderr, "nat: gl33 static streams in place: MGS2_NAT_INPL %d, MGS2_NAT_INPL_CYCLE %s (1: a static group's streams stay in "
++                         "RAM for the ME's walk; by the same turns)\n", nat_inpl_all, nat_inpl_ncyc ? getenv("MGS2_NAT_INPL_CYCLE") : "none");
+ #ifndef __psp__
+   if ((e = getenv("MGS2_NAT_CAP"))) { nat_cap_dev = atoi(e); if (nat_cap_dev < 0 || nat_cap_dev > NAT_MAXGRP) nat_cap_dev = 0; }
+   if (g_nat_cfg && !((e = getenv("MGS2_NAT_NOMEM")) && atoi(e)))   /* (dev: MGS2_NAT_NOMEM=1: no arrays, the PSP's case when its block is refused) */
+@@ -80,6 +93,12 @@
+   if (turn) *turn = -1;
+   return nat_all;
+ }
++int rt_nat_inpl_at(long vb)   /* gl33: the in-place switch at vblank vb */
++{
++  if (nat_set < 0) nat_setup();
++  if (nat_inpl_ncyc && vb > nat_from) return nat_inpl_cyc[((vb - nat_from - 1) / nat_turn) % nat_inpl_ncyc];
++  return nat_inpl_all;
++}
+ #ifndef __psp__
+ void nat_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh, uint32_t dest, uint32_t end, uint32_t qwc);   /* dev: boot/nat_x86.c's counts */
+ #endif
+@@ -90,7 +109,7 @@
+ {
+   uint32_t mesh, desc, qwc, cap, dest, end, d, blk, fog, clip, pre, cur[3], key = 0, vq = 0, kq; int32_t ng; int b, arm, i, r30, stub; NatBuf *s; NatGrp *g;
+   static NatGrp tmp;
+-  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); }
++  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); }
+   arm = g_nat_arm;
+   if (arm <= 0) return 0;
+   if (arm == 4) { g_nat_c[NC_STUBC]++; return 1; }
+@@ -138,6 +157,10 @@
+     if (pre) { idx += 4; if (d0 & 4) idx += 2; else if ((d0 & 2) && clip) idx += 2; }
+     g->mscal = (uint32_t)(int32_t)(int16_t)nat_r16(0x70000b9cu + 2 * idx) | 0x14000000u;
+     g->flags = r30 > 0 ? NATG_FULL : 0;
++    if (stub && g_nat_inpl && g->mscal == NAT_DF0_MSCAL && g->s[0] && g->s[1] && g->s[2]) {   /* gl33: a static group (ge/natsnap.h NATG_INPL) */
++      for (k = 0; k < 3; k++) { uint32_t a = g->s[k] & (GUEST_SIZE - 1); if ((g->s[k] >> 28) || (a >= NAT_PKT0 && a < NAT_PKT1)) break; }
++      if (k == 3) { g->flags |= NATG_INPL; g_nat_stc++; }
++    }
+     if (stub) g->key = key;
+ #ifndef __psp__
+     else {   /* shadow: the group's own packet address, as the builder places it */
+diff -ru t31/boot/nat_x86.c t33/boot/nat_x86.c
+--- t31/boot/nat_x86.c	2026-11-20 19:22:56.788635523 +0000
++++ t33/boot/nat_x86.c	2026-11-21 03:25:33.107246066 +0000
+@@ -22,6 +22,72 @@
+   (void)b; (void)g0; (void)ng; (void)mesh;
+   NX.recs++; if (!NX.margin_set || mg < NX.min_margin) { NX.min_margin = mg; NX.margin_set = 1; }
+ }
++/* ---- gl33: static streams in place (ge/natsnap.h NATG_INPL), the twin's check.  MGS2_NAT_STCHK=<w>: every flagged group's three
++   streams hashed as it is drawn and again at the start of each of the next w vblanks: "CHANGED" counts the groups whose bytes were
++   others, by the vblanks since the draw (the PSP's ME reads them in RAM up to a step after the record).  A "natinpl:" line each 100
++   vblanks with groups drawn, and "natst:" at the exit. ---- */
++extern long g_nat_stc;
++static long ninp_vb0 = -1, ninp_st0, ninp_drawn, ninp_drawn0;
++typedef struct { uint32_t s[3]; uint8_t n[3], bad; long vb; uint64_t h; uint32_t seq; } StE;
++#define ST_RING (1 << 16)
++static StE *st_ring; static uint32_t st_head, st_tail; static long st_win = -1, st_n, st_bad, st_lost, st_age[65], st_done;
++static uint64_t st_hash(const uint32_t *s, const uint8_t *n)
++{
++  uint64_t h = 1469598103934665603ull;
++  for (int k = 0; k < 3; k++) { const uint32_t *p = (const uint32_t *)(const void *)(g_mem + (s[k] & (GUEST_SIZE - 1) & ~15u));
++    for (uint32_t i = 0; i < 4u * n[k]; i++) { h ^= p[i]; h *= 1099511628211ull; } }
++  return h;
++}
++/* every vblank's start (boot_x86.c k_vblank_hook): each flagged group drawn in the last st_win vblanks hashed again; one whose bytes are
++   others is counted once, by the vblanks since it was drawn */
++static void st_tick(long vb)
++{
++  if (st_win <= 0 || !st_ring) return;
++  while (st_tail != st_head && vb - st_ring[st_tail & (ST_RING - 1)].vb > st_win) { st_tail++; st_done++; }
++  for (uint32_t i = st_tail; i != st_head; i++) {
++    StE *e = &st_ring[i & (ST_RING - 1)]; long age = vb - e->vb;
++    if ((e->bad & 1) || age <= 0 || st_hash(e->s, e->n) == e->h) continue;
++    e->bad |= 1; st_bad++; st_age[age > 64 ? 64 : age]++;
++    if (st_bad <= 40) fprintf(stderr, "natst: CHANGED: streams %08x %08x %08x (%u %u %u qw) drawn at vb %ld, other bytes at the start of vb %ld\n",
++                              e->s[0], e->s[1], e->s[2], e->n[0], e->n[1], e->n[2], e->vb, vb);
++  }
++}
++/* The same by pipeline calls (boot_x86.c rt_dg_call, as g_dg_seq goes up): on the PSP the ME walks call S's groups while the main CPU
++   may run on until its first copy plan after call S + 2 (two copy areas: psp/xl_psp.c two_post, two_wait), so a flagged group's streams
++   must hold the same bytes until call S + 3 starts.  Each group drawn is hashed again at the start of each of the next ST_SEQW calls;
++   one whose bytes are others is counted once, by the calls since its own. */
++#define ST_SEQW 6
++static long st_sbad, st_sage[ST_SEQW + 1]; static uint32_t st_stail;
++static void st_seq_tick(uint32_t seq)
++{
++  if (st_win <= 0 || !st_ring) return;
++  if ((int32_t)(st_stail - st_tail) < 0) st_stail = st_tail;
++  while (st_stail != st_head && seq - st_ring[st_stail & (ST_RING - 1)].seq > ST_SEQW) st_stail++;
++  for (uint32_t i = st_stail; i != st_head; i++) {
++    StE *e = &st_ring[i & (ST_RING - 1)]; uint32_t age = seq - e->seq;
++    if ((e->bad & 2) || !age || age > ST_SEQW || st_hash(e->s, e->n) == e->h) continue;
++    e->bad |= 2; st_sbad++; st_sage[age]++;
++    if (st_sbad <= 40) fprintf(stderr, "natst: CHANGED (calls): streams %08x %08x %08x (%u %u %u qw) of pipeline call %u drawn at vb %ld, other bytes at "
++                               "the start of call %u, vb %ld\n", e->s[0], e->s[1], e->s[2], e->n[0], e->n[1], e->n[2], e->seq, e->vb, seq, k_vblanks);
++  }
++}
++static uint32_t st_cur_seq;
++static void st_group(const NatGrp *g)
++{
++  if (st_win < 0) { const char *e = getenv("MGS2_NAT_STCHK"); st_win = e ? atol(e) : 0; if (st_win > 0) st_ring = calloc(ST_RING, sizeof *st_ring); }
++  if (!(g->flags & NATG_INPL)) return;
++  ninp_drawn++;
++  if (st_win <= 0 || !st_ring) return;
++  if (st_head - st_tail == ST_RING) { st_lost++; st_tail++; }
++  { StE *e = &st_ring[st_head++ & (ST_RING - 1)]; memcpy(e->s, g->s, sizeof e->s); memcpy(e->n, g->n, 3); e->bad = 0; e->vb = k_vblanks; e->seq = st_cur_seq; e->h = st_hash(e->s, e->n); st_n++; }
++}
++static void ninp_line(long vb, int last)
++{
++  long turn = -1; int arm = rt_nat_arm_at(ninp_vb0 + 1, &turn);
++  fprintf(stderr, "natinpl: vb %ld-%ld%s arm %d inpl %d turn %ld: groups flagged static %ld (drawn %ld)\n", ninp_vb0, vb, last ? " (exit)" : "", arm,
++          rt_nat_inpl_at(ninp_vb0 + 1), turn, g_nat_stc - ninp_st0, ninp_drawn - ninp_drawn0);
++  ninp_st0 = g_nat_stc; ninp_drawn0 = ninp_drawn;
++}
+ static void nat_report(void);
+ static void nat_xfer(uint32_t tadr)
+ {
+@@ -95,6 +161,9 @@
+   { int nq = 0;
+     while (s->cur < s->n && (s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u) <= a) {
+       const NatGrp *g = &s->g[s->cur++]; int rc;
++      st_cur_seq = s->seq; st_group(g);   /* gl33 */
++      if (ninp_vb0 < 0) ninp_vb0 = k_vblanks - k_vblanks % 100;
++      if (k_vblanks >= ninp_vb0 + 100) { ninp_line(ninp_vb0 + 100, 0); ninp_vb0 = k_vblanks - k_vblanks % 100; }
+       if (!g_xl_one) { NX.state++; continue; }   /* (a transfer the translator is not fed: nothing drawn) */
+       if (s->seq != g_dg_seq) NX.late_seq++;
+       rc = nat_p04_group(g); NX.emit++;
+@@ -113,6 +182,17 @@
+ }
+ static void nat_report(void)
+ {
++  if (g_nat_cfg && ninp_vb0 >= 0) ninp_line(k_vblanks, 1);
++  if (g_nat_cfg) fprintf(stderr, "natinpl: totals: groups flagged static %ld (drawn %ld)\n", g_nat_stc, ninp_drawn);
++  if (st_win > 0) {
++    fprintf(stderr, "natst: static groups drawn %ld, each hashed again at every vblank's start for %ld vblanks: CHANGED %ld; by the vblanks since the draw:",
++            st_n, st_win, st_bad);
++    for (int i = 1; i <= 64; i++) if (st_age[i]) fprintf(stderr, " %d: %ld", i, st_age[i]);
++    fprintf(stderr, "; left the window unchanged or counted %ld, not followed (ring full) %ld\n", st_done, st_lost);
++    fprintf(stderr, "natst: the same by pipeline calls: each hashed again at the start of each of the next %d calls: CHANGED %ld; by the calls since "
++            "the group's own:", ST_SEQW, st_sbad);
++    for (int i = 1; i <= ST_SEQW; i++) fprintf(stderr, " %d: %ld", i, st_sage[i]);
++    fprintf(stderr, " (the PSP's ME may read a group until call + 3 starts)\n"); }
+   fprintf(stderr, "nat: stub: calls recorded %ld, groups %ld (most in a picture %ld), pictures %ld; stubbed without a record (arm C) %ld; calls with "
+           "no group %ld; the builder run instead: array full %ld, key below the last %ld, near the buffer's end %ld, other %ld; recorded "
+           "with no array %ld; groups not taken when their array was written again %ld (pictures %ld); least margin end - (dest + 16 qwc) at a "
+diff -ru t31/ge/natsnap.h t33/ge/natsnap.h
+--- t31/ge/natsnap.h	2026-11-20 19:13:48.498345831 +0000
++++ t33/ge/natsnap.h	2026-11-21 02:56:27.603982908 +0000
+@@ -19,7 +19,11 @@
+ #define NAT_BUF(a) ((a) < NAT_PKTM)
+ 
+ enum { NATG_FULL = 1,            /* the full template: q0, the constant block's REF, first (the call's first two groups) */
+-       NATG_PKT = 2 };           /* x86 shadow modes only: the builder ran too, the group's packet lies at key (the walk steps over it) */
++       NATG_PKT = 2,             /* x86 shadow modes only: the builder ran too, the group's packet lies at key (the walk steps over it) */
++       NATG_INPL = 4 };          /* gl33 (boot/nat_stub.h's rule; MGS2_NAT_INPL): a static group, the P04+df0 entry with its three streams sent
++                                    from outside packet memory: the main CPU's copy plan leaves the three streams in RAM, where the ME's
++                                    walk reads them (ge/xlme.c xc_nat) */
++#define NAT_DF0_MSCAL 0x140001beu   /* gl33: MSCAL to P04+0xdf0 (pc 0x1be), the plain textured entry */
+ typedef struct {                 /* 48 B */
+   uint32_t key;                  /* the order key: the RAM address (as the packet control holds it) of the next packet item at the call
+                                     (stubbed: every group of a call has its call's), or the group's own first tag (x86 shadow modes) */
+diff -ru t31/ge/xlme.c t33/ge/xlme.c
+--- t31/ge/xlme.c	2026-11-20 18:29:29.639987433 +0000
++++ t33/ge/xlme.c	2026-11-21 02:58:55.624497622 +0000
+@@ -218,6 +218,8 @@
+   if (g->n[0] > 128u || g->n[1] > 128u || g->n[2] > 64u) return;
+   if (g->flags & NATG_FULL) xc_run(c, 1, g->blk & 0xfffffff0u, 24);
+   xc_run(c, 1, g->mat & 0xfffffff0u, 8);
++  if (g->flags & NATG_INPL) return;   /* gl33: a static group's three streams stay in RAM (ge/natsnap.h NATG_INPL): the walk reads them
++                                         there (lw_nptr's "outside the copy" path) */
+   for (int k = 0; k < 3; k++) if (g->s[k] && g->n[k]) xc_run(c, 1, g->s[k] & 0xfffffff0u, g->n[k]);
+ }
+ static int xc_walk(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* ge/xlive.c walk()'s chain rules */
+diff -ru t31/psp/xl_psp.c t33/psp/xl_psp.c
+--- t31/psp/xl_psp.c	2026-11-20 21:42:48.929117241 +0000
++++ t33/psp/xl_psp.c	2026-11-21 02:58:55.627897180 +0000
+@@ -112,6 +112,7 @@
+ /* native step 1 (native_renderer_design.md 6.1): boot/nat_stub.h's (boot.c): the stub's arrays, counts and schedule */
+ extern NatBuf g_nat[2]; extern uint32_t g_nat_bseq[2]; extern int g_nat_cfg; extern long g_nat_c[NC_N];
+ extern void (*g_nat_sync)(int b); int rt_nat_arm_at(long vb, long *turn);
++int rt_nat_inpl_at(long vb); extern long g_nat_stc; static long nat_stc0;   /* gl33: static streams in place (boot/nat_stub.h) */
+ #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
+ #include <pspiofilemgr.h>
+ #include "hle_me.h"
+@@ -2331,6 +2332,7 @@
+   nat_t0n[10] = xmp.nat_bad; nat_t0n[11] = xmp.nat_late; nat_t0n[12] = xmp.nat_stop; nat_t0n[13] = xmp.nat_in; nat_t0n[14] = xmp.nat_out;
+   nat_t0n[15] = xmp.nat_part; nat_t0t = xmp.nat_t; nat_w0[0] = mq_wus[MW_FILL]; nat_w0[1] = mq_wus[MW_NOW];
+   nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
++  nat_stc0 = g_nat_stc;   /* gl33 */
+ }
+ static void nat_tline(const char *who, long vb0, long vb, int me)
+ {
+@@ -2363,6 +2365,8 @@
+           (double)(mq_wus[MW_FILL] - nat_w0[0]) / 1000.0, (double)(mq_wus[MW_NOW] - nat_w0[1]) / 1000.0, (long)nat_fa[0], GL_PSP_NB,
+           (long)nat_fa[1], GL_PSP_NV, (long)(nat_fa[2] >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nat_ca_max >> 10),
+           (unsigned)((two ? two_ah : two_an ? two_an : xmc.arena_n) >> 10));
++  fprintf(stderr, "nat inpl vb %ld-%ld %s arm %d inpl %d (gl33; 1: a static group's three streams stay in RAM): groups flagged static %ld\n",
++          vb0, vb, who, arm, rt_nat_inpl_at(vb0 + 1), g_nat_stc - nat_stc0);
+ }
+ static int mq_fill(int why)
+ {
+@@ -2597,6 +2601,7 @@
+             g_nat_c[NC_FB_END], g_nat_c[NC_FB_OTHER], g_nat_c[NC_NOMEM], g_nat_c[NC_LEFT], g_nat_c[NC_LEFT_PICS], nat_n_plan, nat_n_plang,
+             nat_n_dirg, nat_n_room, nat_n_sync, mq->n_natrec, mq->n_natg, (unsigned long long)mq->n_natb, xmp.nat_runs, xmp.nat_core, xmp.nat_fed,
+             xmp.nat_bad, xmp.nat_late, xmp.nat_stop, xmp.nat_in, xmp.nat_out, xmp.nat_part);
++  if (g_nat_cfg) fprintf(f, "static streams in place totals (gl33): groups flagged static %ld\n", g_nat_stc);
+   fprintf(f, "picture display (gl27): flip wait MGS2_GL_FLIPWAIT %d (from vb %ld): ME turns: lists held for the screen %ld (%.2f s), lists drawn "
+           "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld%s", flip_cfg, flip_from, flip_hold[0],
+           flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1], fbc_from < 0 ? "\n" : "");

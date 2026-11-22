@@ -1,0 +1,168 @@
+from 24000 to 24300
+writes inside 896618109 outside 2093402129; words last written inside now 359479; reads of them outside 27585938 (191888 word/reader pairs)
+micro code uploads inside 0 outside 0
+
+readers outside the draw pipeline of words it last wrote (reader: words, reads; ranges):
+  dma VIF1                     191778 words  27558825 reads  c00184-c00188 c00314-c00318 c004f4-c004f8 c00684-c00688 c00bd4-c00bd8 c00d64-c00d68 c012b4-c012b8 c01444-c01448 ... (216 ranges)
+  S_w00a_P3b89e0                    4 words      9216 reads  142e160-142e194
+  P1238e8                          40 words      6000 reads  1b8b4c-1b8be4 1b8f58-1b8ff0
+  dma VIF0                         17 words      3901 reads  000514-000648scratchpad 000c34-000c38scratchpad 000c94-000cb8scratchpad 000d04-000d28scratchpad
+  S_w00a_P2ec188                   10 words      2560 reads  142e160-142e194
+  P165d78                          12 words      1536 reads  142e160-142e194 165d1f0-165d224 165d420-165d454
+  P124380                           3 words      1200 reads  1b8b30-1b8b34 1b8f3c-1b8f40 1e50a0-1e50a4
+  P125a78                           8 words      1024 reads  142e160-142e19c
+  P123f18                           4 words       600 reads  1b8b3c-1b8b44 1b8f48-1b8f50
+  P14ea60                           4 words       512 reads  000cc0-000cdcscratchpad
+  P140cd0                           1 words       300 reads  1b4838-1b483c
+  S_w00a_P343468                    2 words       256 reads  142e190-142e19c
+  P15e2f8                           2 words         8 reads  1b4808-1b4810
+
+by address range (range: words, readers):
+  000514-000648     11 words  dma VIF0
+  000c34-000d28     10 words  P14ea60, dma VIF0
+  1b4808-1b483c      3 words  P140cd0, P15e2f8
+  1b8b30-1b8be4     23 words  P1238e8, P123f18, P124380
+  1b8f3c-1b8ff0     23 words  P1238e8, P123f18, P124380
+  1e50a0-1e50a4      1 words  P124380
+  c00184-c00188      1 words  dma VIF1
+  c00314-c00318      1 words  dma VIF1
+  c004f4-c004f8      1 words  dma VIF1
+  c00684-c00688      1 words  dma VIF1
+  c00bd4-c00bd8      1 words  dma VIF1
+  c00d64-c00d68      1 words  dma VIF1
+  c012b4-c012b8      1 words  dma VIF1
+  c01444-c01448      1 words  dma VIF1
+  c01d04-c01d08      1 words  dma VIF1
+  c01e94-c01e98      1 words  dma VIF1
+  c031a4-c031a8      1 words  dma VIF1
+  c03334-c03338      1 words  dma VIF1
+  136b134-136b138      1 words  dma VIF1
+  136b2c4-136b2c8      1 words  dma VIF1
+  136b4a4-136b4a8      1 words  dma VIF1
+  136b634-136b638      1 words  dma VIF1
+  136b814-136b818      1 words  dma VIF1
+  136b9a4-136b9a8      1 words  dma VIF1
+  136bb84-136bb88      1 words  dma VIF1
+  136bd14-136bd18      1 words  dma VIF1
+  136bef4-136bef8      1 words  dma VIF1
+  136c084-136c088      1 words  dma VIF1
+  136c264-136c268      1 words  dma VIF1
+  136c3f4-136c3f8      1 words  dma VIF1
+  136c5d4-136c5d8      1 words  dma VIF1
+  136c764-136c768      1 words  dma VIF1
+  13f9bbc-13f9cf0     12 words  dma VIF1
+  13faa4c-13faa70      3 words  dma VIF1
+  13fe48c-13fe5c0     12 words  dma VIF1
+  1402a6c-1402ba0     12 words  dma VIF1
+  1406afc-1407710     75 words  dma VIF1
+  140ac4c-140ae30     18 words  dma VIF1
+  140f0cc-140ffc0    101 words  dma VIF1
+  141356c-14136a0     12 words  dma VIF1
+  141393c-1413a50     10 words  dma VIF1
+  1425c10-1426394     36 words  dma VIF1
+  142e160-142e19c     11 words  P125a78, P165d78, S_w00a_P2ec188, S_w00a_P343468, S_w00a_P3b89e0
+  14475d4-14476f8      6 words  dma VIF1
+  144b914-144bbf8     14 words  dma VIF1
+  15b6214-15b6218      1 words  dma VIF1
+  161205c-1612080      3 words  dma VIF1
+  165d1f0-165d224      4 words  P165d78
+  165d420-165d454      4 words  P165d78
+  1b00000-1b050f0   1995 words  dma VIF1
+  1b05274-1b05860    353 words  dma VIF1
+  1b05980-1b05b60    120 words  dma VIF1
+  1b05c80-1b06160    312 words  dma VIF1
+  1b06af0-1b06df0    192 words  dma VIF1
+  1b07000-1b08170   1080 words  dma VIF1
+  1b08380-1b088f0    348 words  dma VIF1
+  1b08c80-1b08fe0    216 words  dma VIF1
+  1b094f0-1b09670     96 words  dma VIF1
+  1b09880-1b0ae70   1296 words  dma VIF1
+  1b0b080-1b0b770    408 words  dma VIF1
+  1b0ba70-1b0caf0   1020 words  dma VIF1
+  1b0cdf0-1b0dcf0    924 words  dma VIF1
+  1b0dff0-1b0e170     96 words  dma VIF1
+  1b0e2f0-1b0e470     96 words  dma VIF1
+  1b0e5f0-1b0e9e0    252 words  dma VIF1
+  1b0ed70-1b0f1f0    288 words  dma VIF1
+  1b0f400-1b0f8e0    312 words  dma VIF1
+  1b0fa00-1b103f0    564 words  dma VIF1
+  1b10570-1b12c70   2280 words  dma VIF1
+  1b12e80-1b13cf0    852 words  dma VIF1
+  1b13ff0-1b14d70    792 words  dma VIF1
+  1b14ef0-1b163f0   1200 words  dma VIF1
+  1b16600-1b16b70    348 words  dma VIF1
+  1b16cf0-1b16ff0    192 words  dma VIF1
+  1b17170-1b17560    252 words  dma VIF1
+  1b17770-1b17b60    252 words  dma VIF1
+  1b17d70-1b18070    192 words  dma VIF1
+  1b18280-1b18760    312 words  dma VIF1
+  1b18880-1b18c70    252 words  dma VIF1
+  1b18e80-1b1a5f0   1500 words  dma VIF1
+  1b1a800-1b1ab60    216 words  dma VIF1
+  1b1ae00-1b1b760    564 words  dma VIF1
+  1b1b970-1b1c870    888 words  dma VIF1
+  1b1ca80-1b1ce70    252 words  dma VIF1
+  1b1cff0-1b66e08  75519 words  dma VIF1
+  1d00000-1d050f0   1994 words  dma VIF1
+  1d05274-1d05860    353 words  dma VIF1
+  1d05980-1d05b60    120 words  dma VIF1
+  1d05c80-1d06160    312 words  dma VIF1
+  1d06af0-1d06df0    192 words  dma VIF1
+  1d07000-1d08170   1080 words  dma VIF1
+  1d08380-1d088f0    348 words  dma VIF1
+  1d08c80-1d08fe0    216 words  dma VIF1
+  1d094f0-1d09670     96 words  dma VIF1
+  1d09880-1d0ae70   1296 words  dma VIF1
+  1d0b080-1d0b770    408 words  dma VIF1
+  1d0ba70-1d0caf0   1020 words  dma VIF1
+  1d0cdf0-1d0dcf0    924 words  dma VIF1
+  1d0dff0-1d0e170     96 words  dma VIF1
+  1d0e2f0-1d0e470     96 words  dma VIF1
+  1d0e5f0-1d0e9e0    252 words  dma VIF1
+  1d0ed70-1d0f1f0    288 words  dma VIF1
+  1d0f400-1d0f8e0    312 words  dma VIF1
+  1d0fa00-1d103f0    564 words  dma VIF1
+  1d10570-1d12c70   2280 words  dma VIF1
+  1d12e80-1d13cf0    852 words  dma VIF1
+  1d13ff0-1d14d70    792 words  dma VIF1
+  1d14ef0-1d163f0   1200 words  dma VIF1
+  1d16600-1d16b70    348 words  dma VIF1
+  1d16cf0-1d16ff0    192 words  dma VIF1
+  1d17170-1d17560    252 words  dma VIF1
+  1d17770-1d17b60    252 words  dma VIF1
+  1d17d70-1d18070    192 words  dma VIF1
+  1d18280-1d18760    312 words  dma VIF1
+  1d18880-1d18c70    252 words  dma VIF1
+  1d18e80-1d1a5f0   1500 words  dma VIF1
+  1d1a800-1d1ab60    216 words  dma VIF1
+  1d1ae00-1d1b760    564 words  dma VIF1
+  1d1b970-1d1c870    888 words  dma VIF1
+  1d1ca80-1d1ce70    252 words  dma VIF1
+  1d1cff0-1d66a88  75295 words  dma VIF1
+
+micro calls outside the draw pipeline (code hash, entry, code uploaded inside it?, calls):
+  5fea5237 pc    0 uploaded outside 6363
+  f28803a2 pc   22 uploaded outside 209
+  bc35d9d2 pc    0 uploaded outside 128
+  bc35d9d2 pc  152 uploaded outside 128
+  6ae0fcdf pc    0 uploaded outside 405
+  6ae0fcdf pc    6 uploaded outside 673
+  6e214876 pc    0 uploaded outside 18900
+  43da1f40 pc    0 uploaded outside 86
+  43da1f40 pc    6 uploaded outside 86
+  4c472a9d pc    0 uploaded outside 5292
+  33268338 pc    0 uploaded outside 1806
+
+words last written inside the draw pipeline at the stop: 1404 KB in 9123 ranges; largest:
+  1b001f0-1b619d0 389 KB
+  1d001f0-1d619d0 389 KB
+  1b6d1d0-1b79970 49 KB
+  1d6d640-1d79960 48 KB
+  1b8bb70-1b93810 31 KB
+  1b7a710-1b800d0 22 KB
+  1b66e10-1b6c4e0 21 KB
+  1b61a30-1b66dc0 20 KB
+  1d61a30-1d66a40 20 KB
+  000000-004000 16 KB
+  1d66a90-1d6aa40 15 KB
+  1d7cbf0-1d800d0 13 KB

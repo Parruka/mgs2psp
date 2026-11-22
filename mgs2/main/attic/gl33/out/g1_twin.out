@@ -1,0 +1,35 @@
+== a3 (native every turn, plain) vs ai (in place by turns 0,0,1,1 + static check)
+tw/x86/out_a3.log: 17664 picture lines, 17664 content; tw/x86/out_ai.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+== gl32's a3 vs gl33's a3
+../build_gl32/tw/x86/out_a3.log: 17664 picture lines, 17664 content; tw/x86/out_a3.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+== gl32's dx (its hashref run) vs gl33's dx (delivered DZ, in place by turns)
+../build_gl32/tw/x86/out_dx.log: 17664 picture lines, 17664 content; tw/x86/out_dx.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+== ai: the rule's lines
+nat: gl33 static streams in place: MGS2_NAT_INPL 0, MGS2_NAT_INPL_CYCLE 0,0,1,1 (1: a static group's streams stay in RAM for the ME's walk; by the same turns)
+nat: MGS2_NAT 0, MGS2_NAT_CYCLE 3,3,3,3 (turns of 100 vblanks from vb 24001; 0 the builder, 3 native, 4 stubbed and not drawn); 2304 groups a picture, 48 B each
+natinpl: totals: groups flagged static 1053381 (drawn 1052281)
+natst: static groups drawn 1052281, each hashed again at every vblank's start for 8 vblanks: CHANGED 0; by the vblanks since the draw:; left the window unchanged or counted 1052281, not followed (ring full) 0
+nat: stub: calls recorded 427940, groups 2233651 (most in a picture 2079), pictures 5190; stubbed without a record (arm C) 0; calls with no group 0; the builder run instead: array full 0, key below the last 0, near the buffer's end 0, other 0; recorded with no array 0; groups not taken when their array was written again 3982 (pictures 8); least margin end - (dest + 16 qwc) at a recorded call 1657024 bytes
+nat: twin walk: transfers 322725, packet-buffer tags 63535110 (inside a CALL 4919522); groups drawn from records 2229410 (core 2229137, fed word by word 273, dropped 0), not drawn (the translator not fed) 0; drawn or compared after a later pipeline call began 0; tags met while their buffer still held untaken groups of an older pipeline call (stale: not drawn) 27806383; run lanes stopped at a key 9991; P04 packets met with no record 0 (header y 0: 0)
+natinpl turn lines: 107
+  inpl 1 turns 52 groups flagged 1049796
+  inpl 0 turns 54 groups flagged 3585
+  inpl inpl turns 1 groups flagged 0

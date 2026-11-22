@@ -1,0 +1,68 @@
+diff -ru t25/psp/xl_psp.c t25d/psp/xl_psp.c
+--- t25/psp/xl_psp.c	2026-11-19 16:53:43.265616534 +0000
++++ t25d/psp/xl_psp.c	2026-11-19 17:22:21.456994641 +0000
+@@ -1081,6 +1081,7 @@
+ static long two_steps, two_spills, two_nohalf, two_full_n, two_t0[3];
+ static int two_wx; static uint32_t two_wb;   /* gl24b: the extents and arena bytes planned since the last walk posted (the walk peaks) */
+ static uint32_t two_seq[2]; static long two_nowait, two_older, two_move, two_t1[3];   /* gl25: the walk that holds each half; counts */
++static long mq_walk_hk = -1;   /* gl25b: mp_hooks at the hook that posted the last hook walk */
+ static void two_load(int h) { two_h = h; xmc.next = two_next[h]; xmc.used = two_used[h]; xmc.ext_cap = (h + 1) * two_xh; xmc.arena_n = (uint32_t)(h + 1) * two_ah; }
+ static void two_keep(void) { two_next[two_h] = xmc.next; two_used[two_h] = xmc.used; }
+ static void two_empty(int h) { two_next[h] = h * two_xh; two_used[h] = (uint32_t)h * two_ah; two_pend[h] = 0; }
+@@ -1095,9 +1096,11 @@
+ {
+   for (int h = 0; h < 2; h++) if (two_pend[h]) { two_empty(h); if (h == two_h) two_load(h); }
+ }
++static void two_poll(void);   /* (gl25c: two_post) */
+ static void two_post(void)   /* a walk posted with the records so far: their halves its until it is done; the next copies in the other
+                                  half when that one is empty, else (a spill before) in this one after the wait */
+ {
++  two_poll();   /* gl25c: halves whose walk a FILL or copy wait already passed */
+   if (two_wx > mq_ext_max) { mq_ext_max = two_wx; mq_ext_max_vb = me_vb; }   /* gl24b: this walk's extents and bytes */
+   if (two_wb > mq_arena_max) { mq_arena_max = two_wb; mq_arena_max_vb = me_vb; }
+   two_wx = 0; two_wb = 0;
+@@ -1110,10 +1113,12 @@
+ static void two_poll(void)   /* gl25: the halves whose walk is done emptied, without a wait; the current half held and the other free: the
+                                 step moves there (a held half holds no copy of this step: its copies wait until the half is free) */
+ {
++  uint32_t t;
+   if (!two) return;
+-  for (int h = 0; h < 2; h++) if (two_pend[h] && mq_done(two_seq[h])) { two_empty(h); if (h == two_h) two_load(h); }
++  t = XS(mq)->tail;   /* gl25c: one read for the halves and walk_due */
++  for (int h = 0; h < 2; h++) if (two_pend[h] && (int32_t)(t - two_seq[h]) > 0) { two_empty(h); if (h == two_h) two_load(h); }
+   if (two_pend[two_h] && !two_pend[two_h ^ 1]) { two_load(two_h ^ 1); two_move++; }
+-  if (mq_walk_due && mq_done(mq_walk_seq)) mq_walk_due = 0;
++  if (mq_walk_due && (int32_t)(t - mq_walk_seq) > 0) mq_walk_due = 0;
+ }
+ static void two_wait(int h, int why)   /* gl25: only the walk that holds half h (with two walks out, the older one for the older half) */
+ {
+@@ -1485,7 +1490,7 @@
+ static void mq_arena_waitw(int why)   /* the walks posted last are done: the arena and its extents are the main CPU's again (gl24: with two
+                                          areas, the halves those walks held: the step's own copies stay) */
+ {
+-  if (!mq_walk_due) return;
++  if (!mq_walk_due) { two_poll(); return; }   /* gl25c */
+   mq_wait(mq_walk_seq, why);
+   if (!two && xmc.next > mq_ext_max) { mq_ext_max = xmc.next; mq_ext_max_vb = me_vb; }   /* step 4d: for 4d-3's sizes (gl24b: one area only;
+                                                                                  two areas: two_post) */
+@@ -1775,16 +1780,16 @@
+   uint32_t kb; XmeE e;
+   mq_probe();
+   if (!two) mq_arena_wait();
+-  else if (mp_nrec) mq_arena_waitw(MW_HOOK);   /* gl24: with two areas the walk before ran while this step's game code did; gl25: only a
+-                                                 hook with records waits for it, before its FILL and WALK (lchk3: the RAM a late walk reads
+-                                                 is unchanged until the next hook with records) */
++  else if (mp_nrec || (mq_walk_due && mp_hooks != mq_walk_hk))   /* gl24: with two areas the walk before ran while this step's game code did */
++    mq_arena_waitw(MW_HOOK);   /* gl25: a hook with records waits for it, before its FILL and WALK; gl25b: so does the second hook after
++                                  the walk's own (lchk4: the RAM a hook walk reads stays unchanged for two hooks, xc_keep's ranges apart) */
+   else { two_poll(); two_nowait++; }   /* gl25: a hook without records (the lite step's): no wait */
+   if (!mq_m4 && mq_turn && mq_th >= 0) { int k = (int)((vb / mq_turn) & 1);
+     if (k != mq_turn_k) { mq_drain(); if (mq_th >= 0) { mq_turn_k = k; mq_self = k; mq_turns++; mq_thin_due = 0; mq_walk_due = 0; } } }
+   mp_hooks++; kb = (uint32_t)((xmc.bytes - mp_bytes_hook) >> 10); mp_bytes_hook = xmc.bytes;   /* (mp_hook's counts) */
+   if (kb > mp_step_max) { mp_step_max = kb; mp_step_max_vb = vb; }
+   if (kb) mp_hist[kb < 512 ? 0 : kb < 1024 ? 1 : kb < 1536 ? 2 : kb < 2048 ? 3 : kb < 2560 ? 4 : kb < 3072 ? 5 : kb < 3584 ? 6 : kb < 4096 ? 7 : 8]++;
+-  if (mp_nrec) mq_late(0, 0);
++  if (mp_nrec) { mq_late(0, 0); if (mq_walk_due) mq_walk_hk = mp_hooks; }   /* gl25b */
+   memset(&e, 0, sizeof e); e.kind = XE_HOOK; e.h.vb = (int32_t)vb;
+   if (gl_ok != 1) {   /* the GE stopped: the ME told once, no more frames */
+     if (mq_stop_due && !mq_stop_sent) { e.h.stop = 1; mq_post(&e); mq_stop_sent = 1; }

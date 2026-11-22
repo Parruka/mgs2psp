@@ -1,0 +1,15 @@
+--- runtime/host_time.h.cs
++++ runtime/host_time.h
+@@ -149,7 +149,11 @@
+                                            prims hidden: the lives, births, draws, game random calls, registers, frames and time as the translation
+                                            leaves them; the positions, velocities and packets (which only the hidden prims' drawing reads) left as
+                                            they are.  Once on, keep H3 on for the rest of the run.  NOTE: gl16 / gl17 cycle words have this bit set */
+-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS and G0C (sbg0: G0, H3, NBS and G0C until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++#define OPT2_H3R 65536u               /* sbg0, task #167 (rain_study.md section 10): rain.c's streak prims hidden from the draw pipeline (the private
++                                           wpl/gen_s_w00a.h H3R_WR, h3r_second): the first set's show path keeps the hide bits, the second set gets bit 12
++                                           each act call and back with the bit off.  Only with the streaks not drawn (MGS2_GL_STREAKS=0) is the
++                                           picture the same.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C and H3R (sbg0: G0, H3, NBS, G0C and H3R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+ extern uint32_t g_opt2;

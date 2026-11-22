@@ -1,0 +1,28 @@
+--- /home/claude/sb18/psp/main_psp.c	2026-11-08 06:23:58.696367939 +0000
++++ /home/claude/me18e/psp/main_psp.c	2026-11-08 17:08:05.362862011 +0000
+@@ -69,8 +69,14 @@
+ #ifndef POOL_KB
+ #define POOL_KB 1152                       /* the host stacks of the other guest threads and the IOP threads (host_stack_alloc below) */
+ #endif
+-PSP_MAIN_THREAD_STACK_SIZE_KB(1024 + POOL_KB + 16);   /* guest thread 1 runs on the top 1 MB (runtime/kernel.h, the recompiled code nests deep);
+-                                                         the bottom holds the pool and a 16 KB guard */
++#ifndef MAIN_KB
++#define MAIN_KB 256                        /* task #180 step 4d-5: the main thread's own part above the pool (main, then guest thread 1), was 1024:
++                                              it used 2,908 bytes below pool_init's frame on the PSP (gl16, gl16ep2, gl17 run 2) and in every
++                                              emulator run since (MGS2_STACK_MARK); the other guest threads' host stacks (the pool) at most 9.5 KB
++                                              of their 48; the 768 KB go to newlib's heap (PSP_HEAP_SIZE_KB: all free memory but 1 MB) */
++#endif
++PSP_MAIN_THREAD_STACK_SIZE_KB(MAIN_KB + POOL_KB + 16);   /* guest thread 1 runs on the top MAIN_KB (runtime/kernel.h); the bottom holds the
++                                                            pool and a 16 KB guard */
+ 
+ #ifndef HARNESS_TITLE                      /* psp/Makefile passes the EBOOT title (rebuild_use.sh TITLE), so the log names the build it came from */
+ #define HARNESS_TITLE "MGS2 timing harness (title not set by the build)"
+@@ -476,7 +482,7 @@
+   SceKernelThreadInfo ti; memset(&ti, 0, sizeof ti); ti.size = sizeof ti;
+   if (sceKernelReferThreadStatus(sceKernelGetThreadId(), &ti) < 0 || !ti.stack) { out("thread status unavailable: no host stack pool\n"); return; }
+   g_pool = (uint8_t *)(((uintptr_t)ti.stack + (16 << 10) + 63) & ~(uintptr_t)63); g_pool_end = g_pool + ((size_t)POOL_KB << 10);
+-  { volatile uint8_t here; if ((uint8_t *)&here < g_pool_end + (512 << 10)) { out("main stack too small for the pool\n"); g_pool = g_pool_end = 0; }
++  { volatile uint8_t here; if ((uint8_t *)&here < g_pool_end + ((MAIN_KB / 2) << 10)) { out("main stack too small for the pool\n"); g_pool = g_pool_end = 0; }
+     else if (mgs2_getenv("MGS2_STACK_MARK")) {   /* the deepest use of the rest, for summary() */
+       g_main_lo = g_pool_end; g_main_hi = (uint8_t *)(((uintptr_t)&here - 1024) & ~(uintptr_t)63); memset(g_main_lo, 0xa5, (size_t)(g_main_hi - g_main_lo)); } }
+ }

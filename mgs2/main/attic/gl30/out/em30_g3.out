@@ -1,0 +1,5 @@
+em30.sh: g3 536 s
+em30.sh: pictures 455
+/home/claude/main/build_gl30/emu_g3/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/cfg/hashref_g22b.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0

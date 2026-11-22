@@ -1,0 +1,62 @@
+diff -ruN main/rt/iop_host.h t36/rt/iop_host.h
+--- main/rt/iop_host.h	2026-11-18 20:48:00.767734752 +0000
++++ t36/rt/iop_host.h	2026-11-22 02:59:11.536499719 +0000
+@@ -75,9 +75,18 @@
+ {
+   FILE *f;
+   if (!n) return;
+-  if (disc_pak) { uint32_t s0 = pos / 2048, ns = (pos + n + 2047) / 2048 - s0; uint8_t *t = calloc(ns, 2048);
+-    if (!t) { fprintf(stderr, "disc: no memory for %u sectors (%u bytes of %s)\n", ns, n, df->path); exit(7); }
+-    disc_pak_read(df->lsn + s0, ns, t); memcpy(dst, t + pos % 2048, n); free(t); return; }
++  if (disc_pak) {   /* gl36: the whole sectors straight into dst (zeroed first, as disc_pak_read wants), the partial first and last
++                       sectors through one sector of memory: the same bytes as the whole-read buffer before, without it */
++    uint32_t s = df->lsn + pos / 2048, o = pos % 2048; uint8_t *t = 0;
++    while (n) {
++      uint32_t k;
++      if (o || n < 2048) {
++        if (!t && !(t = malloc(2048))) { fprintf(stderr, "disc: no memory for a sector (%u bytes of %s)\n", n, df->path); exit(7); }
++        memset(t, 0, 2048); disc_pak_read(s, 1, t); k = 2048 - o; if (k > n) k = n; memcpy(dst, t + o, k); o = 0; s++;
++      } else { uint32_t ns = n / 2048; k = ns * 2048; memset(dst, 0, k); disc_pak_read(s, ns, dst); s += ns; }
++      dst += k; n -= k;
++    }
++    free(t); return; }
+   if ((f = fopen(df->host, "rb"))) { fseek(f, pos, SEEK_SET); if (fread(dst, 1, n, f)) {} fclose(f); }
+ }
+ static void disc_open(const char *root)
+@@ -245,8 +254,8 @@
+       tmp = malloc(n + 1);
+       if (!tmp) { fprintf(stderr, "fileio: no memory for a read of %u bytes\n", n); exit(7); }
+       disc_file_read(d->f, d->pos, tmp, n); (void)f;
+-      if (n) sif_push(0, w[4], tmp, n);
+-      free(tmp); d->pos += n; r = (int32_t)n;
++      if (n) sif_push_own(0, w[4], tmp, n); else free(tmp);   /* gl36: the sif keeps tmp (no second copy of the read) */
++      d->pos += n; r = (int32_t)n;
+     } else r = -9;
+     if (sif_log > 1) fprintf(stderr, "fileio: read fd %u %u bytes -> EE %08x (%d)\n", w[3], w[5], w[4], r);
+     fio_rep[7] = w[4]; break; }
+diff -ruN main/rt/sif.h t36/rt/sif.h
+--- main/rt/sif.h	2026-11-18 20:48:00.767713792 +0000
++++ t36/rt/sif.h	2026-11-22 02:59:11.536281043 +0000
+@@ -60,6 +60,22 @@
+   if (!it->data) { fprintf(stderr, "sif: no memory for %u bytes of IOP->EE data (%d items queued)\n", n, sif_ft - sif_fh); exit(7); }
+   memcpy(it->data, src, n); sif_ft++;
+ }
++/* gl36: sif_push for a buffer the caller malloc'd and gives away: the same writes in the same order and at the same time as
++   sif_push, but a queued item keeps the caller's buffer instead of a copy of it (fileio's reads: a file's size less of the heap at
++   its peak; the boot's 354 KB read of MODULE.IPK at vb 0 left gl35 under 16 KB to spare on the emulator).  src is freed here. */
++static void sif_push_own(int cmd, uint32_t dest, uint8_t *src, uint32_t n)
++{
++  SifItem *it;
++  sif_npush++;
++  if (!cmd && sif_in_run) {
++    while (sif_fh != sif_ft && !sif_fifo[sif_fh % SIF_FIFO].cmd) {
++      it = &sif_fifo[sif_fh % SIF_FIFO]; ee_copy_to(it->dest, it->data, it->n); free(it->data); sif_fh++; }
++    if (sif_fh == sif_ft) { ee_copy_to(dest, src, n); free(src); return; }
++  }
++  it = &sif_fifo[sif_ft % SIF_FIFO];
++  if (sif_ft - sif_fh >= SIF_FIFO) { fprintf(stderr, "sif: IOP->EE FIFO full\n"); exit(7); }
++  it->cmd = cmd; it->dest = dest; it->n = n; it->data = src; sif_ft++;
++}
+ static void sif_ee_deliver(void)
+ {
+   while (sif_fh != sif_ft) {

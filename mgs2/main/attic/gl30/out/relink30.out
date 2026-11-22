@@ -1,0 +1,32 @@
+ge_xme <- /home/claude/t30/ge/xme.c
+ge_xme_me <- /home/claude/t30/psp/xme_me.c
+ge_xlme <- /home/claude/t30/ge/xlme.c
+ge_gelist <- /home/claude/t30/ge/gelist.c (relabelled)
+ge_gelive <- /home/claude/t30/ge/gelive.c (relabelled)
+ge_xconv <- /home/claude/t30/ge/xconv.c (relabelled)
+xl_psp <- /home/claude/t30/psp/xl_psp.c
+v26me_bat <- /home/claude/t30/psp/v26me_bat.c
+xme_rest <- /home/claude/t30/psp/xme_rest.S
+xme_rest_chk: PASS
+xme_me undef: xme_rest xme_rest_halt xme_rest_init xme_run 
+xme_me_chk: PASS
+gl23's objects equal (cmp): ge_gelist no ge_gelive yes ge_xconv yes 
+psp.sh rc 0
+61216 ovl_init.bin
+465008 ovl_n_title.bin
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+4401856 ovl_w00a.bin
+3497168 ovl_w01a.bin
+9d2e688c5d4f7bf127a64a8d7cad0363  EBOOT.PBP
+3989459e7c1b3aa1a79c22e111d4d8a3  ovl_d00t.bin
+8310b32b1e6ef97d011405b2b8bb0b00  ovl_d01t.bin
+98d8db9a783f30e0f05a23a20f0e7e98  ovl_init.bin
+181e5ea3603945478aef2cbe715c1a3f  ovl_n_title.bin
+28239a87c260b032e093e5e675324a32  ovl_r_title.bin
+b9867759a1042e9c7d2a54d8639579ba  ovl_r_tnk0.bin
+8b0507bc065e5a22e7a2950c870c933e  ovl_w00a.bin
+e10b88587bc21b979366ba5afe746fed  ovl_w01a.bin
+psp.sh: done 4 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS

@@ -1,0 +1,104 @@
+##### g35pc2 -> g36pc2
+A model/g35pc2: 17808978 instr, 81990 I-miss, 135643 D-miss = 140.02 ms a picture
+B model/g36pc2: 17795666 instr, 84902 I-miss, 139836 D-miss = 141.63 ms a picture
+B - A: instr -13312 (-0.07 ms), I-miss +2912 (+0.59 ms), D-miss +4192 (+1.08 ms) = +1.61 ms a picture [C model]
+spread: functions slower in B sum +4.50 ms, faster -2.88 ms; I-miss up +16613 in the functions that gained, -13701 in those that lost
+   (outside)                        instr     -5082 (-0.025 ms by instructions), I-miss     -25, D-miss     -41, total -0.041 ms
+   io_dma_start                     instr     -1672 (-0.008 ms by instructions), I-miss    +154, D-miss    -237, total -0.038 ms
+   xc_merge                         instr     -1523 (-0.008 ms by instructions), I-miss    +105, D-miss      -3, total +0.013 ms
+   gif_qw                           instr     -1466 (-0.007 ms by instructions), I-miss    +160, D-miss    +440, total +0.139 ms
+   lw_walk                          instr      +868 (+0.004 ms by instructions), I-miss    +699, D-miss    +814, total +0.357 ms
+   gx_batch                         instr      +772 (+0.004 ms by instructions), I-miss     -28, D-miss     -26, total -0.009 ms
+   xc_hold                          instr      +644 (+0.003 ms by instructions), I-miss    +274, D-miss    +841, total +0.276 ms
+   tk_pal                           instr      -639 (-0.003 ms by instructions), I-miss    +129, D-miss    -127, total -0.010 ms
+   P165d78                          instr      -585 (-0.003 ms by instructions), I-miss      +7, D-miss      +1, total -0.001 ms
+   P11c828                          instr      -545 (-0.003 ms by instructions), I-miss      -6, D-miss      -2, total -0.004 ms
+   me_memcpy                        instr      -478 (-0.002 ms by instructions), I-miss     +90, D-miss      -5, total +0.015 ms
+   xm_plan                          instr      -459 (-0.002 ms by instructions), I-miss     +31, D-miss      -7, total +0.002 ms
+   xme_entry                        instr      +383 (+0.002 ms by instructions), I-miss      +9, D-miss     +12, total +0.007 ms
+   vc_p07_c1b                       instr      -359 (-0.002 ms by instructions), I-miss    -338, D-miss     +60, total -0.055 ms
+   k_call_handler                   instr      -348 (-0.002 ms by instructions), I-miss      -6, D-miss    +227, total +0.056 ms
+   P165d48                          instr      -317 (-0.002 ms by instructions), I-miss      -2, D-miss      +0, total -0.002 ms
+   tk_get_um                        instr      -306 (-0.002 ms by instructions), I-miss    +504, D-miss    -160, total +0.060 ms
+##### g35pc2.1 -> g36pc2.1
+A model/g35pc2.1: 15717975 instr, 76461 I-miss, 113289 D-miss = 122.75 ms a picture
+B model/g36pc2.1: 15701591 instr, 79815 I-miss, 110365 D-miss = 122.60 ms a picture
+B - A: instr -16384 (-0.08 ms), I-miss +3354 (+0.68 ms), D-miss -2924 (-0.76 ms) = -0.15 ms a picture [C model]
+spread: functions slower in B sum +3.47 ms, faster -3.62 ms; I-miss up +16413 in the functions that gained, -13058 in those that lost
+   io_dma_start                     instr     -6748 (-0.033 ms by instructions), I-miss     +49, D-miss    -256, total -0.089 ms
+   gx_batch                         instr     -2347 (-0.012 ms by instructions), I-miss      +1, D-miss    -361, total -0.105 ms
+   vc_p07_c1b                       instr     -1459 (-0.007 ms by instructions), I-miss    -203, D-miss    +613, total +0.110 ms
+   gif_qw                           instr      -894 (-0.004 ms by instructions), I-miss    -107, D-miss    -609, total -0.184 ms
+   xl_vif1_span                     instr      -699 (-0.003 ms by instructions), I-miss     -67, D-miss     +18, total -0.012 ms
+   tk_pal                           instr      -669 (-0.003 ms by instructions), I-miss     +55, D-miss    +316, total +0.090 ms
+   xc_hold                          instr      +565 (+0.003 ms by instructions), I-miss    +262, D-miss      +2, total +0.057 ms
+   lw_walk                          instr      +433 (+0.002 ms by instructions), I-miss    +773, D-miss     +37, total +0.169 ms
+   tk_get_um                        instr      -418 (-0.002 ms by instructions), I-miss    +554, D-miss   -1028, total -0.154 ms
+   kick                             instr      -385 (-0.002 ms by instructions), I-miss     -43, D-miss    +245, total +0.053 ms
+   gb_prim                          instr      -353 (-0.002 ms by instructions), I-miss      +2, D-miss      -1, total -0.002 ms
+   memset                           instr      -303 (-0.002 ms by instructions), I-miss     +60, D-miss     +58, total +0.026 ms
+##### g35pc1 -> g36pc1
+A model/g35pc1: 17192122 instr, 82764 I-miss, 127039 D-miss = 134.90 ms a picture
+B model/g36pc1: 17230625 instr, 85672 I-miss, 131497 D-miss = 136.83 ms a picture
+B - A: instr +38503 (+0.19 ms), I-miss +2908 (+0.59 ms), D-miss +4459 (+1.15 ms) = +1.94 ms a picture [C model]
+spread: functions slower in B sum +4.84 ms, faster -2.91 ms; I-miss up +16889 in the functions that gained, -13981 in those that lost
+   lw_walk                          instr     +5083 (+0.025 ms by instructions), I-miss    +715, D-miss    +580, total +0.321 ms
+   gif_qw                           instr     +4365 (+0.022 ms by instructions), I-miss    +161, D-miss    +109, total +0.083 ms
+   xl_lane_p07                      instr     +3290 (+0.016 ms by instructions), I-miss    -542, D-miss    +107, total -0.067 ms
+   ud_new                           instr     +2997 (+0.015 ms by instructions), I-miss   -1076, D-miss     +20, total -0.200 ms
+   call                             instr     +2359 (+0.012 ms by instructions), I-miss    +205, D-miss   -1246, total -0.268 ms
+   xc_hold                          instr     +2301 (+0.011 ms by instructions), I-miss    +296, D-miss    +845, total +0.290 ms
+   xc_hold_test                     instr     +2160 (+0.011 ms by instructions), I-miss   -2060, D-miss    +265, total -0.341 ms
+   ud_eager                         instr     +1774 (+0.009 ms by instructions), I-miss    -297, D-miss    +556, total +0.092 ms
+   gu_clut_load                     instr     +1601 (+0.008 ms by instructions), I-miss    +123, D-miss    -319, total -0.050 ms
+   tk_get_um                        instr     +1551 (+0.008 ms by instructions), I-miss    +520, D-miss    +609, total +0.271 ms
+   me_memset                        instr     +1531 (+0.008 ms by instructions), I-miss    +327, D-miss    +244, total +0.137 ms
+   gx_batch                         instr     -1401 (-0.007 ms by instructions), I-miss     -28, D-miss     +52, total +0.001 ms
+   gl_tex                           instr     +1235 (+0.006 ms by instructions), I-miss    +264, D-miss    +262, total +0.128 ms
+   gf_reg                           instr      +911 (+0.005 ms by instructions), I-miss    -213, D-miss     -95, total -0.063 ms
+   vc_p07_c1b                       instr      +735 (+0.004 ms by instructions), I-miss    -341, D-miss     -21, total -0.071 ms
+   gu_drawn                         instr      +630 (+0.003 ms by instructions), I-miss   -1681, D-miss    +390, total -0.240 ms
+   rows                             instr      +627 (+0.003 ms by instructions), I-miss    +213, D-miss    -152, total +0.007 ms
+   xc_gs                            instr      +596 (+0.003 ms by instructions), I-miss    -142, D-miss    -548, total -0.168 ms
+   ld_sig                           instr      +543 (+0.003 ms by instructions), I-miss    +215, D-miss     +44, total +0.058 ms
+   gl_call                          instr      +482 (+0.002 ms by instructions), I-miss    +580, D-miss    +682, total +0.297 ms
+   ud_ok                            instr      +471 (+0.002 ms by instructions), I-miss    +267, D-miss      +0, total +0.057 ms
+   touch                            instr      +451 (+0.002 ms by instructions), I-miss    -290, D-miss    +480, total +0.067 ms
+   xme_entry                        instr      +428 (+0.002 ms by instructions), I-miss      +8, D-miss      -6, total +0.002 ms
+   gf_packed                        instr      +417 (+0.002 ms by instructions), I-miss    +284, D-miss      +0, total +0.060 ms
+   gu_clut_id                       instr      +412 (+0.002 ms by instructions), I-miss    -151, D-miss     -32, total -0.037 ms
+   lo_src                           instr      +300 (+0.001 ms by instructions), I-miss    -101, D-miss     +38, total -0.009 ms
+##### g35pc1.1 -> g36pc1.1
+A model/g35pc1.1: 15395211 instr, 77917 I-miss, 111422 D-miss = 120.97 ms a picture
+B model/g36pc1.1: 15438628 instr, 81367 I-miss, 102147 D-miss = 119.49 ms a picture
+B - A: instr +43418 (+0.22 ms), I-miss +3450 (+0.70 ms), D-miss -9275 (-2.40 ms) = -1.48 ms a picture [C model]
+spread: functions slower in B sum +3.17 ms, faster -4.64 ms; I-miss up +16904 in the functions that gained, -13454 in those that lost
+   vc_p07_c1b                       instr     +8797 (+0.044 ms by instructions), I-miss    -203, D-miss    +541, total +0.142 ms
+   (outside)                        instr     +6860 (+0.034 ms by instructions), I-miss    -183, D-miss     +55, total +0.011 ms
+   P136f38                          instr     +5080 (+0.025 ms by instructions), I-miss      +2, D-miss     +27, total +0.032 ms
+   io_dma_start                     instr     +4040 (+0.020 ms by instructions), I-miss     +51, D-miss    -217, total -0.025 ms
+   gif_qw                           instr     +1478 (+0.007 ms by instructions), I-miss    -102, D-miss   -1231, total -0.331 ms
+   P158cb0                          instr     +1457 (+0.007 ms by instructions), I-miss      +5, D-miss     +25, total +0.015 ms
+   vupv_96936c0f_0                  instr     +1409 (+0.007 ms by instructions), I-miss     +54, D-miss      +4, total +0.019 ms
+   P1365e0                          instr     +1126 (+0.006 ms by instructions), I-miss      +1, D-miss      +3, total +0.007 ms
+   P11cbe8                          instr      +792 (+0.004 ms by instructions), I-miss     +26, D-miss      +2, total +0.010 ms
+   P165d78                          instr      +699 (+0.003 ms by instructions), I-miss     -15, D-miss      +0, total +0.000 ms
+   P11c828                          instr      +687 (+0.003 ms by instructions), I-miss     -88, D-miss      +4, total -0.014 ms
+   gx_batch                         instr      -666 (-0.003 ms by instructions), I-miss      +2, D-miss    -122, total -0.034 ms
+   P11cf88                          instr      +650 (+0.003 ms by instructions), I-miss     +22, D-miss      +0, total +0.008 ms
+   xc_hold                          instr      +644 (+0.003 ms by instructions), I-miss    +268, D-miss    +640, total +0.223 ms
+   tk_pal                           instr      -639 (-0.003 ms by instructions), I-miss     +56, D-miss     +31, total +0.016 ms
+   lw_walk                          instr      +616 (+0.003 ms by instructions), I-miss    +789, D-miss    -135, total +0.129 ms
+   P158758                          instr      +494 (+0.002 ms by instructions), I-miss      +3, D-miss      +2, total +0.004 ms
+   rt_qcopy_nov                     instr      +476 (+0.002 ms by instructions), I-miss     +22, D-miss     -64, total -0.009 ms
+   P158570                          instr      +421 (+0.002 ms by instructions), I-miss      +2, D-miss      +4, total +0.004 ms
+   P1022d8                          instr      +417 (+0.002 ms by instructions), I-miss      +3, D-miss     +16, total +0.007 ms
+   rt_store                         instr      +399 (+0.002 ms by instructions), I-miss    +111, D-miss      +6, total +0.026 ms
+   k_call_handler                   instr      +387 (+0.002 ms by instructions), I-miss     +16, D-miss    +178, total +0.051 ms
+   P165d48                          instr      +366 (+0.002 ms by instructions), I-miss     +38, D-miss      +0, total +0.010 ms
+   k_take_interrupts                instr      +360 (+0.002 ms by instructions), I-miss     +50, D-miss     +71, total +0.030 ms
+   memset                           instr      -327 (-0.002 ms by instructions), I-miss     +62, D-miss     -20, total +0.006 ms
+   P11fa58                          instr      +324 (+0.002 ms by instructions), I-miss     +10, D-miss     +13, total +0.007 ms
+   P11ce30                          instr      +315 (+0.002 ms by instructions), I-miss      +2, D-miss      +2, total +0.003 ms
+   tk_get_um                        instr      -306 (-0.002 ms by instructions), I-miss    +564, D-miss   -1929, total -0.385 ms
+   xme_entry                        instr      +304 (+0.002 ms by instructions), I-miss     -12, D-miss     -24, total -0.007 ms

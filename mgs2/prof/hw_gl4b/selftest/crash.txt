@@ -1,0 +1,27 @@
+crash catcher 3b: writer thread started (03d85473, priority 0x10, a look every 200 ms)
+crash catcher 3b: on (handler 08b76550, the system's sleep 880315f0; a crash leaves its record on the screen, the thread sleeps inside the system and the writer thread puts the record in crash.txt)
+crash catcher 3b: self-test started (a misaligned load in the main thread; the record, then the writer thread's lines)
+SELF-TEST: the crash catcher works (expected EPC 08b74474)
+ vb -1, c13 00000000, c15 882ff800, c16 88231c84, ic 1
+ COP0   EPC 08b74474 Cause 10000010 Status 60008613 Bad 0b1a190e
+    address error on load or fetch, user, ints on
+ kernel EPC 08b74474 Cause 10000010 Status 60008613
+    address error on load or fetch, user, ints on
+ zr 00000000  at 0babff00  v0 0b1a190c  v1 00000003  a0 08bc0000
+ a1 00000001  a2 00000001  a3 09031a6d  t0 00000001  t1 00000001
+ t2 00000000  t3 00000000  t4 72687420  t5 3b646165  t6 65687420
+ t7 63657220  s0 0b1a0000  s1 00000000  s2 0078149e  s3 00000001
+ s4 09030028  s5 08bc0000  s6 00000003  s7 09053d80  t8 00000015
+ t9 deadbeef  k0 0babff00  k1 00000000  gp 08bd3030  sp 0babfb60
+ fp 00000002  ra 08b7652c  lo deadbeef  hi deadbeef
+ EPC-12: 2442000c 3c020b1a 2442190c 8c420002 3c030b1a 03e00008
+ sp+00 73617263 61632068 65686374 62332072 6e6f203a 61682820
+ sp+18 656c646e 38302072 35363762 202c3035 20656874 74737973
+ sp+30 73276d65 656c7320 38207065 31333038 3b306635 63206120
+ sp+48 68736172 61656c20 20736576 20737469 6f636572 6f206472
+ sp+60 6874206e 63732065 6e656572 6874202c 68742065 64616572
+ sp+78 656c7320 20737065 69736e69 74206564 73206568 65747379
+ sp+90 6e61206d 68742064 72772065 72657469 72687420 20646165
+ EBOOT code 08804000-08bc96d0, overlays 08bd0000-09030000
+crash catcher 3b: the record above reached this file 9 s after power-on (vb -1); the stopped thread user_main (priority 32, status 4, wait type 1); returns from the system's sleep 0
+crash catcher 3b: log.txt has the record after the run's unwritten lines; the stopped thread suspended; no auto sleep for 10 minutes; battery.txt goes on

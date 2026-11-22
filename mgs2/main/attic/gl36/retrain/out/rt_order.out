@@ -1,0 +1,46 @@
+t0 window 0 arena fetch runs moved: 67824 of 2057944
+t0 window 1 arena fetch runs moved: 68873 of 2883949
+t0 window 2 arena fetch runs moved: 65345 of 2554838
+t0 window 3 arena fetch runs moved: 65688 of 3095535
+t2 window 0 arena fetch runs moved: 69277 of 3016661
+t2 window 1 arena fetch runs moved: 68208 of 2710266
+seed from gl36's last order: listed 1957 still in the lists 1957 of them not fetched now 1 newly hot appended 5 ; gl35 order column: 1962 functions
+order_s1 rc 0
+trace 2: 30022833 runs (0 marked), 8 windows, 6660082 runs after compression, 765687 fetches outside the functions
+16985 functions, fetched: region 0 1023 (2421888 bytes), 1 482 (1872772), 2 457 (1625804)
+current placement: trace 1 4102792 I-misses (weighted 4102792) test windows 291062 (weighted 291062) trace 2 3881840 I-misses (weighted 3881840) test windows 399977 (weighted 399977), weighted sum 7984632, test 691039
+current order, hot functions packed: trace 1 3859783 I-misses (weighted 3859783) test windows 310863 (weighted 310863) trace 2 3783214 I-misses (weighted 3783214) test windows 381966 (weighted 381966), weighted sum 7642997, test 692829
+/home/claude/main/build_gl36/ord/seed.txt: trace 1 3155122 I-misses (weighted 3155122) test windows 251652 (weighted 251652) trace 2 3033994 I-misses (weighted 3033994) test windows 309197 (weighted 309197), weighted sum 6189116, test 560849
+slice 0..1000: current order 7642997, first-fetch order 7838206
+slice: /home/claude/main/build_gl36/ord/seed.txt 6189116
+gl36 objective: each window by its start-order misses (1e8 = the start order's), guard on; start 1600000000
+optimized order: slice 1331874234
+optimized order, whole traces: trace 1 2628905 I-misses (weighted 2628905) test windows 194421 (weighted 194421) trace 2 2576705 I-misses (weighted 2576705) test windows 268059 (weighted 268059), weighted sum 5205610, test 462480
+per-window table (I-misses of each whole window; the columns: [0] start (-in) [1] /home/claude/main/build_gl36/lay/gl35_n.txt [2] result)
+  trace 1 window 0        :    149678    141161 ( -5.69%)    120041 (-19.80%)
+  trace 1 window 1        :    259701    242510 ( -6.62%)    199360 (-23.23%)
+  trace 1 window 2        :    201629    192598 ( -4.48%)    160192 (-20.55%)
+  trace 1 window 3        :    203265    195444 ( -3.85%)    161107 (-20.74%)
+  trace 1 window 4        :    210479    205642 ( -2.30%)    168288 (-20.05%)
+  trace 1 window 5        :    559643    616343 (+10.13%)    486503 (-13.07%)
+  trace 1 window 6        :    560961    619343 (+10.41%)    481823 (-14.11%)
+  trace 1 window 7        :    525015    584652 (+11.36%)    446645 (-14.93%)
+  trace 1 window 8        :    484751    536073 (+10.59%)    404946 (-16.46%)
+  trace 1 window 9 (test):    251652    236450 ( -6.04%)    194421 (-22.74%)
+  trace 2 window 0        :    415635    464909 (+11.86%)    345758 (-16.81%)
+  trace 2 window 1        :    348220    392485 (+12.71%)    294454 (-15.44%)
+  trace 2 window 2        :    284510    314507 (+10.54%)    244921 (-13.91%)
+  trace 2 window 3        :    531697    604142 (+13.63%)    447680 (-15.80%)
+  trace 2 window 4        :    502322    560068 (+11.50%)    426297 (-15.13%)
+  trace 2 window 5        :    565022    607860 ( +7.58%)    484438 (-14.26%)
+  trace 2 window 6        :    386588    428901 (+10.95%)    333157 (-13.82%)
+  trace 2 window 7 (test):    309197    336393 ( +8.80%)    268059 (-13.30%)
+  sums, training windows: 6189116 6706638 5205610; test windows: 560849 572843 462480
+region 0: 1023 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 482 input sections listed, 0 functions in shared sections, 0 left to the linker
+region 0: 1023 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 457 input sections listed, 0 functions in shared sections, 0 left to the linker
+layout_elf.ld equal for both routes
+32aa49d0bad0e24d3d773d922d8a225c  final/layout_elf.ld
+30c322534839f7eb15c7c06a131deb0b  final/layout_w00a.ld
+c2535bf1bde9e75a70bafad88d3836cb  final/layout_w01a.ld

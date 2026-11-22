@@ -1,0 +1,182 @@
+# total 621843214 imiss 6605803 dmiss 3775757 dacc 131668491 fa_imiss 0 cde 768819 pref 0 cinv 0 dskip 0 dst 1072870 dwb 2200495
+steps 100; host calls on call lines 13583/step; generated function entries 12278/step
+
+== call lines: 448217 instr/step, 3.50 ms; per call 33.00 instr
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+st R                           163564    12.04     2298        0    1.17
+ld host stack                   46702     3.44      634       43    0.34
+ld R                            31721     2.34      466        0    0.23
+st host stack                   23319     1.72      324       40    0.17
+move zero                       23275     1.71      324        0    0.17
+lui                             22005     1.62      376        0    0.17
+st other mem                    20919     1.54      355      145    0.19
+ori                             17913     1.32      300        0    0.14
+ld other mem                    14147     1.04      250      779    0.28
+st F                            13964     1.03       90        0    0.08
+host call (jal)                 13583     1.00      370        0    0.13
+alu                             13230     0.97      160        0    0.09
+addiu                           11591     0.85      169        0    0.08
+sra 31 (high word)              10900     0.80      204        0    0.09
+branch                           7966     0.59       51        0    0.04
+other                            2528     0.19       54        0    0.02
+ld F                             2514     0.19       74        0    0.03
+move                             2175     0.16       79        0    0.03
+st VF/VI                         1889     0.14       64        0    0.02
+ld VF/VI                         1276     0.09       25        0    0.01
+st ACC/CC/k_left                 1067     0.08        0        0    0.00
+ld ACC/CC/k_left                 1044     0.08        1        0    0.00
+nop                               732     0.05        3        0    0.00
+ld RH                             128     0.01        0        0    0.00
+st scratchpad other                60     0.00        1        0    0.00
+ld scratchpad other                 4     0.00        0        0    0.00
+st HI/LO                            0     0.00        0        0    0.00
+position: after 5.60, before 24.46, call+delay 2.00, na 0.94
+
+== entry lines: 158495 instr/step, 2.04 ms; per entry 12.91 instr
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+st host stack                   73421     5.98     1617      227    0.70
+ld R                            36678     2.99     1041        0    0.37
+addiu                           26414     2.15     2987        0    0.74
+lui                             15023     1.22      402        0    0.15
+ld F                             5883     0.48      203        0    0.07
+move                              456     0.04        7        0    0.00
+ld host stack                     238     0.02        5        0    0.00
+nop                               122     0.01        0        0    0.00
+j                                 114     0.01       49        0    0.01
+sra 31 (high word)                 83     0.01        7        0    0.00
+move zero                          33     0.00        0        0    0.00
+ld other mem                        9     0.00        0        0    0.00
+branch                              8     0.00        0        0    0.00
+host call (jal)                     7     0.00        0        0    0.00
+alu                                 2     0.00        0        0    0.00
+jr                                  1     0.00        1        0    0.00
+ld VF/VI                            1     0.00        0        0    0.00
+other                               0     0.00        0        0    0.00
+
+== exit lines: 88849 instr/step, 0.74 ms; per entry 7.24 instr
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+ld host stack                   63728     5.19     1062      242    0.54
+jr                              12084     0.98      106        0    0.07
+addiu                           11887     0.97      209        0    0.09
+st host stack                     797     0.06      100        0    0.02
+st F                              166     0.01        0        0    0.00
+st R                              134     0.01        0        0    0.00
+move zero                          19     0.00        3        0    0.00
+move                               14     0.00        1        0    0.00
+sra 31 (high word)                  9     0.00        0        0    0.00
+branch                              8     0.00        3        0    0.00
+other                               2     0.00        0        0    0.00
+alu                                 1     0.00        0        0    0.00
+nop                                 0     0.00        0        0    0.00
+
+== jr lines: 161339 instr/step, 1.48 ms
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+st R                            65866        -     1722        0    0.64
+st other mem                    14471        -      184       84    0.12
+sra 31 (high word)              14205        -      417        0    0.15
+st F                            12340        -      186        0    0.09
+lui                             10227        -      217        0    0.09
+ld host stack                    9435        -      331        5    0.11
+alu                              8106        -       70        0    0.05
+addiu                            7811        -      130        0    0.06
+move zero                        5913        -      186        0    0.06
+ori                              3664        -       15        0    0.02
+branch                           3661        -       61        0    0.03
+ld other mem                     1825        -      146       38    0.05
+move                             1768        -        2        0    0.01
+ld VF/VI                         1372        -        0        0    0.01
+st host stack                     117        -        2        0    0.00
+ld R                              109        -        0        0    0.00
+jr                                108        -        0        0    0.00
+ld RH                             101        -        0        0    0.00
+nop                                83        -        1        0    0.00
+st HI/LO                           52        -        0        0    0.00
+host call (jal)                    51        -        0        0    0.00
+other                              45        -        0        0    0.00
+j                                   7        -        0        0    0.00
+ld HI/LO                            0        -        0        0    0.00
+
+== body lines: 3231388 instr/step, 24.22 ms
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+alu                            729049        -     5534        0    4.23
+branch                         371928        -     2763        0    2.14
+other                          360868        -     2211        0    1.98
+addiu                          353823        -     3291        0    2.18
+ld other mem                   253354        -     2864    13275    4.46
+st other mem                   172058        -     2232     4715    2.18
+ld host stack                  135986        -     2479      489    1.20
+move                           103130        -      886        0    0.62
+ld VF/VI                        95174        -      478        0    0.50
+lui                             92699        -     1232        0    0.65
+st host stack                   77460        -     2046      228    0.80
+st VF/VI                        77332        -      796        0    0.49
+nop                             63752        -      364        0    0.34
+sra 31 (high word)              58174        -      819        0    0.42
+move zero                       50087        -      520        0    0.32
+st R                            41553        -      968        0    0.38
+ld R                            36547        -      942        0    0.35
+st ACC/CC/k_left                31953        -       71        0    0.15
+ori                             28626        -      212        0    0.16
+host call (jal)                 24987        -      849        0    0.28
+ld ACC/CC/k_left                23945        -       16        0    0.10
+st RH                           14262        -      136        0    0.09
+ld RH                           13243        -       49        0    0.07
+st scratchpad other             11999        -       23        0    0.06
+ld scratchpad other              4807        -        3        0    0.02
+st HI/LO                         4143        -       64        0    0.03
+ld HI/LO                          167        -        1        0    0.00
+st F                              166        -        4        0    0.00
+ld F                               98        -        8        0    0.00
+jr                                 13        -        0        0    0.00
+j                                   3        -        0        0    0.00
+
+== other lines: 6458 instr/step, 0.04 ms
+kind                         instr/st   per ev Imiss/st Dmiss/st      ms
+addiu                            1303        -        1        0    0.01
+ld host stack                    1095        -       18        2    0.01
+ld R                              984        -        2        0    0.00
+st host stack                     898        -        6        0    0.01
+move                              752        -        2        0    0.00
+branch                            608        -       14        0    0.01
+ld other mem                      207        -        0        1    0.00
+host call (jal)                   164        -        0        0    0.00
+move zero                         156        -        0        0    0.00
+lui                               138        -        1        0    0.00
+alu                                83        -        0        0    0.00
+ori                                39        -        1        0    0.00
+other                              28        -        0        0    0.00
+sra 31 (high word)                  2        -        1        0    0.00
+
+R[] word accesses by guest register class (per step; hi = the upper word of the 64-bit R[])
+body   ld na         lo:    23686  a0-a3 11733, s0-s7 6520, ra 2597, v0-v1 1327, sp 1030, t0-t9 252, fp 164, at 60, k0/k1/zero 2
+body   ld na         hi:    12861  s0-s7 6520, a0-a3 2891, ra 2597, v0-v1 534, fp 164, t0-t9 152, k0/k1/zero 2, at 1
+body   st na         lo:    20343  s0-s7 8643, ra 2813, t0-t9 2768, v0-v1 2715, a0-a3 1819, sp 1344, fp 185, at 56
+body   st na         hi:    21210  s0-s7 8651, v0-v1 2868, ra 2813, t0-t9 2780, a0-a3 2485, sp 1355, fp 185, at 73
+call   ld after      lo:    16265  a0-a3 7861, v0-v1 5292, t0-t9 1704, at 1404, ra 4
+call   ld after      hi:    13892  a0-a3 7306, v0-v1 3756, t0-t9 1656, at 1169, ra 4
+call   ld before     lo:      752  v0-v1 325, a0-a3 179, at 134, t0-t9 114
+call   ld before     hi:      716  v0-v1 314, a0-a3 174, at 114, t0-t9 114
+call   ld na         lo:       49  a0-a3 23, v0-v1 15, at 10, sp 1, t0-t9 1
+call   ld na         hi:       47  a0-a3 21, v0-v1 15, at 10, t0-t9 1
+call   st after      lo:      738  a0-a3 386, v0-v1 156, s0-s7 135, at 24, sp 18, t0-t9 16, ra 3
+call   st after      hi:      689  a0-a3 321, v0-v1 142, s0-s7 139, sp 43, at 21, ra 18, t0-t9 5
+call   st before     lo:    78611  s0-s7 26433, a0-a3 23956, ra 9527, v0-v1 9439, at 3358, sp 3349, t0-t9 1609, fp 939
+call   st before     hi:    75933  s0-s7 26317, a0-a3 23525, v0-v1 9434, ra 7544, at 3361, sp 3213, t0-t9 1621, fp 917
+call   st call+delay lo:     2259  ra 1244, a0-a3 550, s0-s7 231, sp 198, fp 16, v0-v1 12, t0-t9 8
+call   st call+delay hi:     4954  ra 3212, a0-a3 1029, s0-s7 335, sp 297, fp 37, v0-v1 35, t0-t9 8
+call   st na         lo:      198  a0-a3 68, v0-v1 53, s0-s7 50, at 10, t0-t9 6, sp 6, ra 5
+call   st na         hi:      182  a0-a3 59, s0-s7 50, v0-v1 43, at 10, sp 8, t0-t9 6, ra 5
+entry  ld na         lo:    27655  a0-a3 15401, sp 3863, s0-s7 3121, t0-t9 1878, ra 1792, v0-v1 924, at 531, fp 144
+entry  ld na         hi:     9023  s0-s7 2972, a0-a3 2874, ra 1588, t0-t9 902, v0-v1 317, at 225, fp 144
+exit   st na         lo:        5  a0-a3 5
+exit   st na         hi:      129  v0-v1 84, a0-a3 44, sp 1
+jr     ld na         lo:       57  a0-a3 53, v0-v1 4
+jr     ld na         hi:       52  a0-a3 52
+jr     st na         lo:    32979  a0-a3 9212, v0-v1 7299, t0-t9 6300, sp 3574, s0-s7 2951, at 2490, ra 1021, fp 131
+jr     st na         hi:    32887  a0-a3 9175, v0-v1 7245, t0-t9 6300, sp 3574, s0-s7 2951, at 2490, ra 1021, fp 131
+other  ld na         lo:      492  a0-a3 246, s0-s7 164, v0-v1 82
+other  ld na         hi:      492  a0-a3 246, s0-s7 164, v0-v1 82
+
+R[] word accesses on call lines by guest register (per call)
+ld: a0 0.37, v1 0.36, v0 0.36, a1 0.32, a3 0.28, at 0.21, a2 0.18, t0 0.12, t1 0.08, t2 0.06
+st: ra 1.59, a0 1.47, a1 1.15, a2 0.82, s0 0.79, v0 0.78, s1 0.65, v1 0.64, s3 0.58, s2 0.56, sp 0.53, at 0.50, s4 0.46, s6 0.34, s7 0.30, s5 0.28, a3 0.24, fp 0.14, t0 0.13, t1 0.05, t2 0.04

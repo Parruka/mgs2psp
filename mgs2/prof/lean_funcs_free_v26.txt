@@ -1,0 +1,84 @@
+generated functions entered: 888; entries/step 12278
+
+entries per step by callee size (PSP instructions) and leaf / not
+  size    0-40     leaf     entries/step     374  functions   56  instr/step in them     6090
+  size    0-40     non-leaf entries/step      50  functions   12  instr/step in them     1527
+  size   40-80     leaf     entries/step     690  functions   46  instr/step in them    32862
+  size   40-80     non-leaf entries/step     596  functions   39  instr/step in them    33688
+  size   80-160    leaf     entries/step     859  functions   65  instr/step in them    69007
+  size   80-160    non-leaf entries/step     655  functions   73  instr/step in them    62873
+  size  160-320    leaf     entries/step    3927  functions   63  instr/step in them   388612
+  size  160-320    non-leaf entries/step     419  functions  110  instr/step in them    69590
+  size  320-640    leaf     entries/step    1022  functions   47  instr/step in them   364087
+  size  320-640    non-leaf entries/step     760  functions  127  instr/step in them   215421
+  size  640-       leaf     entries/step    1499  functions   38  instr/step in them   816362
+  size  640-       non-leaf entries/step    1426  functions  212  instr/step in them  2036096
+
+executed generated instructions by function width
+  wide      50.7% of instructions, I-miss 28954/step, entries 4355/step
+  narrow    49.3% of instructions, I-miss 21118/step, entries 7918/step
+  no regs    0.0% of instructions, I-miss 6/step, entries 5/step
+
+address check / mask instructions executed per step
+  ext 0,25 (RAM mask)        113434
+  srl 28 (I/O check)         124318
+
+top 40 callees by entries/step: name, entries, size, leaf, width
+  P165de0                         1250    216 leaf     wide
+  P11cd68                          720    223 leaf     narrow
+  P165f60                          555    235 leaf     narrow
+  S_w00a_P3bec20                   452     68 leaf     wide
+  S_w00a_P3bebf0                   452     93 leaf     narrow
+  P165f78                          410    232 leaf     narrow
+  P143288                          293    515          narrow
+  P165d48                          291    585 leaf     narrow
+  P165d78                          289    770 leaf     narrow
+  P125a78                          285    236 leaf     wide
+  P152ef0                          274   1073          narrow
+  P1418b8                          271    150          wide
+  P11c828                          258    942 leaf     narrow
+  P166090                          255    770 leaf     narrow
+  P125f18                          255    702 leaf     narrow
+  S_w00a_P33bd38                   230     60          narrow
+  S_w00a_P33bd58                   187     60          narrow
+  S_w00a_P3c2898                   161    555 leaf     narrow
+  P125a48                          133    307 leaf     wide
+  P11ce30                          132   1083 leaf     narrow
+  P10e9e8                          130    169 leaf     wide
+  P165fa8                          116    198 leaf     wide
+  P125eb8                          110      2 leaf     wide
+  P125f78                          106    606 leaf     narrow
+  P1435d0                          101    658          narrow
+  P16b158                           98   1297          narrow
+  P1661b0                           87   1018          wide
+  P166258                           85   1019          wide
+  P166108                           83   1017          wide
+  S_w00a_P320110                    80    170          narrow
+  P125aa8                           70    402          narrow
+  P1082a0                           65    291 leaf     wide
+  P16b520                           64    148 leaf     narrow
+  P16ab50                           61    114          narrow
+  P154ba0                           60    345 leaf     narrow
+  S_w00a_P310110                    60    114 leaf     narrow
+  P16aa78                           60    109          narrow
+  P16bf38                           57    124 leaf     narrow
+  S_w00a_P26af40                    56     96          narrow
+  P14d000                           54    924 leaf     narrow
+PSP instructions per guest instruction, by class: wide / narrow functions (guest instr per step in brackets)
+  alu 32         wide  3.46 ( 56163)   narrow  1.50 ( 58728)
+  alu 64         wide  2.85 (  2997)   narrow  3.59 (  3991)
+  branch         wide  6.87 ( 27158)   narrow  7.13 ( 48400)
+  call/jump      wide 29.15 ( 12597)   narrow 18.19 ( 14151)
+  fpu ld/st      wide  4.43 ( 24172)   narrow  4.77 ( 21170)
+  fpu op         wide  4.33 ( 28294)   narrow  3.84 ( 34990)
+  load 64/128    wide  9.94 ( 15382)   narrow  5.48 (  8995)
+  load 8-32      wide  4.82 ( 21787)   narrow  3.86 ( 39422)
+  store 64/128   wide  9.84 ( 15958)   narrow  6.40 (  9144)
+  store 8-32     wide  4.99 (  8158)   narrow  4.63 ( 18293)
+  vu0 ld/st      wide  9.35 ( 16330)   narrow  8.30 ( 32960)
+  vu0 op/move    wide 19.22 ( 20177)   narrow 28.07 ( 10667)
+guest memory accesses per step by base (busiest PC per line)
+  first check of the base in the block       101862  64.0%
+  base checked earlier in the block           54700  34.4%
+  sp base (no check already)                   2494   1.6%
+  constant address                                0   0.0%

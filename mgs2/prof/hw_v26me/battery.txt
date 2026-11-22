@@ -1,0 +1,51 @@
+start t 0 s, vb -1: 82%, 4092 mV, 20 C, 334 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 60 s, vb 2218: 81%, 4086 mV, 20 C, 327 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 120 s, vb 4608: 79%, 4086 mV, 20 C, 319 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 180 s, vb 6071: 79%, 4128 mV, 20 C, 319 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 240 s, vb 7384: 78%, 4134 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 300 s, vb 8758: 78%, 4080 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 360 s, vb 10122: 78%, 4080 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 420 s, vb 11324: 78%, 4080 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 480 s, vb 12500: 78%, 4080 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 540 s, vb 13700: 78%, 4080 mV, 20 C, 315 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 600 s, vb 14946: 77%, 4128 mV, 20 C, 310 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 660 s, vb 15710: 77%, 4074 mV, 20 C, 310 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 720 s, vb 15742: 77%, 4074 mV, 20 C, 310 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 780 s, vb 15773: 77%, 4074 mV, 20 C, 310 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 840 s, vb 15803: 77%, 4074 mV, 20 C, 301 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 900 s, vb 15834: 77%, 4074 mV, 20 C, 301 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 960 s, vb 15865: 77%, 4074 mV, 20 C, 301 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1020 s, vb 15896: 77%, 4074 mV, 20 C, 301 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1080 s, vb 15927: 77%, 4074 mV, 20 C, 301 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1140 s, vb 15958: 77%, 4074 mV, 20 C, 298 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1200 s, vb 15989: 77%, 4074 mV, 20 C, 298 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1260 s, vb 16719: 73%, 4056 mV, 20 C, 296 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1320 s, vb 19000: 72%, 4074 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1380 s, vb 20817: 72%, 4056 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1440 s, vb 22065: 72%, 4110 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1500 s, vb 23260: 72%, 4056 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1560 s, vb 23808: 72%, 4056 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1620 s, vb 24022: 72%, 4056 mV, 20 C, 292 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1680 s, vb 24658: 71%, 4050 mV, 20 C, 288 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1740 s, vb 25646: 71%, 4050 mV, 20 C, 288 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+every 60 s t 1800 s, vb 27756: 71%, 4044 mV, 20 C, 287 min left (charging status 0); external power 0, charging 0, low 0; Media Engine off
+change t 1815 s, vb 28337: 71%, 4104 mV, 20 C, 287 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 1875 s, vb 29491: 71%, 4122 mV, 20 C, 290 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 1935 s, vb 30135: 74%, 4122 mV, 20 C, 301 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 1995 s, vb 30751: 74%, 4134 mV, 20 C, 301 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2055 s, vb 31300: 78%, 4134 mV, 20 C, 317 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2115 s, vb 31862: 78%, 4134 mV, 20 C, 317 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2175 s, vb 32421: 78%, 4140 mV, 20 C, 317 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2235 s, vb 32959: 82%, 4140 mV, 20 C, 335 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2295 s, vb 33501: 82%, 4152 mV, 20 C, 335 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2355 s, vb 34098: 87%, 4152 mV, 20 C, 353 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2415 s, vb 34645: 87%, 4152 mV, 20 C, 353 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2475 s, vb 35200: 88%, 4152 mV, 20 C, 360 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2535 s, vb 35751: 88%, 4152 mV, 20 C, 360 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2595 s, vb 36300: 88%, 4158 mV, 20 C, 360 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+end t 2618 s, vb 36500: 89%, 4158 mV, 20 C, 360 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2655 s, vb 36500: 89%, 4164 mV, 20 C, 360 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2715 s, vb 36500: 89%, 4170 mV, 20 C, 362 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2775 s, vb 36500: 90%, 4176 mV, 20 C, 365 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+every 60 s t 2835 s, vb 36500: 91%, 4176 mV, 20 C, 369 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off
+HOME t 2869 s, vb 36500: 91%, 4176 mV, 20 C, 369 min left (charging status 1); external power 0, charging 1, low 0; Media Engine off

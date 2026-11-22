@@ -1,0 +1,53 @@
+gl32 arm A -> vc 1, rain ME turn 31,010-31,090 (rain-only runs): B model/g32r1 - A model/g32r0, 40 pictures
+  A: 46475639 instructions, 351487 I-misses, 305859 D-misses = 381.05 ms a picture;  B: 46455056, 350341, 305255 = 380.56 ms;  B - A: -20583, -1146, -603 = -0.49 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: -0.49 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   vc_df0_pos                      -0.920 ms  (   -74962    -797   -1494)  size 628 / 628
+   me_memcpy                       +0.410 ms  (   +26597     +85   +1010)  size 328 / 328
+   vc_df0_att                      -0.329 ms  (   -38140    -206    -380)  size 300 / 300
+   xc_call                         +0.257 ms  (   +16589    +511    +272)  size 15796 / 15796
+   vc_strips                       -0.152 ms  (   -21472    -139     -68)  size 160 / 160
+   vc_xform                        +0.131 ms  (   +17869    +215      -4)  size 1696 / 1696
+   drew_ctx                        -0.131 ms  (       +0    -639      -3)  size 228 / 228
+   gf_reg                          +0.109 ms  (       +0    +548      -9)  size 552 / 552
+   xc_off.constprop.0              -0.109 ms  (       +0    -555     +17)  size 860 / 860
+   vc_df0_head                     +0.105 ms  (    +4783    +116    +222)  size - / 100
+   xm_walk                         +0.083 ms  (    +1087    +445     -50)  size 12440 / 12440
+   xc_zr_df0d.isra.0               -0.078 ms  (     +116    -385      +1)  size 1328 / 1328
+   ud_new                          +0.076 ms  (       +0    +388     -11)  size 1696 / 1696
+   rt_nat_p04                      +0.068 ms  (   +13651      +4      +0)  size 2688 / 2688
+   (all the others)                -0.013 ms  (   +33299    -736    -105)
+gl32 arm A -> vc 3, rain ME turn 31,010-31,090 (rain-only runs): B model/g32r3 - A model/g32r0, 40 pictures
+  A: 46475639 instructions, 351487 I-misses, 305859 D-misses = 381.05 ms a picture;  B: 46142327, 351223, 299345 = 377.66 ms;  B - A: -333312, -263, -6513 = -3.39 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: -3.39 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   me_memcpy                       -1.195 ms  (   -76978    +156   -3273)  size 328 / 328
+   xc_merge                        -1.049 ms  (  -134518      +2   -1485)  size 696 / 696
+   vc_df0_pos                      -0.921 ms  (   -74838    -798   -1498)  size 628 / 628
+   vc_df0_att                      -0.329 ms  (   -38140    -206    -380)  size 300 / 300
+   xc_call                         +0.276 ms  (   +16589    +511    +348)  size 15796 / 15796
+   vc_strips                       -0.152 ms  (   -21472    -138     -68)  size 160 / 160
+   xc_run                          -0.135 ms  (   -27231      +1      +0)  size 252 / 252
+   vc_xform                        +0.125 ms  (   +17801    +299     -94)  size 1696 / 1696
+   gf_reg                          +0.119 ms  (       +0    +548     +28)  size 552 / 552
+   vc_df0_head                     +0.105 ms  (    +4783    +117    +222)  size - / 100
+   drew_ctx                        -0.100 ms  (       +0    -482      -8)  size 228 / 228
+   xc_zr_df0d.isra.0               -0.086 ms  (    +1001    -378     -52)  size 1328 / 1328
+   xm_walk                         +0.085 ms  (    -2058    +752    -226)  size 12440 / 12440
+   xc_add                          -0.079 ms  (   -12217      +1     -73)  size 368 / 368
+   (all the others)                -0.052 ms  (   +13966    -649     +45)
+gl32 arm A -> vc 1, rain main turn 31,110-31,190 (rain-only runs): B model/g32r1.1 - A model/g32r0.1, 40 pictures
+  A: 39575105 instructions, 312575 I-misses, 227928 D-misses = 318.79 ms a picture;  B: 39637467, 312520, 228131 = 319.14 ms;  B - A: +62362, -56, +204 = +0.35 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: +0.35 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   vc_df0_pos                      -0.835 ms  (   -76719    -525   -1346)  size 628 / 628
+   me_memcpy                       +0.472 ms  (   +29182     +74   +1211)  size 328 / 328
+   vc_df0_att                      -0.388 ms  (   -46999    -201    -441)  size 300 / -
+   xc_call                         +0.205 ms  (   +18235    +183    +298)  size 15796 / 15796
+   vc_xform                        +0.183 ms  (   +40179     -28     -40)  size 1696 / 1696
+   vc_strips                       -0.165 ms  (   -24668    -133     -61)  size 160 / 160
+   vc_p06_rec                      +0.161 ms  (   +24389     +44    +122)  size 25988 / 25988
+   gf_reg                          +0.145 ms  (    +1623    +683      -8)  size 552 / 552
+   ud_new                          +0.131 ms  (    +3989    +527     +16)  size 1696 / 1696
+   xc_zr_df0d.isra.0               -0.115 ms  (     -347    -510     -37)  size 1328 / 1328
+   (all the others)                +0.555 ms  (   +93497    -168    +489)

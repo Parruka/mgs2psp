@@ -1,0 +1,164 @@
+#!/bin/sh
+# psp.sh: step 5, the PSP build of the mainline tree in $B/psp: gl18me's objects and link (tools/dev/me18/mkpsp18g.sh on gl18's base,
+# whose base was psp/Makefile through tools/dev/rebuild_use.sh / mk_psp.sh with gl18's genf.txt), with NO profile (PGO is owed: the
+# profiles were lost with the container) and no code-order files (LAYOUT=1's -ffunction-sections kept, no layout_*.ld).
+#  - gl19: gen.o from gen/wgh (wg's gen_elf.h with tools/patch_half.py's two lines: MGS2_HALF)
+#  - the five units holding the 12 G0 functions from gen/wg through boot_g0/ (the guarded gen_pre.h), as tools/dev/me18/mkgen18c.sh;
+#    the other four stage units, gen_dispatch.o and the IOP objects by psp/Makefile from gen/WP (W=)
+#  - boot_rt.o: boot/boot.c (sb18's) with rt/ ahead of runtime/ and -DME_GUARD_RT (mkpsp18g.sh's sed on the base line)
+#  - main_psp.o: psp/main_psp.c (4d-5) as the base line with runtime/ ahead
+#  - the picture files ME-safe (-fno-jump-tables -DMGS2_ME_SAFE, memcpy/memset/memcmp -> me_*, .data/.bss -> .me_data/.me_bss), ge_me_rt.o,
+#    ge_xme_me.o (checked by tools/xme_me_chk.py), hle_me.o, ge_fxthin.o, xl_psp.o (-DMGS2_ME_REAL, .bss.me -> .me_bss)
+#  - the crash catcher and battery log units with psp/gl3.sh d's lines (exc3b, OVL_SIZE 0x460000)
+#  - make -f psp/Makefile with MG = a shadow folder (psp, boot, runtime, ge from this tree; third_party, iopgen, tools from $MG)
+# Then tools/mesec_chk.py on the ELF.  TITLE: the XMB title and HARNESS_TITLE.  Game code inside: container only.
+# gl20 (PGO and code order; nothing changes when these are unset): PSPD=<folder> builds there instead of $B/psp.  PGO=gen: PGO_ELF=1
+#   instruments the main ELF's game code, runtime and picture objects (gen.o, gen_dispatch.o, boot_rt.o, the ME-safe picture files but
+#   ge_me_rt.o and ge_xme_me.o, ge_fxthin.o, xl_psp.o: gl18's pgo_gl.sh set and the game's), PGO_ELF=game gen.o and gen_dispatch.o only,
+#   PGO_ELF=rt all those but gen.o (the instrumented ELF is 4.4 MB larger: it fits in the emulator's memory only in parts or with the
+#   picture's memory cut, scripts/pgo.sh); PGO_STAGE=<stage> that one overlay (main_psp.c
+#   pgo_vb: one per run); main_psp.o gets -DMGS2_PGO; OVLS (default 0xb40000 with a stage, as psp/Makefile) the overlay arena.  PGO=use:
+#   the same objects and the overlays w00a and w01a with -fprofile-use and GCDA=<folder>'s *.gcda (copied in first; no file = no profile).
+#   ORDER=<folder>: its layout_elf.ld and layout_<stage>.ld copied in (psp/Makefile LAYOUT=1 links by them).  RELINK=<build folder>: no
+#   compile: that build's objects, genf.txt and gcda files copied in, then make links them (a new code order on the same objects).
+# gl28 (nothing changes for a tree or a RELINK folder without it): xme_rest.o, the ME's rest (psp/xme_rest.S, MGS2_ME_REST), assembled
+#   when the tree has psp/xme_rest.S (RELINK: when the folder has xme_rest.o) and linked after the other objects; then ge_xme_me.o must
+#   name exactly xme_rest xme_rest_halt xme_rest_init xme_run (without it: xme_run, as before) and tools/xme_rest_chk.py must find
+#   xme_rest.o's instructions equal to v30me5's $MG/psp/me_rest.S renamed.  The gate now runs for RELINK too.
+. "$(dirname "$0")/env.sh"
+P=${PSPD:-$B/psp}; SDK=$PSPDEV/psp/sdk
+TITLE=${TITLE:-MGS2 harness gl33}
+[ -f $G/wg/gen_s_w01a.h ] && [ -f $G/wgh/gen_elf.h ] && [ -f $G/vp22/gen_vu.h ] || { echo "psp.sh: headers missing (hdr.sh, vu.sh)"; exit 1; }
+[ -e $P ] && { echo "psp.sh: $P exists: look at it and delete it by hand (a fresh folder each build)"; exit 1; }
+mkdir -p $P && cd $P || exit 1
+# gl20: the shadow folder has one path for every build (MGS=, default $M/build_mg: links only), no longer one in each build folder.
+# gen_dispatch.c and its headers are compiled through it, and GCC's profile id of a static function hashes its source file's path,
+# so a PGO=use build in another folder than the training build found no profile for jalr_find, guest_call, stage_call and gen_mm
+# (-Wmissing-profile in scripts/pgochk.sh; -ffile-prefix-map and -fprofile-prefix-map do not change the id).  No object without a
+# profile depends on the path (build_gl20/nopgo in another folder gave gl19's EBOOT byte for byte).
+S=${MGS:-$M/build_mg}; mkdir -p $S || exit 1
+for d in psp boot runtime ge; do [ -e $S/$d ] || ln -s $M/$d $S/$d; [ "$(readlink $S/$d)" = "$M/$d" ] || { echo "psp.sh: $S/$d is not a link to $M/$d"; exit 1; }; done
+for d in third_party iopgen tools; do [ -e $S/$d ] || ln -s $MG/$d $S/$d; [ "$(readlink $S/$d)" = "$MG/$d" ] || { echo "psp.sh: $S/$d is not a link to $MG/$d"; exit 1; }; done
+BASEF="-O2 -G0 -w -fpermissive -fwrapv -fno-strict-aliasing -ffp-contract=off -fno-math-errno -ffixed-23 -D_PSP_FW_VERSION=600"
+MACHF="-Dexit=mgs2_exit -Dabort=mgs2_abort -Dgetenv=mgs2_getenv"
+# gl18's genf.txt (backup me18e/d3/genf.txt) with this tree's folders: /home/claude/sb18/nat -> boot/ (its native_w00a.c / .h are there),
+# $MG/psp, $MG/runtime, $MG/boot -> this tree's
+GENF="$BASEF $MACHF '-DK_HSTACK=(128*1024)' '-DIOP_HSTACK=(64*1024)' -DGEN_MM_FAST -DGUEST_SPR0 -DGEN_PIN23 -DHOST_STACK_POOL -DHOST_BIG_ALLOC -DVIF0_BUF_WORDS=0x4000 -I$M/boot -I$M/psp -I$M/runtime -I$M/boot -DVU_MCL_RZ -DVU_QMOVE_VFPU -DK_COUNTDOWN -DGUEST_SPRSTATE -DGEN_LITE -DGEN_HB_SP"
+echo "$GENF" > genf.txt
+RTX="-DMGS2_GEN_VU='\"$G/vp22/gen_vu.h\"' -DVP_FAST -Wno-error=coverage-mismatch -DVP_VFPU -DMGS2_XLIVE -DK_HSTACK=49152 -DIOP_HSTACK=24576"
+PGEN="-fprofile-generate -fprofile-update=single"
+PUSE="-fprofile-use -fprofile-partial-training -Wno-missing-profile -Wno-error=coverage-mismatch -fno-unroll-loops -fno-peel-loops -fno-tracer -fno-ipa-cp-clone -fno-unswitch-loops -fno-split-loops -fno-predictive-commoning"
+PE=; PEB=; PEP=; PEG=; PW0=; PW1=; MP=; OVLS=${OVLS:-0x460000}; MK="PGO= PGO_ELF= PGO_STAGE="
+case "$PGO" in
+gen) case "$PGO_ELF" in 1) PE=$PGEN; PEG=$PGEN ;; rt) PE=$PGEN ;; game) PEG=$PGEN ;; rtb) PEB=$PGEN ;; pic) PEP=$PGEN ;; '') ;; *) echo "psp.sh: PGO_ELF=1 | rt | game | rtb | pic"; exit 1 ;; esac
+     [ "$PGO_STAGE" = w00a ] && PW0=$PGEN; [ "$PGO_STAGE" = w01a ] && PW1=$PGEN
+     [ -n "$PGO_STAGE" ] && [ "$OVLS" = 0x460000 ] && OVLS=0xb40000
+     MP="-DMGS2_PGO '-DPGO_STAGE=\"$PGO_STAGE\"'"; MK="PGO=gen PGO_ELF=$PGO_ELF PGO_STAGE=$PGO_STAGE" ;;
+use) PE=$PUSE; PEG=$PUSE; PW0=$PUSE; PW1=$PUSE; MK="PGO=use PGO_ELF=1 PGO_STAGE=w00a"
+     [ -d "$GCDA" ] && cp $GCDA/*.gcda $P/ || { echo "psp.sh: PGO=use needs GCDA=<folder with the .gcda files> (RELINK too: its own)"; exit 1; }
+     echo "psp.sh: profiles: $(cd $P && ls *.gcda | tr '\n' ' ')" ;;
+'') ;;
+*) echo "psp.sh: PGO=gen | use"; exit 1 ;;
+esac
+# gl33: the runtime set in two halves, each an instrumented build of its own (the whole set no longer fits the emulator's memory beside
+# gl31's two copy arenas): PGO_ELF=rtb boot_rt.o (and gen_dispatch.o, which psp/Makefile instruments for any PGO_ELF), PGO_ELF=pic the
+# ME-safe picture files, ge_fxthin.o and xl_psp.o.  PEB / PEP: boot_rt.o's and the picture set's flags (both PE in every other build).
+PEB=${PEB:-$PE}; PEP=${PEP:-$PE}
+[ -n "$ORDER" ] && { cp $ORDER/layout_*.ld $P/ || exit 1; echo "psp.sh: code order: $(cd $P && ls layout_*.ld | tr '\n' ' ')"; }
+cc() {   # <object> <command...>: one compile, its log and status
+  o=$1; shift; s=$(date +%s)
+  { echo "cmd: $*"; eval "$@"; } > cc_$o.log 2>&1; r=$?; echo "$o rc $r $(( $(date +%s) - s )) s" >> cc_$o.log; tail -n 1 cc_$o.log; return $r
+}
+xme_gate() {   # gl28: the names ge_xme_me.o needs from outside itself (xme_run; with the rest object also its three), and xme_rest.o's check
+  XU="xme_run "; [ -f xme_rest.o ] && XU="xme_rest xme_rest_halt xme_rest_init xme_run "
+  [ "$(psp-nm -u ge_xme_me.o | awk '{ print $2 }' | tr '\n' ' ')" = "$XU" ] || { echo "psp.sh: ge_xme_me.o names more than ${XU% }"; return 1; }
+  [ -f xme_rest.o ] || return 0
+  [ "$(psp-objdump -h xme_rest.o | awk '$2 == ".text" { print $7 }')" = "2**2" ] || { echo "psp.sh: xme_rest.o's .text is not 2**2 (v30me5's)"; return 1; }
+  python3 -I $M/tools/xme_rest_chk.py xme_rest.o $MG/psp/me_rest.S > xme_rest_chk.out 2>&1 || { echo "psp.sh: xme_rest_chk failed"; cat xme_rest_chk.out; return 1; }
+  tail -n 1 xme_rest_chk.out
+}
+s0=$(date +%s)
+if [ -n "$RELINK" ]; then   # gl20: the objects of $RELINK as they are (no compile)
+  for o in $RELINK/*.o; do case $(basename $o) in ovl_hdr_*) ;; *) cp $o $P/ || exit 1 ;; esac; done   # (make builds the headers again)
+  cp $RELINK/genf.txt $RELINK/ge_xme_me.dis $RELINK/xme_me_chk.out $P/ || exit 1; echo "psp.sh: objects of $RELINK reused"
+  xme_gate || exit 1   # gl28 (gl18me-gl27's RELINK objects pass it: ge_xme_me.o names xme_run only)
+else
+# the G0 units (mkgen18c.sh without the profile)
+# gl33: GCC's partial inlining splits P1214a0 (P1214a0.part.0: its head inlined into its two direct callers, which then pass the
+# wrapper by; the check below stops such a build): in a gen.o compiled with neither counts nor a profile (the training builds of the
+# other sets, a no-PGO build: the early split pass), and in the final gen.o with gl33's profile too (the split pass after the
+# profile; gl20's profile did not split it).  -fno-partial-inlining for gen.o in every build but the counting one (with
+# -fprofile-generate no split pass runs, and that gen.o was trained without the flag).  In the final gen.o P1214a0 was the only
+# function GCC split, so the flag changes that function and its two callers only.
+PNG=-fno-partial-inlining; [ "$PEG" = "$PGEN" ] && PNG=
+cc gen.o "psp-gcc $GENF $PEG $PNG -ffunction-sections '-DGEN=\"$G/wgh/gen_elf.h\"' -c $M/boot_g0/gen.c -o gen.o" &   # gl19: wg's with MGS2_HALF's two lines
+cc gen_s_w00a.o "psp-gcc $GENF $PW0 -ffunction-sections '-DSTAGE_GEN=\"$G/wg/gen_s_w00a.h\"' -c $M/boot_g0/gen_stage.c -o gen_s_w00a.o" &
+cc gen_s_w01a.o "psp-gcc $GENF $PW1 -ffunction-sections '-DSTAGE_GEN=\"$G/wg/gen_s_w01a.h\"' -c $M/boot_g0/gen_stage.c -o gen_s_w01a.o" &
+wait
+cc gen_s_d00t.o "psp-gcc $GENF -ffunction-sections '-DSTAGE_GEN=\"$G/wg/gen_s_d00t.h\"' -c $M/boot_g0/gen_stage.c -o gen_s_d00t.o" &
+cc gen_s_d01t.o "psp-gcc $GENF -ffunction-sections '-DSTAGE_GEN=\"$G/wg/gen_s_d01t.h\"' -c $M/boot_g0/gen_stage.c -o gen_s_d01t.o" &
+( # the runtime unit and main_psp.o (mkpsp18g.sh's seds on the base lines, no profile)
+  BF=$(echo "$GENF" | sed "s|-I$M/boot -I$M/psp -I$M/runtime|-I$M/boot -I$M/rt -I$M/runtime -I$M/psp -I$M/runtime|")
+  cc boot_rt.o "psp-gcc $BF $PEB -ffunction-sections $RTX -Dmain=mgs2_main -I$RT -I$AU -DGUEST_SPLIT_RT -DME_GUARD_RT -c $M/boot/boot.c -o boot_rt.o"
+  cc main_psp.o "psp-gcc $BASEF $MP -DMGS2_XL -DMGS2_GL -DPOOL_KB=512 -ffunction-sections -DGUEST_SPRSTATE -DOVL_SIZE=$OVLS '-DHARNESS_TITLE=\"$TITLE\"' -I$SDK/include -I$M/runtime -c $M/psp/main_psp.c -o main_psp.o" ) &
+( GF="$BASEF -ffunction-sections"; MEF="-fno-jump-tables -DMGS2_ME_SAFE"
+  for f in xlive xlate gsfront texconv texcache gelive gebatch xconv vu1conv gelist gsup2 xlme xme me_rt; do
+    PF=$PEP; [ $f = me_rt ] && PF=   # (gl20: ge_me_rt.o, the ME's own memcpy family, and ge_xme_me.o never take a profile)
+    cc ge_$f.o "psp-gcc $GF $PF $MEF -c $M/ge/$f.c -o ge_$f.o" || exit 1
+    [ $f = me_rt ] || psp-objcopy --redefine-sym memcpy=me_memcpy --redefine-sym memset=me_memset --redefine-sym memcmp=me_memcmp ge_$f.o || exit 1
+    psp-objcopy --rename-section .bss=.me_bss --rename-section .data=.me_data ge_$f.o || exit 1
+  done
+  cc ge_xme_me.o "psp-gcc $GF $MEF -fstack-usage -I$HP -c $M/psp/xme_me.c -o ge_xme_me.o" || exit 1
+  psp-objcopy --redefine-sym memcpy=me_memcpy --redefine-sym memset=me_memset --redefine-sym memcmp=me_memcmp ge_xme_me.o || exit 1
+  psp-objcopy --rename-section .bss=.me_bss --rename-section .data=.me_data ge_xme_me.o || exit 1
+  if [ -f $M/psp/xme_rest.S ]; then cc xme_rest.o "psp-gcc -c $M/psp/xme_rest.S -o xme_rest.o" || exit 1; fi   # gl28 (as v30me5.sh's me_rest.o)
+  xme_gate || exit 1
+  psp-objdump -d ge_xme_me.o > ge_xme_me.dis && python3 -I $M/tools/xme_me_chk.py ge_xme_me.dis > xme_me_chk.out 2>&1 || { echo "psp.sh: xme_me_chk failed"; cat xme_me_chk.out; exit 1; }
+  cc hle_me.o "psp-gcc $BASEF -fno-merge-constants $MACHF -DHLE_PSP -DHLE_HAVE_AUDIO_MODEL -DME_REST -DME_SONY -DME_SONY_BOOT -DME_KADDR -I$SDK/include -I$HP -I$M/psp/me -c $M/psp/me/hle_me_mgs2.c -o hle_me.o" || exit 1
+  psp-objcopy --rename-section .text.hle_me_stub=.data.hle_me_stub,alloc,load,contents,data hle_me.o || exit 1
+  cc ge_fxthin.o "psp-gcc $GF $PEP -c $M/ge/fxthin.c -o ge_fxthin.o" || exit 1
+  cc xl_psp.o "psp-gcc $GF $PEP -DMGS2_XL -DMGS2_GL -DMGS2_ME_REAL -DME_REST -DME_SONY -DPOOL_KB=512 -I$SDK/include -I$M/runtime -I$HP -I$M/psp/me -c $M/psp/xl_psp.c -o xl_psp.o" || exit 1
+  psp-objcopy --rename-section .bss.me=.me_bss xl_psp.o || exit 1
+  # the crash catcher, the battery log and their glue (psp/gl3.sh d)
+  cc gl1_glue.o "psp-gcc $BASEF -fno-merge-constants -I$SDK/include -c $M/psp/gl1_glue.c -o gl1_glue.o" &&
+  cc v26me_bat.o "psp-gcc $BASEF -fno-merge-constants -DME_DIAG3 -DME_DIAG4 -DME_DIAG5 -DME_EXC -DME_EXC_HOLD -DSYS_DIAG -I$SDK/include -c $M/psp/v26me_bat.c -o v26me_bat.o" &&
+  cc exc3b.o "psp-gcc $BASEF -fno-merge-constants $MACHF -DME_EXC -DMGS2_GL_EXC -DOVL_SIZE=$OVLS -I$SDK/include -I$HP -c $M/psp/exc3b.c -o exc3b.o" &&
+  cc exc3b_s.o "psp-gcc -I$SDK/include -c $M/psp/exc3b.S -o exc3b_s.o" &&
+  [ "$(psp-objdump -h exc3b_s.o | awk '$2 == ".text" { print $7 }')" = "2**2" ] &&
+  cc ps2rc_kcall.o "psp-gcc -I$SDK/include -c $HP/ps2rc_kcall.S -o ps2rc_kcall.o" || { echo "psp.sh: the catcher's units failed"; exit 1; } ) &
+wait
+for o in gen.o gen_s_w00a.o gen_s_w01a.o gen_s_d00t.o gen_s_d01t.o boot_rt.o main_psp.o ge_me_rt.o xl_psp.o ps2rc_kcall.o; do [ -f $o ] || { echo "psp.sh: $o missing"; exit 1; }; done
+echo "psp.sh: objects $(( $(date +%s) - s0 )) s"
+# gl33 (gl31's step, build_gl31/rl31.sh, here on a gen.o compiled in this build): the builder 0x1214a0 behind its wrapper
+# (boot/nat_stub.h, in boot_rt.o): P1214a0 made weak, P1214a0_orig added at its place.  gen.o as compiled: gen_compiled.md5 (pgochk.sh
+# compares its own compile with it).  Checked: no clone of the function, and gen.o's references to it are the 2 calls and the 1 table
+# word of gl29's object (so no caller took it in).
+md5sum gen.o | sed 's/ gen.o$/ gen.o (as compiled, before the wrapper step)/' > gen_compiled.md5
+sec=$(psp-objdump -t gen.o | awk '$NF == "P1214a0" { print $(NF-2) }'); val=$(psp-nm gen.o | awk '$3 == "P1214a0" && $2 == "T" { print $1 }')
+[ -n "$sec" ] && [ -n "$val" ] || { echo "psp.sh: no global P1214a0 in gen.o"; exit 1; }
+[ -z "$(psp-nm gen.o | awk '{ print $3 }' | grep '^P1214a0\.')" ] || { echo "psp.sh: gen.o holds a clone of P1214a0"; exit 1; }
+refs="$(psp-objdump -r gen.o | awk '$3 == "P1214a0" { print $2 }' | sort | uniq -c | tr -s ' \n' ' ')"
+# (an instrumented gen.o also takes the function's own address inside it, HI16 / LO16, for -fprofile-generate's indirect-call
+# counts: with the wrapper in place that address is the wrapper's, which is what the table's callers call, so the count is right)
+case "$PEG:$refs" in *:" 2 R_MIPS_26 1 R_MIPS_32 ") ;; "$PGEN: 2 R_MIPS_26 1 R_MIPS_32 1 R_MIPS_HI16 1 R_MIPS_LO16 ") ;;
+  *) echo "psp.sh: gen.o's references to P1214a0 are '$refs', not 2 R_MIPS_26 and 1 R_MIPS_32"; exit 1 ;; esac
+psp-objcopy --add-symbol P1214a0_orig=$sec:0x$val,global,function --weaken-symbol P1214a0 gen.o || exit 1
+echo "psp.sh: gen.o: P1214a0 in $sec at 0x$val; references$refs; now: $(psp-nm gen.o | grep P1214a0 | tr '\n' ';')"
+fi
+# the rest and the link: psp/Makefile (rebuild_use.sh / mk_psp.sh's call; every object above kept with -o)
+OO=$(for o in *.o; do printf -- "-o %s " $o; done)
+XOBJS="xl_psp.o ge_xlive.o ge_xlate.o ge_gsfront.o ge_gsup2.o ge_texconv.o ge_texcache.o ge_gelive.o ge_gebatch.o ge_xconv.o ge_vu1conv.o ge_gelist.o ge_xlme.o ge_xme.o ge_xme_me.o ge_fxthin.o ge_me_rt.o gl1_glue.o v26me_bat.o exc3b.o exc3b_s.o ps2rc_kcall.o hle_me.o"
+[ -f xme_rest.o ] && XOBJS="$XOBJS xme_rest.o"   # gl28: the ME's rest, last (absent: the link as before)
+XLIBS="-Wl,--wrap=host_vb_begin,--wrap=mgs2_exit,--wrap=sceKernelExitGame,--wrap=mgs2_main -lpspgu -lpspsystemctrl_user -Wl,-T,$M/psp/me_sec.ld"
+make -f $M/psp/Makefile -j${J:-3} MG=$S W=$G/WP $MK OVL_SIZE=$OVLS LAYOUT=1 STAGES="$STAGES" PSP_EBOOT_TITLE="$TITLE" GENF="$GENF" RTX="$RTX" \
+  XOBJS="$XOBJS" MAINX="-DMGS2_XL -DMGS2_GL -DPOOL_KB=512" XLIBS="$XLIBS" $OO > make.log 2>&1
+echo "make rc $?" >> make.log; tail -n 1 make.log
+[ -f EBOOT.PBP ] || { tail -n 30 make.log; exit 1; }
+for s in __wrap_host_vb_begin __wrap_mgs2_exit __wrap_sceKernelExitGame __wrap_mgs2_main mgs2_exc_handler xl_psp_gl_screen; do
+  psp-nm MGS2T.elf | grep -q " T $s$" || echo "psp.sh: $s missing"; done
+python3 -I $M/tools/mesec_chk.py $P > mesec_chk.out 2>&1; r=$?; echo "mesec_chk rc $r: $(tail -n 1 mesec_chk.out)"; [ $r = 0 ] || [ "$PGO" = gen ] || { echo "psp.sh: mesec_chk FAILED"; grep PROBLEM mesec_chk.out; exit 1; }   # gl23: a FAIL stops the build
+python3 -I $M/tools/me_call_chk.py $P > me_call_chk.out 2>&1 || { echo "psp.sh: me_call_chk FAILED (the ME would reach a system call)"; [ "$PGO" = gen ] && echo "psp.sh: (a PGO=gen build: emulator only, the counting code is in the ME-safe objects; gl33: the build goes on)" || { cat me_call_chk.out; exit 1; }; }; tail -n 1 me_call_chk.out   # gl21
+echo "undefined memcpy/memset/memcmp/malloc family left in the ME-safe objects:"; for f in xlive xlate gsfront texconv texcache gelive gebatch xconv vu1conv gelist gsup2 xlme xme xme_me; do psp-nm -u ge_$f.o | grep -w "memcpy\|memset\|memcmp\|malloc\|calloc\|realloc\|free\|printf\|fprintf\|puts\|floorf\|ceilf" | sed "s/^/  ge_$f.o: /"; done
+psp-size MGS2T.elf | tail -n 1; ls -l ovl_*.bin | awk '{ print $5, $9 }'
+md5sum EBOOT.PBP ovl_*.bin
+echo "psp.sh: done $(( $(date +%s) - s0 )) s"

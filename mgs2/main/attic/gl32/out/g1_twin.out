@@ -1,0 +1,191 @@
+gl32 G1, the x86 twin's runs (route i to vb 37,800), each summarised by vcsum32.py and compared with a reference run by the md5 of
+its hash / picture / xlive / natb / natq / natz lines.  Notes:
+ - a3 = MGS2_NAT_CYCLE=3,3,3,3, no cache;  b3 = a3 + MGS2_NAT_VC=3 with a 4,096 KB block and check mode.  b3 was run with the FIRST
+   form of the static-stream check (a group's streams hashed again only when the group was next drawn, so after long waits: its
+   'natst: CHANGED' lines, soonest 15 vblanks after the draw, at stage changes).  dc and g31 use the final form (every vblank's start
+   for 8 vblanks after the draw): CHANGED 0.
+ - da = a3 with the delivered MGS2_GL_DZ (so its picture lines differ from a3's, as expected);  dx = the delivered keys (the
+   hashref's run);  dc = dx + check mode + the static check.
+ - g31 = gl31's keys (MGS2_NAT_CYCLE=0,0,3,3, gl30's DZ) + MGS2_NAT_VC=3, check mode, static check, against gl31's own twin run b.
+ - lw2 = a3 + MGS2_NAT_VC=3 + check mode in the PSP's late-walk mode (MGS2_NAT_LW=2: plan, copy, view); its per-turn 'natvc' lines
+   are not printed in that mode, the totals line is: 'check: 1626878 compared, 0 DIFFER' (see below).  lw2b = the same with
+   MGS2_NAT_VC=2 (streams in place, no cache).
+
+=== tw/x86/out_a3.log 
+nat: gl32 vertex cache: MGS2_NAT_VC 0, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+tw/x86/out_a3.log: natvc lines 107; static groups flagged 0 (drawn 0); check mode: 0 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 0; dropped: generation 0, slots 0, data 0; most in use 0 slots, 0 KB
+  vb 24000-29000 vc 0: 21 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 994 freed 957 lit 0 stage 2
+  vb 29000-29400 vc 0:  4 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 0: 20 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 137 freed 269 lit 0 stage 1
+  vb 29600-30500 vc 0:  9 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 1 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 0:  4 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 9 freed 11 lit 0 stage 0
+  vb 31400-37800 vc 0: 62 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 76 freed 75 lit 0 stage 0
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 53ad00a3c2cb92fb
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+
+=== twb/x86/out_b3.log against tw/x86/out_a3.log
+nat: gl32 vertex cache: MGS2_NAT_VC 3, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 4096 KB: made (0 slots of 40 B, 0 KB data); check mode 1
+twb/x86/out_b3.log: natvc lines 107; static groups flagged 1925910 (drawn 1921926); check mode: 1632614 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 0; dropped: generation 68, slots 0, data 0; most in use 1911 slots, 326 KB
+  vb 24000-29000 vc 3: 21 lines; static drawn  310593; looked up   47066: found box  33080, vertices  10220, nothing-drawn 0, not found  3766 (8.00%); stored  1095; drops gen 12 slots 0 data 0; most now 1911 slots 213 KB; events made 994 freed 957 lit 0 stage 2
+  vb 29000-29400 vc 3:  4 lines; static drawn   93663; looked up   93663: found box  48969, vertices  44116, nothing-drawn 0, not found   578 (0.62%); stored   272; drops gen 1 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 3: 20 lines; static drawn  468506; looked up  468506: found box 246622, vertices 217153, nothing-drawn 0, not found  4731 (1.01%); stored  2040; drops gen 11 slots 0 data 0; most now 820 slots 137 KB; events made 137 freed 269 lit 0 stage 1
+  vb 29600-30500 vc 3:  9 lines; static drawn  254988; looked up  254988: found box 133638, vertices 120194, nothing-drawn 0, not found  1156 (0.45%); stored   547; drops gen 2 slots 0 data 0; most now 578 slots 94 KB; events made 1 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 3:  4 lines; static drawn   47671; looked up   47671: found box  27651, vertices  17963, nothing-drawn 0, not found  2057 (4.31%); stored   720; drops gen 7 slots 0 data 0; most now 256 slots 46 KB; events made 9 freed 11 lit 0 stage 0
+  vb 31400-37800 vc 3: 62 lines; static drawn 1049164; looked up 1049164: found box 114196, vertices 918258, nothing-drawn 0, not found 16710 (1.59%); stored 14678; drops gen 44 slots 0 data 0; most now 791 slots 326 KB; events made 76 freed 75 lit 0 stage 0
+natst: CHANGED: streams 0108fdc0 012831d0 01098890 (7 7 4 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 0108fe30 01283240 010988d0 (6 6 3 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 0108fe90 012832a0 01098900 (9 9 5 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 0108ff20 01283330 01098950 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010923a0 012857b0 01099c30 (28 28 14 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01092560 01285970 01099d10 (32 32 16 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01092760 01285b70 01099e10 (22 22 11 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010928c0 01285cd0 01099ec0 (6 6 3 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01092920 01285d30 01099ef0 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010933a0 012867b0 0109a480 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010933e0 012867f0 0109a4a0 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088030 01289f60 0108b930 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088070 01289fa0 0108b950 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088090 01289fc0 0108b960 (27 27 14 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088240 0128a170 0108ba40 (6 6 3 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010882a0 0128a1d0 0108ba70 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010882c0 0128a1f0 0108ba80 (21 21 11 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088410 0128a340 0108bb30 (22 22 11 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 01088570 0128a4a0 0108bbe0 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 010885b0 0128a4e0 0108bc00 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5150 01230a50 0104b000 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5170 01230a70 0104b010 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd51b0 01230ab0 0104b030 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5220 01230b20 0104b070 (3 3 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5310 01230c10 0104b0f0 (6 6 3 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5370 01230c70 0104b120 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd5390 01230c90 0104b130 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd6fb0 012328b0 0104bf90 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd6ff0 012328f0 0104bfb0 (7 7 4 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7060 01232960 0104bff0 (2 2 1 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7080 01232980 0104c000 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd70c0 012329c0 0104c020 (4 4 2 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7100 01232a00 0104c040 (8 8 4 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7180 01232a80 0104c080 (8 8 4 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7200 01232b00 0104c0c0 (10 10 5 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd72a0 01232ba0 0104c110 (14 14 7 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7380 01232c80 0104c180 (12 12 6 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7440 01232d40 0104c1e0 (8 8 4 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd74c0 01232dc0 0104c220 (12 12 6 qw) drawn at vb 24004, other bytes by vb 24022
+natst: CHANGED: streams 00fd7580 01232e80 0104c280 (6 6 3 qw) drawn at vb 24004, other bytes by vb 24022
+natst: static groups drawn 1921926, checked 1921926 after 4 vblanks or more (the longest wait 3068), CHANGED 7593 (the soonest after 15 vblanks), not checked (ring full) 0
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 53ad00a3c2cb92fb
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference tw/x86/out_a3.log: hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+=== twb/x86/out_da.log against tw/x86/out_a3.log
+nat: gl32 vertex cache: MGS2_NAT_VC 0, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+twb/x86/out_da.log: natvc lines 107; static groups flagged 0 (drawn 0); check mode: 0 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 0; dropped: generation 0, slots 0, data 0; most in use 0 slots, 0 KB
+  vb 24000-29000 vc 0: 21 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 994 freed 957 lit 0 stage 2
+  vb 29000-29400 vc 0:  4 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 0: 20 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 137 freed 269 lit 0 stage 1
+  vb 29600-30500 vc 0:  9 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 1 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 0:  4 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 9 freed 11 lit 0 stage 0
+  vb 31400-37800 vc 0: 62 lines; static drawn       0; looked up       0: found box      0, vertices      0, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 0 slots 0 KB; events made 76 freed 75 lit 0 stage 0
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 054abe5ce71f, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 32159906789ce60d
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference tw/x86/out_a3.log: hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb NO, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+=== tw/x86/out_dx.log against twb/x86/out_da.log
+nat: gl32 vertex cache: MGS2_NAT_VC 0, MGS2_NAT_VC_CYCLE 0,0,1,1,3,3 (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 256 KB: made (2048 slots of 40 B, 175 KB data); check mode 0
+tw/x86/out_dx.log: natvc lines 107; static groups flagged 1165390 (drawn 1161891); check mode: 0 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 11; dropped: generation 49, slots 0, data 11; most in use 1492 slots, 175 KB
+  vb 24000-29000 vc 0:  8 lines; static drawn    2689; looked up     153: found box    107, vertices     46, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 192 slots 30 KB; events made 662 freed 598 lit 0 stage 1
+  vb 24000-29000 vc 1:  7 lines; static drawn   30152; looked up   14601: found box   9822, vertices   2413, nothing-drawn 0, not found  2366 (16.20%); stored   621; drops gen 5 slots 0 data 1; most now 419 slots 37 KB; events made 223 freed 182 lit 0 stage 1
+  vb 24000-29000 vc 3:  6 lines; static drawn   43873; looked up   10993: found box   7545, vertices   2909, nothing-drawn 0, not found   539 (4.90%); stored   175; drops gen 2 slots 0 data 0; most now 192 slots 30 KB; events made 109 freed 177 lit 0 stage 0
+  vb 29000-29400 vc 1:  2 lines; static drawn   36810; looked up   36810: found box  19179, vertices  17053, nothing-drawn 0, not found   578 (1.57%); stored   272; drops gen 1 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29000-29400 vc 3:  2 lines; static drawn   56853; looked up   56853: found box  29790, vertices  27063, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 0:  8 lines; static drawn    1934; looked up    1934: found box   1034, vertices    900, nothing-drawn 0, not found     0 (0.00%); stored     3; drops gen 0 slots 0 data 0; most now 617 slots 116 KB; events made 133 freed 263 lit 0 stage 1
+  vb 29400-31400 vc 1:  6 lines; static drawn  142667; looked up  142667: found box  71679, vertices  69249, nothing-drawn 0, not found  1739 (1.22%); stored   860; drops gen 4 slots 0 data 0; most now 611 slots 108 KB; events made 1 freed 2 lit 0 stage 0
+  vb 29400-31400 vc 3:  6 lines; static drawn  135802; looked up  135802: found box  72543, vertices  62327, nothing-drawn 0, not found   932 (0.69%); stored   434; drops gen 2 slots 0 data 0; most now 617 slots 115 KB; events made 3 freed 4 lit 0 stage 0
+  vb 29600-30500 vc 0:  2 lines; static drawn     563; looked up     563: found box    306, vertices    257, nothing-drawn 0, not found     0 (0.00%); stored     1; drops gen 0 slots 0 data 0; most now 563 slots 89 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29600-30500 vc 1:  4 lines; static drawn  113145; looked up  113145: found box  58939, vertices  53613, nothing-drawn 0, not found   593 (0.52%); stored   289; drops gen 1 slots 0 data 0; most now 578 slots 94 KB; events made 1 freed 0 lit 0 stage 0
+  vb 29600-30500 vc 3:  3 lines; static drawn   83942; looked up   83942: found box  43662, vertices  39717, nothing-drawn 0, not found   563 (0.67%); stored   257; drops gen 1 slots 0 data 0; most now 578 slots 94 KB; events made 0 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 0:  1 lines; static drawn     256; looked up     256: found box    189, vertices     67, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 256 slots 38 KB; events made 6 freed 6 lit 0 stage 0
+  vb 30900-31300 vc 1:  1 lines; static drawn   11195; looked up   11195: found box   4437, vertices   6223, nothing-drawn 0, not found   535 (4.78%); stored   273; drops gen 2 slots 0 data 0; most now 255 slots 46 KB; events made 0 freed 2 lit 0 stage 0
+  vb 30900-31300 vc 3:  2 lines; static drawn   23647; looked up   23647: found box  14960, vertices   8357, nothing-drawn 0, not found   330 (1.40%); stored   120; drops gen 1 slots 0 data 0; most now 256 slots 38 KB; events made 3 freed 3 lit 0 stage 0
+  vb 31400-37800 vc 0: 20 lines; static drawn    3380; looked up    3381: found box    528, vertices   2853, nothing-drawn 0, not found     0 (0.00%); stored     4; drops gen 0 slots 0 data 0; most now 528 slots 169 KB; events made 28 freed 27 lit 0 stage 0
+  vb 31400-37800 vc 1: 20 lines; static drawn  357575; looked up  357574: found box  70340, vertices 275705, nothing-drawn 0, not found 11529 (3.22%); stored  9053; drops gen 18 slots 0 data 9; most now 620 slots 169 KB; events made 18 freed 18 lit 0 stage 0
+  vb 31400-37800 vc 3: 22 lines; static drawn  350156; looked up  350156: found box  52197, vertices 291383, nothing-drawn 0, not found  6576 (1.88%); stored  5625; drops gen 17 slots 0 data 1; most now 620 slots 169 KB; events made 30 freed 30 lit 0 stage 0
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 054abe5ce71f, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 32159906789ce60d
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference twb/x86/out_da.log: hash: vb 685 8a798669a397, picture: vb 35328 054abe5ce71f, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+=== twd/x86/out_dc.log against tw/x86/out_dx.log
+nat: gl32 vertex cache: MGS2_NAT_VC 0, MGS2_NAT_VC_CYCLE 0,0,1,1,3,3 (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 256 KB: made (2048 slots of 40 B, 175 KB data); check mode 1
+twd/x86/out_dc.log: natvc lines 107; static groups flagged 1165390 (drawn 1161891); check mode: 1086665 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 11; dropped: generation 49, slots 0, data 11; most in use 1492 slots, 175 KB
+  vb 24000-29000 vc 0:  8 lines; static drawn    2689; looked up     153: found box    107, vertices     46, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 192 slots 30 KB; events made 662 freed 598 lit 0 stage 1
+  vb 24000-29000 vc 1:  7 lines; static drawn   30152; looked up   14601: found box   9822, vertices   2413, nothing-drawn 0, not found  2366 (16.20%); stored   621; drops gen 5 slots 0 data 1; most now 419 slots 37 KB; events made 223 freed 182 lit 0 stage 1
+  vb 24000-29000 vc 3:  6 lines; static drawn   43873; looked up   10993: found box   7545, vertices   2909, nothing-drawn 0, not found   539 (4.90%); stored   175; drops gen 2 slots 0 data 0; most now 192 slots 30 KB; events made 109 freed 177 lit 0 stage 0
+  vb 29000-29400 vc 1:  2 lines; static drawn   36810; looked up   36810: found box  19179, vertices  17053, nothing-drawn 0, not found   578 (1.57%); stored   272; drops gen 1 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29000-29400 vc 3:  2 lines; static drawn   56853; looked up   56853: found box  29790, vertices  27063, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 0:  8 lines; static drawn    1934; looked up    1934: found box   1034, vertices    900, nothing-drawn 0, not found     0 (0.00%); stored     3; drops gen 0 slots 0 data 0; most now 617 slots 116 KB; events made 133 freed 263 lit 0 stage 1
+  vb 29400-31400 vc 1:  6 lines; static drawn  142667; looked up  142667: found box  71679, vertices  69249, nothing-drawn 0, not found  1739 (1.22%); stored   860; drops gen 4 slots 0 data 0; most now 611 slots 108 KB; events made 1 freed 2 lit 0 stage 0
+  vb 29400-31400 vc 3:  6 lines; static drawn  135802; looked up  135802: found box  72543, vertices  62327, nothing-drawn 0, not found   932 (0.69%); stored   434; drops gen 2 slots 0 data 0; most now 617 slots 115 KB; events made 3 freed 4 lit 0 stage 0
+  vb 29600-30500 vc 0:  2 lines; static drawn     563; looked up     563: found box    306, vertices    257, nothing-drawn 0, not found     0 (0.00%); stored     1; drops gen 0 slots 0 data 0; most now 563 slots 89 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29600-30500 vc 1:  4 lines; static drawn  113145; looked up  113145: found box  58939, vertices  53613, nothing-drawn 0, not found   593 (0.52%); stored   289; drops gen 1 slots 0 data 0; most now 578 slots 94 KB; events made 1 freed 0 lit 0 stage 0
+  vb 29600-30500 vc 3:  3 lines; static drawn   83942; looked up   83942: found box  43662, vertices  39717, nothing-drawn 0, not found   563 (0.67%); stored   257; drops gen 1 slots 0 data 0; most now 578 slots 94 KB; events made 0 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 0:  1 lines; static drawn     256; looked up     256: found box    189, vertices     67, nothing-drawn 0, not found     0 (0.00%); stored     0; drops gen 0 slots 0 data 0; most now 256 slots 38 KB; events made 6 freed 6 lit 0 stage 0
+  vb 30900-31300 vc 1:  1 lines; static drawn   11195; looked up   11195: found box   4437, vertices   6223, nothing-drawn 0, not found   535 (4.78%); stored   273; drops gen 2 slots 0 data 0; most now 255 slots 46 KB; events made 0 freed 2 lit 0 stage 0
+  vb 30900-31300 vc 3:  2 lines; static drawn   23647; looked up   23647: found box  14960, vertices   8357, nothing-drawn 0, not found   330 (1.40%); stored   120; drops gen 1 slots 0 data 0; most now 256 slots 38 KB; events made 3 freed 3 lit 0 stage 0
+  vb 31400-37800 vc 0: 20 lines; static drawn    3380; looked up    3381: found box    528, vertices   2853, nothing-drawn 0, not found     0 (0.00%); stored     4; drops gen 0 slots 0 data 0; most now 528 slots 169 KB; events made 28 freed 27 lit 0 stage 0
+  vb 31400-37800 vc 1: 20 lines; static drawn  357575; looked up  357574: found box  70340, vertices 275705, nothing-drawn 0, not found 11529 (3.22%); stored  9053; drops gen 18 slots 0 data 9; most now 620 slots 169 KB; events made 18 freed 18 lit 0 stage 0
+  vb 31400-37800 vc 3: 22 lines; static drawn  350156; looked up  350156: found box  52197, vertices 291383, nothing-drawn 0, not found  6576 (1.88%); stored  5625; drops gen 17 slots 0 data 1; most now 620 slots 169 KB; events made 30 freed 30 lit 0 stage 0
+natst: static groups drawn 1161891, each hashed again at every vblank's start for 8 vblanks: CHANGED 0; by the vblanks since the draw:; left the window unchanged or counted 1160263, not followed (ring full) 0
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 054abe5ce71f, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 32159906789ce60d
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference tw/x86/out_dx.log: hash: vb 685 8a798669a397, picture: vb 35328 054abe5ce71f, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+=== twb/x86/out_g31.log against ../build_gl31/tw/x86/out_b.log
+nat: gl32 vertex cache: MGS2_NAT_VC 3, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 256 KB: made (0 slots of 40 B, 0 KB data); check mode 1
+twb/x86/out_g31.log: natvc lines 78; static groups flagged 1053381 (drawn 1052281); check mode: 804657 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 7; dropped: generation 39, slots 0, data 7; most in use 797 slots, 175 KB
+  vb 24000-29000 vc 3: 15 lines; static drawn  251469; looked up   21767: found box  17054, vertices   3954, nothing-drawn 0, not found   759 (3.49%); stored   118; drops gen 5 slots 0 data 0; most now 262 slots 29 KB; events made 994 freed 957 lit 0 stage 2
+  vb 29000-29400 vc 3:  3 lines; static drawn   37374; looked up   37374: found box  19473, vertices  17323, nothing-drawn 0, not found   578 (1.55%); stored   272; drops gen 1 slots 0 data 0; most now 578 slots 93 KB; events made 0 freed 0 lit 0 stage 0
+  vb 29400-31400 vc 3: 15 lines; static drawn  253093; looked up  253093: found box 136057, vertices 113860, nothing-drawn 0, not found  3176 (1.25%); stored  1474; drops gen 6 slots 0 data 0; most now 797 slots 132 KB; events made 137 freed 269 lit 0 stage 1
+  vb 29600-30500 vc 3:  7 lines; static drawn  113711; looked up  113711: found box  59354, vertices  53201, nothing-drawn 0, not found  1156 (1.02%); stored   544; drops gen 2 slots 0 data 0; most now 578 slots 94 KB; events made 1 freed 1 lit 0 stage 0
+  vb 30900-31300 vc 3:  3 lines; static drawn   23750; looked up   23750: found box  15910, vertices   7314, nothing-drawn 0, not found   526 (2.21%); stored   197; drops gen 2 slots 0 data 0; most now 256 slots 38 KB; events made 134 freed 266 lit 0 stage 1
+  vb 31400-37800 vc 3: 45 lines; static drawn  510345; looked up  510345: found box  89431, vertices 407505, nothing-drawn 0, not found 13409 (2.63%); stored 11191; drops gen 27 slots 0 data 7; most now 534 slots 169 KB; events made 76 freed 75 lit 0 stage 0
+natst: static groups drawn 1052281, each hashed again at every vblank's start for 8 vblanks: CHANGED 0; by the vblanks since the draw:; left the window unchanged or counted 1052281, not followed (ring full) 0
+lines (count, md5): hash: vb 685 5236309d0958, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 53ad00a3c2cb92fb
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference ../build_gl31/tw/x86/out_b.log: hash: vb 685 5236309d0958, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+=== twc/x86/out_lw2.log against tw/x86/out_a3.log
+nat: gl32 vertex cache: MGS2_NAT_VC 3, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 256 KB: made (2048 slots of 40 B, 175 KB data); check mode 1
+twc/x86/out_lw2.log: natvc lines 0; static groups flagged 0 (drawn 0); check mode: 0 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 0; dropped: generation 0, slots 0, data 0; most in use 0 slots, 0 KB
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 30eb6a0f62aa, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 53ad00a3c2cb92fb
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference tw/x86/out_a3.log: hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 fc0848857781, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb NO, natb: yes, natq: yes, natz: yes
+
+=== twc/x86/out_lw2b.log against twc/x86/out_lw2.log
+nat: gl32 vertex cache: MGS2_NAT_VC 2, MGS2_NAT_VC_CYCLE none (bit 1 the cache, bit 2 static streams left in RAM; by the same turns)
+natvc: the cache's block 256 KB: made (2048 slots of 40 B, 175 KB data); check mode 0
+twc/x86/out_lw2b.log: natvc lines 0; static groups flagged 0 (drawn 0); check mode: 0 found entries converted again, 0 DIFFER; not looked up 0; alpha rewritten 0; not stored 0; dropped: generation 0, slots 0, data 0; most in use 0 slots, 0 KB
+lines (count, md5): hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 30eb6a0f62aa, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+  picture: 17664 frames made (the first began at vb 31); lists ... 7664 (vb 0..37800), all 53ad00a3c2cb92fb
+  picture: content digests 17664, all bd06f6135601acab ... tent digests 17664, all bd06f6135601acab
+reference twc/x86/out_lw2.log: hash: vb 685 8a798669a397, picture: vb 35328 0d9f92abe0a2, xlive: vb 37831 30eb6a0f62aa, natb: 17664 7095169c584b, natq: 17664 ac848a4e9d6a, natz: 17664 4183ed60d2c7
+EQUAL to the reference: hash: vb yes, picture: vb yes, xlive: vb yes, natb: yes, natq: yes, natz: yes
+
+natvc: totals: found box 499846, vertices 1127032, nothing-drawn 0; not found 31521; stored 21888; drawn from the cache 1045388; not looked up 0; alpha rewritten 0; dropped: generation 68, slots 0, data 13; not stored 13; check: 1626878 compared, 0 DIFFER; most 1492 slots (of 2048), 175 KB data (of 175)

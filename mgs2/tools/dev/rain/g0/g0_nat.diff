@@ -1,0 +1,279 @@
+--- /mnt/project-files/mgs2/boot/native_w00a.c	2026-10-20 23:47:16.869233000 +0000
++++ nat/native_w00a.c	2026-11-03 21:24:32.254478910 +0000
+@@ -15,6 +15,36 @@
+ #define NAT_SPR_B 0x2000u
+ #define NAT_SEED 0x1fc954u               /* line_sph's random generator word (lui 0x20, addiu -13996) */
+ #define NAT_LS_MAX 64
++/* G0 (task #165, rain_study.md section 6): with g_opt2's G0 bit (runtime/host_time.h OPT2_G0 2048 in the private trees) a prim's stretch
++   leaves A and B as they are: the seed jumps 4 c draws, the last vertex is placed for the float registers it leaves, the registers of the
++   last copy are B's with h at +6, and the scratchpad image is placed from the prim's seed at the flush.  With G0H (4096) the prim is also
++   hidden from the draw pipeline (+164 |= 0x3000, the game's own hide bits), so the renderer reads none of the stale vertices.  The game's
++   state then differs from the translation's only in A's x, y, z, B's halfwords at +6 and the hide bits (and what the renderer builds from
++   them), which the x86 dev hash masks (gs_mask_dyn) */
++extern uint32_t g_opt2;
++#define NAT_G0 2048u
++#define NAT_G0H 4096u
++#if !defined(__psp__)
++void gs_mask_dyn(uint32_t a, uint32_t n) __attribute__((weak));   /* boot.c (sbg0): x86 dev, a range the game-state hash leaves out */
++#define NAT_MASK(a, n) (gs_mask_dyn ? gs_mask_dyn((a), (n)) : (void)0)
++#else
++#define NAT_MASK(a, n) ((void)0)
++#endif
++#if defined(GEN_DG_TRACE) && defined(NAT_IN_TRACE)   /* sbg0 x86 dev (-DNAT_IN_TRACE): the read-hash proof of G0H (boot.c rt_g0h_mark) */
++void rt_g0h_mark(uint32_t a);
++#define NAT_G0H_MARK(a) rt_g0h_mark(a)
++#else
++#define NAT_G0H_MARK(a) ((void)0)
++#endif
++static uint32_t nat_jA[257], nat_jC[257]; static int nat_jn;   /* the seed after 4 k draws: nat_jA[k] x + nat_jC[k] (k = 0..256) */
++static void nat_jinit(void)
++{
++  uint32_t a = 1, c = 0;
++  for (int k = 0; k <= 256; k++) { nat_jA[k] = a; nat_jC[k] = c; for (int i = 0; i < 4; i++) { a *= 0x5d588b65u; c = c * 0x5d588b65u + 1u; } }
++  nat_jn = 1;
++}
++struct nat_g0 { uint32_t s0, h; float x0, y0, z0, dx, dy, dz, f20, f21; };   /* a G0 prim: the seed before its first draw and what its
++                                                                                vertices are placed from */
+ 
+ static inline int nat_plain(uint32_t a, uint32_t n)       /* [a, a + n): RAM above the scratchpad's 16 KB, one piece under the 32 MB mask */
+ { uint32_t m = a & (GUEST_SIZE - 1); return (a >> 28) != 1 && m >= 0x4000u && m + n <= (uint32_t)GUEST_SIZE; }
+@@ -52,7 +82,8 @@
+ /* line_sph: the prims done natively whose scratchpad image is still to write (masked A / B, vertices), in the order done; all of their
+    A and B lie in [nat_ls_lo, nat_ls_hi) */
+ int nat_ls_pn; static uint32_t nat_ls_ma[NAT_LS_MAX], nat_ls_mb[NAT_LS_MAX], nat_ls_c[NAT_LS_MAX], nat_ls_lo, nat_ls_hi;
+-long nat_ls_n[3];                                     /* dev counters: prims native, prims translated, flushes */
++static uint8_t nat_ls_k[NAT_LS_MAX]; static struct nat_g0 nat_ls_g[NAT_LS_MAX];   /* G0: 1 an entry whose image is placed from nat_ls_g */
++long nat_ls_n[5];                                     /* dev counters: prims native, prims translated, flushes, of the native G0, hidden */
+ static int nat_ls_hit(uint32_t a, uint32_t n)
+ {
+   uint32_t m = a & (GUEST_SIZE - 1);
+@@ -60,6 +91,7 @@
+   for (int j = 0; j < nat_ls_pn; j++) if (nat_ovl(a, n, nat_ls_ma[j], 16u * nat_ls_c[j]) || nat_ovl(a, n, nat_ls_mb[j], 32u * nat_ls_c[j])) return 1;
+   return 0;
+ }
++static inline uint32_t nat_ls_v(uint32_t s, const struct nat_g0 *g, float *px, float *py, float *pz, float *pt, float *pw0, float *pw2);
+ #if defined(__psp__) && !defined(QCOPY_NO_VFPU)
+ void rt_qcopy_nov(uint8_t *d, const uint8_t *s, uint32_t n);   /* boot.c (v18): claims the destination lines instead of reading them */
+ #define NAT_COPY(d, s, n) rt_qcopy_nov((d), (s), (n))
+@@ -72,6 +104,25 @@
+   uint32_t ca = 0, cb = 0;
+   for (int j = nat_ls_pn - 1; j >= 0; j--) {
+     uint32_t la = 16u * nat_ls_c[j], lb = 32u * nat_ls_c[j];
++    if (nat_ls_k[j]) {                              /* G0: A's part placed from the seed (w as A holds it), B's as B holds it with h */
++      const struct nat_g0 *g = &nat_ls_g[j];
++      if (la > ca) {
++        uint32_t k = ca >> 4, n = la >> 4, sd = nat_jA[k] * g->s0 + nat_jC[k];
++        uint8_t *o = GEN_BASE + NAT_SPR_A + ca; const uint8_t *w = GEN_BASE + nat_ls_ma[j] + ca + 12;
++        for (; k < n; k++, o += 16, w += 16) {
++          float x, y, z, t, w0, w2;
++          sd = nat_ls_v(sd, g, &x, &y, &z, &t, &w0, &w2);
++          ((float *)o)[0] = x; ((float *)o)[1] = y; ((float *)o)[2] = z; memcpy(o + 12, w, 4);
++        }
++        ca = la;
++      }
++      if (lb > cb) {
++        NAT_COPY(GEN_BASE + NAT_SPR_B + cb, GEN_BASE + nat_ls_mb[j] + cb, lb - cb);
++        for (uint32_t k = cb; k < lb; k += 32) *(uint16_t *)(GEN_BASE + NAT_SPR_B + k + 6) = (uint16_t)g->h;
++        cb = lb;
++      }
++      continue;
++    }
+     if (la > ca) { NAT_COPY(GEN_BASE + NAT_SPR_A + ca, GEN_BASE + nat_ls_ma[j] + ca, la - ca); ca = la; }
+     if (lb > cb) { NAT_COPY(GEN_BASE + NAT_SPR_B + cb, GEN_BASE + nat_ls_mb[j] + cb, lb - cb); cb = lb; }
+   }
+@@ -93,8 +144,43 @@
+   uint32_t b = s >> 31;
+   return (float)(int32_t)(s >> b) * I2F(e + (b << 23));
+ }
++/* G0: one vertex as the loop at 0x333538 places it (the same draws and operations in the same order); s the seed before its four draws,
++   returned after them */
++static inline uint32_t nat_ls_v(uint32_t s, const struct nat_g0 *g, float *px, float *py, float *pz, float *pt, float *pw0, float *pw2)
++{
++  const float f4 = I2F(0x3f800000u);
++  float t, u2, u3, u4, w0, w2;
++  s = s * 0x5d588b65u + 1u; t = nat_u2fs(s, 0x2f800000u);
++  s = s * 0x5d588b65u + 1u; u2 = nat_u2fs(s, 0x30000000u);
++  s = s * 0x5d588b65u + 1u; u3 = nat_u2fs(s, 0x2f800000u);
++  s = s * 0x5d588b65u + 1u; u4 = nat_u2fs(s, 0x30000000u);
++  *px = FADD(FADD(g->x0, g->dx * t), g->f20 * FSUB(u2, f4));
++  *py = FADD(FADD(g->y0, g->dy * t), g->f21 * u3);
++  w2 = g->dz * t; w0 = g->f20 * FSUB(u4, f4);
++  *pz = FADD(FADD(g->z0, w2), w0);
++  *pt = t; *pw0 = w0; *pw2 = w2;
++  return s;
++}
++/* G0: qword i of B's vertices (hi: its upper 8 bytes) as the loop leaves it: a vertex's first qword (i even) with h at +6 */
++static inline uint64_t nat_bq(const uint8_t *b, int32_t i, int hi, uint16_t h)
++{
++  uint64_t v; memcpy(&v, b + 16u * (uint32_t)i + 8u * (uint32_t)hi, 8);
++  if (!hi && !(i & 1)) v = (v & 0x0000ffffffffffffull) | ((uint64_t)h << 48);
++  return v;
++}
++static inline void nat_qsetb(const struct nat_q *q, const uint8_t *d, uint16_t h, int32_t src, int32_t dst)   /* nat_qset of B with h */
++{
++  if (q->T) {
++    if (q->i2 >= 0) { RH[2] = (int64_t)nat_bq(d, q->i2, 1, h); if (!q->s2) R[2] = (int64_t)nat_bq(d, q->i2, 0, h); }
++    if (q->i3 >= 0) { RH[3] = (int64_t)nat_bq(d, q->i3, 1, h); if (!q->s3) R[3] = (int64_t)nat_bq(d, q->i3, 0, h); }
++  }
++  if (q->s2) R[2] = q->r2s;
++  if (q->s3) R[3] = q->r3;
++  R[4] = q->r4; R[5] = (int32_t)((uint32_t)src + 16u * (uint32_t)q->T); R[6] = q->r6; R[7] = (int32_t)((uint32_t)dst + 16u * (uint32_t)q->T);
++}
+ #ifdef NAT_CHECK
+ static void nat_chk_pre(uint32_t ma, uint32_t mb, uint32_t c, uint32_t sw);
++static void nat_chk_g0(int g0, int g0h, uint32_t pw, uint16_t h);
+ #endif
+ /* the stretch 0x3334e0-0x333774 of one prim: c vertices, A at prim + r23 + 8, B at prim + r30, descriptor r16 (fields 0x10-0x18 base,
+    0x30-0x38 direction, 0x40 the prim); 1 = done (registers, memory and time as the translation leaves them at 0x333774), 0 = translate */
+@@ -102,7 +188,7 @@
+                 float f20, float f21)
+ {
+   uint32_t d = (uint32_t)r16, pa = (uint32_t)prim + (uint32_t)r23 + 8u, pb = (uint32_t)prim + (uint32_t)r30, sw = (uint32_t)r29 - 16u;
+-  uint32_t a0, b0, la, lb; int32_t B; int64_t P; struct nat_q q1, q2, q3, q4;
++  uint32_t a0, b0, la, lb, pw = (uint32_t)prim + 164u; int32_t B; int64_t P; struct nat_q q1, q2, q3, q4; int g0 = 0, g0h = 0;
+   if (c < 1 || c > 256 || !(g_opt & OPT_NATIVE)) goto slow;   /* B's 32 bytes per vertex fill the scratchpad's upper 8 KB at 256 */
+   /* read in the stretch: d + 0x10..0x3b, d + 0x40, pa, pb, the seed (also written) and the wrappers' saved ra at sw (written);
+      after it, while the scratchpad image is pending: r19 + 80 and the next descriptor's prim (d + 0x90) */
+@@ -112,6 +198,7 @@
+       || nat_ovl(sw, 8, d, 68) || nat_ovl(sw, 8, pa, 4) || nat_ovl(sw, 8, pb, 4)) goto slow;
+   B = *(int32_t *)GEN_RAM(pb);
+   a0 = (uint32_t)A & ~15u; b0 = (uint32_t)B & ~15u; la = 16u * (uint32_t)c; lb = 32u * (uint32_t)c;   /* lq / sq ignore the low 4 bits */
++  if (nat_plain(a0, la) && nat_plain(b0, lb)) { NAT_MASK(a0, la); NAT_MASK(b0, lb); if (nat_plain(pw, 4)) NAT_MASK(pw, 4); }   /* both modes */
+   if (!nat_plain(a0, la) || !nat_plain(b0, lb) || nat_ovl(a0, la, b0, lb)) goto slow;
+   if (nat_ovl(a0, la, d, 68) || nat_ovl(b0, lb, d, 68) || nat_ovl(a0, la, pa, 4) || nat_ovl(b0, lb, pa, 4) || nat_ovl(a0, la, pb, 4)
+       || nat_ovl(b0, lb, pb, 4) || nat_ovl(a0, la, NAT_SEED, 4) || nat_ovl(b0, lb, NAT_SEED, 4) || nat_ovl(a0, la, sw, 8) || nat_ovl(b0, lb, sw, 8))
+@@ -119,11 +206,34 @@
+   nat_qplan(&q1, 0x70000000, c); nat_qplan(&q2, 0x70002000, 2 * c); nat_qplan(&q3, A, c); nat_qplan(&q4, B, 2 * c);
+   P = (int64_t)q1.P + q2.P + (c - 1) + q3.P + q4.P;  /* the polls: four copies and the vertex loop's back-edges */
+   if (NAT_NOW() + (uint64_t)P * K_POLL_CYCLES >= k_poll_at) goto slow;
+-  if (nat_ls_pn && (nat_ls_pn == NAT_LS_MAX || nat_ls_hit(a0, la) || nat_ls_hit(b0, lb))) nat_ls_flush();
++  if ((g_opt2 & NAT_G0) && c >= 4) {                /* G0 (c below 4 would need the copies-in registers: placed in place) */
++    g0 = 1;
++    g0h = (g_opt2 & NAT_G0H) && nat_plain(pw, 4) && !nat_ovl(pw, 4, a0, la) && !nat_ovl(pw, 4, b0, lb) && !nat_ovl(pw, 4, d, 68)
++          && !nat_ovl(pw, 4, d + 144u, 4) && !nat_ovl(pw, 4, (uint32_t)r19 + 80u, 4) && !nat_ovl(pw, 4, pa, 4) && !nat_ovl(pw, 4, pb, 4)
++          && !nat_ovl(pw, 4, NAT_SEED, 4) && !nat_ovl(pw, 4, sw, 8);
++    if (!nat_jn) nat_jinit();
++  }
++  if (nat_ls_pn && (nat_ls_pn == NAT_LS_MAX || nat_ls_hit(a0, la) || nat_ls_hit(b0, lb) || (g0h && nat_ls_hit(pw, 4)))) nat_ls_flush();
+ #ifdef NAT_CHECK
++  nat_chk_g0(g0, g0h, pw, (uint16_t)r22);
+   nat_chk_pre(a0 & (GUEST_SIZE - 1), b0 & (GUEST_SIZE - 1), (uint32_t)c, sw);
+ #endif
+-  {
++  if (g0) {                                         /* G0: A and B left as they are */
++    struct nat_g0 *g = &nat_ls_g[nat_ls_pn];
++    uint32_t *seed = (uint32_t *)GEN_RAM(NAT_SEED), s;
++    float x, y, z, t, w0, w2;
++    g->s0 = *seed; g->h = (uint16_t)r22;
++    g->x0 = *(float *)GEN_RAM(d + 16u); g->y0 = *(float *)GEN_RAM(d + 20u); g->z0 = *(float *)GEN_RAM(d + 24u);
++    g->dx = *(float *)GEN_RAM(d + 48u); g->dy = *(float *)GEN_RAM(d + 52u); g->dz = *(float *)GEN_RAM(d + 56u);
++    g->f20 = f20; g->f21 = f21;
++    s = nat_jA[c - 1] * g->s0 + nat_jC[c - 1];     /* the seed before the last vertex: 4 (c - 1) draws */
++    s = nat_ls_v(s, g, &x, &y, &z, &t, &w0, &w2);   /* the last vertex: the float registers as the loop leaves them */
++    *seed = s;
++    nat_qsetb(&q4, GEN_RAM(b0), g->h, 0x70002000, B);   /* the last copy out's registers (c >= 4: it sets every one the copies set) */
++    F[0] = w0; F[1] = z; F[2] = w2; F[3] = t; F[4] = I2F(0x3f800000u); F[5] = I2F(0x30000000u); F[6] = I2F(0x2f800000u); F[20] = f20; F[21] = f21;
++    if (g0h) { *(uint32_t *)GEN_RAM(pw) |= 0x3000u; NAT_G0H_MARK(pw); nat_ls_n[4]++; }
++    nat_ls_n[3]++;
++  } else {
+     uint8_t *ha = GEN_RAM(a0), *hb = GEN_RAM(b0), *pa_ = ha, *pb_ = hb;
+     uint32_t *seed = (uint32_t *)GEN_RAM(NAT_SEED), s;
+     const float f4 = I2F(0x3f800000u), f5 = I2F(0x30000000u), f6 = I2F(0x2f800000u);
+@@ -164,7 +274,7 @@
+     uint32_t ma = a0 & (GUEST_SIZE - 1), mb = b0 & (GUEST_SIZE - 1), lo = ma < mb ? ma : mb, hi = ma + la > mb + lb ? ma + la : mb + lb;
+     if (!nat_ls_pn) nat_ls_lo = lo, nat_ls_hi = hi;
+     else { if (lo < nat_ls_lo) nat_ls_lo = lo; if (hi > nat_ls_hi) nat_ls_hi = hi; }
+-    nat_ls_ma[nat_ls_pn] = ma; nat_ls_mb[nat_ls_pn] = mb; nat_ls_c[nat_ls_pn] = (uint32_t)c; nat_ls_pn++;
++    nat_ls_ma[nat_ls_pn] = ma; nat_ls_mb[nat_ls_pn] = mb; nat_ls_c[nat_ls_pn] = (uint32_t)c; nat_ls_k[nat_ls_pn] = (uint8_t)g0; nat_ls_pn++;
+   }
+   nat_ls_n[0]++;
+ #ifdef NAT_CHECK
+@@ -184,26 +294,37 @@
+ /* x86 dev: the state before the native stretch (restored after it, so the translation then runs from it) and after it (compared with the
+    translation's at 0x333774): registers, time, A, B, the scratchpad, the seed and the saved ra; every MGS2_NATCHK_FULL-th check (default
+    64) all 32 MB as well */
+-struct nat_cs { int64_t R[32], RH[32], LO, HI; float F[32]; uint64_t t; uint8_t a[4096], b[8192], spr[16384], sd[4], sv[8]; };
++struct nat_cs { int64_t R[32], RH[32], LO, HI; float F[32]; uint64_t t; uint8_t a[4096], b[8192], spr[16384], sd[4], sv[8], pw[4]; };
+ static struct nat_cs nc_pre, nc_fast; static uint32_t nc_ma, nc_mb, nc_c, nc_sw; static int nc_armed, nc_fullnow; static uint8_t *nc_ram;
++/* G0 (task #165): the prim's G0 / G0H, its word +164 (masked) and h; with G0 the native A and B must be the state before the stretch
++   (checked in nat_chk_swap), the translation's A differ from them only in x, y, z and its B only in the halfwords at +6 (h), and +164
++   carries the hide bits with G0H */
++static int nc_g0, nc_g0h; static uint32_t nc_pw; static uint16_t nc_h; static long nc_g0n;
++static void nat_chk_g0(int g0, int g0h, uint32_t pw, uint16_t h) { nc_g0 = g0; nc_g0h = g0h; nc_pw = g0 ? pw & (GUEST_SIZE - 1) : 0; nc_h = h; }
+ static long nc_n, nc_bad, nc_full, nc_every = -1;
+ static void nc_save(struct nat_cs *s)
+ {
+   memcpy(s->R, R, sizeof s->R); memcpy(s->RH, RH, sizeof s->RH); s->LO = LO; s->HI = HI; memcpy(s->F, F, sizeof s->F); s->t = NAT_NOW();
+   memcpy(s->a, GEN_BASE + nc_ma, 16 * nc_c); memcpy(s->b, GEN_BASE + nc_mb, 32 * nc_c); memcpy(s->spr, GEN_BASE, 16384);
+-  memcpy(s->sd, GEN_BASE + NAT_SEED, 4); memcpy(s->sv, GEN_BASE + (nc_sw & (GUEST_SIZE - 1)), 8);
++  memcpy(s->sd, GEN_BASE + NAT_SEED, 4); memcpy(s->sv, GEN_BASE + (nc_sw & (GUEST_SIZE - 1)), 8); memcpy(s->pw, GEN_BASE + nc_pw, 4);
+ }
+ static void nc_load(const struct nat_cs *s)
+ {
+   memcpy(R, s->R, sizeof s->R); memcpy(RH, s->RH, sizeof s->RH); LO = s->LO; HI = s->HI; memcpy(F, s->F, sizeof s->F); k_time = s->t;
+   memcpy(GEN_BASE + nc_ma, s->a, 16 * nc_c); memcpy(GEN_BASE + nc_mb, s->b, 32 * nc_c); memcpy(GEN_BASE, s->spr, 16384);
+-  memcpy(GEN_BASE + NAT_SEED, s->sd, 4); memcpy(GEN_BASE + (nc_sw & (GUEST_SIZE - 1)), s->sv, 8);
++  memcpy(GEN_BASE + NAT_SEED, s->sd, 4); memcpy(GEN_BASE + (nc_sw & (GUEST_SIZE - 1)), s->sv, 8); memcpy(GEN_BASE + nc_pw, s->pw, 4);
+ }
+ static void nat_chk_pre(uint32_t ma, uint32_t mb, uint32_t c, uint32_t sw) { nc_ma = ma; nc_mb = mb; nc_c = c; nc_sw = sw; nc_save(&nc_pre); }
+ void nat_chk_swap(void)
+ {
+   if (nc_every < 0) { const char *e = getenv("MGS2_NATCHK_FULL"); nc_every = e ? atol(e) : 64; }
+   nc_save(&nc_fast);
++  if (nc_g0) {                                        /* G0 wrote nothing in A and B */
++    extern long g_hash_vb; static long nw;
++    if ((memcmp(nc_fast.a, nc_pre.a, 16 * nc_c) || memcmp(nc_fast.b, nc_pre.b, 32 * nc_c)) && nw++ < 20)
++      fprintf(stderr, "natchk: G0 wrote A or B (check %ld, after the hash of vb %ld, A %06x B %06x c %u)\n", nc_n, g_hash_vb, nc_ma, nc_mb, nc_c);
++    nc_g0n++;
++  }
+   nc_fullnow = nc_every > 0 && nc_n % nc_every == 0;
+   if (nc_fullnow) { if (!nc_ram) nc_ram = malloc(GUEST_SIZE); memcpy(nc_ram, GEN_BASE, GUEST_SIZE); }
+   nc_load(&nc_pre); nc_armed = 1;
+@@ -228,19 +349,31 @@
+   if (g->t != nc_fast.t) nc_bad_at("time", 0, g->t, nc_fast.t);
+   for (int i = 0; i < 10; i++) if (l[i] != nc_fast.R[ln[i]]) nc_bad_at("local r", ln[i], l[i], nc_fast.R[ln[i]]);
+   for (int i = 0; i < 7; i++) { memcpy(&u, &lf[i], 4); memcpy(&v, &nc_fast.F[i], 4); if (u != v) nc_bad_at("local f", i, u, v); }
+-  for (uint32_t i = 0; i < 16 * nc_c; i++) if (g->a[i] != nc_fast.a[i]) { nc_bad_at("A byte", i, g->a[i], nc_fast.a[i]); break; }
+-  for (uint32_t i = 0; i < 32 * nc_c; i++) if (g->b[i] != nc_fast.b[i]) { nc_bad_at("B byte", i, g->b[i], nc_fast.b[i]); break; }
++  if (!nc_g0) {
++    for (uint32_t i = 0; i < 16 * nc_c; i++) if (g->a[i] != nc_fast.a[i]) { nc_bad_at("A byte", i, g->a[i], nc_fast.a[i]); break; }
++    for (uint32_t i = 0; i < 32 * nc_c; i++) if (g->b[i] != nc_fast.b[i]) { nc_bad_at("B byte", i, g->b[i], nc_fast.b[i]); break; }
++  } else {                                            /* G0: A's w words equal; B equal but the halfwords at +6, which the translation set to h */
++    for (uint32_t i = 0; i < 16 * nc_c; i++) if ((i & 15) >= 12 && g->a[i] != nc_fast.a[i]) { nc_bad_at("G0 A w byte", i, g->a[i], nc_fast.a[i]); break; }
++    for (uint32_t i = 0; i < 32 * nc_c; i++) {
++      if ((i & 31) == 6 || (i & 31) == 7) { uint8_t hb = (i & 31) == 6 ? (uint8_t)nc_h : (uint8_t)(nc_h >> 8); if (g->b[i] != hb) { nc_bad_at("G0 B h byte", i, g->b[i], hb); break; } }
++      else if (g->b[i] != nc_fast.b[i]) { nc_bad_at("G0 B byte", i, g->b[i], nc_fast.b[i]); break; }
++    }
++    { uint32_t u, v; memcpy(&u, g->pw, 4); memcpy(&v, nc_fast.pw, 4); if ((u | (nc_g0h ? 0x3000u : 0u)) != v) nc_bad_at("G0 +164", 0, u, v); }
++  }
+   for (int i = 0; i < 16384; i++) if (g->spr[i] != nc_fast.spr[i]) { nc_bad_at("scratchpad byte", i, g->spr[i], nc_fast.spr[i]); break; }
+   if (memcmp(g->sd, nc_fast.sd, 4)) nc_bad_at("seed", 0, 0, 0);
+   if (memcmp(g->sv, nc_fast.sv, 8)) nc_bad_at("saved ra", 0, 0, 0);
+-  if (nc_fullnow) { nc_full++; for (uint32_t i = 0; i < GUEST_SIZE; i++) if (GEN_BASE[i] != nc_ram[i]) { nc_bad_at("RAM byte", (int)i, GEN_BASE[i], nc_ram[i]); break; } }
++  if (nc_fullnow) { nc_full++; for (uint32_t i = 0; i < GUEST_SIZE; i++) if (GEN_BASE[i] != nc_ram[i]) {
++      if (nc_g0 && ((i >= nc_ma && i < nc_ma + 16 * nc_c) || (i >= nc_mb && i < nc_mb + 32 * nc_c) || (i >= nc_pw && i < nc_pw + 4))) continue;   /* G0: checked above */
++      nc_bad_at("RAM byte", (int)i, GEN_BASE[i], nc_ram[i]); break; } }
+   nc_n++; if (nc_bad != bad0) nc_bad = bad0 + 1;      /* count checks, not fields */
+ }
+ __attribute__((destructor)) static void nc_report(void)
+-{ fprintf(stderr, "natchk: %ld prims checked (%ld with all RAM), %ld different; line_sph prims native %ld, translated %ld\n", nc_n, nc_full, nc_bad, nat_ls_n[0], nat_ls_n[1]); }
++{ fprintf(stderr, "natchk: %ld prims checked (%ld with all RAM, %ld G0), %ld different; line_sph prims native %ld (G0 %ld, hidden %ld), translated %ld\n", nc_n, nc_full, nc_g0n, nc_bad,
++          nat_ls_n[0], nat_ls_n[3], nat_ls_n[4], nat_ls_n[1]); }
+ #elif !defined(__psp__)
+ __attribute__((destructor)) static void nat_report(void)
+-{ fprintf(stderr, "native line_sph: %ld prims native, %ld translated, %ld scratchpad flushes\n", nat_ls_n[0], nat_ls_n[1], nat_ls_n[2]); }
++{ fprintf(stderr, "native line_sph: %ld prims native (G0 %ld, hidden %ld), %ld translated, %ld scratchpad flushes\n", nat_ls_n[0], nat_ls_n[3], nat_ls_n[4], nat_ls_n[1], nat_ls_n[2]); }
+ #endif
+ #define static
+ #endif
+--- /mnt/project-files/mgs2/boot/native_w00a.h	2026-10-20 22:47:37.431858000 +0000
++++ nat/native_w00a.h	2026-11-03 21:24:32.254120031 +0000
+@@ -8,7 +8,7 @@
+    plain RAM, no poll in that stretch would reach k_poll_at, and A / B miss each other and every other word the stretch reads or writes.
+    The scratchpad image the copies would leave is written later (nat_ls_flush): before a prim that takes the translation, before a poll
+    that reaches k_poll_at, before the next prim's accesses could meet it, and when line_sph returns. */
+-#if defined(GEN_MM_FAST) && defined(GUEST_SPR0) && !defined(GEN_DG_TRACE) && !defined(GEN_MM_CHECK) && !defined(GEN_COVER) && !defined(GEN_NO_NATIVE)
++#if defined(GEN_MM_FAST) && defined(GUEST_SPR0) && (!defined(GEN_DG_TRACE) || defined(NAT_IN_TRACE)) && !defined(GEN_MM_CHECK) && !defined(GEN_COVER) && !defined(GEN_NO_NATIVE)
+ #define NAT_ON 1
+ extern int nat_ls_pn;
+ int nat_ls_prim(int32_t prim, int32_t A, int32_t r16, int32_t c, int32_t r19, int32_t r21, int32_t r22, int32_t r23, int32_t r29, int32_t r30,

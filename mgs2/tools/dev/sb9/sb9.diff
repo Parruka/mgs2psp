@@ -1,0 +1,795 @@
+diff -u ge.orig/gelive.c ge/gelive.c
+--- ge.orig/gelive.c	2026-10-31 16:07:46.026193314 +0000
++++ ge/gelive.c	2026-11-01 22:13:26.536652521 +0000
+@@ -51,7 +51,7 @@
+     f->n.tex_memo++;
+     if (!f->memo_check) { *xt = f->memo.xt; return f->memo.ti; }
+   }
+-  TkTex k; int kind = tk_get_cl(f->tk, gr, ctxt, cl, &k);
++  TkTex k; int kind = tk_get_um(f->tk, gr, ctxt, cl, &k);   /* sb9: through the memo by uploads (OPT2_TX_UMEMO; off: tk_get_cl, as gl12) */
+   if (kind != TK_TEX) {
+     if (kind == TK_RT) f->n.tex_rt++; else if (kind == TK_LOST) f->n.tex_lost++; else f->n.tex_unsup++;
+     if (f->memo_check && f->memo.valid && f->memo.t0 == t0 && f->memo.cl == cl && f->memo.texa == texa && f->memo.gen == gen) f->memo_bad++;
+@@ -61,12 +61,12 @@
+   if (f->memo_check && f->memo.valid && f->memo.t0 == t0 && f->memo.cl == cl && f->memo.texa == texa && f->memo.gen == gen
+       && (f->memo.ti < 0 || f->tkey[f->memo.ti] != key || f->memo.xt.minalpha != k.minalpha)) f->memo_bad++;
+   GerTex t; memset(&t, 0, sizeof t);
+-  uint32_t size = (uint32_t)tc_texture_size(t0, cl);
+-  t.kind = 1; t.psm = (uint8_t)k.t.psm; t.repeat = (uint8_t)k.t.repeat; t.minalpha = (uint8_t)k.minalpha;
+-  t.tw = (uint16_t)k.t.tw; t.th = (uint16_t)k.t.th; t.bw = (uint16_t)k.t.bw; t.rows = (uint16_t)k.t.rows; t.size = size; t.npal = (uint32_t)k.npal;
+-  int i = add_tex(f, key, &t, k.t.u0, k.t.v0, k.data, k.pal, size);
++  const TcTex *tt = k.tp; uint32_t size = k.size;   /* sb9: the description and tc_texture_size, as tk_get_um gives them */
++  t.kind = 1; t.psm = (uint8_t)tt->psm; t.repeat = (uint8_t)tt->repeat; t.minalpha = (uint8_t)k.minalpha;
++  t.tw = (uint16_t)tt->tw; t.th = (uint16_t)tt->th; t.bw = (uint16_t)tt->bw; t.rows = (uint16_t)tt->rows; t.size = size; t.npal = (uint32_t)k.npal;
++  int i = add_tex(f, key, &t, tt->u0, tt->v0, k.data, k.pal, size);
+   if (i < 0) { f->memo.valid = 0; return -1; }
+-  xt->index = i; xt->kind = 1; xt->tw = k.t.tw; xt->th = k.t.th; xt->u0 = k.t.u0; xt->v0 = k.t.v0; xt->minalpha = k.minalpha;
++  xt->index = i; xt->kind = 1; xt->tw = tt->tw; xt->th = tt->th; xt->u0 = tt->u0; xt->v0 = tt->v0; xt->minalpha = k.minalpha;
+   if (f->memo_on) { f->memo.t0 = t0; f->memo.cl = cl; f->memo.texa = texa; f->memo.gen = gen; f->memo.ti = i; f->memo.xt = *xt; f->memo.valid = 1; }
+   return i;
+ }
+diff -u ge.orig/gsup.h ge/gsup.h
+--- ge.orig/gsup.h	2026-10-30 17:19:38.460187662 +0000
++++ ge/gsup.h	2026-11-01 22:09:18.080090180 +0000
+@@ -76,6 +76,18 @@
+ void gu_clut_memo(GuMap *m, int on);
+ /* a number that changes whenever block bn's list changes */
+ uint32_t gu_block_ver(const GuMap *m, uint32_t bn);
++/* sb9, Stage C step 0 (stagec_notes.md 0.3, 0.4; gsup2.c only).  0a: gu_settle puts a transfer still taking data into the blocks, as the
++   identities do first; gu_area_pages gives the pages of the cells gu_area_id walks for an area (at most max; -1: more or none), the
++   blocks it reads in each (bit j: block 32 p + j) and its lane groups; gu_pages_sig (after settling) gives 0 and *sig when each page
++   and lane group read holds one plain final record or nothing, so that gu_area_id of an area over them is a function of the area and
++   *sig, with flags 0; else why not (1 keys off, 2 mixed states, 3 a list, 4 drawn, 5 lost, 6 not final).  0b: gu_ld_ident: 1 (the
++   default) a CLUT load whose blocks hold records with the identities of a load kept by identity (64 kept) is that load again, its
++   states refreshed; 2 a new load as before, compared with the kept one (GuStats ld_ident_chk, ld_ident_bad); 0 off.  The same
++   identities and CLUT entries either way */
++void gu_settle(GuMap *m);
++int gu_area_pages(int psm, uint32_t bp, uint32_t bw, int x0, int y0, int x1, int y1, uint16_t *pages, uint32_t *masks, int max, uint32_t *lanes);
++int gu_pages_sig(GuMap *m, uint32_t lanes, int n, const uint16_t *pages, const uint32_t *masks, uint64_t *sig);
++void gu_ld_ident(GuMap *m, int mode);
+ 
+ /* optional: told of each piece of IMAGE data the map takes for a host -> local transfer: the transfer's number (1, 2, ... in the order
+    they started, as GuStats.xfers counts them), the EE address and size of the piece, and the bytes that transfer has now and needs */
+@@ -113,6 +125,9 @@
+                                        went into the blocks before their data was all in; CLUT loads kept; area identities made / kept */
+   long blocks, blocks_one;          /* gsup2.c only: gu_block calls; of those, blocks whose lanes each came whole from one upload (8
+                                        rows at a time) */
++  long ld_ident, ld_ident_put, ld_ident_nolist, ld_ident_nosig, ld_ident_chk, ld_ident_bad;   /* sb9 gsup2.c gu_ld_ident: loads used
++                                       again by identity; loads that joined the table; look-ups without a block list (the table of loads by
++                                       parameters held another's) or whose records do not qualify; the check mode's comparisons, differing */
+   int live_xfers, live_loads;
+ } GuStats;
+ const GuStats *gu_stats(const GuMap *m);
+diff -u ge.orig/gsup2.c ge/gsup2.c
+--- ge.orig/gsup2.c	2026-10-30 17:19:38.460645028 +0000
++++ ge/gsup2.c	2026-11-01 22:33:26.599863647 +0000
+@@ -130,6 +130,11 @@
+ #define L_LOW 16
+ #define TL_N 64        /* blocks a drawn area remembers as written since its last draw (more: all of it is marked again) */
+ typedef struct { int psm, x0, y0, x1, y1, used, dirty; uint32_t bp, bw, lanes, last; int ntl, over; uint16_t tl[TL_N]; } DtE;
++#define IT_W 4         /* sb9 0b: CLUT loads kept by identity: sets of IT_W (the least recently used goes), 1 << IT_SB sets */
++#define IT_SB 7
++#define IT_N (IT_W << IT_SB)
++typedef struct { int li; uint32_t rk, rt, use; uint64_t sig; } ItE;   /* a load (-1: none), its parameters, when last used (0: never) and
++                                                                       the identity of its records */
+ typedef struct { uint64_t id; int psm, x0, y0, x1, y1, flags, pg0, npg, used; uint32_t bp, bw, seq, epoch; } AcE;
+ typedef struct { int k, psm, x0, y0, x1, y1; uint32_t bp, bw, bits; } DlE;
+ struct GuMap {
+@@ -159,6 +164,7 @@
+   DlE dl[2];                   /* gu_drawn's last two calls with an area, as given, and the area (-1: none) */
+   int keys, zero_empty;
+   struct GuSrc *srct; uint32_t nsrc, capsrc;
++  int ldid; uint32_t itclk; ItE it[IT_N];   /* sb9 0b: gu_ld_ident's mode, a clock for the table's uses and the loads kept by identity */
+ #ifdef GU_SENT
+   int keep, read_sent, watch;
+   void (*trx_fn)(void *ctx, const uint64_t *gr); void *trx_ctx;
+@@ -312,6 +318,7 @@
+     for (; own; own &= own - 1) if ((v = m->bs[p * 32 + __builtin_ctz(own)][g]) != last) { last = v; if (v) gc_state(m, v); }
+   }
+   for (int r = 0; r < 32; r++) if (m->row[r]) gc_ld(m, ROW_LD(m->row[r]));
++  for (int k = 0; k < IT_N; k++) if (m->it[k].li >= 0) gc_ld(m, m->it[k].li);   /* sb9 0b: the loads kept by identity, and their records */
+   if (m->cur >= 0) m->r[m->cur].mk = m->gcn;
+   for (uint32_t k = 0; k < 1u << RT_BITS; k++) if (m->rt[k] >= 0 && m->l[m->rt[k]].mk != m->gcn) m->rt[k] = -1;
+   for (int i = 0; i < m->nr; i++) if (m->r[i].live && m->r[i].mk != m->gcn) rec_free(m, i);
+@@ -349,6 +356,7 @@
+ #endif
+   for (uint32_t k = 0; k < 1u << RT_BITS; k++) m->rt[k] = -1;
+   m->dt_hit[0] = m->dt_hit[1] = -1; m->dl[0].k = m->dl[1].k = -1;
++  m->ldid = 1; for (int k = 0; k < IT_N; k++) { m->it[k].li = -1; m->it[k].use = 0; }   /* sb9 0b: on by default (OPT2_GU_LDID) */
+   return m;
+ }
+ void gu_free(GuMap *m)
+@@ -825,6 +833,61 @@
+   return f;
+ }
+ 
++/* ---- sb9 step 0a (stagec_notes.md 0.3): what tells a texture's region by its upload records ---- */
++void gu_settle(GuMap *m) { settle(m); }
++/* the pages (32 blocks) of the cells gu_area_id walks for that area, with the blocks of each it reads (bit j: block 32 p + j), and its
++   lane groups: how many pages (at most max), or -1 (more, or none) */
++int gu_area_pages(int psm, uint32_t bp, uint32_t bw, int x0, int y0, int x1, int y1, uint16_t *pg, uint32_t *mk, int max, uint32_t *lanesp)
++{
++  uint32_t lanes = psm == GS_Z24 ? 1 : psm_lanes(psm); const Lay L = *lay(psm); int cw = 1 << L.cws, ch = 1 << L.chs, n = 0;
++  if (!lanes) lanes = 7;
++  if (x0 < 0) x0 = 0;
++  if (y0 < 0) y0 = 0;
++  if (x1 > 2047) x1 = 2047;
++  if (y1 > 2047) y1 = 2047;
++  for (int cy = y0 & -ch; cy <= y1; cy += ch)
++    for (int cx = x0 & -cw; cx <= x1; cx += cw) {
++      uint32_t bn = blk(&L, bp, bw, cx, cy), p = bn >> 5; int k;
++      for (k = 0; k < n && pg[k] != p; k++) {}
++      if (k == n) { if (n == max) return -1; pg[n] = (uint16_t)p; mk[n] = 0; n++; }
++      mk[k] |= 1u << (bn & 31);
++    }
++  *lanesp = lanes; return n ? n : -1;
++}
++/* the identity of what those blocks hold, after settling the map: 0 and *sig when, in each page and lane group, every block read holds
++   the same state and that state is empty or one record that is plain (not drawn, not lost) and final (its identity made from all its
++   bytes, or a local copy); then gu_area_id's identity of any area whose cells are those blocks is a function of the area and *sig, its
++   flags 0, and making it would make no record's identity.  Else why not: 1 keys off, 2 a page's blocks hold different states, 3 a list
++   of records, 4 a drawn area, 5 a lost record, 6 a record whose identity is not final */
++int gu_pages_sig(GuMap *m, uint32_t lanes, int n, const uint16_t *pg, const uint32_t *mk, uint64_t *sig)
++{
++  uint64_t h = FNV0;
++  if (!m->keys) return 1;
++  settle(m);
++  for (int k = 0; k < n; k++) {
++    uint32_t p = pg[k], msk = mk[k];
++    for (int g = 0; g < 3; g++) {
++      if (!(lanes >> g & 1)) continue;
++      uint32_t own = m->pm[p][g] & msk, s;
++      if (!own) s = m->ps[p][g];
++      else if (own != msk) return 2;
++      else { uint32_t b = msk; s = m->bs[p * 32 + (uint32_t)__builtin_ctz(b)][g];
++             for (b &= b - 1; b; b &= b - 1) if (m->bs[p * 32 + (uint32_t)__builtin_ctz(b)][g] != s) return 2; }
++      uint64_t v = 0;
++      if (s) {
++        if (s & S_NODE) return 3;
++        const Rec *x = &m->r[S_IDX(s)];
++        if (x->drawn) return 4;
++        if (x->bad || !x->bw) return 5;
++        if (!x->own && (!x->id || x->idgot != x->got || x->got < x->need)) return 6;
++        v = x->id;
++      }
++      h = mix(h, v);
++    }
++  }
++  *sig = h; return 0;
++}
++
+ /* ---- transfers ---- */
+ static uint8_t *local_copy(GuMap *m, const Rec *x, uint64_t b, uint64_t p)
+ {
+@@ -1049,7 +1112,73 @@
+   if (c32) for (int j = 0; j < n / 16; j++) { int r = (csa + j) & 15; m->row[r] = ROW(li, j, 0); m->row[r + 16] = ROW(li, j, 1); }
+   else for (int j = 0; j < n / 16; j++) m->row[(csa + j) & 31] = ROW(li, j, 0);
+ }
+-static void clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32);
++static int clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32);
++/* ---- sb9 step 0b (stagec_notes.md 0.4): CLUT loads kept by identity ---- */
++void gu_ld_ident(GuMap *m, int mode) { if (mode != m->ldid) { m->ldid = mode; for (int k = 0; k < IT_N; k++) { m->it[k].li = -1; m->it[k].use = 0; } } }
++/* the identity of the records the blocks of load L hold now (L's blocks are those of any load with its parameters): 0, with *sig and each
++   block's and lane group's record identity in v (0: empty), when each state is empty or one plain final record (as gu_pages_sig); else 1 */
++static int ld_sig(const GuMap *m, const Ld *L, uint64_t *sig, uint64_t *v)
++{
++  uint64_t h = mix(FNV0 ^ 3, (uint64_t)L->rk << 32 | L->rt);
++  for (int b = 0; b < L->nb; b++)
++    for (int g = 0; g < 3; g++) {
++      uint32_t s = st_of(m, L->bn[b], g); uint64_t id = 0;
++      if (s) {
++        if (s & S_NODE) return 1;
++        const Rec *x = &m->r[S_IDX(s)];
++        if (x->drawn || x->bad || !x->bw || (!x->own && (!x->id || x->idgot != x->got || x->got < x->need))) return 1;
++        id = x->id;
++      }
++      v[b * 3 + g] = id; h = mix(h, id);
++    }
++  *sig = h; return 0;
++}
++static ItE *it_set(GuMap *m, uint64_t sig) { return &m->it[((uint32_t)(sig >> 32) >> (32 - IT_SB)) * IT_W]; }   /* sig holds the parameters too */
++/* the load kept by identity that holds what a new load with the parameters of load r0 would hold now (the same identity, flags 0), or -1 */
++#ifdef UM_SIM
++void um_sim_ld(uint64_t sig, uint32_t rk, uint32_t rt, int put); void um_sim_vfail(void); void um_sim_mem(int capr, size_t szr, int capn, size_t szn, int capl, size_t szl, long own);
++static int it_check(GuMap *m, const ItE *e, const Ld *L0, const uint64_t *v, uint32_t rk, uint32_t rt);
++#endif
++static int it_find(GuMap *m, int r0, uint32_t rk, uint32_t rt)
++{
++  const Ld *L0 = &m->l[r0]; uint64_t sig, v[12];
++  if (L0->rk != rk || L0->rt != rt || L0->bad) { m->st.ld_ident_nolist++; return -1; }   /* the table of loads by parameters holds another's */
++  if (ld_sig(m, L0, &sig, v)) { m->st.ld_ident_nosig++; return -1; }
++#ifdef UM_SIM
++  um_sim_ld(sig, rk, rt, 0);
++#endif
++  ItE *e = it_set(m, sig), *ee = e + IT_W;
++  for (; e < ee && (e->li < 0 || e->sig != sig || e->rk != rk || e->rt != rt); e++) ;
++  if (e == ee) return -1;
++  e->use = ++m->itclk;   /* a set holds each identity once (it_put) */
++#ifdef UM_SIM
++  { int r = it_check(m, e, L0, v, rk, rt); if (r < 0) um_sim_vfail(); return r; }
++}
++static int it_check(GuMap *m, const ItE *e, const Ld *L0, const uint64_t *v, uint32_t rk, uint32_t rt)
++{
++#endif
++  const Ld *L = &m->l[e->li];
++  if (!L->live || L->rk != rk || L->rt != rt || L->bad || L->idf || L->nb != L0->nb) return -1;
++  for (int b = 0; b < L->nb; b++) {   /* the same blocks, and in each lane group a record with the same identity (a kept load's states are
++                                         empty or one record, which the sweep keeps while the table names the load) */
++    if (L->bn[b] != L0->bn[b]) return -1;
++    for (int g = 0; g < 3; g++) { uint32_t s = L->s[b][g]; if ((s ? m->r[S_IDX(s)].id : 0) != v[b * 3 + g]) return -1; }
++  }
++  return e->li;
++}
++/* a new load li joins the table if what it loaded qualifies */
++static void it_put(GuMap *m, int li)
++{
++  const Ld *L = &m->l[li]; uint64_t sig, v[12];
++  if (L->bad || L->idf || !m->keys || ld_sig(m, L, &sig, v)) return;
++#ifdef UM_SIM
++  um_sim_ld(sig, L->rk, L->rt, 1); um_sim_mem(m->capr, sizeof *m->r, m->capn, sizeof *m->nd, m->capl, sizeof *m->l, m->st.own_bytes);
++#endif
++  ItE *e = it_set(m, sig), *u = e, *ee = e + IT_W;   /* the way that holds this identity, else the least recently used (empty ones: 0) */
++  for (; e < ee && (e->li < 0 || e->sig != sig || e->rk != L->rk || e->rt != L->rt); e++) if (e->use < u->use) u = e;
++  if (e == ee) e = u;
++  e->li = li; e->rk = L->rk; e->rt = L->rt; e->sig = sig; e->use = ++m->itclk; m->st.ld_ident_put++;
++}
+ void gu_clut_load(GuMap *m, const uint64_t *gr, int ctxt)
+ {
+   uint64_t t0 = gr[0x06 + ctxt];
+@@ -1065,10 +1194,23 @@
+   uint32_t rk = (uint32_t)(t0 >> 37 & 0x7ffff) << 1 | (uint32_t)(n == 256), rt = csm ? (uint32_t)(gr[0x1c] & 0x3fffff) : 0;
+   int *rs = &m->rt[(rk * 2654435761u ^ rt * 2246822519u) >> (32 - RT_BITS)];
+   if (*rs >= 0 && ld_now(m, &m->l[*rs], rk, rt)) { m->st.ld_memo++; DC_(clut_memo); rows(m, *rs, csa, n, c32); return; }
+-  clut_new(m, gr, t0, rs, rk, rt, n, c32);
++  int ci = m->ldid && *rs >= 0 ? it_find(m, *rs, rk, rt) : -1;
++  if (ci >= 0 && m->ldid == 1) {   /* sb9 0b: that load again, with the blocks' states as they are now */
++    Ld *L = &m->l[ci];
++    for (int b = 0; b < L->nb; b++) st3(m, L->bn[b], L->s[b]);
++    L->seq = m->seq; L->epoch = m->epoch; *rs = ci; m->st.ld_ident++;
++    rows(m, ci, csa, n, c32); return;
++  }
++  int li = clut_new(m, gr, t0, rs, rk, rt, n, c32);
++  if (ci >= 0 && li >= 0) {   /* the check mode: the new load against the kept one */
++    const Ld *L = &m->l[ci], *N = &m->l[li]; int same = N->id == L->id && N->idf == L->idf && N->bad == L->bad && N->nb == L->nb
++      && N->cbp == L->cbp && N->cbw == L->cbw && N->cpsm == L->cpsm && N->csm == L->csm && N->cou == L->cou && N->cov == L->cov && N->n == L->n;
++    for (int b = 0; same && b < N->nb; b++) same = N->bn[b] == L->bn[b];
++    m->st.ld_ident_chk++; if (!same) m->st.ld_ident_bad++;
++  }
+ }
+ /* gu_clut_load's load that the table of loads by parameters did not have (apart: the PSP's instruction cache keeps the common path) */
+-static __attribute__((noinline)) void clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32)
++static __attribute__((noinline)) int clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32)
+ {
+   int cpsm = (int)(t0 >> 51 & 15), csm = (int)(t0 >> 55 & 1), csa = (int)(t0 >> 56 & 31); uint32_t cbp = (uint32_t)(t0 >> 37 & 0x3fff);
+   gc_maybe(m);
+@@ -1089,7 +1231,7 @@
+     }
+   /* a new load, kept with the state words it read (a state never comes back once replaced: an older load equal to it is only one the table
+      lost to other parameters, and it has the same identity) */
+-  int li = ld_new(m); if (li < 0) return;
++  int li = ld_new(m); if (li < 0) return -1;
+   Ld *Ln = &m->l[li]; *Ln = k; Ln->live = 1; Ln->next = -1; Ln->mk = 0; m->st.ld_made++;
+ #ifdef GU_DEVCNT
+   DC.clut_nb += k.nb; DC.clut_new++;
+@@ -1102,7 +1244,9 @@
+     Ln->id = h; Ln->idf = f;
+   }
+   if (!k.bad) *rs = li;   /* a load over too many blocks: not kept by its parameters */
++  if (m->ldid) it_put(m, li);   /* sb9 0b */
+   rows(m, li, csa, n, c32);
++  return li;
+ }
+ static int half(const GuMap *m, int h)
+ {
+diff -u ge.orig/texcache.c ge/texcache.c
+--- ge.orig/texcache.c	2026-10-30 17:19:38.463050096 +0000
++++ ge/texcache.c	2026-11-01 22:33:26.598941080 +0000
+@@ -22,6 +22,9 @@
+   int blk;                                 /* tk_blk */
+   int flags;                               /* tk_flags */
+   int t16;                                 /* tk_t16 */
++  int um;                                  /* sb9 tk_umemo */
++  struct UgE *ug; struct UtE *ut; uint32_t uclk;   /* sb9 0a: the G and T tables (made at the first look-up with the memo on); a clock
++                                                       for their uses (the least recently used way goes) */
+ };
+ #define TK_NIL 0xffffffffu
+ 
+@@ -30,7 +33,7 @@
+ TkCache *tk_new(GuMap *map, uint32_t budget)
+ {
+   TkCache *c = calloc(1, sizeof *c); if (!c) return 0;
+-  c->map = map; c->budget = budget; c->freel = c->head = c->tail = -1; c->nbucket = 4096; c->blk = 1; c->flags = 1; c->t16 = 1;
++  c->map = map; c->budget = budget; c->freel = c->head = c->tail = -1; c->nbucket = 4096; c->blk = 1; c->flags = 1; c->t16 = 1; c->um = 1;
+   if (!(c->bucket = malloc(c->nbucket * sizeof *c->bucket))) { free(c); return 0; }
+   for (uint32_t i = 0; i < c->nbucket; i++) c->bucket[i] = -1;
+   return c;
+@@ -39,7 +42,7 @@
+ {
+   if (!c) return;
+   if (!c->pool) for (int i = 0; i < c->cap; i++) free(c->e[i].data);
+-  free(c->e); free(c->bucket); free(c);
++  free(c->e); free(c->bucket); free(c->ug); free(c->ut); free(c);
+ }
+ const TkStats *tk_stats(const TkCache *c) { return &c->st; }
+ void tk_blk(TkCache *c, int mode) { c->blk = mode; }
+@@ -208,6 +211,32 @@
+   *pa = (uint8_t)a;
+   return c | (a >= 0x80 ? 0xffu : a * 2) << 24;
+ }
++/* the palette of texture entry i, *pidp the CLUT identity (gu_clut_id), which becomes the palette's: its entry, found (the entry hint first,
++   taken only when it holds that key: keys are unique in the cache) or made, after which the texture's lowest alpha is worked out again if
++   it was for another palette; -1 when it cannot be made (counted unsup) */
++static int tk_pal(TkCache *c, int i, uint64_t *pidp, int n, int csa, int cpsm, uint64_t texa, int hint, int *conv)
++{
++  c->st.pal_uses++;
++  uint64_t pid = mix(mix(*pidp, (uint64_t)(uint32_t)n << 8 | (uint64_t)(uint32_t)csa), (cpsm == GS_CT16 || cpsm == GS_CT16S) ? texa : cpsm == GS_CT24 ? (texa & 0xff) : 0) | 1;
++  uint64_t key = pid ^ 0x5a5a5a5a5a5a5a5aull;
++  *pidp = pid;
++  int j = hint >= 0 && hint < c->cap && c->e[hint].id == key ? hint : find(c, key);
++  if (j < 0) {   /* the GE's n entries, then their n PS2 alphas */
++    uint32_t *p = tk_alloc(c, (uint32_t)n * 5); long unk = 0;
++    if (!p) { c->st.unsup++; return -1; }
++    for (int k = 0; k < n; k++) p[k] = pal_entry(c->map, cpsm, csa * 16 + k, texa, &unk, (uint8_t *)(p + n) + k);
++    if ((j = insert(c, key, 1, (uint8_t *)p, (uint32_t)n * 5)) < 0) { tk_release(c, p, (uint32_t)n * 5); c->st.unsup++; return -1; }
++    c->e[j].npal = n; c->st.pal_misses++; c->st.unknown += unk; *conv = 1;
++  } else c->st.pal_hits++;
++  touch(c, j);
++  Ent *e = &c->e[i];
++  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
++    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
++    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
++    e->ma = m; e->ma_pid = pid;
++  }
++  return j;
++}
+ int tk_get(TkCache *c, const uint64_t *gr, int ctxt, TkTex *o) { return tk_get_cl(c, gr, ctxt, gr[0x08 + ctxt], o); }
+ int tk_get_cl(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
+ {
+@@ -246,29 +275,194 @@
+     if ((i = insert(c, id, 0, d, (uint32_t)size)) < 0) { tk_release(c, d, (uint32_t)size); c->st.unsup++; return o->kind = TK_UNSUP; }
+     c->e[i].t = o->t; c->st.misses++; c->st.unknown += fx.unk; o->conv = 1;
+   } else c->st.hits++;
+-  touch(c, i);
++  touch(c, i); o->ent = i;
+   if (!idx) {   /* direct colour: no palette */
+     o->kind = TK_TEX; o->t = c->e[i].t; o->data = c->e[i].data; o->id = id;
+     return TK_TEX;
+   }
+   /* the palette: the CLUT buffer's entries csa * 16 .. (as gsref reads them), and TEXA for CT16 entries */
+-  c->st.pal_uses++;
+-  pid = mix(mix(pid, (uint64_t)(uint32_t)n << 8 | (uint64_t)(uint32_t)csa), (cpsm == GS_CT16 || cpsm == GS_CT16S) ? texa : cpsm == GS_CT24 ? (texa & 0xff) : 0) | 1;
+-  int j = find(c, pid ^ 0x5a5a5a5a5a5a5a5aull);
+-  if (j < 0) {   /* the GE's n entries, then their n PS2 alphas */
+-    uint32_t *p = tk_alloc(c, (uint32_t)n * 5); long unk = 0;
+-    if (!p) { c->st.unsup++; return o->kind = TK_UNSUP; }
+-    for (int k = 0; k < n; k++) p[k] = pal_entry(c->map, cpsm, csa * 16 + k, texa, &unk, (uint8_t *)(p + n) + k);
+-    if ((j = insert(c, pid ^ 0x5a5a5a5a5a5a5a5aull, 1, (uint8_t *)p, (uint32_t)n * 5)) < 0) { tk_release(c, p, (uint32_t)n * 5); c->st.unsup++; return o->kind = TK_UNSUP; }
+-    c->e[j].npal = n; c->st.pal_misses++; c->st.unknown += unk; o->pal_conv = 1;
+-  } else c->st.pal_hits++;
+-  touch(c, j);
++  int j = tk_pal(c, i, &pid, n, csa, cpsm, texa, -1, &o->pal_conv);
++  if (j < 0) return o->kind = TK_UNSUP;
+   Ent *e = &c->e[i];
+-  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
+-    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
+-    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
+-    e->ma = m; e->ma_pid = pid;
+-  }
+   o->kind = TK_TEX; o->t = e->t; o->data = e->data; o->pal = (const uint32_t *)c->e[j].data; o->npal = n; o->id = id; o->pal_id = pid; o->minalpha = e->ma;
++  o->pal_ent = j;
++  return TK_TEX;
++}
++
++/* ---- sb9 step 0a (stagec_notes.md 0.3): the memo by uploads ---- */
++#define UG_W 4          /* G: geometry entries by TEX0 & 0x3ffffffff and CLAMP, in sets of UG_W (the least recently used goes), 1 << UG_SB sets */
++#define UG_SB 7
++#define UT_W 4          /* T: textures by those, the pages' signature and TEXA for a 16-bit texture, in sets of UT_W, 1 << UT_SB sets */
++#define UT_SB 8
++#define UG_N (UG_W << UG_SB)
++#define UT_N (UT_W << UT_SB)
++#define UG_PG 16        /* pages a region may read */
++typedef struct UgE {
++  uint64_t t0, cl;              /* the key (t0 bit 63: in use) */
++  uint32_t size, use;           /* tc_texture_size; when last used (0: never) */
++  uint8_t ok, npg, lanes, pad;  /* ok 1: an indexed texture, 2: a 16-bit one, 0: not served (not converted, or over UG_PG pages) */
++  int16_t u0, v0, w, h;         /* tc_region (the check mode compares them) */
++  uint16_t pg[UG_PG]; uint32_t mk[UG_PG];   /* gu_area_pages */
++} UgE;
++typedef struct UtE { uint64_t sig, k0, cl, texa, id, pid; uint32_t use; int ent, pent; } UtE;   /* the key (sig, G's key, TEXA); when last
++                                                                       used (0: never); the texture's entry and identity; the last palette
++                                                                       identity and entry (a hint) */
++void tk_umemo(TkCache *c, int mode) { c->um = mode; }
++#ifdef UM_SIM
++#include <stdio.h>
++/* x86 only (task #128, table sizes): the misses other table shapes would have on the same look-ups (sets x ways; in a set the least
++   recently used way goes).  G keyed by TEX0 & 0x3ffffffff and CLAMP; T by those, the signature and TEXA (not by G's serial, so a G
++   entry lost costs only its pages again); I (0b's identity table) by the identity and the two parameter words.  Run with both check
++   modes, so every look-up that reaches T or I is followed by a fill as gl12's path makes it.  Pages per G entry made and per look-up. */
++typedef struct { int sets, ways; uint64_t *tag; long look, miss; } Sim;
++static Sim sim_g[] = { {256,1},{512,1},{1024,1},{128,2},{256,2},{512,2},{64,4},{128,4},{256,4},{512,4},{4096,8} };
++static Sim sim_t[] = { {512,1},{1024,1},{2048,1},{256,2},{512,2},{1024,2},{128,4},{256,4},{512,4},{1024,4},{8192,8} };
++static Sim sim_i[] = { {64,1},{256,1},{512,1},{1024,1},{64,2},{128,2},{256,2},{512,2},{64,4},{128,4},{256,4},{4096,8} };
++static long sim_npg_g[UG_PG + 1], sim_npg_l[UG_PG + 1], sim_vfail, sim_mem_r, sim_mem_n, sim_mem_l, sim_own;
++static int sim_find(Sim *s, uint64_t h, int put)   /* 1: there (now the most recent).  put 0: a look-up (counted); 1: put there
++                                                         (not counted); 2: a look-up that puts it there when missing (counted) */
++{
++  if (!s->tag && !(s->tag = calloc((size_t)s->sets * (size_t)s->ways, 8))) return 0;
++  if (!h) h = 1;
++  uint64_t *t = s->tag + (size_t)((h >> 20) % (uint64_t)s->sets) * (size_t)s->ways; int w;
++  for (w = 0; w < s->ways && t[w] != h; w++) ;
++  int hit = w < s->ways;
++  if (put != 1) { s->look++; s->miss += !hit; }
++  if (!hit && !put) return 0;
++  if (!hit) w = s->ways - 1;
++  for (; w > 0; w--) t[w] = t[w - 1];
++  t[0] = h; return hit;
++}
++static void sim_line(const char *nm, Sim *s, int n)
++{
++  fprintf(stderr, "um sim %s:", nm);
++  for (int i = 0; i < n; i++) fprintf(stderr, " %dx%d %ld (%.2f%%)", s[i].sets, s[i].ways, s[i].miss, s[i].look ? 100.0 * s[i].miss / s[i].look : 0.0);
++  fprintf(stderr, "; look-ups %ld\n", s[0].look);
++}
++static void sim_print(void)
++{
++  sim_line("G", sim_g, (int)(sizeof sim_g / sizeof *sim_g)); sim_line("T", sim_t, (int)(sizeof sim_t / sizeof *sim_t));
++  sim_line("I", sim_i, (int)(sizeof sim_i / sizeof *sim_i));
++  fprintf(stderr, "um sim: pages per G entry made / per look-up reaching T:");
++  for (int k = 0; k <= UG_PG; k++) if (sim_npg_g[k] || sim_npg_l[k]) fprintf(stderr, " %d: %ld / %ld", k, sim_npg_g[k], sim_npg_l[k]);
++  fprintf(stderr, "; identity table: slot matched, load check failed %ld\n", sim_vfail);
++  fprintf(stderr, "um sim: the map's pools at most (x86 sizes): records %ld KB, nodes %ld KB, loads %ld KB; local copies' bytes at most %ld KB\n",
++          sim_mem_r >> 10, sim_mem_n >> 10, sim_mem_l >> 10, sim_own >> 10);
++}
++static void sim_once(void) { static int once; if (!once) { once = 1; atexit(sim_print); } }
++static void sim_gl(uint64_t k0, uint64_t cl) { sim_once(); uint64_t h = mix(mix(0x51u, k0), cl); for (size_t i = 0; i < sizeof sim_g / sizeof *sim_g; i++) sim_find(&sim_g[i], h, 2); }
++static void sim_tl(uint64_t h, int put) { for (size_t i = 0; i < sizeof sim_t / sizeof *sim_t; i++) sim_find(&sim_t[i], h, put); }
++void um_sim_ld(uint64_t sig, uint32_t rk, uint32_t rt, int put)
++{ sim_once(); uint64_t h = mix(mix(0x77u, sig), (uint64_t)rk << 32 | rt); for (size_t i = 0; i < sizeof sim_i / sizeof *sim_i; i++) sim_find(&sim_i[i], h, put); }
++void um_sim_vfail(void) { sim_vfail++; }
++void um_sim_mem(int capr, size_t szr, int capn, size_t szn, int capl, size_t szl, long own)
++{ long r = (long)capr * (long)szr, n = (long)capn * (long)szn, l = (long)capl * (long)szl;
++  if (r > sim_mem_r) sim_mem_r = r;
++  if (n > sim_mem_n) sim_mem_n = n;
++  if (l > sim_mem_l) sim_mem_l = l;
++  if (own > sim_own) sim_own = own; }
++#endif
++/* G's key k0 = TEX0 & 0x3ffffffff | bit 63 and CLAMP, hashed to 32 bits (G's set: the top UG_SB bits; T's set mixes in the signature) */
++static uint32_t ug_hash(uint64_t k0, uint64_t cl)
++{
++  uint32_t h = (uint32_t)k0 * 0x9e3779b1u ^ (uint32_t)(k0 >> 32);
++  h = (h ^ (uint32_t)cl) * 0x85ebca77u; h = (h ^ (uint32_t)(cl >> 32)) * 0xc2b2ae3du; return h ^ h >> 16;
++}
++static UgE *ug_get(TkCache *c, uint64_t k0, uint64_t t0, uint64_t cl, uint32_t hk)
++{
++  UgE *g = &c->ug[(hk >> (32 - UG_SB)) * UG_W], *v = g, *ge = g + UG_W;
++  for (; g < ge; g++) { if (g->t0 == k0 && g->cl == cl) { g->use = c->uclk; return g; } if (g->use < v->use) v = g; }
++  g = v; memset(g, 0, sizeof *g); g->t0 = k0; g->cl = cl; g->use = c->uclk; c->st.um_gnew++;   /* the least recently used way (empty: 0) */
++  int psm = (int)(t0 >> 20 & 63), bits, u0, v0, w, h, n; uint32_t lanes;
++  int idx = psm == GS_T8 || psm == GS_T4 || psm == GS_T8H || psm == GS_T4HL || psm == GS_T4HH, d16 = psm == GS_CT16 || psm == GS_CT16S;
++  if ((!idx && !d16) || tc_region(t0, cl, &bits, &u0, &v0, &w, &h)) return g;
++  if ((n = gu_area_pages(psm, (uint32_t)(t0 & 0x3fff), (uint32_t)(t0 >> 14 & 63), u0, v0, u0 + w - 1, v0 + h - 1, g->pg, g->mk, UG_PG, &lanes)) < 0) return g;
++  g->npg = (uint8_t)n; g->lanes = (uint8_t)lanes; g->size = (uint32_t)tc_texture_size(t0, cl);
++  g->u0 = (int16_t)u0; g->v0 = (int16_t)v0; g->w = (int16_t)w; g->h = (int16_t)h; g->ok = idx ? 1 : 2;
++  return g;
++}
++/* tk_get_cl's hit, as it makes it, for the entry T names */
++static int um_hit(TkCache *c, uint64_t t0, uint64_t texa, const UgE *g, UtE *t, TkTex *o)
++{
++  int psm = (int)(t0 >> 20 & 63), cpsm = (int)(t0 >> 51 & 15), csa = (int)(t0 >> 56 & 31), i = t->ent;
++  c->st.uses++; c->st.um_hits++;
++  if (g->ok == 2) {   /* direct colour: no palette */
++    c->st.hits++; touch(c, i);
++    o->kind = TK_TEX; o->data = c->e[i].data; o->pal = 0; o->npal = 0; o->id = t->id; o->pal_id = 0; o->minalpha = 0; o->conv = o->pal_conv = 0;
++    o->ent = i; o->pal_ent = -1; o->tp = &c->e[i].t; o->size = g->size;
++    return TK_TEX;
++  }
++  int n = (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, pf = 0, pconv = 0;
++  uint64_t pid = gu_clut_id(c->map, cpsm, csa * 16, n, &pf);
++  if (pf & GU_ID_LOST) { memset(o, 0, sizeof *o); c->st.lost++; return o->kind = TK_LOST; }
++  c->st.hits++; touch(c, i);
++  int j = tk_pal(c, i, &pid, n, csa, cpsm, texa, t->pent, &pconv);
++  if (j < 0) { memset(o, 0, sizeof *o); return o->kind = TK_UNSUP; }
++  t->pid = pid; t->pent = j;
++  const Ent *e = &c->e[i];
++  o->kind = TK_TEX; o->data = e->data; o->pal = (const uint32_t *)c->e[j].data; o->npal = n; o->id = t->id; o->pal_id = pid; o->minalpha = e->ma;
++  o->conv = 0; o->pal_conv = pconv; o->ent = i; o->pal_ent = j; o->tp = &e->t; o->size = g->size;
+   return TK_TEX;
+ }
++#ifdef UM_SIM
++static long sim_gn;
++#endif
++int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
++{
++  uint64_t t0 = gr[0x06 + ctxt], texa = gr[0x3b], sig = 0, tx = 0; int kind, why;
++  if (c->um && !c->ug && (!(c->ug = calloc(UG_N, sizeof *c->ug)) || !(c->ut = calloc(UT_N, sizeof *c->ut)))) { free(c->ug); c->ug = 0; c->um = 0; }
++  if (!c->um) {   /* as gl12 */
++    if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = (uint32_t)tc_texture_size(t0, cl); }
++    return kind;
++  }
++  c->st.um_asks++; c->uclk++;
++  uint64_t k0 = (t0 & 0x3ffffffffull) | 1ull << 63; uint32_t h = ug_hash(k0, cl);
++  UgE *g = ug_get(c, k0, t0, cl, h); UtE *t = 0;
++#ifdef UM_SIM
++  uint64_t sim_h = 0; sim_gl((t0 & 0x3ffffffffull) | 1ull << 63, cl);
++  if (g->ok && g->npg <= UG_PG && c->st.um_gnew != sim_gn) { sim_gn = c->st.um_gnew; sim_npg_g[g->npg]++; }
++#endif
++  if (!g->ok) { c->st.um_geo++; goto slow; }
++  if (g->ok == 2) {   /* a 16-bit texture converts only with a TEXA tk_get_cl takes, and is kept under it */
++    uint32_t ta0 = (uint32_t)(texa & 0xff), ta1 = (uint32_t)(texa >> 32 & 0xff);
++    if (!(c->t16 ? (ta0 == 0 || ta0 >= 0x80) && (ta1 == 0 || ta1 >= 0x80) : ta0 == 0 && ta1 >= 0x80)) { c->st.um_texa++; goto slow; }
++    tx = texa;
++  }
++  if ((why = gu_pages_sig(c->map, g->lanes, g->npg, g->pg, g->mk, &sig))) { c->st.um_sig[why]++; goto slow; }
++#ifdef UM_SIM
++  sim_h = mix(mix(mix(0x33u, (t0 & 0x3ffffffffull) | 1ull << 63), cl), mix(sig, tx)); sim_tl(sim_h, 0); sim_npg_l[g->npg]++;
++#endif
++  { /* T's set; the way holding this key (an empty way never matches: k0 has bit 63), else the least recently used one is filled */
++    uint32_t x = (h ^ (uint32_t)sig) * 0x9e3779b1u ^ (uint32_t)(sig >> 32); UtE *v, *te;
++    v = t = &c->ut[(x >> (32 - UT_SB)) * UT_W]; te = t + UT_W;
++    for (; t < te; t++) { if (t->sig == sig && t->k0 == k0 && t->cl == cl && t->texa == tx) break; if (t->use < v->use) v = t; }
++    if (t == te) { t = v; c->st.um_slot++; goto fill; }
++  }
++  t->use = c->uclk;
++  if ((unsigned)t->ent >= (unsigned)c->cap || c->e[t->ent].id != t->id) { c->st.um_gone++; goto fill; }
++  if (c->um == 1) return um_hit(c, t0, texa, g, t, o);
++  { /* the check mode: tk_get_cl's answer against the memo's */
++    int ent = t->ent, pent = t->pent; uint64_t id = t->id, pid = t->pid;
++    kind = tk_get_cl(c, gr, ctxt, cl, o); c->st.um_chk++;
++    int same = kind == TK_TEX && o->ent == ent && o->id == id && o->data == c->e[ent].data && !memcmp(&o->t, &c->e[ent].t, sizeof o->t)
++      && g->size == (uint32_t)tc_texture_size(t0, cl) && o->t.u0 == g->u0 && o->t.v0 == g->v0 && o->t.w == g->w && o->t.h == g->h;
++    if (same && g->ok == 1 && pid == o->pal_id && pent >= 0 && pent < c->cap && c->e[pent].id == (pid ^ 0x5a5a5a5a5a5a5a5aull)) same = pent == o->pal_ent;
++    if (!same) c->st.um_bad++;
++    goto filled;
++  }
++fill:
++  kind = tk_get_cl(c, gr, ctxt, cl, o);
++filled:
++  if (kind == TK_TEX) {
++    t->sig = sig; t->k0 = k0; t->cl = cl; t->texa = tx; t->use = c->uclk; t->id = o->id; t->ent = o->ent; t->pid = o->pal_id;
++    t->pent = g->ok == 1 ? o->pal_ent : -1;
++    c->st.um_fill++; o->tp = &o->t; o->size = g->size;
++#ifdef UM_SIM
++    sim_tl(sim_h, 1);
++#endif
++  }
++  return kind;
++slow:
++  if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = g->ok ? g->size : (uint32_t)tc_texture_size(t0, cl); }
++  return kind;
++}
+diff -u ge.orig/texcache.h ge/texcache.h
+--- ge.orig/texcache.h	2026-10-30 17:19:38.463571786 +0000
++++ ge/texcache.h	2026-11-01 22:12:56.165938600 +0000
+@@ -34,6 +34,9 @@
+   int conv, pal_conv;          /* 1: converted for this use */
+   int minalpha;                /* the lowest PS2 alpha (0..255, before the GE's doubling) among the palette entries the texture uses
+                                   (TcTex used); 0 for a 16-bit texture */
++  int ent, pal_ent;            /* sb9: the cache entries of the texture and the palette (-1: none) */
++  const TcTex *tp;             /* sb9 tk_get_um: the description (t above, or the cache entry's own copy: valid until the next look-up) */
++  uint32_t size;               /* sb9 tk_get_um: tc_texture_size of the TEX0 / CLAMP */
+ } TkTex;
+ /* gr: the GS registers by A+D address (ge/xlate.h xl_gs, the front end's gr); ctxt: the draw's context (TEX0 / CLAMP of that context,
+    TEXA).  Returns out->kind.  The data stays valid to the end of the next frame. */
+@@ -41,6 +44,13 @@
+ /* the same with the draw's CLAMP given instead of the context's (ge/gelive.c: the region a DIRECT primitive reads, task #83) */
+ int tk_get_cl(TkCache *c, const uint64_t *gr, int ctxt, uint64_t clamp, TkTex *out);
+ void tk_frame(TkCache *c);     /* a frame has ended */
++/* sb9, Stage C step 0a (stagec_notes.md 0.3): tk_get_cl through a memo keyed by what was uploaded: a texture whose region reads pages
++   that each hold one plain final upload record (ge/gsup.h gu_pages_sig) is found again by those records' identities, without the area
++   identity and the cache's hash look-up; then exactly tk_get_cl's hit (its counters, the texture's and the palette's use in the same
++   order, the lowest alpha).  Fills out->tp and out->size on TK_TEX.  Mode (tk_umemo): 1 (the default) on; 2 every answer the memo
++   would give is made by tk_get_cl and compared (TkStats um_chk, um_bad); 0 tk_get_cl alone, as before */
++int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t clamp, TkTex *out);
++void tk_umemo(TkCache *c, int mode);
+ 
+ typedef struct {
+   long uses, hits, misses, pal_uses, pal_hits, pal_misses, rt, lost, unsup, evicted, unknown;   /* unknown: texels or entries the map
+@@ -51,6 +61,10 @@
+   long nomem;                  /* tk_pool: conversions refused for want of room in the pool (counted in unsup as well) */
+   long blk, blk_back, blk_diff; /* tk_blk: textures converted a block at a time; handed back to the texel path (a texel not known, direct
+                                   colour); mode 2: conversions whose bytes or TcTex differed from the texel path's */
++  long um_asks, um_hits, um_geo, um_texa, um_sig[7], um_slot, um_gone, um_fill, um_chk, um_bad, um_gnew;   /* sb9 tk_get_um: look-ups; memo
++                                  answers; not served: its TEX0 / CLAMP (not converted, or over 16 pages), a 16-bit texture's TEXA, the
++                                  pages (gu_pages_sig's reasons 1-6), no slot for it, its entry gone; slots filled; mode 2 answers
++                                  compared, differing; G slots made */
+ } TkStats;
+ const TkStats *tk_stats(const TkCache *c);
+ /* how textures are converted: 0 texel by texel through gu_texel (as before 2026-10-27); 1 (the default) a GS block at a time
+diff -u boot.orig/boot.c boot/boot.c
+--- boot.orig/boot.c	2026-10-26 15:33:26.531763000 +0000
++++ boot/boot.c	2026-11-01 22:05:42.220306860 +0000
+@@ -31,6 +31,7 @@
+ 
+ static long n_sys, max_vblanks = 600, verbose_from = -10;   /* BOOT_VERBOSE=<vblank>: log every kernel call for 3 vblanks from there */
+ uint32_t g_opt = ~0u;                                             /* runtime/host_time.h OPT_*: all on (OPT_LITE since v21, speed_notes §34) */
++uint32_t g_opt2 = ~0u;                                            /* sb9: runtime/host_time.h OPT2_*: all on */
+ long g_hash_vb = -1; SPRS uint64_t g_hash_ee, g_hash_iop;                /* the last state hash (the PSP shows it on screen) */
+ #ifdef __psp__
+ void host_vb_begin(long vb);    /* psp/main_psp.c: a guest vblank started: the host time since the last one is one game step */
+@@ -118,17 +119,23 @@
+   for (int i = 0; i < n; i++) if (k_vblanks == vb[i]) { uint32_t w = wd[i]; memcpy(g_mem + (ad[i] & (GUEST_SIZE - 1)), &w, 4); fprintf(stderr, "poke: vb %ld %08x = %08x\n", k_vblanks, ad[i], wd[i]); }
+ }
+ /* MGS2_OPT=<hex>: g_opt for the whole run; MGS2_OPT_CYCLE=<vb>:<n>[:<hex>,<hex>...]: from that vblank on, the configurations take turns,
+-   n vblanks each (without a list: all on, then each speedup off alone, then all off), so one run times each speedup against the same scenes */
++   n vblanks each (without a list: all on, then each speedup off alone, then all off), so one run times each speedup against the same scenes.
++   sb9: MGS2_OPT2=<hex>: g_opt2 for the whole run; MGS2_OPT2_CYCLE=<hex>,<hex>...: g_opt2 in each of those configurations, in order */
+ static void opt_window(long vb)
+ {
+   static uint32_t cfg[16] = { ~0u, ~OPT_GS_BLOCK, ~OPT_POLL_DUE, ~OPT_VIF0_FAST, ~OPT_SPR_BULK, ~OPT_NATIVE, 0 }; static int ncfg = 7;
++  static uint32_t cfg2[16];   /* sb9: g_opt2 in each configuration (MGS2_OPT2_CYCLE; else the run's g_opt2) */
+   static long from = -2, n; const char *e;
+   if (from == -2) { from = -1; if ((e = getenv("MGS2_OPT"))) g_opt = (uint32_t)strtoul(e, 0, 16);
++    if ((e = getenv("MGS2_OPT2"))) g_opt2 = (uint32_t)strtoul(e, 0, 16);
++    for (int i = 0; i < 16; i++) cfg2[i] = g_opt2;
+     if ((e = getenv("MGS2_OPT_CYCLE"))) { int k = 0; char *p;
+       if (sscanf(e, "%ld:%ld%n", &from, &n, &k) != 2 || n <= 0) from = -1;
+       else if (e[k] == ':') for (p = (char *)e + k, ncfg = 0; (*p == ':' || *p == ',') && ncfg < 16; ) cfg[ncfg++] = (uint32_t)strtoul(p + 1, &p, 16);
+-      if (!ncfg) from = -1; } }
+-  if (from >= 0 && vb > from) g_opt = cfg[((vb - from - 1) / n) % ncfg];
++      if (!ncfg) from = -1; }
++    if ((e = getenv("MGS2_OPT2_CYCLE"))) { char *p = (char *)e;
++      for (int i = 0; i < 16 && *p; i++) { cfg2[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } } }
++  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; }
+   K_POLL_KICK();                                 /* (OPT_POLL_DUE may have changed) */
+ }
+ static void k_vblank_hook(int start)
+diff -u boot.orig/xlive_chk.c boot/xlive_chk.c
+--- boot.orig/xlive_chk.c	2026-11-01 16:09:59.626931790 +0000
++++ boot/xlive_chk.c	2026-11-01 22:28:13.966941661 +0000
+@@ -143,6 +143,7 @@
+ } TxCount;
+ static TxCount ck, ck_all;
+ static TkCache *tkc; static int tk_on, shown_tk;
++static int um_chk, li_chk;   /* sb9: MGS2_TX_UMEMO_CHK=1, MGS2_GU_LDID_CHK=1: the step 0 bits' "on" is their check mode */
+ /* MGS2_XLIVE_GB: the live renderer's frame */
+ static GlFrame glf; static int gb_on, gb_now; static char ger_pre[200]; static long ger_vb[64]; static int ger_n;
+ /* MGS2_XLIVE_GX: the PSP harness's frames and GE lists */
+@@ -739,6 +740,10 @@
+     { static int eg = 1, mk = 1; int e = (g_opt & OPT_XL_EAGER) != 0, k = (g_opt & OPT_XL_MARK) != 0;   /* sb8: as psp/xl_psp.c's */
+       if (e != eg) { xl_ud_eager(e); eg = e; }
+       if (k != mk) { xl_ud_mark(k); mk = k; } } }
++  { static int um = -1, li = -1;   /* sb9: g_opt2's step 0 bits at each transfer, as psp/xl_psp.c's */
++    int u = (g_opt2 & OPT2_TX_UMEMO) ? 1 + um_chk : 0, l = (g_opt2 & OPT2_GU_LDID) ? 1 + li_chk : 0;
++    if (tkc && u != um) { tk_umemo(tkc, u); um = u; }
++    if (map && l != li) { gu_ld_ident(map, l); li = l; } }
+   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
+   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
+@@ -758,6 +763,17 @@
+   clock_gettime(CLOCK_MONOTONIC, &b); t_walk += (double)(b.tv_sec - one_t0.tv_sec) * 1e3 + (double)(b.tv_nsec - one_t0.tv_nsec) / 1e6;
+ }
+ 
++/* sb9: Stage C step 0's counters (psp/xl_psp.c's line, with the check modes' comparisons) */
++static void step0_line(const char *pre)
++{
++  const TkStats *k = tk_stats(tkc); const GuStats *u = gu_stats(map);
++  fprintf(stderr, "%s texture look-ups by upload %ld, answered %ld; not served: TEX0 / CLAMP %ld, TEXA %ld, pages %ld %ld %ld %ld %ld %ld, no slot "
++          "%ld, entry gone %ld; slots filled %ld, geometry slots made %ld; CLUT loads by identity %ld (joined %ld; no block list %ld, records "
++          "not final %ld); check modes: textures %ld compared, %ld differing; CLUT loads %ld compared, %ld differing\n", pre, k->um_asks,
++          k->um_hits, k->um_geo, k->um_texa, k->um_sig[1], k->um_sig[2], k->um_sig[3], k->um_sig[4], k->um_sig[5], k->um_sig[6], k->um_slot,
++          k->um_gone, k->um_fill, k->um_gnew, u->ld_ident, u->ld_ident_put, u->ld_ident_nolist, u->ld_ident_nosig, k->um_chk, k->um_bad,
++          u->ld_ident_chk, u->ld_ident_bad);
++}
+ static void totals(void)
+ {
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+@@ -807,7 +823,8 @@
+               (long long)(k->live_bytes >> 10), (long long)(k->peak_bytes >> 10), k->evicted, (long long)(k->peak_frame_bytes >> 10),
+               gx_pool_n >> 10, gx_pool_n / 8 * 7 >> 10);
+       fprintf(stderr, "picture: texture conversions: %ld a block at a time, %ld handed back to the texel path, %ld differing from it; GS blocks "
+-              "read %ld, %ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one); }
++              "read %ld, %ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
++      step0_line("picture: step 0:"); }
+     const XcStats *x = xc_stats(); fprintf(stderr, "xlive gb: converters: calls %ld / %ld / %ld, batches %ld / %ld / %ld, empty %ld / %ld / %ld, bad %ld / %ld / %ld; "
+               "effect triangles by class %ld %ld %ld %ld %ld (2870 culled %ld); polygons %ld (%ld vertices), empty %ld, culled %ld, no room %ld; "
+               "df0 calls left out off the scissor %ld (%ld vertices)\n",
+@@ -916,6 +933,11 @@
+         if (i == 6) { xl_ud_mark(v); fprintf(stderr, "xlive mode: %s=%d\n", sw[i], v); continue; }
+         if (i == 0) gu_area_memo(map, v); else if (i == 1) { if (tkc) tk_flags(tkc, v); } else if (i == 2) gu_clut_memo(map, v); else if (i == 3) xl_ud_v48(v); else if (tkc) tk_t16(tkc, v);
+         fprintf(stderr, "xlive mode: %s=%d\n", sw[i], v); } }
++    um_chk = getenv("MGS2_TX_UMEMO_CHK") && atoi(getenv("MGS2_TX_UMEMO_CHK"));   /* sb9 */
++    li_chk = getenv("MGS2_GU_LDID_CHK") && atoi(getenv("MGS2_GU_LDID_CHK"));
++    if (um_chk || li_chk || getenv("MGS2_OPT2") || getenv("MGS2_OPT2_CYCLE"))
++      fprintf(stderr, "xlive mode: step 0 (g_opt2 %08x at the start%s%s%s)\n", getenv("MGS2_OPT2") ? (unsigned)strtoul(getenv("MGS2_OPT2"), 0, 16) : (unsigned)g_opt2, getenv("MGS2_OPT2_CYCLE") ? ", turns" : "",
++              um_chk ? ", texture memo checked" : "", li_chk ? ", CLUT loads by identity checked" : "");
+     if (tkc && getenv("MGS2_XLIVE_TKBLK")) { tk_blk(tkc, atoi(getenv("MGS2_XLIVE_TKBLK")));
+       fprintf(stderr, "xlive mode: texture conversion %s (MGS2_XLIVE_TKBLK)\n", atoi(getenv("MGS2_XLIVE_TKBLK")) == 0 ? "texel by texel" :
+               atoi(getenv("MGS2_XLIVE_TKBLK")) == 1 ? "a block at a time" : "both ways, compared"); }
+@@ -989,7 +1011,8 @@
+               (long long)(k->conv_bytes >> 10), k->live, (long long)(k->live_bytes >> 10), (long long)(k->peak_bytes >> 10), k->evicted,
+               (long long)(k->peak_frame_bytes >> 10));
+       fprintf(stderr, "xlive tk: conversions: %ld a block at a time, %ld handed back to the texel path, %ld differing from it; GS blocks read %ld, "
+-              "%ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one); }
++              "%ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
++      step0_line("xlive tk: step 0:"); }
+     if (tx_on) { fprintf(stderr, "xlive tex: totals, "); tx_line(&ck_all, from, vb - 1); fprintf(stderr, "xlive tex: %ld distinct upload keys\n", up_n); src_report(vb - from); kc_report(); }
+     return; }
+   if (on) xdg_vblank(vb);
+diff -u psp.orig/main_psp.c psp/main_psp.c
+--- psp.orig/main_psp.c	2026-11-01 22:35:40.989195622 +0000
++++ psp/main_psp.c	2026-11-01 22:35:41.012552920 +0000
+@@ -190,12 +190,13 @@
+ static Win w_cur, w_deck;
+ /* the configurations boot.c opt_window cycles through (its cfg[] order), plus anything else */
+ #ifdef MGS2_GL
+-#define NCFG 22
++#define NCFG 24
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+                                             "SPR bulk off", "native forms off", "reduced renderer off", "GS one-loop walk off", "native sort key off",
+                                             "stage table off", "translator off", "picture off", "GE overlap off", "VU sync by scan",
+                                             "block tex conv off", "area memo off", "flags-only test off", "palette memo off", "V4-8 decode off",
+-                                            "codec speedups off" };   /* 17-21: codec_speed.md A-D (2026-10-30) */
++                                            "codec speedups off", "texture memo off", "CLUT by identity off" };   /* 17-21: codec_speed.md A-D
++                                                                                 (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4) */
+ #else
+ #define NCFG 13
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+@@ -311,6 +312,9 @@
+     g_hash_vb = -1; if (g_log) fflush(g_log);
+   }
+   g_step_cfg = cfg_index(g_opt);        /* boot.c opt_window chose the configuration of the step that starts now */
++#ifdef MGS2_GL
++  if (g_step_cfg == 0 && g_opt2 != ~0u) g_step_cfg = g_opt2 == ~1u ? 22 : g_opt2 == ~2u ? 23 : 4;   /* sb9: g_opt2's switches (step 0) */
++#endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+ #endif
+@@ -658,6 +662,10 @@
+   if (mgs2_getenv("MGS2_OPT")) out("speedups: MGS2_OPT=%s\n", mgs2_getenv("MGS2_OPT"));
+   else out("speedups: default (g_opt %08x)\n", (unsigned)g_opt);
+   if (mgs2_getenv("MGS2_OPT_CYCLE")) out("speedups: take turns from vb:steps %s\n", mgs2_getenv("MGS2_OPT_CYCLE"));
++#ifdef MGS2_GL
++  if (mgs2_getenv("MGS2_OPT2")) out("speedups 2: MGS2_OPT2=%s\n", mgs2_getenv("MGS2_OPT2"));
++  if (mgs2_getenv("MGS2_OPT2_CYCLE")) out("speedups 2: in the turns %s\n", mgs2_getenv("MGS2_OPT2_CYCLE"));
++#endif
+   if (clock333) { int r = scePowerSetClockFrequency(333, 333, 166); out("clock 333 MHz requested: %d\n", r); }
+   out("CPU %d MHz, bus %d MHz; FCR31 %08x\n", scePowerGetCpuClockFrequency(), scePowerGetBusClockFrequency(), (unsigned)pspFpuGetFCR31());
+   /* v21: the loaded modules, so a CFW plugin (a thread taking CPU time or cache) shows in the log (ARK-4 notes, ark4_options.md).  The
+diff -u psp.orig/xl_psp.c psp/xl_psp.c
+--- psp.orig/xl_psp.c	2026-11-01 16:09:59.626154172 +0000
++++ psp/xl_psp.c	2026-11-01 22:13:46.866982916 +0000
+@@ -324,9 +324,11 @@
+   if (map) { static int am = 1, cm = 1; int a = (g_opt & OPT_GU_MEMO) != 0, c = (g_opt & OPT_GU_CLUT) != 0;   /* (gsup2.c's defaults: 1) */
+     if (a != am) { gu_area_memo(map, a); am = a; }
+     if (c != cm) { gu_clut_memo(map, c); cm = c; } }
++  if (map) { static int li = 1; int m = (g_opt2 & OPT2_GU_LDID) != 0; if (m != li) { gu_ld_ident(map, m); li = m; } }   /* sb9 0b (gsup2.c's default: 1) */
+ #ifdef MGS2_GL
+   if (tk) { static int tb = 1; int m = (g_opt & OPT_TK_BLK) != 0; if (m != tb) { tk_blk(tk, m); tb = m; } }   /* (texcache.c's default: 1) */
+   if (tk) { static int tf = 1; int m = (g_opt & OPT_TK_FLAGS) != 0; if (m != tf) { tk_flags(tk, m); tf = m; } }   /* (texcache.c's default: 1) */
++  if (tk) { static int um = 1; int m = (g_opt2 & OPT2_TX_UMEMO) != 0; if (m != um) { tk_umemo(tk, m); um = m; } }   /* sb9 0a (texcache.c's default: 1) */
+ #endif
+   if (state != 1) {
+     if (state < 0) return;
+@@ -390,7 +392,13 @@
+             k->lost, k->unsup, k->nomem, k->unknown, (long long)(k->conv_bytes >> 10), k->live, (long long)(k->live_bytes >> 10),
+             (long long)(k->peak_bytes >> 10), k->evicted, (long long)(k->peak_frame_bytes >> 10), (unsigned)gl_texkb, (unsigned)gl_texkb / 8 * 7);
+     fprintf(f, "picture: texture conversions: %ld a block at a time, %ld handed back to the texel path; GS blocks read %ld, %ld of them whole "
+-            "from one upload\n", k->blk, k->blk_back, gu_stats(map)->blocks, gu_stats(map)->blocks_one); }
++            "from one upload\n", k->blk, k->blk_back, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
++    { const GuStats *u = gu_stats(map);   /* sb9: Stage C step 0 */
++      fprintf(f, "picture: step 0: texture look-ups by upload %ld, answered %ld; not served: TEX0 / CLAMP %ld, TEXA %ld, pages %ld %ld %ld %ld %ld "
++              "%ld, no slot %ld, entry gone %ld; slots filled %ld, geometry slots made %ld; CLUT loads by identity %ld (joined %ld; no block "
++              "list %ld, records not final %ld)\n", k->um_asks, k->um_hits, k->um_geo, k->um_texa, k->um_sig[1], k->um_sig[2], k->um_sig[3],
++              k->um_sig[4], k->um_sig[5], k->um_sig[6], k->um_slot, k->um_gone, k->um_fill, k->um_gnew, u->ld_ident, u->ld_ident_put,
++              u->ld_ident_nolist, u->ld_ident_nosig); } }
+   { const XcStats *x = xc_stats();
+     fprintf(f, "picture: converters: df0 calls %ld, batches %ld, left out off the scissor %ld (%ld vertices); effect calls %ld / %ld, batches "
+             "%ld / %ld; P06 calls %ld, batches %ld, passes 2 and 3 drawn %ld / %ld; P07 calls %ld, batches %ld, bad %ld (paths not seen %ld), "
+diff -u runtime.orig/host_time.h runtime/host_time.h
+--- runtime.orig/host_time.h	2026-11-01 17:16:58.358048297 +0000
++++ runtime/host_time.h	2026-11-01 22:05:35.681987632 +0000
+@@ -93,6 +93,14 @@
+                                            that stays below quadword 1024 marked without the wrap test, four or two entries a turn; off: as
+                                            gl11.  The same table */
+ extern uint32_t g_opt;
++/* sb9 (Stage C step 0, stagec_notes.md; task #128): g_opt's 32 bits are all taken, so a second word, all on by default (boot.c MGS2_OPT2
++   for the whole run; MGS2_OPT2_CYCLE=<hex>,<hex>... a word for each of MGS2_OPT_CYCLE's configurations, taking turns with them) */
++#define OPT2_TX_UMEMO 1u                /* MGS2_GL builds (ge/texcache.c tk_get_um, ge/gelive.c gl_tex): a texture found again by its upload
++                                           records' identities (the pages its region reads, each one whole record) without the area identity
++                                           and the cache's hash look-up; off: tk_get_cl, as gl12.  The same cache entries in the same order */
++#define OPT2_GU_LDID 2u                 /* MGS2_XL builds (ge/gsup2.c gu_ld_ident): a CLUT load whose blocks hold records with the identities
++                                           of a load kept by identity is that load again; off: a new load, as gl12.  The same identities */
++extern uint32_t g_opt2;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);
+ void host_leave(int k);

@@ -1,0 +1,860 @@
+diff -ruN -x '*.o' sb12/ge/c3model.c sb14/ge/c3model.c
+--- sb12/ge/c3model.c	1970-01-01 00:00:00.000000000 +0000
++++ sb14/ge/c3model.c	2026-11-02 22:47:11.201284798 +0000
+@@ -0,0 +1,367 @@
++#define _GNU_SOURCE
++/* c3model.c (sb13, task #144; x86 only): Stage C step 3, the rooms' meshes (P1214a0 groups, VU1 entry P04+df0), sized before any GE
++   code.  For each df0 call the picture code reads (xconv.c xc_call: vc_df0_rec from the lane's streams, or vc_df0 from the VU memory),
++   with its exact results in hand, this file counts
++   - the volumes: calls and vertices, from the streams or the VU memory, left out off the scissor (XcHost.cut), drawn (strips), and what
++     today's frame data holds for them (GerXform, 16 bytes a vertex, 4 a strip, 2 an index when XcHost.noidx is 0): in all, by frame (the
++     largest) and in the model windows;
++   - the keys a kept GE copy would have (the streams' addresses and kinds, ROW where a kind adds it, the count): new keys, the same bytes
++     again, other bytes at a known key (positions, UVs and flags; the colours; the alpha, each apart), the GE bytes of all keys and of the
++     keys a window draws, where the streams lie in the EE's RAM;
++   - an LRU cache of kept copies at eight sizes: the drawn calls and vertices it would serve from a copy;
++   - the depth range (XcZr): the calls whose box's w range lies inside the range kept so far (the same projection, every corner in
++     front), for which xc_zr_df0's loop over the vertices gives nothing new: the loop could be skipped with the same range and counts.
++   It only reads: every run with it stays exact.  MGS2_C3_MODEL=1 turns it on; c3m_report prints the totals. */
++#include <math.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include "c3model.h"
++#include <signal.h>
++#include <sys/mman.h>
++#include <execinfo.h>
++#include <ucontext.h>
++
++int c3m_on;
++long c3m_vb;
++const uint8_t *c3m_ram;
++
++#define NWIN 3
++static const long WIN[NWIN][2] = { { 30810, 30890 }, { 33410, 33490 }, { 31510, 31590 } };   /* gl14's model windows: the waiting deck and
++                                                         inside (indoor route), the codec call (codec route) */
++#define NB 8
++static const long BUD[NB] = { 128, 256, 384, 512, 768, 1024, 1536, 2048 };   /* KB */
++#define KN (1 << 17)
++
++typedef struct {
++  const void *a, *b, *c; uint32_t row[4]; int n; uint8_t ka, kb, kc, used;
++  uint64_t hp, hc; uint32_t alpha;   /* the content: positions, UVs and flags; the colours (RGB); the alpha */
++  int size;                          /* GE bytes: 16 a vertex, 4 a strip, 32 */
++  long first, last, uses, drawn, wstamp, fstamp;
++  long wcount, wvb; int wwriter;   /* MGS2_C3_WATCH: stores into its streams since its last use, the last one's vblank and writer */
++  int prev[NB], next[NB]; uint8_t in[NB];
++} Key;
++static Key *K;
++static struct {
++  long calls, verts, rec, rec_v, vm, vm_v, vm_src, bad, cut, cut_v, drawn, drawn_v, drawn_st, empty, clip;
++  long long bytes, bytes_x, bytes_v, bytes_s, bytes_i;
++  long fr_vb, fr_bytes, fr_v, fr_max_bytes, fr_max_bytes_vb, fr_max_v, fr_max_v_vb, frames;
++  long fr_vs, fr_ws, fr_drawn, fr_keys, fr_vm;   /* MGS2_C3_FRAMES: this frame's drawn vertex + strip bytes, its distinct drawn keys' bytes */
++  long keys, same, other, oth_p, oth_c, oth_a, full, rowcalls, kbytes;
++  long hist[3][34];
++  long lru_c[NB], lru_v[NB], lru_n, lru_nv; long lbytes[NB]; int head[NB], tail[NB];
++  long zr_calls, zr_v, zr_always, zr_skip, zr_skip_v, zr_newproj, zr_behind;
++  long kc[NWIN][5], wc[NWIN], wv[NWIN], wd[NWIN], wdv[NWIN], wcut[NWIN], wnew[NWIN], wws[NWIN], wkeys[NWIN];
++  long long wbytes[NWIN];
++  long wlru_v[NWIN][NB], wzr[NWIN], wzr_v[NWIN], wzs[NWIN], wzs_v[NWIN];
++  long kall;
++} T;
++static int first = 1;
++static int fr_on;   /* MGS2_C3_FRAMES=1: a "c3 fr" line a frame */
++/* ---- MGS2_C3_WATCH=1 (with MGS2_C3_MODEL=1; x86 dev): every store into a host page that holds a key's streams (A, B, C) is caught
++   (the page is read-only from the vblank after the key is first seen; SIGSEGV), counted by its writer (the store's code address and the
++   unwinder's next frames) and by where it lands (a stream's bytes or a neighbour on the page), and let through (the page is writable again
++   until the next vblank).  The game's stores, the DMA and SIF copies and the CD reads (iop_host.h WR8) are user-space stores, so each is
++   caught; the run's state stays as without it (its hash lines are compared). ---- */
++static int w_on; static uintptr_t w_base; static int w_np;
++static uint8_t *w_watch, *w_prot, *w_kind;   /* per page: holds a stream, read-only now; per EE word: 1 A, 2 B, 3 C */
++static int32_t *w_keyid;                     /* per EE word: the last key whose streams lie there (K index + 1) */
++static int w_step[4], w_nstep;               /* pages made writable for the one store being single-stepped (TF) */
++static long w_live_same, w_live_changed, w_traps;
++static int *w_list, w_nl;                     /* pages to make read-only at the next vblank */
++#define WEN 4096
++typedef struct { uintptr_t pc[4]; uint8_t kind, used; long n, first, last; uint32_t ee; long ls, lc; } WEv;   /* ls, lc: keys used again after its store, same / other bytes */
++static WEv *W; static long w_faults, w_full, w_kept;
++static void w_seg(int sig, siginfo_t *si, void *ucp)
++{
++  uintptr_t a = (uintptr_t)si->si_addr; (void)sig;
++  int pg = a >= w_base ? (int)((a - w_base) >> 12) : -1;
++  if (pg < 0 || pg >= w_np || !w_prot[pg]) { signal(SIGSEGV, SIG_DFL); return; }   /* not ours: the store faults again, as without us */
++  ucontext_t *uc = (ucontext_t *)ucp; void *bt[8]; int nb = backtrace(bt, 8);
++  uintptr_t pc[4] = { (uintptr_t)uc->uc_mcontext.gregs[REG_RIP], nb > 3 ? (uintptr_t)bt[3] : 0, nb > 4 ? (uintptr_t)bt[4] : 0, nb > 5 ? (uintptr_t)bt[5] : 0 };
++  uint32_t ee = c3m_ram && a >= (uintptr_t)c3m_ram && a < (uintptr_t)c3m_ram + (32u << 20) ? (uint32_t)(a - (uintptr_t)c3m_ram) : 0xffffffffu;
++  uint8_t kind = ee != 0xffffffffu ? w_kind[ee >> 2] : 0;
++  w_faults++;
++  uint64_t h = (pc[0] * 0x9e3779b97f4a7c15ull) ^ (pc[1] * 0xc2b2ae3d27d4eb4full) ^ pc[2] ^ kind;
++  int wi = -1;
++  for (uint32_t i = (uint32_t)(h ^ h >> 31) & (WEN - 1), t = 0; t < WEN; t++, i = (i + 1) & (WEN - 1)) {
++    WEv *e = &W[i];
++    if (!e->used) { e->used = 1; memcpy(e->pc, pc, sizeof pc); e->kind = kind; e->n = 1; e->first = e->last = c3m_vb; e->ee = ee; w_kept++; wi = (int)i; break; }
++    if (!memcmp(e->pc, pc, sizeof pc) && e->kind == kind) { e->n++; e->last = c3m_vb; wi = (int)i; break; }
++    if (t == WEN - 1) w_full++;
++  }
++  if (kind && wi >= 0) { int32_t kid = w_keyid[ee >> 2]; if (kid > 0) { Key *k = &K[kid - 1]; k->wcount++; k->wvb = c3m_vb; k->wwriter = wi; } }
++  /* the page writable for this one store: TF set, the trap (w_trap) makes it read-only again */
++  mprotect((void *)(w_base + ((uintptr_t)pg << 12)), 4096, PROT_READ | PROT_WRITE); w_prot[pg] = 0;
++  if (w_nstep < 4) w_step[w_nstep++] = pg;
++  uc->uc_mcontext.gregs[REG_EFL] |= 0x100;
++}
++static void w_trap(int sig, siginfo_t *si, void *ucp)
++{
++  (void)sig; (void)si; ucontext_t *uc = (ucontext_t *)ucp;
++  w_traps++;
++  for (int i = 0; i < w_nstep; i++) { int pg = w_step[i]; if (!w_prot[pg]) { mprotect((void *)(w_base + ((uintptr_t)pg << 12)), 4096, PROT_READ); w_prot[pg] = 1; } }
++  w_nstep = 0;
++  uc->uc_mcontext.gregs[REG_EFL] &= ~0x100;
++}
++static void w_init(void)
++{
++  w_on = getenv("MGS2_C3_WATCH") && atoi(getenv("MGS2_C3_WATCH"));
++  if (!w_on || !c3m_ram) { w_on = 0; return; }
++  w_base = (uintptr_t)c3m_ram & ~(uintptr_t)4095; w_np = (int)((((uintptr_t)c3m_ram + (32u << 20) - w_base) + 4095) >> 12);
++  w_watch = calloc((size_t)w_np, 1); w_prot = calloc((size_t)w_np, 1); w_kind = calloc((32u << 20) / 4, 1);
++  w_list = calloc((size_t)w_np, sizeof *w_list); W = calloc(WEN, sizeof *W); w_keyid = calloc((32u << 20) / 4, sizeof *w_keyid);
++  void *bt[4]; backtrace(bt, 4);   /* (the unwinder loaded before any fault) */
++  struct sigaction sa; memset(&sa, 0, sizeof sa); sa.sa_sigaction = w_seg; sa.sa_flags = SA_SIGINFO | SA_NODEFER; sigemptyset(&sa.sa_mask);
++  sigaction(SIGSEGV, &sa, 0);
++  struct sigaction st; memset(&st, 0, sizeof st); st.sa_sigaction = w_trap; st.sa_flags = SA_SIGINFO; sigemptyset(&st.sa_mask); sigaction(SIGTRAP, &st, 0);
++  fprintf(stderr, "c3 watch: on, EE RAM at %p, %d host pages; c3m_report at %p\n", (const void *)c3m_ram, w_np, (void *)c3m_report);
++}
++/* a key's streams: their words marked, their pages watched from the next vblank */
++static void w_key(const XlRec *r, int kid)
++{
++  for (int s = 0; s < 3; s++) {
++    const uint8_t *p = (const uint8_t *)r->p[s];
++    if (!p || p < c3m_ram || p >= c3m_ram + (32u << 20)) continue;
++    uint32_t ee = (uint32_t)(p - c3m_ram), len = (uint32_t)r->num[s] * (r->kind[s] == 4 ? 4u : 8u);
++    if (ee + len > (32u << 20)) len = (32u << 20) - ee;
++    for (uint32_t k = ee >> 2; k < (ee + len + 3) >> 2; k++) { w_kind[k] = (uint8_t)(s + 1); w_keyid[k] = kid + 1; }
++    for (uintptr_t pa = ((uintptr_t)p - w_base) >> 12; pa <= ((uintptr_t)p + len - 1 - w_base) >> 12; pa++)
++      if (!w_watch[pa]) { w_watch[pa] = 1; w_list[w_nl++] = (int)pa; }
++  }
++}
++void c3m_vblank(void)
++{
++  if (!w_on) return;
++  for (int i = 0; i < w_nl; i++) { int pg = w_list[i]; if (!w_prot[pg]) { mprotect((void *)(w_base + ((uintptr_t)pg << 12)), 4096, PROT_READ); w_prot[pg] = 1; } }
++  w_nl = 0;
++}
++static void w_report(FILE *f)
++{
++  if (!w_on) return;
++  long pages = 0; for (int i = 0; i < w_np; i++) pages += w_watch[i];
++  fprintf(f, "c3 watch: %ld faults, %ld pages watched, %ld writers kept (table full %ld); host c3m_report %p\n", w_faults, pages, w_kept, w_full, (void *)c3m_report);
++  fprintf(f, "c3 watch: single steps %ld; keys used again after a store into their streams: %ld with the same bytes, %ld with other bytes\n", w_traps, w_live_same, w_live_changed);
++  for (int i = 0; i < WEN; i++) { const WEv *e = &W[i];
++    if (e->used && (e->ls || e->lc))
++      fprintf(f, "c3 watch live: %s used again %ld same, %ld other; %ld stores, vb %ld-%ld, pc %p %p %p %p\n", e->kind == 1 ? "A" : e->kind == 2 ? "B" : "C",
++              e->ls, e->lc, e->n, e->first, e->last, (void *)e->pc[0], (void *)e->pc[1], (void *)e->pc[2], (void *)e->pc[3]); }
++  for (int k = 3; k >= 0; k--)
++    for (int i = 0; i < WEN; i++) { const WEv *e = &W[i];
++      if (e->used && e->kind == k)
++        fprintf(f, "c3 watch writer: %s %ld stores, vb %ld-%ld, first at EE %07x, pc %p %p %p %p\n", k == 1 ? "A (positions)" : k == 2 ? "B (colours)" : k == 3 ? "C (UVs)" : "page neighbour",
++                e->n, e->first, e->last, e->ee, (void *)e->pc[0], (void *)e->pc[1], (void *)e->pc[2], (void *)e->pc[3]); }
++}
++static void init(void)
++{
++  first = 0;
++  K = calloc(KN, sizeof *K);
++  for (int b = 0; b < NB; b++) T.head[b] = T.tail[b] = -1;
++  T.fr_vb = -1;
++  fr_on = getenv("MGS2_C3_FRAMES") && atoi(getenv("MGS2_C3_FRAMES"));
++  w_init();
++}
++static uint64_t fnv(uint64_t h, const void *p, size_t len) { const uint8_t *q = (const uint8_t *)p; for (size_t i = 0; i < len; i++) { h ^= q[i]; h *= 0x100000001b3ull; } return h; }
++static int win(void) { for (int j = 0; j < NWIN; j++) if (c3m_vb >= WIN[j][0] && c3m_vb < WIN[j][1]) return j; return -1; }
++
++void c3m_kind(int k)
++{
++  if (first) init();
++  int w = win(); if (w >= 0 && k >= 0 && k < 5) T.kc[w][k]++;
++}
++
++/* the LRU lists, one a size */
++static void l_unlink(int b, int i)
++{
++  Key *e = &K[i];
++  if (e->prev[b] >= 0) K[e->prev[b]].next[b] = e->next[b]; else T.head[b] = e->next[b];
++  if (e->next[b] >= 0) K[e->next[b]].prev[b] = e->prev[b]; else T.tail[b] = e->prev[b];
++  e->in[b] = 0; T.lbytes[b] -= e->size;
++}
++static void l_front(int b, int i)
++{
++  Key *e = &K[i];
++  e->prev[b] = -1; e->next[b] = T.head[b];
++  if (T.head[b] >= 0) K[T.head[b]].prev[b] = i; else T.tail[b] = i;
++  T.head[b] = i; e->in[b] = 1; T.lbytes[b] += e->size;
++}
++/* a drawn call of key i (its content as now: changed 1 when it differs from the kept one): served from a copy, or (re)made */
++static void l_use(int i, int changed, int oldsize, int n, int w)
++{
++  Key *e = &K[i];
++  T.lru_n++; T.lru_nv += n;
++  for (int b = 0; b < NB; b++) {
++    if (e->in[b]) {
++      if (!changed) { T.lru_c[b]++; T.lru_v[b] += n; if (w >= 0) T.wlru_v[w][b] += n; }
++      int s = e->size; e->size = oldsize; l_unlink(b, i); e->size = s;
++    }
++    if ((long)e->size <= BUD[b] << 10) {
++      l_front(b, i);
++      while (T.lbytes[b] > BUD[b] << 10 && T.tail[b] >= 0 && T.tail[b] != i) l_unlink(b, T.tail[b]);
++    }
++  }
++}
++static void frame_end(void)
++{
++  if (T.fr_vb < 0) return;
++  if (fr_on) fprintf(stderr, "c3 fr: vb %ld drawn %ld vs %ld ws %ld keys %ld vm %ld\n", T.fr_vb, T.fr_drawn, T.fr_vs, T.fr_ws, T.fr_keys, T.fr_vm);
++  T.fr_vs = T.fr_ws = T.fr_drawn = T.fr_keys = T.fr_vm = 0;
++  T.frames++;
++  if (T.fr_bytes > T.fr_max_bytes) { T.fr_max_bytes = T.fr_bytes; T.fr_max_bytes_vb = T.fr_vb; }
++  if (T.fr_v > T.fr_max_v) { T.fr_max_v = T.fr_v; T.fr_max_v_vb = T.fr_vb; }
++  T.fr_bytes = T.fr_v = 0;
++}
++
++void c3m_call(const XlCall *c, const XcGs *d, const XcHost *h, int n, const VcVert *v, const uint16_t *fl, const VcXform *x, int off)
++{
++  if (first) init();
++  if (!K) return;
++  if (c3m_vb != T.fr_vb) { frame_end(); T.fr_vb = c3m_vb; }
++  const int w = win();
++  T.calls++;
++  if (n <= 0) { T.bad++; return; }
++  T.verts += n;
++  if (w >= 0) { T.wc[w]++; T.wv[w] += n; }
++  if (x->clip) T.clip++;
++  const XlRec *r = c->rec;
++  if (r) { T.rec++; T.rec_v += n; } else { T.vm++; T.vm_v += n; if (c->src) T.vm_src++; }
++  /* the strips (vc_strips's count) and today's frame data for a drawn call (xc_df0) */
++  int nst = 0, ni = 0;
++  for (int i = 2; i < n; ) {
++    if (fl[i] & 0x8000) { i++; continue; }
++    int j = i; while (j + 1 < n && !(fl[j + 1] & 0x8000)) j++;
++    ni += (nst ? 2 : 0) + (j - i + 3); nst++; i = j + 1;
++  }
++  if (h->noidx) ni = 0;
++  if (off) { T.cut++; T.cut_v += n; if (w >= 0) T.wcut[w]++; }
++  else if (!nst) T.empty++;
++  else {
++    long by = (long)sizeof(GerXform) + 16L * n + 4L * nst + 2L * ni;
++    T.drawn++; T.drawn_v += n; T.drawn_st += nst;
++    T.bytes += by; T.bytes_x += sizeof(GerXform); T.bytes_v += 16L * n; T.bytes_s += 4L * nst; T.bytes_i += 2L * ni;
++    T.fr_bytes += by; T.fr_v += n; T.fr_drawn++; T.fr_vs += 16L * n + 4L * nst; if (!r) T.fr_vm += 16L * n + 4L * nst;
++    if (w >= 0) { T.wd[w]++; T.wdv[w] += n; T.wbytes[w] += by; }
++  }
++  /* the depth range: what xc_df0_zr (left out) or xc_df0 (drawn) gives the frame's XcZr, and whether the box tells it first */
++  if (h->zr && d->zte && !d->zmsk && !(d->ate && d->atst == 0 && d->afail == 1) && nst) {
++    if (d->ztst < 2) T.zr_always++;
++    else {
++      const XcZr *z = h->zr;
++      int lo[3] = { 32767, 32767, 32767 }, hi[3] = { -32768, -32768, -32768 };
++      for (int i = 0; i < n; i++) {
++        if (v[i].x < lo[0]) lo[0] = v[i].x;
++        if (v[i].x > hi[0]) hi[0] = v[i].x;
++        if (v[i].y < lo[1]) lo[1] = v[i].y;
++        if (v[i].y > hi[1]) hi[1] = v[i].y;
++        if (v[i].z < lo[2]) lo[2] = v[i].z;
++        if (v[i].z > hi[2]) hi[2] = v[i].z;
++      }
++      float a = x->world[2] / 32768, b = x->world[5] / 32768, cc = x->world[8] / 32768, t = x->world[11], wl = 3.0e38f, wh = -3.0e38f;
++      for (int k = 0; k < 8; k++) {
++        float X = (float)(k & 1 ? hi[0] : lo[0]), Y = (float)(k & 2 ? hi[1] : lo[1]), Z = (float)(k & 4 ? hi[2] : lo[2]);
++        float ww = X * a + Y * b + Z * cc + t;
++        if (ww < wl) wl = ww;
++        if (ww > wh) wh = ww;
++      }
++      /* a vertex's w as xc_zr_df0 computes it lies within the corners' up to rounding: 3 roundings of terms no larger than S */
++      float S = 32768.0f * (fabsf(a) + fabsf(b) + fabsf(cc)) + fabsf(t), eps = 1e-6f * S;
++      T.zr_calls++; T.zr_v += n; if (w >= 0) { T.wzr[w]++; T.wzr_v[w] += n; }
++      int same = z->on && x->pa == z->pa && x->pb == z->pb && x->vs[2] == z->vs2 && x->vo[2] == z->vo2;
++      if (!same) T.zr_newproj++;
++      else if (wl - eps <= 0) T.zr_behind++;
++      else if (wl - eps >= z->wmin && wh + eps <= z->wmax) { T.zr_skip++; T.zr_skip_v += n; if (w >= 0) { T.wzs[w]++; T.wzs_v[w] += n; } }
++    }
++  }
++  if (!r) return;
++  /* where the streams lie (guest MB) */
++  for (int s = 0; s < 3; s++) {
++    const uint8_t *p = (const uint8_t *)r->p[s]; long mb = 33;
++    if (c3m_ram && p >= c3m_ram && p < c3m_ram + (32u << 20)) mb = (long)((p - c3m_ram) >> 20);
++    T.hist[s][mb]++;
++  }
++  /* the key and its content */
++  uint32_t row[4] = { 0, 0, 0, 0 };
++  if (r->kind[0] == 3 || r->kind[1] == 3) { memcpy(row, r->row, 16); T.rowcalls++; }
++  uint64_t hp = 0xcbf29ce484222325ull, hc = 0xcbf29ce484222325ull;
++  for (int i = 0; i < n; i++) {
++    uint16_t q[6] = { v[i].u, v[i].v, (uint16_t)v[i].x, (uint16_t)v[i].y, (uint16_t)v[i].z, fl[i] };
++    uint32_t col = v[i].c & 0xffffffu;
++    hp = fnv(hp, q, sizeof q); hc = fnv(hc, &col, 4);
++  }
++  uint32_t alpha = v[0].c >> 24;
++  int size = 16 * n + 4 * nst + 32;
++  uint64_t k = (uint64_t)(uintptr_t)r->p[0] * 0x9e3779b97f4a7c15ull ^ (uint64_t)(uintptr_t)r->p[1] * 0xc2b2ae3d27d4eb4full ^
++               (uint64_t)(uintptr_t)r->p[2] ^ (uint64_t)n << 40 ^ (uint64_t)(r->kind[0] | r->kind[1] << 4) << 56 ^ row[0] * 31ull ^ row[1] * 37ull ^
++               row[2] * 41ull ^ row[3] * 43ull;
++  for (uint32_t i = (uint32_t)(k ^ k >> 29) & (KN - 1), tries = 0; tries < KN; tries++, i = (i + 1) & (KN - 1)) {
++    Key *e = &K[i];
++    if (!e->used) {   /* a new key */
++      e->used = 1; e->a = r->p[0]; e->b = r->p[1]; e->c = r->p[2]; memcpy(e->row, row, 16); e->n = n;
++      e->ka = r->kind[0]; e->kb = r->kind[1]; e->kc = r->kind[2]; e->hp = hp; e->hc = hc; e->alpha = alpha; e->size = size;
++      e->first = e->last = c3m_vb; e->uses = 1; e->drawn = 0; e->wstamp = -1; e->fstamp = -1;
++      for (int b = 0; b < NB; b++) { e->prev[b] = e->next[b] = -1; e->in[b] = 0; }
++      T.keys++; T.kbytes += size; if (w >= 0) T.wnew[w]++;
++      if (w_on) { e->wcount = 0; w_key(r, (int)i); }
++      if (!off && nst) { e->drawn++; e->size = size; l_use((int)i, 1, size, n, w); if (w >= 0) { e->wstamp = w; T.wws[w] += size; T.wkeys[w]++; }
++        e->fstamp = c3m_vb; T.fr_ws += size - 32; T.fr_keys++; }
++      return;
++    }
++    if (e->a == r->p[0] && e->b == r->p[1] && e->c == r->p[2] && e->n == n && e->ka == r->kind[0] && e->kb == r->kind[1] && e->kc == r->kind[2] &&
++        !memcmp(e->row, row, 16)) {
++      int changed = e->hp != hp || e->hc != hc || e->alpha != alpha, old = e->size;
++      if (w_on && e->wcount) { WEv *we = &W[e->wwriter]; if (changed) { we->lc++; w_live_changed++; } else { we->ls++; w_live_same++; } e->wcount = 0; }
++      if (!changed) T.same++;
++      else { T.other++; T.oth_p += e->hp != hp; T.oth_c += e->hc != hc; T.oth_a += e->alpha != alpha; e->hp = hp; e->hc = hc; e->alpha = alpha; }
++      e->uses++; e->last = c3m_vb;
++      if (!off && nst) {
++        e->drawn++; e->size = size; l_use((int)i, changed, old, n, w);
++        if (w >= 0 && e->wstamp != w) { e->wstamp = w; T.wws[w] += size; T.wkeys[w]++; }
++        if (e->fstamp != c3m_vb) { e->fstamp = c3m_vb; T.fr_ws += size - 32; T.fr_keys++; }
++      }
++      return;
++    }
++  }
++  T.full++;
++}
++
++void c3m_report(FILE *f)
++{
++  w_report(f);
++  if (!c3m_on || first) return;
++  frame_end();
++  fprintf(f, "c3 census: df0 calls %ld (%ld vertices; bad %ld): from the streams %ld (%ld), from the VU memory %ld (%ld; with an upload "
++          "address %ld); header clip flag %ld; left out off the scissor %ld (%ld vertices); nothing drawn %ld; drawn %ld (%ld vertices, %ld strips)\n",
++          T.calls, T.verts, T.bad, T.rec, T.rec_v, T.vm, T.vm_v, T.vm_src, T.clip, T.cut, T.cut_v, T.empty, T.drawn, T.drawn_v, T.drawn_st);
++  fprintf(f, "c3 census: today's frame data for the drawn calls %lld bytes (GerXform %lld at %u, vertices %lld, strips %lld, indices %lld); "
++          "frames %ld; the largest frame %ld bytes (vb %ld); the most drawn vertices in a frame %ld (vb %ld)\n", T.bytes, T.bytes_x,
++          (unsigned)sizeof(GerXform), T.bytes_v, T.bytes_s, T.bytes_i, T.frames, T.fr_max_bytes, T.fr_max_bytes_vb, T.fr_max_v, T.fr_max_v_vb);
++  long once = 0, nod = 0, longest = 0; double span = 0;
++  for (int i = 0; i < KN; i++) if (K[i].used) {
++    once += K[i].uses == 1; nod += !K[i].drawn; long s = K[i].last - K[i].first; span += s; if (s > longest) longest = s;
++  }
++  fprintf(f, "c3 keys: %ld keys (GE bytes %ld at 16 a vertex, 4 a strip, 32 a key), used once %ld, never drawn %ld, mean span %.0f vblanks "
++          "(longest %ld); the same bytes again %ld, other bytes %ld (positions, UVs or flags %ld, colours %ld, alpha %ld), table full %ld; calls "
++          "with ROW in the key %ld\n", T.keys, T.kbytes, once, nod, T.keys ? span / T.keys : 0, longest, T.same, T.other, T.oth_p, T.oth_c, T.oth_a,
++          T.full, T.rowcalls);
++  static const char *SN[3] = { "A (positions)", "B (colours)", "C (UVs)" };
++  for (int s = 0; s < 3; s++) {
++    fprintf(f, "c3 streams %s by guest MB:", SN[s]);
++    for (int m = 0; m < 34; m++) if (T.hist[s][m]) fprintf(f, " %s%d x%ld", m == 33 ? "outside " : "", m == 33 ? 0 : m, T.hist[s][m]);
++    fprintf(f, "\n");
++  }
++  fprintf(f, "c3 lru: drawn calls from the streams %ld (%ld vertices); served from a kept copy at", T.lru_n, T.lru_nv);
++  for (int b = 0; b < NB; b++) fprintf(f, " %ld KB %ld (%ld v)", BUD[b], T.lru_c[b], T.lru_v[b]);
++  fprintf(f, "\n");
++  fprintf(f, "c3 depth: calls into the range %ld (%ld vertices), depth writers with ZTST ALWAYS %ld; a new projection %ld, a corner not in front "
++          "%ld; the box inside the kept range (the loop gives nothing new) %ld (%ld vertices)\n", T.zr_calls, T.zr_v, T.zr_always, T.zr_newproj,
++          T.zr_behind, T.zr_skip, T.zr_skip_v);
++  for (int w = 0; w < NWIN; w++) {
++    fprintf(f, "c3 window vb %ld-%ld: converter calls df0 %ld, 25f0 %ld, 2870 %ld, P06 %ld, P07 %ld; df0 %ld calls (%ld vertices), left out %ld, "
++            "drawn %ld (%ld vertices), today's data %lld bytes; new keys %ld; keys drawn %ld (GE bytes %ld); depth range %ld calls (%ld v), box "
++            "inside %ld (%ld v); kept copies serve (vertices)", WIN[w][0], WIN[w][1], T.kc[w][0], T.kc[w][1], T.kc[w][2], T.kc[w][3], T.kc[w][4],
++            T.wc[w], T.wv[w], T.wcut[w], T.wd[w], T.wdv[w], T.wbytes[w], T.wnew[w], T.wkeys[w], T.wws[w], T.wzr[w], T.wzr_v[w], T.wzs[w], T.wzs_v[w]);
++    for (int b = 0; b < NB; b++) fprintf(f, " %ld KB %ld", BUD[b], T.wlru_v[w][b]);
++    fprintf(f, "\n");
++  }
++}
+diff -ruN -x '*.o' sb12/ge/c3model.h sb14/ge/c3model.h
+--- sb12/ge/c3model.h	1970-01-01 00:00:00.000000000 +0000
++++ sb14/ge/c3model.h	2026-11-02 22:41:21.343626035 +0000
+@@ -0,0 +1,21 @@
++/* c3model.h (sb13, task #144; x86 only): Stage C step 3, the rooms' meshes (P1214a0 groups, VU1 entry P04+df0), sized before any GE
++   code (c3model.c).  Not the "C3" of native_draw_study.md §3's table (a native path per call): here C3 is step 3, as C1 and C2 were
++   steps 1 and 2. */
++#ifndef MGS2_C3MODEL_H
++#define MGS2_C3MODEL_H
++#include <stdint.h>
++#include <stdio.h>
++#include "vu1conv.h"
++#include "xlate.h"
++#include "xconv.h"
++
++extern int c3m_on;                 /* MGS2_C3_MODEL=1 */
++extern long c3m_vb;                /* the vblank the run is in (boot/xlive_chk.c sets it) */
++extern const uint8_t *c3m_ram;     /* the EE RAM (boot/xlive_chk.c), for the streams' guest addresses */
++/* one df0 call as xc_call has read it (n, v, fl, x: vc_df0_rec's or vc_df0's results), before the cut and the depth range use it; off:
++   1 when XcHost.cut leaves it out.  Reads only */
++void c3m_call(const XlCall *c, const XcGs *d, const XcHost *h, int n, const VcVert *v, const uint16_t *fl, const VcXform *x, int off);
++void c3m_kind(int k);              /* every converter call xc_call takes: 0 df0, 1 25f0, 2 2870, 3 P06, 4 P07 */
++void c3m_report(FILE *f);
++void c3m_vblank(void);             /* each vblank, after c3m_vb (MGS2_C3_WATCH: the watched pages read-only again) */
++#endif
+diff -ruN -x '*.o' sb12/ge/vu1conv.c sb14/ge/vu1conv.c
+--- sb12/ge/vu1conv.c	2026-11-02 18:30:13.287872477 +0000
++++ sb14/ge/vu1conv.c	2026-11-02 23:09:05.171518132 +0000
+@@ -93,6 +93,68 @@
+   return bad ? -2 : neg ? -3 : n;
+ }
+ 
++/* sb14 (vu1conv.h, 3v).  Streams without ROW (kind 2: every df0 stream of the three routes' census) by words: A's x | y << 16 is
++   VcVert's x, y as vc_df0_rec stores them (a sign-extended halfword as int16 is the halfword), A's z | w << 16 with w cleared its z, pad,
++   C's u | v << 16 its u, v; a UV is negative when bit 15 or 31 of C's word is set.  Kind 3 (plus ROW, which may leave 16 bits) as
++   vc_df0_rec.  The box only when the count is returned (no position off 16 bits, no negative UV) */
++typedef uint32_t __attribute__((may_alias)) vc_w32;
++int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  vc_xform(vm, top, 0, 32768.0f, x);
++  x->n = n; x->clip = h[3] != 0;
++  const vc_w32 *wc = (const vc_w32 *)p[2];
++  int lx = 32767, ly = 32767, lz = 32767, hx = -32768, hy = -32768, hz = -32768, bad = 0;
++  uint32_t ng = 0;
++  if (kind[0] != 3) {
++    const vc_w32 *wa = (const vc_w32 *)p[0]; vc_w32 *o = (vc_w32 *)v;
++    for (int i = 0; i < n; i++, wa += 2, o += 4) {
++      const uint32_t a0 = wa[0], a1 = wa[1]; ng |= wc[i];
++      const int X = (int16_t)a0, Y = (int32_t)a0 >> 16, Z = (int16_t)a1;
++      o[2] = a0; o[3] = a1 & 0xffffu;
++      lx = X < lx ? X : lx; hx = X > hx ? X : hx; ly = Y < ly ? Y : ly; hy = Y > hy ? Y : hy; lz = Z < lz ? Z : lz; hz = Z > hz ? Z : hz;
++    }
++  } else {
++    const vc_h16 *pa = p[0];
++    for (int i = 0; i < n; i++) {
++      uint32_t p0 = (uint32_t)(int32_t)pa[4 * i] + row[0], p1 = (uint32_t)(int32_t)pa[4 * i + 1] + row[1], p2 = (uint32_t)(int32_t)pa[4 * i + 2] + row[2];
++      ng |= wc[i];
++      if ((int32_t)p0 != (int16_t)p0 || (int32_t)p1 != (int16_t)p1 || (int32_t)p2 != (int16_t)p2) bad = 1;
++      const int X = (int16_t)p0, Y = (int16_t)p1, Z = (int16_t)p2;
++      v[i].x = (int16_t)X; v[i].y = (int16_t)Y; v[i].z = (int16_t)Z; v[i].pad = 0;
++      lx = X < lx ? X : lx; hx = X > hx ? X : hx; ly = Y < ly ? Y : ly; hy = Y > hy ? Y : hy; lz = Z < lz ? Z : lz; hz = Z > hz ? Z : hz;
++    }
++  }
++  if (bad) return -2;
++  if (ng & 0x80008000u) return -3;
++  b[0] = (int16_t)lx; b[1] = (int16_t)ly; b[2] = (int16_t)lz; b[3] = (int16_t)hx; b[4] = (int16_t)hy; b[5] = (int16_t)hz;
++  return n;
++}
++void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n)
++{
++  const uint32_t a = vc_a2(x->alpha) << 24;
++  const vc_w32 *wc = (const vc_w32 *)p[2];
++  if (kind[1] != 3) {
++    const vc_w32 *wb = (const vc_w32 *)p[1]; vc_w32 *o = (vc_w32 *)v;
++    for (int i = 0; i < n; i++, wb += 2, o += 4) {
++      const uint32_t b0 = wb[0], b1 = wb[1];
++      o[0] = wc[i];
++      o[1] = (b0 & 0xffu) | (b0 >> 8 & 0xff00u) | (b1 & 0xffu) << 16 | a;
++      flags[i] = (uint16_t)(b1 >> 16);
++    }
++  } else {
++    const vc_h16 *pb = p[1];
++    for (int i = 0; i < n; i++) {
++      ((vc_w32 *)v)[4 * i] = wc[i];
++      v[i].c = (((uint32_t)(int32_t)pb[4 * i] + row[0]) & 0xffu) | (((uint32_t)(int32_t)pb[4 * i + 1] + row[1]) & 0xffu) << 8
++               | (((uint32_t)(int32_t)pb[4 * i + 2] + row[2]) & 0xffu) << 16 | a;
++      flags[i] = (uint16_t)((uint32_t)(int32_t)pb[4 * i + 3] + row[3]);
++    }
++  }
++}
++
+ int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max)
+ {
+   const uint32_t *h = vq(vm, top + 0x14);
+diff -ruN -x '*.o' sb12/ge/vu1conv.h sb14/ge/vu1conv.h
+--- sb12/ge/vu1conv.h	2026-11-02 18:26:41.003656883 +0000
++++ sb14/ge/vu1conv.h	2026-11-02 23:09:05.127518130 +0000
+@@ -36,6 +36,18 @@
+ /* sb1, Stage B lane 1: vc_df0 with the vertices read from the game's data (ge/xlate.h XlRec: p, kind, row of the streams at T + 0x100,
+    0x101, 0x102), the rest from vm as vc_df0 reads it.  The same results as vc_df0 on the VU memory those streams leave */
+ int vc_df0_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, uint16_t *flags, int max);
++/* sb14, Stage C step 3 (3v; stagec_notes.md step 3): vc_df0_rec in two passes, so that a call the cut leaves out (xconv.c xc_df0_off)
++   never converts its UVs, colours and flags.  vc_df0_pos returns what vc_df0_rec returns (the count, -1, -2 or -3), writes the same
++   VcXform and each vertex's x, y, z and pad, and when it returns a count above 0 the box of the positions (b[0..2] the least x, y, z,
++   b[3..5] the largest); vc_df0_att then writes each vertex's u, v, c and its flag word.  Together the same bytes as vc_df0_rec.
++   vc_df0_flag: vertex i's flag word as vc_df0_att writes it */
++int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max);
++void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n);
++static inline uint16_t vc_df0_flag(const void *const *p, const uint8_t *kind, const uint32_t *row, int i)
++{
++  typedef int16_t __attribute__((may_alias)) h16;
++  return (uint16_t)((uint32_t)(int32_t)((const h16 *)p[1])[4 * i + 3] + (kind[1] == 3 ? row[3] : 0));
++}
+ 
+ /* P04+0x25f0 / +0x2870 (pre-lit strips with float world positions and per-vertex alpha; 2870 adds a back-face test): the call's
+    transform (the matrix at T+0x10..0x13; world rows without the x 32768) and vertices; flags as vc_df0 (from the UV qword's w).
+diff -ruN -x '*.o' sb12/ge/xconv.c sb14/ge/xconv.c
+--- sb12/ge/xconv.c	2026-11-02 18:31:04.901560521 +0000
++++ sb14/ge/xconv.c	2026-11-02 23:29:18.823924849 +0000
+@@ -5,6 +5,7 @@
+ #ifndef __psp__
+ #include "c1model.h"   /* sb11 C1 census and GE model (x86 only) */
+ #include "c2model.h"   /* sb12 C2 census and GE model (x86 only) */
++#include "c3model.h"   /* sb13 C3 census of the rooms' meshes (x86 only) */
+ #endif
+ #include <stddef.h>
+ #include <string.h>
+@@ -131,22 +132,70 @@
+   return m != 0;
+ }
+ static VcVert Dv[1024]; static uint16_t Dfl[1024]; static VcXform Dx; static int Dn;   /* a df0 call's input, read by xc_call */
++/* sb14 (3v, 3z): Datt 0 while a two-pass call's UVs, colours and flags wait (vc_df0_att from Drec's streams); Dbox the box of Dv's
++   positions when Dbox_ok (vc_df0_pos's, or xc_df0_off's) */
++static int Datt = 1, Dbox_ok; static int16_t Dbox[6]; static const XlRec *Drec;
++static VcVert *Dvp = Dv;   /* sb14 3w: where the call's vertices are: Dv, or the frame's room after the GerXform (xc_df0's place for them) */
++int xc_c3_chk;   /* xconv.h */
+ /* the df0 call xc_call read: 1 when XcHost.cut leaves it out */
+ static int xc_df0_off(const XcGs *d)
+ {
++  if (Dbox_ok) {   /* sb14: vc_df0_pos's box, the same as the loop's below */
++    float flo[3], fhi[3];
++    for (int j = 0; j < 3; j++) { flo[j] = Dbox[j] * (1.0f / 32768); fhi[j] = Dbox[3 + j] * (1.0f / 32768); }
++    return xc_off(Dx.world, flo, fhi, &Dx, d);
++  }
+   int lo[3] = { 32767, 32767, 32767 }, hi[3] = { -32768, -32768, -32768 };
++  const VcVert *v = Dvp;
+   for (int i = 0; i < Dn; i++) {
+-    if (Dv[i].x < lo[0]) lo[0] = Dv[i].x;
+-    if (Dv[i].x > hi[0]) hi[0] = Dv[i].x;
+-    if (Dv[i].y < lo[1]) lo[1] = Dv[i].y;
+-    if (Dv[i].y > hi[1]) hi[1] = Dv[i].y;
+-    if (Dv[i].z < lo[2]) lo[2] = Dv[i].z;
+-    if (Dv[i].z > hi[2]) hi[2] = Dv[i].z;
++    if (v[i].x < lo[0]) lo[0] = v[i].x;
++    if (v[i].x > hi[0]) hi[0] = v[i].x;
++    if (v[i].y < lo[1]) lo[1] = v[i].y;
++    if (v[i].y > hi[1]) hi[1] = v[i].y;
++    if (v[i].z < lo[2]) lo[2] = v[i].z;
++    if (v[i].z > hi[2]) hi[2] = v[i].z;
+   }
+   float flo[3], fhi[3];   /* the GE reads a 16-bit position as s / 32768 (exact in a float) */
+   for (int j = 0; j < 3; j++) { flo[j] = lo[j] * (1.0f / 32768); fhi[j] = hi[j] * (1.0f / 32768); }
++  if (Dn > 0) { for (int j = 0; j < 3; j++) { Dbox[j] = (int16_t)lo[j]; Dbox[3 + j] = (int16_t)hi[j]; } Dbox_ok = 1; }   /* sb14: for 3z */
+   return xc_off(Dx.world, flo, fhi, &Dx, d);
+ }
++/* sb14 3z (XcHost.c3z): 1 when every w of the df0 call (xc_zr_df0's w = a . p + t, p a vertex's position as the stream holds it) lies
++   inside the range the depth range keeps for the call's projection, by the box b of its positions, as xc_c2_zin does for C2's unskinned
++   form: a . p + t over the box lies in [d - r, d + r], d at the box's centre q (exact: halved sums of int16), r = |a| . the half extents
++   e; widened by 1e-5 of the magnitudes big (the float rounding of each w and of this bound is below 1e-6 of them) and 1e-30.  Then every
++   w is in front (the count n) and none can move the range, so xc_zr_df0 would only count the call and its n vertices.  A NaN or an
++   infinity makes a test fail: no */
++static int xc_df0_zin(const XcZr *z, const VcXform *x, const int16_t *b)
++{
++  if (!z->on || x->pa != z->pa || x->pb != z->pb || x->vs[2] != z->vs2 || x->vo[2] != z->vo2) return 0;
++  const float a0 = x->world[2] / 32768, a1 = x->world[5] / 32768, a2 = x->world[8] / 32768, t = x->world[11];
++  const float q0 = 0.5f * (float)((int)b[0] + b[3]), q1 = 0.5f * (float)((int)b[1] + b[4]), q2 = 0.5f * (float)((int)b[2] + b[5]);
++  const float e0 = 0.5f * (float)((int)b[3] - b[0]), e1 = 0.5f * (float)((int)b[4] - b[1]), e2 = 0.5f * (float)((int)b[5] - b[2]);
++  const float m0 = fabsf(q0) + e0, m1 = fabsf(q1) + e1, m2 = fabsf(q2) + e2;   /* the largest |p| on each axis */
++  const float d0 = t + a0 * q0 + a1 * q1 + a2 * q2, r0 = fabsf(a0) * e0 + fabsf(a1) * e1 + fabsf(a2) * e2;
++  const float big = fabsf(t) + fabsf(a0) * m0 + fabsf(a1) * m1 + fabsf(a2) * m2;
++  if (!(big - big == 0) || !(d0 - d0 == 0) || !(r0 - r0 == 0)) return 0;
++  const float E = 1e-5f * big + 1e-30f, lo = d0 - r0 - E, hi = d0 + r0 + E;
++  return lo > 0 && lo >= z->wmin && hi <= z->wmax;
++}
++/* xc_zr_df0 for Dx and Dv's first n vertices (the call xc_call read), or by the box's bound when 3z decides (the range unchanged: it
++   only counts the call and its vertices, all in front).  With xc_c3_chk: the bound against every vertex's w */
++static void xc_zr_df0d(const XcHost *h, int n)
++{
++  XcZr *z = h->zr;
++  if (h->c3z && Dbox_ok && n > 0 && xc_df0_zin(z, &Dx, Dbox)) {
++#ifndef __psp__
++    if (xc_c3_chk) {
++      XcZr c = *z; xc_zr_df0(&c, &Dx, Dvp, n); St.c3_chk++;
++      if (c.calls != z->calls + 1 || c.verts != z->verts + n || c.wmin != z->wmin || c.wmax != z->wmax || c.on != z->on || c.lo != z->lo || c.hi != z->hi) St.c3_chk_bad++;
++    }
++#endif
++    z->calls++; z->verts += n; St.c3z_in++; St.c3z_in_v += n;
++    return;
++  }
++  xc_zr_df0(z, &Dx, Dvp, n);
++}
+ /* a call the cut leaves out gives the frame's depth range (XcZr) what xc_df0 would have given it: a depth-testing, depth-writing call
+    with a triangle to draw, its vertices' w.  The frame's depth map and the next frame's class 3 window for the effects are then the same
+    with the cut on or off (renderer_notes 11.15) */
+@@ -154,9 +203,13 @@
+ {
+   if (!h->zr || !d->zte || d->zmsk || (d->ate && d->atst == 0 && d->afail == 1)) return;   /* xc_state's GERF_ZWRITE */
+   int i = 2;
+-  while (i < Dn && (Dfl[i] & 0x8000)) i++;
++  if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
++  else {   /* sb14 3v: the flags from the stream B, as vc_df0_att would write them */
++    const XlRec *r = Drec;
++    while (i < Dn && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
++  }
+   if (i >= Dn) return;   /* every triangle has ADC: xc_df0 draws nothing (no strip) */
+-  if (d->ztst >= 2) xc_zr_df0(h->zr, &Dx, Dv, Dn); else h->zr->always++;
++  if (d->ztst >= 2) xc_zr_df0d(h, Dn); else h->zr->always++;
+ }
+ 
+ /* P04+df0: the call's strips (the data's ADC bits) with hardware transform; the GE clips and the scissor cuts.  Its input: xc_call's
+@@ -164,7 +217,7 @@
+ static int xc_df0(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   static uint16_t runs[2048], idx[4096];
+-  VcVert *v = Dv; uint16_t *fl = Dfl; VcXform x = Dx; int n = Dn;
++  VcVert *v = Dvp; uint16_t *fl = Dfl; VcXform x = Dx; int n = Dn;
+   (void)c;
+   if (n < 0) return n;
+   int nst = vc_strips(fl, n, runs, 1024), ni = 0;
+@@ -178,11 +231,13 @@
+   uint32_t o = 0, need = sizeof gx + n * sizeof *v + nst * 4 + ni * 2;
+   if (need > cap) return -5;
+   memcpy(blob + o, &gx, sizeof gx); o += sizeof gx;
+-  memcpy(blob + o, v, n * sizeof *v); o += n * sizeof *v;
++  if ((uint8_t *)v != blob + o) memcpy(blob + o, v, n * sizeof *v);   /* sb14 3w: there already */
++  o += n * sizeof *v;
+   memcpy(blob + o, runs, nst * 4); o += nst * 4;
+   memcpy(blob + o, idx, ni * 2); o += ni * 2;
+   xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = nst;
+-  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0(h->zr, &x, v, n); else h->zr->always++; }   /* GERF_ZWRITE has ZTEST */
++  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }   /* GERF_ZWRITE has ZTEST; sb14:
++                                                                                     x, v, n are Dx, Dv, Dn */
+   *size = o; return 1;
+ }
+ 
+@@ -820,19 +875,55 @@
+   int k = c->entry == XL_DF0 ? 0 : c->entry == XL_FX ? 1 : c->entry == XL_FX2 ? 2 : is_p06(c->entry) ? 3 : c->entry == VC_P07 ? 4 : -1;
+   if (k < 0 || c->cont) return 0;
+   St.calls[k]++;
++#ifndef __psp__
++  if (c3m_on) c3m_kind(k);   /* sb13 */
++#endif
+   XcGs d; xc_gs(c->gr, &d);
+   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
++    Datt = 1; Dbox_ok = 0; Dvp = Dv;   /* sb14 */
+     if (c->rec) {   /* sb1 lane: the streams from the game's data */
+       const XlRec *r = c->rec; xc_rec_calls++;
++      if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
++        if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
++        Dn = vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024); Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
++#ifndef __psp__   /* (x86 only: no check arrays or code in the PSP's hot path) */
++        if (xc_c3_chk) {   /* the two passes against vc_df0_rec: every output the same; the flags read from the stream the same as converted */
++          static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex; int16_t eb[6];
++          int En = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Ex, Ev, Efl, 1024), bad = En != Dn || memcmp(&Ex, &Dx, sizeof Ex);
++          if (Dn > 0) {
++            vc_df0_att(r->p, r->kind, r->row, &Dx, Dvp, Dfl, Dn);
++            bad |= memcmp(Ev, Dvp, (size_t)Dn * sizeof *Ev) || memcmp(Efl, Dfl, (size_t)Dn * 2);
++            for (int i = 0; i < Dn; i++) bad |= vc_df0_flag(r->p, r->kind, r->row, i) != Dfl[i];
++            eb[0] = eb[1] = eb[2] = 32767; eb[3] = eb[4] = eb[5] = -32768;
++            for (int i = 0; i < Dn; i++) {
++              eb[0] = Ev[i].x < eb[0] ? Ev[i].x : eb[0]; eb[1] = Ev[i].y < eb[1] ? Ev[i].y : eb[1]; eb[2] = Ev[i].z < eb[2] ? Ev[i].z : eb[2];
++              eb[3] = Ev[i].x > eb[3] ? Ev[i].x : eb[3]; eb[4] = Ev[i].y > eb[4] ? Ev[i].y : eb[4]; eb[5] = Ev[i].z > eb[5] ? Ev[i].z : eb[5];
++            }
++            bad |= memcmp(eb, Dbox, sizeof eb) != 0;
++          }
++          St.c3_chk++; St.c3_chk_bad += bad;
++        }
++#endif
++      } else
+       Dn = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dv, Dfl, 1024);
+       if (xc_rec_chk) {
++        if (!Datt && Dn > 0) vc_df0_att(r->p, r->kind, r->row, &Dx, Dvp, Dfl, Dn);   /* sb14: the whole input for the check */
++        Datt = 1;
+         static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex;
+         xl_vm_sync(); int En = vc_df0(c->vm, c->top, &Ex, Ev, Efl, 1024); xc_rec_n++;
+-        if (En != Dn || memcmp(&Ex, &Dx, sizeof Ex) || (En > 0 && (memcmp(Ev, Dv, (size_t)En * sizeof *Ev) || memcmp(Efl, Dfl, (size_t)En * 2)))) xc_rec_diff++;
++        if (En != Dn || memcmp(&Ex, &Dx, sizeof Ex) || (En > 0 && (memcmp(Ev, Dvp, (size_t)En * sizeof *Ev) || memcmp(Efl, Dfl, (size_t)En * 2)))) xc_rec_diff++;
+       }
+     } else
+     Dn = vc_df0(c->vm, c->top, &Dx, Dv, Dfl, 1024);
+-    if (Dn > 0 && h->cut && xc_df0_off(&d)) { xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
++    int off = Dn > 0 && h->cut && xc_df0_off(&d);
++#ifndef __psp__
++    if (c3m_on) {   /* sb13: reads only, before the depth range takes the call (sb14: with the whole input) */
++      if (!Datt && Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn);
++      Datt = 1; c3m_call(c, &d, h, Dn, Dvp, Dfl, &Dx, off); }
++#endif
++    if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
++      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
++    if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+   }
+   XcTex t; memset(&t, 0, sizeof t); t.index = -1;
+   if (d.tme && h->tex && !h->tex(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
+diff -ruN -x '*.o' sb12/ge/xconv.h sb14/ge/xconv.h
+--- sb12/ge/xconv.h	2026-11-02 18:30:26.390155774 +0000
++++ sb14/ge/xconv.h	2026-11-02 23:29:42.630983213 +0000
+@@ -64,6 +64,15 @@
+   int c2;                  /* sb12 C2 (stagec_notes.md step 2): 1: a lane 2 P06 call is drawn by the GE's skinning, lighting and texture
+                               matrix by mapping (b) (xconv.c xc_lit_c2; ge/replay_fmt.h GERL_C2) where the GE can draw it, else as today;
+                               0 (older hosts): as today */
++  int c3v;                 /* sb14 3v (stagec_notes.md step 3): 1: a lane 1 df0 call's vertices in two passes (ge/vu1conv.h vc_df0_pos,
++                              vc_df0_att), the UVs, colours and flags only for a call the cut does not leave out; 0: vc_df0_rec.  The
++                              same lists either way */
++  int c3z;                 /* sb14 3z: 1: a df0 call whose positions' box (vc_df0_pos, or xc_df0_off's) lies inside the range the depth
++                              range keeps for its projection, by a bound (xconv.c xc_df0_zin), counts its vertices without computing
++                              each one's w (xc_zr_df0); 0: each w.  The same depth range either way */
++  int c3w;                 /* sb14 3w (with 3v): 1: a two-pass call's vertices written straight into the frame's room, where xc_df0
++                              puts them after the GerXform (when the room holds 1,024 vertices); 0: into a buffer, then copied there.
++                              The same bytes either way */
+ } XcHost;
+ /* counters since the start, for a report */
+ typedef struct {
+@@ -97,11 +106,20 @@
+                                                 factor), no room */
+   long long c2_bytes;                         /* their data bytes */
+   long c2_zin, c2_zin_v;                      /* skinned C2 calls (and vertices) whose w the depth range took by the bound alone (xc_c2_zin) */
++  long c3w_calls;                             /* sb14 3w: two-pass calls whose vertices went straight into the frame's room */
++  long c3v_calls, c3v_cut, c3v_cut_v;         /* sb14 3v: lane 1 df0 calls in two passes; those the cut left out before their second pass,
++                                                and their vertices */
++  long c3z_in, c3z_in_v;                      /* sb14 3z: df0 calls (and vertices) whose w the depth range took by the box's bound alone */
++  long c3_chk, c3_chk_bad;                    /* sb14 check mode (xc_c3_chk): calls compared with the one-pass forms; differences */
+ } XcStats;
+ const XcStats *xc_stats(void);
+ /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
+    memory model, decoded for it (xl_vm_sync): xc_rec_n calls checked, xc_rec_diff of them not the same */
+ extern int xc_rec_chk; extern long xc_rec_n, xc_rec_diff, xc_rec_calls;
++/* sb14 (dev, x86): xc_c3_chk 1 checks 3v and 3z on every df0 call they take: the two passes against vc_df0_rec (count, transform,
++   vertices, flags, box), the flags read from the stream against the converted ones, and each box's bound against every vertex's w
++   (XcStats c3_chk, c3_chk_bad) */
++extern int xc_c3_chk;
+ /* sb2, Stage B lane 2: P06 calls whose vertices came from the lane's streams (xc_rec6_calls) and those that needed the VU memory
+    (xc_rec6_vm: ge/vu1conv.h vc_p06_rec -8); with xc_rec_chk, xc_rec6_n of the first checked against vc_p06, xc_rec6_diff not the same */
+ extern long xc_rec6_calls, xc_rec6_vm, xc_rec6_n, xc_rec6_diff;
+diff -ruN -x '*.o' sb12/boot/xlive_chk.c sb14/boot/xlive_chk.c
+--- sb12/boot/xlive_chk.c	2026-11-02 18:37:50.290710410 +0000
++++ sb14/boot/xlive_chk.c	2026-11-02 23:29:42.636193644 +0000
+@@ -101,6 +101,7 @@
+ #include "../ge/fxthin.h"    /* task #114 */
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
++#include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+ #include "../runtime/host_time.h"   /* sb3: g_opt's OPT_CLIP_FAST (boot.c MGS2_OPT, MGS2_OPT_CYCLE), as psp/xl_psp.c reads it */
+ #if defined(__has_include)
+ #if __has_include(<valgrind/callgrind.h>)
+@@ -859,6 +860,7 @@
+             xc_c7_chk ? " (MGS2_C7_CHK)" : "");
+     c1m_report(stderr);   /* sb11 (MGS2_C1_MODEL=1) */
+     c2m_report(stderr);   /* sb12 (MGS2_C2_MODEL=1) */
++    c3m_report(stderr);   /* sb13 (MGS2_C3_MODEL=1) */
+     fprintf(stderr, "xlive gb: P06: calls %ld (+0 %ld, +358 %ld, +738 %ld, +ab0 %ld), batches %ld, empty %ld, bad %ld; vertices %ld, exact "
+               "form %ld; passes 2 and 3 drawn %ld / %ld (pass 2 with its own vertices %ld), not drawn %ld (a UV2 z not 1.0) / %ld (from "
+               "T+0x104); cull bit %ld; light ramps %ld\n", x->calls[3], x->lit_kind[0], x->lit_kind[1], x->lit_kind[2], x->lit_kind[3],
+@@ -880,7 +882,11 @@
+               "fast form's conditions), %ld (the clamp, a light's colour, the ambient), %ld (a weight, a tint, a UV), %ld (room); in the GE lists: "
+               "passes %ld, bone matrices sent %ld, their own words %ld; the depth range by the bound alone %ld calls, %ld vertices\n",
+               x->c2_calls, x->c2_skin, x->c2_v, (long)(x->c2_bytes >> 10), x->c2_fall[0], x->c2_fall[1], x->c2_fall[2], x->c2_fall[3], gx_c2p,
+-              gx_c2b, gx_c2w, x->c2_zin, x->c2_zin_v); }
++              gx_c2b, gx_c2w, x->c2_zin, x->c2_zin_v);
++    if (x->c3v_calls || x->c3z_in || x->c3_chk)   /* sb14 step 3 (g_opt2 OPT2_C3V, OPT2_C3Z, OPT2_C3W) */
++      fprintf(stderr, "xlive gb: df0 C3 (two passes, the depth range by the box): lane calls in two passes %ld (straight into the frame %ld), cut "
++              "before the second pass %ld calls, %ld vertices; the depth range by the box alone %ld calls, %ld vertices; checked %ld, different %ld\n",
++              x->c3v_calls, x->c3w_calls, x->c3v_cut, x->c3v_cut_v, x->c3z_in, x->c3z_in_v, x->c3_chk, x->c3_chk_bad); }
+ }
+ 
+ /* the options, at the first transfer or vblank */
+@@ -980,12 +986,15 @@
+       xc_rec_chk = getenv("MGS2_SB_CHK") && atoi(getenv("MGS2_SB_CHK"));
+       fprintf(stderr, "xlive mode: Stage B lanes%s%s%s%s (MGS2_SB_LANE)%s\n", (g_xl_lane & 1) ? " 1" : "", (g_xl_lane & 2) ? " 2" : "",
+               (g_xl_lane & 4) ? " 3" : "", (g_xl_lane & 8) ? " 4" : "", xc_rec_chk ? ", their df0, P06, P07 and effect input checked (MGS2_SB_CHK)" : ""); }
++    if (getenv("MGS2_C3_CHK") && atoi(getenv("MGS2_C3_CHK"))) { xc_c3_chk = 1;   /* sb14 */
++      fprintf(stderr, "xlive mode: Stage C step 3's trims checked against the one-pass conversion and the depth range by vertices (MGS2_C3_CHK)\n"); }
+     if (getenv("MGS2_SB_LANE_OPT") && atoi(getenv("MGS2_SB_LANE_OPT"))) { lane_opt = 1; lane_base = g_xl_lane;
+       fprintf(stderr, "xlive mode: the lanes follow g_opt's lane bits at each transfer (MGS2_SB_LANE_OPT), within mask %d\n", lane_base); }
+     xc_held_force = getenv("MGS2_SB_FORCE") && atoi(getenv("MGS2_SB_FORCE")); xc_held_poison = getenv("MGS2_SB_POISON") && atoi(getenv("MGS2_SB_POISON"));
+     vc_p06_exact = getenv("MGS2_SB_P6EXACT") && atoi(getenv("MGS2_SB_P6EXACT"));
+     c1m_on = getenv("MGS2_C1_MODEL") && atoi(getenv("MGS2_C1_MODEL"));   /* sb11 */
+     c2m_on = getenv("MGS2_C2_MODEL") && atoi(getenv("MGS2_C2_MODEL"));   /* sb12 */
++    c3m_on = getenv("MGS2_C3_MODEL") && atoi(getenv("MGS2_C3_MODEL"));   /* sb13 */
+     xc_c7_chk = getenv("MGS2_C7_CHK") && atoi(getenv("MGS2_C7_CHK"));   /* sb10 T2: each held P07 call's placed memory against its own */
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
+       "the rebuilt VU memory (MGS2_SB_FORCE)" : "", xc_held_poison ? " the records' images and the scratch memory poisoned (MGS2_SB_POISON)" : "", vc_p06_exact ? " P06 in "
+@@ -1013,7 +1022,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+@@ -1025,7 +1034,8 @@
+     ck.scanned += gu_sent_scan(map, scan_fn, 0);
+     if (vb > from && ((vb - from) % 100 == 0 || vb >= to)) { tx_line(&ck, vb - 1 - (vb - 1 - from) % 100, vb - 1); tx_add(); }
+   }
+-  cur_vb = vb; c2m_vb = vb;
++  cur_vb = vb; c2m_vb = vb; c3m_vb = vb; c3m_ram = M.mem;
++  if (c3m_on) c3m_vblank();   /* sb13 (MGS2_C3_WATCH) */
+   if (on && vb >= to) { on = 0; done = 1; if (cg_on) CALLGRIND_STOP_INSTRUMENTATION; xdg_close(); if (dig) fclose(dig); dig = 0; totals();
+     ec_report(vb - 1);
+     if (vc_on) { const XlStats *S = xl_stats();   /* the UNPACK kinds of the window */
+diff -ruN -x '*.o' sb12/psp/main_psp.c sb14/psp/main_psp.c
+--- sb12/psp/main_psp.c	2026-11-02 18:50:55.136560031 +0000
++++ sb14/psp/main_psp.c	2026-11-02 23:29:54.054567971 +0000
+@@ -190,16 +190,16 @@
+ static Win w_cur, w_deck;
+ /* the configurations boot.c opt_window cycles through (its cfg[] order), plus anything else */
+ #ifdef MGS2_GL
+-#define NCFG 28
++#define NCFG 32
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+                                             "SPR bulk off", "native forms off", "reduced renderer off", "GS one-loop walk off", "native sort key off",
+                                             "stage table off", "translator off", "picture off", "GE overlap off", "VU sync by scan",
+                                             "block tex conv off", "area memo off", "flags-only test off", "palette memo off", "V4-8 decode off",
+                                             "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off", "face hold off",
+-                                            "face GE lighting on", "people GE lighting on" };
++                                            "face GE lighting on", "people GE lighting on", "mesh 2-pass off", "mesh box depth off", "mesh trims off", "mesh frame write off" };
+                               /* 17-21: codec_speed.md A-D (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4); 24, 25:
+                                  sb10's T1, T2 (step 1); 26: sb11's C1 switched on (off by default in gl14); 27: sb12's C2 switched on
+-                                 (off by default) */
++                                 (off by default); 28-31: sb14's step 3 trims off (3v, 3z, both, 3w) */
+ #else
+ #define NCFG 13
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+@@ -318,7 +318,10 @@
+ #ifdef MGS2_GL
+   if (g_step_cfg == 0 && g_opt2 != OPT2_DEFAULT)   /* sb9, sb10: g_opt2's switches, each off; sb11: C1 on; sb12: C2 on */
+     g_step_cfg = g_opt2 == (OPT2_DEFAULT & ~1u) ? 22 : g_opt2 == (OPT2_DEFAULT & ~2u) ? 23 : g_opt2 == (OPT2_DEFAULT & ~4u) ? 24 :
+-                 g_opt2 == (OPT2_DEFAULT & ~8u) ? 25 : g_opt2 == (OPT2_DEFAULT | OPT2_C1) ? 26 : g_opt2 == (OPT2_DEFAULT | OPT2_C2) ? 27 : 4;
++                 g_opt2 == (OPT2_DEFAULT & ~8u) ? 25 : g_opt2 == (OPT2_DEFAULT | OPT2_C1) ? 26 : g_opt2 == (OPT2_DEFAULT | OPT2_C2) ? 27 :
++                 g_opt2 == (OPT2_DEFAULT & ~OPT2_C3V) ? 28 : g_opt2 == (OPT2_DEFAULT & ~OPT2_C3Z) ? 29 :
++                 g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z)) || g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z | OPT2_C3W)) ? 30 :
++                 g_opt2 == (OPT2_DEFAULT & ~OPT2_C3W) ? 31 : 4;   /* sb14: 28-31 (30: 3w has no effect without 3v) */
+ #endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+diff -ruN -x '*.o' sb12/psp/xl_psp.c sb14/psp/xl_psp.c
+--- sb12/psp/xl_psp.c	2026-11-02 18:37:50.291300615 +0000
++++ sb14/psp/xl_psp.c	2026-11-02 23:29:42.636708292 +0000
+@@ -238,6 +238,9 @@
+       glf.stepc7 = (g_opt2 & OPT2_C7) != 0;      /* sb10 T2: and lane 4's P07 calls */
+       glf.h.c1 = (g_opt2 & OPT2_C1) != 0;        /* sb11 C1: the faces skinned and lit by the GE */
+       glf.h.c2 = (g_opt2 & OPT2_C2) != 0;        /* sb12 C2: the people skinned and lit by the GE */
++      glf.h.c3v = (g_opt2 & OPT2_C3V) != 0;      /* sb14 3v: df0 in two passes */
++      glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0;      /* sb14 3z: df0's depth range by the box */
++      glf.h.c3w = (g_opt2 & OPT2_C3W) != 0;      /* sb14 3w: two-pass df0 vertices straight into the frame */
+       gl_begin(&glf); gl_now = 1;
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -432,6 +435,10 @@
+               "passes %ld, bone matrices sent %ld, their own words %ld; the depth range by the bound alone %ld calls, %ld vertices\n",
+               x->c2_calls, x->c2_skin, x->c2_v, (long)(x->c2_bytes >> 10), x->c2_fall[0], x->c2_fall[1], x->c2_fall[2], x->c2_fall[3], gx_c2p,
+               gx_c2b, gx_c2w, x->c2_zin, x->c2_zin_v);
++    if (x->c3v_calls || x->c3z_in)   /* sb14 step 3 (g_opt2 OPT2_C3V, OPT2_C3Z) */
++      fprintf(f, "picture: df0 C3 (two passes, the depth range by the box): lane calls in two passes %ld (straight into the frame %ld), cut "
++              "before the second pass %ld calls, %ld vertices; the depth range by the box alone %ld calls, %ld vertices\n",
++              x->c3v_calls, x->c3w_calls, x->c3v_cut, x->c3v_cut_v, x->c3z_in, x->c3z_in_v);
+     if (glf.ft) { const FxThin *t = glf.ft;   /* task #114 */
+       fprintf(f, "picture: thinned effects (sheets 1 in %d, splash 1 in %d): scans %ld, actors walked %ld, names read %ld, cache emptied %ld; "
+               "blocks found: sheets %ld, splash %ld; bad %ld, over %ld; calls thinned %ld, their strips %ld, left out %ld (%ld triangles)\n",
+diff -ruN -x '*.o' sb12/runtime/host_time.h sb14/runtime/host_time.h
+--- sb12/runtime/host_time.h	2026-11-02 18:50:55.131711675 +0000
++++ sb14/runtime/host_time.h	2026-11-02 23:29:42.634991876 +0000
+@@ -114,6 +114,13 @@
+                                            c2_draw): the people's P06 calls skinned, lit and (pass 3) mapped by the GE itself where it can;
+                                            off: today's exact vertices.  A different picture (the GE's rounding), so off by default until
+                                            Ffm's OK */
++#define OPT2_C3V 64u                    /* sb14, Stage C step 3 3v (stagec_notes.md step 3), MGS2_GL builds (ge/xconv.c xc_call, ge/vu1conv.c
++                                           vc_df0_pos / vc_df0_att): a lane's df0 call converted in two passes, the positions and their box
++                                           first, the colours, UVs and flags only for a call the cut keeps.  Exact: the same lists */
++#define OPT2_C3Z 128u                   /* sb14, Stage C step 3 3z: a df0 call's depth range by its box when the box's whole range lies inside
++                                           the range already kept (ge/xconv.c xc_df0_zin, as C1 and C2).  Exact: the same ranges */
++#define OPT2_C3W 256u                   /* sb14, Stage C step 3 3w (with 3v): a two-pass df0 call's vertices written straight into the frame's
++                                           room (ge/xconv.c xc_call, xc_df0), not into a buffer and then copied.  Exact: the same lists */
+ #define OPT2_DEFAULT (~OPT2_C2)         /* g_opt2 at the start: every switch on but C2 (sb12 for gl15: C1 on by default, my call after gl14's
+                                            run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14: ~OPT2_C1) */
+ extern uint32_t g_opt2;

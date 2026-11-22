@@ -1,0 +1,29 @@
+sb12: Stage C step 2's C2, the people (P06) skinned, lit and texture-mapped by the GE (stagec_notes.md 2.1-2.9, task #140); gl15's
+tree (task #141).  2026-11-02.  A visual change: behind g_opt2 OPT2_C2 (32), off by default; Ffm's OK on shots of both forms comes
+before it is on anywhere (master pictures in Ffm's SHOTS\c2_people; card 19:06: test in gl15's turns or not yet).
+Container tree /home/claude/sb12 (ephemeral) = sb11's tree (tools/dev/sb11: sb10's + sb11.diff, checked) + sb12.diff (diff -ruN of ge,
+boot, psp, runtime against sb11's files; checked: patch -p0 in a copy of sb11's four folders rebuilds today's files byte for byte).
+The scripts here go in the tree's root (c2shots.py in tools/).  Not in the shared code yet.
+
+What it is:
+- ge/c2model.c, c2model.h (x86 only, MGS2_C2_MODEL=1): the census of P06's constants and a model of the GE's arithmetic next to today's
+  exact vertices (stagec_notes 2.2-2.4).  Read-only: runs stay exact.  c2census_{d,i,c}.txt: its lines from run m3 (17:51).
+- ge/vu1conv.c vc_p06_c2 (the constants by a key: p6_c2k / p6_c2x / p6_c2m), c2_d (d by the thresholds from c2tab.py), vc_p06_c2box,
+  vc_p06_c2v (p6_c2loop: the GE vertices, their colour d, the depth range); ge/xconv.c xc_lit_c2, xc_c2_bound, xc_c2_hold_bound,
+  xc_c2_zin; ge/replay_fmt.h GerC2, GERL_C2; ge/gelist.c c2_draw, lit_once (the list: WORLD identity, VIEW, material once a frame,
+  MATUPD 3, emissive, lights, bones 0 and 1 by BOFS, pass 3's texture matrix in TEXMAPMODE 1 | 3 << 8); ge/gelive.c (the switch, held
+  calls' room, the depth check, the frame digest); boot/boot.c, runtime/host_time.h (OPT2_C2 32; OPT2_DEFAULT ~32 = C1 on by default for
+  gl15); boot/xlive_chk.c and psp/xl_psp.c (the "P06 C2" log line); psp/main_psp.c (cfg 27 "people GE lighting on").
+
+Scripts (run from the tree's root): mk.sh <dir> (the x86 twin; x1 was built before OPT2_DEFAULT became ~32, x2 after), mkpsp.sh (the PSP
+model build sb12m, no PGO), chk12.sh / chk12x.sh (one x86 route; chk12x.sh takes X=<build dir>), c2x.sh <tag> [env] (the three routes in
+x1), c2runs.sh (t2 C2 on, t0 both off, t1 C1 on, t3 both on), c2pics.sh <shots> (PPSSPP master runs of the indoor route with shots and
+every frame's digests, C2 off and on, C1 on in both; B= the PSP build, O= where the outputs go), x86t15.sh (gl15's nine turns on x2,
+compared by gl15/t14cmp.py with x1's t1 and t3 runs), pgo_gl.sh (gl15's PGO training, traces and code order: C1 on, C2 off and on in
+turns).  gl15/: gl15_all.sh (gen, run, use, traces, two order searches), gl15_go.sh (pick the seed, then gl15_mk.sh: final link, the
+re-titled folder /home/claude/gl15, then gl15_chk.sh: emulator checks, model windows with C2 off and on, master), pickseed15.sh,
+gl15_cfghead.txt and dl_cfg.txt (the delivery cfg's head and tail).
+Checks and readers (python3 -I): gbcmp.py (two x86 runs' per-frame lines without the data size: draws, depth ranges), kbdiff.py (the
+frame data size, C2 on against off), pick.py (the frames C2 changes most), c2shots.py (comparison pictures for Ffm's folder: game
+pictures, personal use only).  Also tools/dev/sb11's t1cmp.py, digcmp.py, bmpcmp.py.
+Results: stagec_notes.md 2.9.

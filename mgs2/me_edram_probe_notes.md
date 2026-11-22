@@ -1,0 +1,155 @@
+# The ME eDRAM probe build (gl16ep)
+
+2026-11-03, task #150; me_handoff_design.md 4.9 (memory) and section 6 step 3. It is gl16's game with a probe of the Media Engine's own memory (the eDRAM) added, and nothing else changed. It ships after gl16's run is read, so only one build is out at a time. [C] = read in our code or logs; [S] = a source; [I] = inferred.
+
+## What it answers
+
+The picture on the ME draws each frame from a copy of what it reads: 955-1,192 KB in an average frame on our three routes and up to 3,907 KB (design 4.9). Main RAM has about 340 KB to spare. The eDRAM, the ME's own memory, is the place the design counts on. Five questions only the PSP can answer:
+
+1. **Size.** 2 MB or 4 MB on your PSP-3000. The sources differ: 2 MB on the PSP-1000 and 4 MB on later models [S: psp-media-engine-reload README, "Memory Map"], 2 MB on every model [S: Wikipedia, in ark4_options.md].
+2. **Does it keep what the ME writes?** At once, after 2 s, and through a whole run while the game runs. The reload project saw parts of the eDRAM change slowly by themselves with the ME core's settings [S: reload README, "The 0xBCC00000 Registers"].
+3. **Which register writes does it need?** Today's (turn A), or bit 3 of the ME's 0xBC100050 too (turn B). Turn C is left out of this build (below).
+4. **How fast?** The ME's copy into it (three ways) and its reads of it, against main RAM.
+5. **What does the ME's copy cost the main CPU?** The ME still reads the game's memory over the main bus, but its writes go to the eDRAM instead of main RAM. gl14mp's burst (the ME copying into main RAM as fast as it can) cost the main CPU 4.1-6.9% a step [C: gl14mp run 1, me_probe_notes.md].
+
+Left out, on purpose: whether the ME reaches VRAM (the ME's address 0x04000000 holds its own ping-pong buffers [S: reload README], so VRAM is not where the main CPU sees it; a probe of its own if the eDRAM falls short), the guards' cost (they are in the game's code, so they come with step 4's build, not in a probe on gl16's objects), and the ME's own DMA engines.
+
+## The turns and their register writes
+
+| turn | what is written on the ME's side | status |
+|---|---|---|
+| **A** | only the writes you OKed for v30me6c: 0xBC100040 = 2, 0xBC100050 = 7, the VME's reset and set-up (0xBCC00010, 70, 30 = 8, 40 = 2) [C: psp/me/hle_me_mgs2.c, ME_SONY_BOOT] | in every build |
+| **B** | 0xBC100050 = 0x0f instead of 7: bit 3, a bus clock enable; the eDRAM's bus by its place [I], which Sony's ME code switches on and off with requests 387 / 388, meSysregAwEdramBusClockEnable / Disable [S: uOFW me_wrapper.c:270-279], and which the custom ME core writes at its start [S: psp-media-engine-custom-core me-core.h:33]. A gate, not a speed or a voltage | in the build that ships: Ffm chose "A and B" on the card (2026-11-03 10:32); `EPREG=B`, EBOOT aaca9a99 |
+| **C** | B's, and 0xBCC00000 = 0xFFFFFFFF, 0xBCC00030 = 1, 0xBCC00040 = 1, with which the reload project stops a block from changing the eDRAM by itself [S: reload README]. The same source says the last two "seem to be related to frequencies" of that block, unconfirmed; today's start writes them with Sony's values, 8 and 2 | left out (the second card, 2026-11-03); asked for again only if the run's pattern check shows the eDRAM changing by itself (`EPREG=BC` exists in the build script, unused) |
+
+The card of 2026-11-03 asks which turns to build; the first card was withdrawn unanswered because it left out C's frequency remark. Each turn changes one thing. The build checks what its ME code holds (psp/gl16ep.sh: the ME unit's source as compiled, with its macros expanded, holds B's write only with `EPREG=B` or `BC` and C's only with `BC`). Ffm chose "A and B" (option 0) at 10:32, so the build that ships is turn B's (below).
+
+## Part 1: at the start, before the game
+
+As gl14mp: `__wrap_hw_probe` runs it after the existing hardware probe, before the game is loaded. Every line starts with "mep" in log.txt, and each one is on the stick at once (main_psp.c's mgs2_log_crash appends the log's unwritten lines; the harness otherwise writes the start's lines only after the boot report), so if the whole PSP stops in a step, log.txt ends with the last step that finished.
+
+1. **Memory.** The probe's big buffers (7,488 KB at most) are taken from the game's RAM in an 8 MB window 16 MB in, which is checked all zero first and zeroed and checked again before the game is loaded. The control block, the ME's own region (its stack) and a 64 KB ring are 80 KB outside the heap.
+2. **The start.** As v30me6c and gl14mp: Sony's start, the kernel helpers at their kernel alias, the ME resting between jobs (psp/me_rest.S). The ME's Count is started and calibrated against the main CPU's microsecond clock over 200 ms.
+3. **The main CPU's kernels alone** (gl14mp's: a round of 64 dependent integer instructions, one load a line over 4 MB, a chase over 4 MB): the reference for item 5.
+4. **Each turn** (A; B too in a build made after your tap):
+   - 0. The ME's 0xBC100050 read, and for B its write made and read back.
+   - 1. The eDRAM's first 2 MB filled with a pattern (a different word for every address and every fill) and checked word by word. If they do not hold, the turn stops here.
+   - 2. 2-4 MB filled as a job of its own, then both halves checked: both as written = 4 MB; the first 2 MB changed = the same 2 MB seen twice (2 MB); the upper half not kept = 2 MB; the ME stopping on those writes = 2 MB (it is started again).
+   - 3. All of it filled again and checked after 2 s, the ME at rest meanwhile.
+   - 4. Copies of 1 MB from main RAM by the ME: into main RAM (the reference) and into the eDRAM with plain stores, uncached stores and claimed lines (cache 0x18; 64 KB checked first). The destination is filled with a pattern first and each copy is checked word by word by the ME (the main CPU cannot read the eDRAM), so a copy that writes nothing there fails its check. The fastest copy into the eDRAM that checked equal becomes the turn's. Reads by the ME over 1 MB: one load a line and a chase, in the eDRAM (cached; uncached only if the uncached copy checked equal) and in main RAM.
+   - 5. The main CPU's kernels while the ME copies the (still zero) game memory into the eDRAM, then into the main RAM ring.
+   - A stop (an exception on the ME, or no answer by a job's deadline: 10 s for the fills and checks, 5 s for the copies and reads, 2 s for the rest; in step 5, an exception or no block copied while the kernels ran) holds the ME in reset; it is started again cold (its caches set without writing anything back) and the turn's writes are made again. A stop in steps 0, 1 or 3 ends the turn; one in step 2's writes above 2 MB takes the size as 2 MB and goes on; one in a copy, its check or the reads goes on with the next; one in step 5's copy into the eDRAM drops the turn from the game's turns and goes on with the copy into main RAM.
+5. **The game's turns** use the first turn that passed (every check equal, a copy checked, and its step 5 copy into the eDRAM without a stop). If B ran after it, the ME is started again cold, back to that turn's writes. Then the eDRAM above its first MB is filled with a pattern, the sentinel, which stays there all run.
+
+## Part 2: while the game runs
+
+`MGS2_MEP_CYCLE=1000:100:0,1,0,2`: from vblank 1000, 100 vblanks a window, four in turn. Window line vb W: k = (W - 1001) / 100, k mod 4:
+
+- 0 and 2: the ME at rest (halted between kicks). These fall on gl16's everything-on windows (k even there), so they compare with gl16's own run.
+- 1: the ME copies the 3,456 KB window of game RAM (4 MB in, gl14mp's) into the eDRAM's first MB, round and round, as fast as it can, with the turn's copy; after each 64 KB it checks the next 4 KB of the sentinel.
+- 3: the same copy into the 64 KB ring in main RAM (gl14mp's burst), the reference in the same run; the sentinel checked the same way.
+
+Each copy window sits between two windows at rest. A "mep vb" line every 100 vblanks gives the window's counts: blocks, MB copied, the ME's busy time, its rests and kicks, and the sentinel's KB checked and words changed so far (the first changed word's offset and value, and the 64 KB blocks with a change). At the end (or at HOME) the whole sentinel is checked once more, then the ME is stopped. If no turn passed, windows 1 run at rest. `MGS2_MEP=0` in mgs2.cfg leaves the ME off (gl16 with everything on).
+
+## What it touches
+
+- **Registers:** v30me6c's, and in turn B the ME's own 0xBC100050 = 0x0f (Ffm's card, 10:32). Turn C's are not in the build. The main CPU's registers are not written. No flash, no power register, no clock speed; nothing above 333 MHz.
+- **The ME's CPU registers:** Count, once, when its loop starts.
+- **Memory:** the ME reads the game's memory (never writes it), and writes the eDRAM, the ring, its own region and the control block. The game's state is untouched: the hashes stay the PC's.
+- **Code placement:** gl16's code at gl16's addresses (pads), so the rest windows time gl16's code.
+
+## Safety
+
+- Every job has a deadline; the ME is held in reset at a stop and started again cold.
+- A whole-PSP stall is possible [I] if a bus access never ends (the first write to the eDRAM is the first such access; with turn A's writes the bus clock bit B sets is off); holding the power switch up recovers it, nothing is written to flash, and log.txt ends with the last step of the start that finished (each start line is on the stick at once).
+- The eDRAM starts at address 0: the ME's unit is compiled with `-fno-delete-null-pointer-checks` and the build checks it holds no trap or break instruction, so an access at offset 0 is made as written.
+- The emulator has no ME: its runs must be (and are, below) exact against gl16's.
+
+## Build [C]
+
+`EPREG= sh psp/gl16ep.sh /home/claude/sbg16ep` on gl16's build d (/home/claude/sbg16/d), the way psp/gl14mp.sh built gl14mp on gl14's: gl16's objects as they are; main_psp.o compiled again with the title "MGS2 gl16ep, eDRAM probe" (24 characters, as gl16's "MGS2 harness gl16 meshes", which gives gl16's object byte for byte first); gl1_glue.o with its five functions renamed; psp/me_ep.o, v30me6c's bring-up (psp/me/hle_me_mgs2.c -DME_REST -DME_SONY -DME_SONY_BOOT -DME_KADDR) and the ME's unit (psp/me_ep_me.c + gl14mp's kernels psp/me_probe_kern.c + psp/me_rest.S, `ld -r`) after gl16's objects; `--wrap=hw_probe`. The ME's unit: nothing undefined, no relocation in its read-only data, no small-data access, no trap; turn B's write 0, turn C's 0. No new library function. Pads 0x11a0, 0x6c4, 0x1d90, 0x1d64 after 4 refits: gl16's 3,426 code symbols of its own objects at gl16's addresses (the five renamed ones under their new names), the library code +0x7fd4 (as gl14mp's +0x9f88), data moved by multiples of 8 KB (g_mem 0x09088280, gl16 0x0907c280), ovl_arena 0x08c04000 (gl16 0x08bf8000), each overlay gl16's size. EBOOT af50e028, overlays as gl16's objects give them (the same md5s in all three builds). Three builds: a4dbbe7d (08:26) was replaced before its checks ended (its copy checks could pass on the data of the copy before, and a window switch could touch a control block that does not exist when the ME's memory is not given); a0ebe802 (08:35) passed the emulator checks below but wrote the start's lines to the stick only after the start, and left the ME in reset for the rest of the run after a stop in step 5; af50e028 (08:48) was turn A's final build, kept in /home/claude/gl16ep but not shipped. Turn B (10:34, after Ffm's tap): `EPREG=B sh psp/gl16ep.sh /home/claude/sbg16epb`, the ME's unit with turn B's write 1 and turn C's 0; pads 0xf70, 0x624, 0x1d90, 0x1d64 after 4 refits; gl16's 3,426 code symbols at gl16's addresses, the library code +0x7fd8, ovl_arena 0x08c04000, ep_work 0x08baa78c; the overlays byte for byte turn A's. EBOOT aaca9a99 is the one to ship (delivery folder /home/claude/gl16epb, its README turn A's with turn B's lines; cfg pieces /home/claude/sbg16epb_cfg). In the build, if turn A passes the game's windows use A (the ME started again cold with A's writes after B's start tests); if only B passes, B's write stays for the run. Files: psp/me_ep.h, psp/me_ep.c, psp/me_ep_me.c, psp/gl16ep.sh; cfg pieces /home/claude/sbg16ep_cfg (cfghead.txt, dl_cfg.txt); delivery folder /home/claude/gl16ep.
+
+## Emulator checks [C]
+
+Build af50e028, 2026-11-03 08:49-09:01 (/home/claude/sbg16ep_cfg/emu, the master in /home/claude/msm/PSP/GAME/MGS2M_gl16ep):
+
+- **1.20.4 "emu hw"** (the delivery's cfg, no profile): 434 / 434 hash lines, 311 / 311 vuh lines and 150 / 150 frame digests (all ca951d9e7a6170d1) equal gl16's plain run (/home/claude/sbg16/emu/log_hwg16n.txt). Shots 15 / 16 byte for byte; shot 24784 differs as it does between gl16's own two 1.20.4 runs (1.20.4's run-to-run variance in frames that copy the frame being drawn), so the master judges the shots.
+- **PPSSPP master** on the delivery folder: 434 / 434, 311 / 311, 150 / 150 and 216,085,943 list words, all equal gl16's master run; the 16 shots byte for byte gl16's master shots.
+- **1.20.4 "emu hwmem"** (texture pool 5,120 KB larger, profiled step at vb 37,795): equal gl16's hwmem run (/home/claude/me14p2/emu/log_hwmemg16.txt) but for the hash at vb 37,800, the one line after the profiled step, which varies run to run (here 87acb392, the plain runs' and x86's value; gl16's hwmem run 0dd2d73c). Memory: lowest heap headroom 280 KB against gl16's 344 KB (64 KB less: the program's data and the heap start 56 KB higher), outside the heap 651 KB against 736 KB (the probe's 80 KB block). On the PSP about 320 KB at its lowest [I: gl16's ~384 KB less 64].
+- **The probe on the emulator:** the ME not started ("PPSSPP does not emulate the Media Engine"), its parts skipped; the main CPU's kernels ran (alu 206.09 ns a round, one load a line 7.52 ns, chase 15.03 ns a step); the scratch window zero before and after (7,488 KB used); the boot probe 0.55 s; 368 window lines (vb 1,100-37,800). The log's first 80 lines equal build 2's but for the code size line: writing each start line at once neither loses nor repeats a line.
+- Build 2 (a0ebe802) gave the same results on all three (hw 434 / 311 / 150 and 15 / 16 shots, master 434 / 311 / 150 and 16 / 16 shots, hwmem 280 KB).
+- **Turn B's build aaca9a99** (10:35-10:50, /home/claude/sbg16epb_cfg/emu, the master in /home/claude/msm/PSP/GAME/MGS2M_gl16epb): 1.20.4 hw 434 / 311 / 150 equal gl16's plain run, shots 15 / 16 equal turn A's and gl16n's (shot 24784 varies run to run, as before); master 434 / 311 / 150 and 216,085,943 list words equal gl16's master run, the 16 shots byte for byte gl16's master shots; hwmem equal gl16's but for the vb 37,800 hash (87acb392 again), lowest headroom 280 KB (as turn A). The first 80 log lines equal turn A's but for the folder and the code size (+4 bytes); the probe's line names both turns, and on the emulator (no ME) both are skipped.
+
+## Reading the run
+
+- "mep A: ..." lines: the size, the three checks, the copy rates, the reads, the main CPU's kernels while the ME copies (x the alone figure).
+- "mep vb" lines: windows 1 against windows 3 (the eDRAM copy against the main RAM copy) and both against their rest neighbours, as gl14mp's windows were read; the sentinel's count of changed words must stay 0.
+- What it decides for step 4 (the first ME picture build): the eDRAM keeps 4 MB with today's writes: the arena goes there with no new write; only with B: B is kept in later builds; changes by itself in some ranges: those ranges are left out, or C is asked for with the numbers; 2 MB: the frames over about 2,000 KB are drawn by the main CPU (design 4.9, "The arena"); not usable: the design's fallback (4.9's other rows).
+
+## Run 1 on your PSP (2026-11-03; turn B's build aaca9a99; files 18:21, `prof/hw_gl16ep/run1/`: log.txt c0de9858, battery.txt ad6f8ce5, crash.txt 69a68546, steps.csv 677687d5; the 16 shots in the container, /home/claude/hw_gl16ep/shots)
+
+- **To the end [C]:** "end: end of the run" at vb 37,800; battery end t 2,732 s = 45.5 min (gl16 44.9). crash.txt holds the catcher's start lines only. Power: charging over USB from t 216 s (vb 6,154) to the end ("external power 0, charging 1"), 73% / 4,038 mV -> 96% / 4,200 mV, 20 C.
+- **Exact [C]:** 434 / 434 hash lines and 311 / 311 vuh lines equal gl16's PSP run; the 150 frame digests all ca951d9e7a6170d1 and 216,085,943 list words, gl16's; the 16 shots byte for byte gl16's PSP shots.
+- **Memory [C]:** the break's highest point 0b867000 at vb 10,849: the lowest heap headroom about 324 KB (the estimate about 320; gl16 388, less the probe's 64 KB); 416 KB at the end; 651 KB outside the heap.
+- **The start [C]:** the ME started (heartbeat 756; its 0xBC100040 / 0xBC100050 found 1 / 0 before Sony's start), its Count at 331.339 MHz; the main CPU's kernels alone: alu 209.04 ns a round, one load a line 172.35 ns, chase 218.05 ns a step. The start took 2.58 s.
+- **Turn A [C]:** the ME's 0xBC100050 reads 7. In step 1 (the first 2 MB filled) the ME took an exception: Cause 0x1c (ExcCode 7, a bus error on a data load or store), EPC 0x88baad58 = fill()'s store `sw v0,-4(a1)` (ep_work + 0x5cc in /home/claude/sbg16epb/MGS2T.elf); BadVAddr ff7017a9 is stale (a bus error does not set it). Held in reset, started again cold.
+- **Turn B [C]:** 0xBC100050 7 -> 0x0f, reads 0x0f after; the same exception at the same store. Started again cold with A's writes for the game's turns.
+- **So no turn passed [C]:** none of the five questions has its answer yet, and the game's windows 1 ran at rest, as the build says. Which word the store failed on is not known: the handler keeps Cause, EPC and BadVAddr only, and fill() writes no progress word.
+- **The game's windows [C]** (`tools/dev/mep/g16epwin.py` <gl16ep log> <gl16 log>; shot windows left out; ms a step): the ME at rest (windows 0) against gl16's run at the same vblanks (means), and the ME copying the game's memory into the main RAM ring as fast as it can (windows 2) against its two rest neighbours (medians):
+
+| part of the route | at rest, gl16 -> gl16ep | ring copy | ME copied, median a window |
+|---|---|---|---|
+| to vb 15,600 (73 / 35 windows) | 45.85 -> 45.81 (-0.1%) | +2.14 (+5.6%) | 468 MB |
+| call 1 (22 / 10) | 55.69 -> 55.70 | +3.11 (+5.5%) | 534 MB |
+| viewfinder (28 / 13) | 76.43 -> 76.34 | +6.19 (+7.6%) | 620 MB |
+| call 2 (14 / 7) | 55.86 -> 55.87 | +2.89 (+5.0%) | 546 MB |
+| deck waiting (4 / 2) | 149.47 -> 149.50 | +7.32 (+4.9%) | 1,408 MB |
+| deck walk (4 / 1) | 146.37 -> 146.40 | -5.55 (one window: noise) | 1,240 MB |
+| inside (28 / 10) | 92.94 -> 92.97 | +5.19 (+5.8%) | 912 MB |
+
+  Windows 1 (at rest here) against their neighbours: medians -1.0% to +0.6% (one deck walk window +5.6%), noise.
+- **Reading [C]:** the resting ME costs nothing measurable (every part within 0.1% of gl16's own run). Its copy into main RAM as fast as it can costs the main CPU 5.0-7.6% a step, gl14mp's 4.1-6.9% again. The copy into the eDRAM, which the design counts on to cost less (its writes stay off the main bus), is not measured yet.
+- **Why the eDRAM stopped the ME [I, the likely cause, not proven]:** the probe reached the eDRAM through the user segment (0x00000000 cached, 0x40000000 uncached), while every main RAM address the ME used in the same run through that segment worked (the ring at 0x0b8bc000 and the game's memory: 468-1,408 MB a window). The custom core keeps the ME's stack at 0x80200000 or 0x80400000, the top of a 2 or 4 MB eDRAM through the cached kernel segment [S: psp-media-engine-custom-core me-core.h, meLibHandler], and its start writes all ones to the ME's 0xBC000000-0xBC00002C, which it calls "unlock memory", and 0xBC000030-0xBC000044, "unlock user registers" [S: its me-lib.h]. So the eDRAM most likely answers through the kernel segments (0x80000000 cached, 0xA0000000 uncached) with today's writes, as that stack does, and refuses the user segment while those registers protect it. The reload project's 0xBCC00000 writes (turn C) are about a block that changes the eDRAM by itself, not about reaching it [S: reload README].
+- **Next (task #163): a second probe, with no new register write.** gl16's objects again (two runs of them to compare with), gl16ep's probe with: the eDRAM through the kernel segments; first four one-word tests, each leaving a progress word in the control block (an uncached read at 0xA0000000; an uncached write read back; a cached write at 0x80000000 written back and read uncached; then the whole probe as before); the exception handler keeping the ME's registers, so a stop names the address; a read-only look at the ME's 0xBC000000-0xBC000044 at the start; last, one read through the user segment, to confirm the cause. It ships after gl17's run is read (one build out at a time). If the kernel segments fail too, the unlock (new writes) or the design's fallback rows (4.9) come to you with the numbers.
+
+## Probe 2 (gl16ep2, task #163, 2026-11-03)
+
+Run 1 never reached the eDRAM (above). Probe 2 is the same build on gl16's objects with one change of address and more reporting, so its run compares with gl16's and gl16ep's runs. No new register write: turns A and B as before (Ffm's card, 10:32).
+
+- **The eDRAM through the kernel segments** (`-DEP_P2`, psp/me_ep.h): 0x80000000 cached, 0xA0000000 uncached, as the custom core's stack uses it [S: me-core.h]. Every job, copy, kernel and stream address follows from EP_EDRAM / EP_EDRAM_UNC, so the whole of probe 1's test plan runs unchanged through them.
+- **Before the turns:** the ME reads its 0xBC000000-0xBC00001C, -0x3C and 0xBC000040-0xBC000044 (EP_J_SNAP; reads only; 18 words) [S: the custom core writes all ones there, "unlock memory" and "unlock user registers", me-lib.h]. A stop there: the ME started again cold, the turns go on.
+- **Each turn, after its writes:** four one-word tests at eDRAM offset 0x100, each a job of its own (EP_J_WORD): 1 an uncached read (0xA0000100); 2 an uncached write read back; 3 a cached write at 0x80000100 (its line dropped first), written back, read uncached; 4 an uncached write read cached (its line dropped first). The value written names the turn and the test (0xED<turn><test>5A). A stop ends the turn (started again with the turn's writes, as before); a value read back different does not (the long checks then say more).
+- **After both turns:** one cached read through the user segment at 0x00000100 (EP_J_WORD test 5), the way probe 1's fill reached the eDRAM; a stop there confirms the cause [I until then]; the ME is then started again cold, and the game's turns get the turn that passed (with B's write made again if only B passed: probe 2 restarts for the game's turns whenever the turn in force differs from the one chosen).
+- **The progress word** EpCtl.prog (one of pad1's words; the block's layout and size unchanged): the address the ME is at, written before each 64 KB of a fill or check, each copy, comparison, kernel, stream block and sentinel step, each one-word test and register read; odd: the write-back of the range starting one below it; 0xFFFFFFFC: the whole D-cache's write-back at a job's end. A stop's line adds "the ME was at <prog> (job <n>, its first argument <a0>)".
+
+**Build [C]:** `EPREG=B sh psp/gl16ep2.sh /home/claude/sbg16ep2` (psp/gl16ep.sh with `-DEP_P2` for the probe's units and the title "MGS2 gl16ep2 eDRAM probe", 24 characters; one more check: every store to a register in the ME's unit as compiled (an HW() write) is a turn's: 1, turn B's). Without `-DEP_P2` the edited sources give gl16ep's EBOOT byte for byte (EPREG=B rebuilt 2026-11-03: aaca9a99, overlays equal). The ME's unit .text 0x1a14 (probe 1 0x17d8), me_ep.o 0x45ac (0x41d4); pads 0x960, 0x224, 0x1d90, 0x1d64 after 4 refits; gl16's 3,426 code symbols at gl16's addresses, the library code +0x7fdc, ovl_arena 0x08c04000, ep_work 0x08baab64; the overlays byte for byte gl16ep's. EBOOT 9458618b; delivery folder /home/claude/gl16ep2 (README.txt 30c1bb19, mgs2.cfg a23f31be); cfg pieces /home/claude/sbg16ep2_cfg (the cycle and settings gl16ep's).
+
+**Emulator checks [C]** (2026-11-03 18:59-19:11, scratchpad `ep2/ep2_chk.sh`, /home/claude/sbg16ep2_cfg/emu; the master in /home/claude/msm/PSP/GAME/MGS2M_gl16ep2): 1.20.4 plain: 434 / 434 hash lines, 311 / 311 vuh lines and 150 / 150 frame lines equal gl16's plain run and turn B's; shots 15 / 16 (24784 varies run to run on 1.20.4, as before). Master: 434 / 311 / 150, 216,085,943 list words and the 16 shots byte for byte gl16's master run and turn B's. 1.20.4 hwmem: equal turn B's hwmem run line for line (its vb 37,800 hash 87acb392 too); lowest heap headroom 280 KB, as turn B (gl16 344; turn B on the PSP 324). The probe on the emulator (no ME): its probe 2 line, both turns skipped, "the user segment's read: not made (the ME is not running)", the boot probe 0.58 s, 368 window lines.
+
+**Reading the run:** the register line first (all ones: those registers did not refuse the user segment; anything else: the user segment's refusal may be theirs); then each turn's four tests (all as written: the eDRAM answers through the kernel segments with that turn's writes; a stop: the address in the stop's line); the user segment's line (a stop confirms probe 1's cause); then everything as "Reading the run" above.
+
+## Probe 2's run on your PSP (2026-11-08; build 9458618b; files 03:28, `prof/hw_gl16ep2/run1/`: log.txt 6fd661d6, battery.txt 09f5a1be, crash.txt 7f90a46d, steps.csv 32507c20; the 16 shots in the container, /home/claude/hw_gl16ep2/shots)
+
+- **To the end [C]:** "end: end of the run" at vb 37,800; battery end t 2,726 s = 45.4 min (run 1 45.5). On the battery alone all through ("external power 0, charging 0" in every power line), 87% / 4,134 mV -> 74% / 4,068 mV, 20 C, no stop: it passed vb 33,044-33,100, where gl17's run 1 stopped on the battery alone (task #169: battery-alone runs through that stretch now stopped 2 of 7). crash.txt holds the catcher's start lines only.
+- **Exact [C]:** 434 / 434 hash lines and 311 / 311 vuh lines equal gl16's PSP run and probe 1's run; the 150 frame digests all ca951d9e7a6170d1 and 216,085,943 list words, gl16's; the 16 shots byte for byte gl16's PSP shots.
+- **Memory [C]:** the break's highest point 0b867000 at vb 10,849: the lowest heap headroom about 324 KB (as probe 1); 416 KB at the end; 651 KB outside the heap.
+- **The start [C]:** the ME started (heartbeat 671; its 0xBC100040 / 0xBC100050 found 1 / 0), its Count at 331.310 MHz; the main CPU's kernels alone: alu 209.60 ns a round, one load a line 171.31 ns, chase 219.01 ns a step. The boot probe took 7.62 s (probe 1 2.58 s: it stopped at its first store).
+- **The ME's registers, read only [C]:** 0xBC000000-0xBC00000C ffffffff, 0xBC000010 fffffffc, 0xBC000014-0xBC00002C ffffffff, 0xBC000030 000f3fff, 0xBC000034 00003f03, 0xBC000038 0000000f, 0xBC00003C 00000000, 0xBC000040 00000003, 0xBC000044 003f003f. Not all ones (bits 0-1 of 0xBC000010 clear, and 0xBC000030-0xBC000044 hold other values than the custom core writes), so the user segment's refusal may be theirs [I]. It does not matter for the build: the kernel segments work.
+- **Turn A (today's writes; 0xBC100050 reads 7) [C]:** the four one-word tests at offset 0x100 all as written: the uncached read 00000000 with no stop; the uncached write read back, the cached write written back and read uncached, the uncached write read cached: each read what it wrote. The eDRAM is 4 MB: the first 2 MB filled (34.06 ms, 61.6 MB/s) and checked, 2-4 MB filled and both halves checked, every word as written; all 4 MB filled again and checked after 2 s: every word kept. 1 MB copies by the ME, 0 wrong words each: main RAM to main RAM 103.2 MB/s; into the eDRAM with plain stores 138.8 MB/s, uncached stores 132.5, claimed lines (cache 0x18) 164.4; a write-back 0.35 ms. The ME's reads over 1 MB: one load a line 81.97 ns in the eDRAM, 168.53 in main RAM; a chase 103.08 ns a step in the eDRAM (97.01 uncached), 213.46 in main RAM. The main CPU's kernels while the ME copies into the eDRAM: x0.997, x1.009, x1.000 of alone (alu, one load a line, chase), the ME at 109.6 MB/s each way; while it copies main RAM to main RAM: x1.000, x1.046, x0.998, at 98.8 MB/s.
+- **Turn B [C]:** 0xBC100050 7 -> 0x0f, read back 0x0f; every test, size, check and rate as turn A's (within 0.1%). Turn B's write is not needed.
+- **The user segment [C]:** the cached read at 0x00000100 stopped the ME: Cause 0x801c (ExcCode 7, a bus error), EPC 0x88bab934, "the ME was at 00000100 (job 9, its first argument 00000005)", test 5. Probe 1's cause is confirmed: the user segment, not the eDRAM. The ME started again cold and the game's turns ran with turn A.
+- **The sentinel [C]:** eDRAM 0x100000-0x400000, 7,964,060 KB checked during the run and the whole range at the end: 0 words changed. Nothing changed the eDRAM by itself with today's writes on this route.
+- **The game's windows [C]** (`tools/dev/mep/g16ep2win.py` <gl16ep2 log> <gl16 log>: g16epwin.py with windows 1 read as the eDRAM copy; shot windows left out; ms a step; medians against the two rest neighbours; windows counted at rest / eDRAM copy / ring copy):
+
+| part of the route | at rest, gl16 -> gl16ep2 (means) | ME copies into the eDRAM | its MB a window | ME copies into main RAM | its MB a window |
+|---|---|---|---|---|---|
+| to vb 15,600 (73 / 35 / 35) | 45.85 -> 45.78 (-0.1%) | +0.26 (+0.9%) | 495 | +1.95 (+5.6%) | 423 |
+| call 1 (22 / 10 / 10) | 55.69 -> 55.67 | +0.82 (+1.4%) | 554 | +2.95 (+5.2%) | 483 |
+| viewfinder (28 / 11 / 13) | 76.43 -> 76.33 | +0.66 (+0.8%) | 525 | +5.98 (+6.4%) | 560 |
+| call 2 (14 / 6 / 7) | 55.86 -> 55.89 | +0.60 (+1.0%) | 566 | +2.53 (+4.3%) | 493 |
+| deck waiting (4 / 1 / 2) | 149.47 -> 149.55 | +0.96 (+0.6%) | 1,440 | +6.86 (+4.6%) | 1,272 |
+| deck walk (4 / 1 / 1) | 146.37 -> 146.46 | +10.44 (one window) | 1,560 | -5.91 (one window) | 1,122 |
+| inside (28 / 12 / 10) | 92.94 -> 93.02 | +1.48 (+1.6%) | 943 | +4.94 (+5.5%) | 824 |
+
+- **Reading [C]:** the eDRAM answers through the kernel segments (0x80000000 cached, 0xA0000000 uncached) with today's register writes; it holds 4 MB, keeps every word, and nothing changed it by itself. The ME copying into it as fast as it can (about 110 MB/s each way) costs the main CPU 0.6-1.6% of a step, about a quarter of its copy into main RAM (4.3-6.4% here, probe 1's 4.9-7.6% again); the deck walk's single windows go opposite ways by 6-7%, as one did in probe 1 (noise). The resting ME costs nothing measurable (each part within 0.1% of gl16's run).
+- **What it decides ("Reading the run" above) [C]:** the eDRAM keeps 4 MB with today's writes, so the arena goes there with no new register write: step 4, the first ME picture build, puts the hand-off's copy (955-1,192 KB in an average frame, up to 3,907 KB; `me_handoff_design.md`) in the eDRAM through the kernel segments with turn A's writes only, and turn B's write is not kept. That copy is about 1 MB a step against the 9-16 MB a step these windows copied, so its own cost on the main CPU should be well under 1% of a step [I].

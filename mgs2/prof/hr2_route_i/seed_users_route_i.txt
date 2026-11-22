@@ -1,0 +1,89 @@
+# Who steps the stage random seeds on route i (twin, pad_w01af.txt, to vb 37,800), and through which actors
+# Thread "MGS2 port", 2026-11-07, for the logic thread. Numbers and names only. Built from: a store census of the seed word
+# (every CPU store on route i, by function), the static call graph of each stage (container only), the actors each stage
+# registers with a name (the name string the game passes when it creates the actor), and the reference names (w00a list).
+# "acts" = named actors whose update function reaches this function through static calls (jal/j, address-formed callbacks),
+# so a shared helper lists every actor that can call it, not only the ones that did on route i. "init of" = only reached
+# from an actor's creation function. Every function listed contains the inlined step x = x*0x5d588b65+1 (checked).
+# columns: function | w00a twin (w01a rows) | HD name | stores on route i | first-last vb | actors
+
+## w01a, seed 0x1fbd74
+350f40 | 362998 | -                |   26834 | 36490-37799 | acts attacker.c, eneequip.c, usp.c, watcher.c
+3178b0 | 328f58 | -                |   11253 | 31694-32323 | acts face_bug.c, hairevm.c, rai_equip.c, ropemain.c, waving_cloth.c
+2d1b70 | 2d2858 | -                |    9992 | 31660-31898 | acts charaspread.c
+2b4c38 | 2b9e78 | -                |    8735 | 31668-37799 | acts eyeanim.c
+31cf40 | -      | -                |    6296 | 37594-37799 | acts steam_smoke.c
+350100 | 361b58 | -                |    4526 | 37498-37798 | acts attacker.c, eneequip.c, usp.c, watcher.c
+2c5a58 | -      | -                |    3020 | 31686-37775 | acts win_rain.c
+32ef48 | 341c88 | -                |    1728 | 34846-37730 | acts attacker.c, electric_floor.c, usp.c, watcher.c
+383fb0 | 395a08 | -                |    1274 | 36773-37761 | acts attacker.c, eneequip.c, usp.c
+35ec30 | 370688 | -                |    1061 | 36517-37799 | acts emb_control.c
+352400 | 363e58 | -                |     880 | 36489-37798 | acts attacker.c, eneequip.c, usp.c, watcher.c
+347350 | 358da8 | -                |     528 | 36489-37798 | acts attacker.c, corps.c, eneequip.c, watcher.c
+2b4058 | 2b9298 | SIG_SetRandFvec  |     486 | 37498-37799 | acts attacker.c
+2d2848 | 2d3530 | -                |     384 | 31660-31660 | init of charaspread.c
+314810 | 3251a0 | -                |     384 | 36491-37742 | acts blood_part1.c, raiden.c
+317668 | 328d10 | -                |     336 | 31660-31742 | acts wind_local.c
+357488 | 368ee0 | -                |     308 | 36489-37798 | acts attacker.c, corps.c, eneequip.c, watcher.c
+3509d8 | 362430 | -                |     279 | 37498-37798 | acts attacker.c, eneequip.c, usp.c, watcher.c
+2c7a60 | -      | -                |     256 | 31704-32362 | acts puddle.c
+384620 | 396078 | -                |     180 | 36760-37798 | acts attacker.c, eneequip.c, usp.c, watcher.c
+22a878 | 233498 | KR_RandU         |     122 | 31870-37485 | acts attacker.c, command.c, watcher.c
+2b4238 | 2b9478 | SIG_BasicShoot   |     117 | 37498-37798 | acts attacker.c
+31d8a0 | -      | -                |      97 | 37592-37592 | init of steam_smoke.c
+22a8d0 | 2334f0 | KR_RandS         |      91 | 31658-37798 | acts attacker.c, corps.c, eneequip.c, watcher.c
+32d688 | 3403c8 | -                |      80 | 36491-37738 | acts raiden.c
+30eb38 | 31e350 | -                |      51 | 36491-37655 | acts blood_part1.c, raiden.c
+360210 | -      | -                |      44 | 36489-37798 | acts attacker.c, corps.c, eneequip.c, usp.c, watcher.c
+2c6700 | -      | -                |      42 | 31659-31659 | init of win_rain.c
+2a31b0 | 2a83f0 | -                |      20 | 37633-37675 | acts attacker.c
+3551c8 | 366c20 | -                |      15 | 37246-37326 | acts corps.c, crtrg.c, crtrg_ft.c
+314cd0 | 325660 | -                |      12 | 36491-37758 | acts blood_part1.c, raiden.c
+327298 | -      | -                |       8 | 31660-31660 | init of steam_cm.c
+30f640 | 31ee58 | -                |       4 | 36491-37738 | acts blood_part1.c, raiden.c
+3557e0 | 367238 | -                |       2 | 37221-37221 | acts corps.c, crtrg.c
+2d51c8 | 2d5eb0 | -                |       1 | 31658-31658 | acts attacker.c, watcher.c
+2af900 | 2b4b40 | AT_ActShootGun   |       1 | 37654-37654 | acts attacker.c
+2a5e08 | 2ab048 | -                |       1 | 37734-37734 | acts attacker.c
+
+## w00a, seed 0x1fc954
+33cc70 |        | -                |  987648 | 23259-31317 | acts c_box.c, item_box.c
+3271a8 |        | -                |  731692 | 23259-31046 | acts attacker.c, body_sph.c, watcher.c
+317e88 |        | -                |  306229 | 23258-30798 | acts d_splash_floor.c
+30ec00 |        | -                |  293776 | 23259-31317 | acts chim_smo.c
+2d2858 |        | -                |  120504 | 23259-31317 | acts charaspread.c
+3420e8 |        | -                |  107350 | 23258-31316 | acts d_splash_camera.c
+3190c8 |        | -                |   96147 | 23257-30982 | acts d_splash_fall.c
+332180 |        | -                |   31542 | 23260-30709 | acts ripple.c
+31ba90 |        | -                |   12288 | 23258-29067 | init of rain.c
+2b9e78 |        | -                |    4871 | 29077-31317 | acts eyeanim.c
+2e28d0 |        | -                |    3150 | 29068-31313 | acts put_vanime.c
+331160 |        | -                |    2781 | 23260-31315 | acts rain_gas_pers.c
+3437f8 |        | -                |    2304 | 23259-31042 | acts d_splash_motion.c
+329850 |        | -                |    2176 | 23260-31045 | acts ft_splsh.c
+314790 |        | -                |    2172 | 29092-31263 | acts thund_flash.c
+320f80 |        | -                |    1604 | 23259-31317 | acts wind_man.c
+330dc8 |        | -                |    1024 | 23258-29067 | init of weapon_sph.c, weapon_sph2.c
+2d3530 |        | -                |     768 | 23256-29064 | init of charaspread.c
+3136d8 |        | -                |     672 | 23259-29068 | init of sky_prev.c
+332c38 |        | -                |     512 | 23258-29067 | init of ripple.c
+30f400 |        | -                |     360 | 23259-29068 | init of chim_smo.c
+2e3488 |        | -                |     324 | 30218-30838 | acts wave.c
+330258 |        | -                |     256 | 23258-29067 | init of weapon_sph.c
+312b98 |        | -                |     120 | 23259-29068 | init of bonbori_red.c
+31af28 |        | -                |      73 | 23260-31312 | acts rain.c
+2e3d28 |        | -                |      72 | 30218-30838 | acts wave.c
+233498 |        | KR_RandU         |      53 | 29330-31291 | acts attacker.c, command.c, watcher.c
+2dffb8 |        | -                |       6 | 23259-29067 | init of wave.c
+2334f0 |        | KR_RandS         |       4 | 29066-29066 | acts attacker.c, corps.c, eneequip.c, watcher.c
+2d5eb0 |        | -                |       3 | 29066-29066 | acts attacker.c, watcher.c
+2e05c0 |        | -                |       3 | 30218-30838 | acts wave.c
+313e08 |        | -                |       2 | 23259-29068 | init of sky_prev.c
+
+# Notes
+# - The census counts stores; memcpy (P16cff8) also writes both words 64 times when stage images load (not a step).
+# - w01a 0x2b4238 = SIG_BasicShoot (w00a 0x2b9478); 0x251ed8 = ENE_ShootBullet (w00a 0x25b420). 0x22a8d0 / 0x22a878 = KR_RandS / KR_RandU
+#   (w00a 0x2334f0 / 0x233498), 0x2b4058 = SIG_SetRandFvec, 0x2af900 = AT_ActShootGun.
+# - Whole w01a image: 274 functions form the seed address (static count, not only route i); 0x3a4328 sets it from its argument (srand).
+# - Guards and effects draw from the same word: any change in how often an effect actor runs (or how many particles it
+#   draws for) changes every later value the guards get, e.g. SIG_BasicShoot fires when bits 8-9 of its new value are 0.

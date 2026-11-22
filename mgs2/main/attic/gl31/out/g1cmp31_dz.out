@@ -1,0 +1,41 @@
+== d0 (NAT key absent, arm X on every frame) vs a2 (NAT key absent, gl30's DZ = gl30's twin in all frames)
+tw/x86/out_a2.log: 17664 picture lines, 17664 content; tw/x86/out_d0.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 330; arm 0: 330 of 17664
+      arm 0: vb 10426..29488, first [10426, 10516, 10546, 10572, 10848, 10872, 10928, 11024]
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 16748; arm 0: 16748 of 17664
+      arm 0: vb 31..37799, first [31, 33, 35, 37, 41, 43, 209, 211]
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+== d1 (0,0,3,3, arm X on every frame: the delivered keys) vs d0
+tw/x86/out_d0.log: 17664 picture lines, 17664 content; tw/x86/out_d1.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 69; arm 0: 30 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30922..31000, first [30922, 30924, 30926, 30928, 30930, 30932, 30934, 30936]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+== d1 vs b (0,0,3,3 with gl30's DZ)
+tw/x86/out_b.log: 17664 picture lines, 17664 content; tw/x86/out_d1.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 330; arm 0: 220 of 14364; arm 3: 108 of 3233; first picture of a turn: 2 of 67
+      arm 0: vb 10426..29400, first [10426, 10516, 10546, 10572, 10848, 10872, 10928, 11024]
+      arm 3: vb 29072..29488, first [29072, 29074, 29076, 29078, 29080, 29082, 29084, 29086]
+      first picture of a turn: vb 29202..29402, first [29202, 29402]
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 16748; arm 0: 13909 of 14364; arm 3: 2781 of 3233; first picture of a turn: 58 of 67
+      arm 0: vb 31..37799, first [31, 33, 35, 37, 41, 43, 209, 211]
+      arm 3: vb 24204..37599, first [24204, 24206, 24208, 24210, 24212, 24214, 24216, 24218]
+      first picture of a turn: vb 24202..37601, first [24202, 24402, 24602, 24802, 25002, 25201, 25401, 25601]
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67

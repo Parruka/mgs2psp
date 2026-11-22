@@ -1,0 +1,510 @@
+diff -ruN s1/boot/xlive_chk.c b/boot/xlive_chk.c
+--- s1/boot/xlive_chk.c	2026-10-30 20:55:59.400286568 +0000
++++ b/boot/xlive_chk.c	2026-10-30 20:55:59.396469596 +0000
+@@ -112,7 +112,8 @@
+ extern uint32_t g_dg_calls[2];   /* boot.c: draw-pipeline calls, full / reduced */
+ static int skip_on, skip_now; static uint32_t sk_c0, sk_c1; static long sk_vb, sk_tr;   /* MGS2_XLIVE_SKIP */
+ extern int g_xl_one;                    /* runtime/ee_io.h: the exact walk feeds the translator (MGS2_XLIVE_ONE) */
+-extern int g_xl_lane;                   /* sb1 runtime/ee_io.h: Stage B lane 1 (MGS2_SB_LANE=1; MGS2_SB_CHK=1 checks its df0 input) */
++extern int g_xl_lane;                   /* sb1, sb2 runtime/ee_io.h: Stage B lanes (MGS2_SB_LANE: bit 0 lane 1, bit 1 lane 2; MGS2_SB_CHK=1
++                                           checks the lanes' df0 and P06 input) */
+ static int one_on; static long one_tr; static struct timespec one_t0;
+ static uint64_t ph = 0xcbf29ce484222325ull;
+ static long cur_vb;
+@@ -641,7 +642,9 @@
+ static void totals(void)
+ {
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+-  if (g_xl_lane) fprintf(stderr, "sb lane: %ld df0 calls from the game's streams; checked %ld, differing %ld\n", xc_rec_calls, xc_rec_n, xc_rec_diff);
++  if (g_xl_lane) fprintf(stderr, "sb lane: groups %ld (lane 1) %ld (lane 2); %ld df0 calls from the game's streams, checked %ld, differing %ld; "
++                         "%ld P06 calls from the game's streams, %ld from the VU memory, checked %ld, differing %ld\n", xl_lane_groups[1],
++                         xl_lane_groups[2], xc_rec_calls, xc_rec_n, xc_rec_diff, xc_rec6_calls, xc_rec6_vm, xc_rec6_n, xc_rec6_diff);
+   if (gl_need) fprintf(stderr, "sb need: %ld converter calls, %ld descriptors decoded for them; checked %ld, differing %ld\n", xl_stats()->need_calls,
+                        xl_stats()->need_runs, gl_need_n, gl_need_diff);
+   fprintf(stderr, "xlive: vb %ld..%ld: %ld transfers, %ld tags, %ld quadwords (%ld chains cut at 1,000,000 tags); translator: %ld VIF1 words, "
+@@ -771,8 +774,10 @@
+     for (const char *c = getenv("MGS2_XLIVE_CENSUS"); c && *c && census_n < 32; ) { census_at[census_n++] = strtol(c, (char **)&c, 10); if (*c == ',') c++; else break; }
+     vc_on = getenv("MGS2_XLIVE_VCEN") && atoi(getenv("MGS2_XLIVE_VCEN"));
+     if (getenv("MGS2_SB_NEED") && atoi(getenv("MGS2_SB_NEED"))) { gl_need = 1; xl_need(1); gl_need_chk = getenv("MGS2_SB_NCHK") && atoi(getenv("MGS2_SB_NCHK")); }
+-    if (getenv("MGS2_SB_LANE") && atoi(getenv("MGS2_SB_LANE"))) { g_xl_lane = 1; xl_lane(1); xc_rec_chk = getenv("MGS2_SB_CHK") && atoi(getenv("MGS2_SB_CHK"));
+-      fprintf(stderr, "xlive mode: Stage B lane 1 (MGS2_SB_LANE)%s\n", xc_rec_chk ? ", its df0 input checked (MGS2_SB_CHK)" : ""); }
++    if (getenv("MGS2_SB_LANE") && (atoi(getenv("MGS2_SB_LANE")) & 3)) { g_xl_lane = atoi(getenv("MGS2_SB_LANE")) & 3; xl_lane(1);
++      xc_rec_chk = getenv("MGS2_SB_CHK") && atoi(getenv("MGS2_SB_CHK"));
++      fprintf(stderr, "xlive mode: Stage B lanes%s%s (MGS2_SB_LANE)%s\n", (g_xl_lane & 1) ? " 1" : "", (g_xl_lane & 2) ? " 2" : "",
++              xc_rec_chk ? ", their df0 and P06 input checked (MGS2_SB_CHK)" : ""); }
+     if (getenv("MGS2_SB_PROBE")) { tp_vb = atol(getenv("MGS2_SB_PROBE")); const char *c = strchr(getenv("MGS2_SB_PROBE"), ':'); tp_to = c ? atol(c + 1) : tp_vb; }
+     if (fn[0] && !(dig = fopen(fn, "w"))) { fprintf(stderr, "xlive: cannot write %s\n", fn); exit(1); }
+     dig_on = dig != 0;
+diff -ruN s1/ge/vu1conv.c b/ge/vu1conv.c
+--- s1/ge/vu1conv.c	2026-10-30 20:55:59.738094375 +0000
++++ b/ge/vu1conv.c	2026-10-30 20:55:59.726908709 +0000
+@@ -361,8 +361,13 @@
+   uint32_t a1, a2;                                  /* without a factor: the alpha byte as the program kicks it, and the GE's */
+ } P6F;
+ typedef struct { uint32_t pos, uv, z, z2, var, fac, andn, amin, du, dv; } P6Chk;
+-static inline __attribute__((always_inline)) void p6_loop(const P6F *k, const uint32_t *q, int n, uint32_t adc, uint8_t *o1, uint8_t *o3,
+-  uint16_t *flags, uint32_t *rgba, P6Chk *ck, const int SKIN, const int TINT, const int NL, const int P3, const int CHK2)
++/* sb2, Stage B lane 2: a call's vertices in the game's data (vc_p06_rec): streams A, B, F V4-16 signed, 4 halfwords a vertex (the VU's
++   words are those halfwords sign-extended), C, D V2-16 signed, 2 halfwords a vertex (the VU's x, y; its z is ROW z: cz, dz) */
++typedef int16_t __attribute__((may_alias)) p6h16;
++typedef struct { const p6h16 *a, *b, *c, *d, *f; uint32_t cz, dz; } P6Rec;
++static inline __attribute__((always_inline)) void p6_loop(const P6F *k, const uint32_t *q, const P6Rec *r, int n, uint32_t adc, uint8_t *o1,
++  uint8_t *o3, uint16_t *flags, uint32_t *rgba, P6Chk *ck, const int SKIN, const int TINT, const int NL, const int P3, const int CHK2,
++  const int REC)
+ {
+   const float i12 = 1.0f / 4096;
+   const float lx0 = k->lx[0], ly0 = k->ly[0], lz0 = k->lz[0], cr0 = k->cr[0], cg0 = k->cg[0], cb0 = k->cb[0];
+@@ -383,13 +388,19 @@
+ #undef P6K3
+   const uint32_t a1 = k->a1, a2 = k->a2;
+   uint32_t pos = 0, uv = 0, z = 0, z2 = 0, var = 0, fac = 0, andn = ~0u, amin = 255, du0 = 0, dv0 = 0;
+-  if (CHK2) { du0 = q[12] - q[8]; dv0 = q[13] - q[9]; }
+-  for (int i = 0; i < n; i++, q += 24) {
+-    const uint32_t P0 = q[0], P1 = q[1], P2 = q[2], U0 = q[8], U1 = q[9], f = q[7];
+-    float n0 = (float)(int32_t)q[4] * i12, n1 = (float)(int32_t)q[5] * i12, n2 = (float)(int32_t)q[6] * i12, p0 = 0, p1 = 0, p2 = 0;
++  const p6h16 *ra = 0, *rb = 0, *rc = 0, *rd = 0, *rf = 0;
++  if (REC) { ra = r->a; rb = r->b; rc = r->c; rd = r->d; rf = r->f; z = r->cz ^ 0x1000u; z2 = CHK2 ? r->dz ^ 0x1000u : 0; }   /* every
++                                                    vertex's UV z is ROW z (n > 0 here) */
++#define P6H(p, j) ((uint32_t)(int32_t)(p)[j])
++  if (CHK2) { du0 = REC ? P6H(rd, 0) - P6H(rc, 0) : q[12] - q[8]; dv0 = REC ? P6H(rd, 1) - P6H(rc, 1) : q[13] - q[9]; }
++  for (int i = 0; i < n; i++) {
++    const uint32_t P0 = REC ? P6H(ra, 0) : q[0], P1 = REC ? P6H(ra, 1) : q[1], P2 = REC ? P6H(ra, 2) : q[2], PW = REC ? P6H(ra, 3) : q[3];
++    const uint32_t N0 = REC ? P6H(rb, 0) : q[4], N1 = REC ? P6H(rb, 1) : q[5], N2 = REC ? P6H(rb, 2) : q[6], f = REC ? P6H(rb, 3) : q[7];
++    const uint32_t U0 = REC ? P6H(rc, 0) : q[8], U1 = REC ? P6H(rc, 1) : q[9];
++    float n0 = (float)(int32_t)N0 * i12, n1 = (float)(int32_t)N1 * i12, n2 = (float)(int32_t)N2 * i12, p0 = 0, p1 = 0, p2 = 0;
+     if (SKIN) {   /* p = p w + (B (p, 1)) (1 - w), n = n w + (B3 n) (1 - w) */
+       p0 = (float)(int32_t)P0; p1 = (float)(int32_t)P1; p2 = (float)(int32_t)P2;
+-      const float w = (float)(int32_t)q[3] * i12, w1 = 1.0f - w;
++      const float w = (float)(int32_t)PW * i12, w1 = 1.0f - w;
+       const float bp0 = ((b00 * p0 + b10 * p1) + b20 * p2) + b30, bp1 = ((b01 * p0 + b11 * p1) + b21 * p2) + b31;
+       const float bp2 = ((b02 * p0 + b12 * p1) + b22 * p2) + b32;
+       const float bn0 = (b00 * n0 + b10 * n1) + b20 * n2, bn1 = (b01 * n0 + b11 * n1) + b21 * n2, bn2 = (b02 * n0 + b12 * n1) + b22 * n2;
+@@ -407,7 +418,7 @@
+     cr = cr < cmax ? cr : cmax; cg = cg < cmax ? cg : cmax; cb = cb < cmax ? cb : cmax;
+     uint32_t A1 = a1, A2 = a2;
+     if (TINT) {
+-      const uint32_t f0 = q[20], f1 = q[21], f2 = q[22], f3 = q[23];
++      const uint32_t f0 = REC ? P6H(rf, 0) : q[20], f1 = REC ? P6H(rf, 1) : q[21], f2 = REC ? P6H(rf, 2) : q[22], f3 = REC ? P6H(rf, 3) : q[23];
+       fac |= (f0 + 0x400000u) | (f1 + 0x400000u) | (f2 + 0x400000u) | (f3 + 0x400000u);
+       cr = (float)(int32_t)f0 * i12 * cr; cg = (float)(int32_t)f1 * i12 * cg; cb = (float)(int32_t)f2 * i12 * cb;
+       A1 = (uint32_t)(int32_t)((float)(int32_t)f3 * i12 * acl) & 0xffu; A2 = A1 >= 0x80 ? 0xffu : A1 * 2;
+@@ -418,7 +429,7 @@
+     if (rgba) rgba[i] = rgb | A1 << 24;
+     float u3 = 0, v3 = 0;
+     if (P3) { u3 = ((r00 * n0 + r10 * n1) + r20 * n2) * s0 + t0; v3 = ((r01 * n0 + r11 * n1) + r21 * n2) * s1 + t1; }
+-    uv |= U0 | U1; z |= q[10] ^ 0x1000u;
++    uv |= U0 | U1; if (!REC) z |= q[10] ^ 0x1000u;
+     p6u32 *w = (p6u32 *)o1; w[0] = U0 | U1 << 16; w[1] = c;
+     if (!SKIN) {
+       pos |= (P0 + 0x8000u) | (P1 + 0x8000u) | (P2 + 0x8000u);
+@@ -430,13 +441,21 @@
+       if (P3) { p6f32 *e = (p6f32 *)o3; e[0] = u3; e[1] = v3; ((p6u32 *)o3)[2] = c; e[3] = p0; e[4] = p1; e[5] = p2; o3 += 24; }
+     }
+     flags[i] = (uint16_t)(f | adc); andn &= f;
+-    if (CHK2) { var |= ((q[12] - U0) ^ du0) | ((q[13] - U1) ^ dv0); z2 |= q[14] ^ 0x1000u; }
++    if (CHK2) {
++      const uint32_t V0 = REC ? P6H(rd, 0) : q[12], V1 = REC ? P6H(rd, 1) : q[13];
++      var |= ((V0 - U0) ^ du0) | ((V1 - U1) ^ dv0); if (!REC) z2 |= q[14] ^ 0x1000u;
++    }
++    if (REC) { ra += 4; rb += 4; rc += 2; if (CHK2) rd += 2; if (TINT) rf += 4; } else q += 24;
+   }
++#undef P6H
+   ck->pos = pos; ck->uv = uv; ck->z = z; ck->z2 = z2; ck->var = var; ck->fac = fac; ck->andn = andn; ck->amin = TINT ? amin : a1;
+   ck->du = du0; ck->dv = dv0;
+ }
+ static uint32_t p6_fl(uint32_t u) { return (u & 0x7f800000u) ? u : u & 0x80000000u; }   /* vfl for a value not above 2^20 in size */
+-int vc_p06(const uint8_t *vm, uint32_t top, uint32_t entry, VcLit *L, void *v1, void *v3, uint16_t *flags, uint32_t *rgba, int max)
++/* vc_p06's usual form: the vertices from the VU memory (REC 0, q) or, sb2, from a lane's streams in the game's data (REC 1, r: where the
++   VU memory form goes to p06_any, -8: the caller decodes the VU memory and calls vc_p06) */
++static inline __attribute__((always_inline)) int p06_main(const uint8_t *vm, uint32_t top, uint32_t entry, const P6Rec *r, VcLit *L,
++  void *v1, void *v3, uint16_t *flags, uint32_t *rgba, int max, const int REC)
+ {
+   int kind = entry == VC_P06 ? 0 : entry == VC_P06S ? 1 : entry == VC_P06T ? 2 : entry == VC_P06ST ? 3 : -1;
+   if (kind < 0) return -5;
+@@ -445,7 +464,8 @@
+   if (n > max) return -1;
+   uint32_t hy = h[1] & 0xffff, q0 = (top + 0x100) & 0x3ffu;
+   int skin = kind & 1, tint = kind >> 1, p3 = (hy & 0x100) ? -1 : (hy & 0x600) ? ((hy & 0x400) ? 2 : 1) : 0, chk2 = (hy & 0x10) != 0;
+-  if (!n || vc_p06_exact || p3 == 2 || (p3 == 1) != chk2 || q0 + 6u * (uint32_t)n > 1024u) return p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
++  if (!n || vc_p06_exact || p3 == 2 || (p3 == 1) != chk2 || (!REC && q0 + 6u * (uint32_t)n > 1024u))
++    return REC ? -8 : p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
+   /* the constants, each read once: mx the largest size (p6_big: an exponent of 147 or more, 255 included, is 0x49800000 or more),
+      vfl's flush (no constant reaches exponent 255 here), the lit lights packed (P6K.lit), neg: a lit colour below zero */
+   P6F k; uint32_t mx = 0, neg = 0; int nl = 0;
+@@ -471,22 +491,22 @@
+   }
+ #undef P6ST
+ #undef P6MX
+-  if (mx >= 0x49800000u || (neg >> 31) || !nl) return p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
++  if (mx >= 0x49800000u || (neg >> 31) || !nl) return REC ? -8 : p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
+   k.a1 = (uint32_t)p6_ftoi(k.acl) & 0xffu; k.a2 = k.a1 >= 0x80 ? 0xffu : k.a1 * 2;
+   uint32_t vi6 = ((h[2] & 0xffff) - 0x8000u) & 0xffff;
+-  const uint32_t *q = (const uint32_t *)(vm + (q0 << 4));
++  const uint32_t *q = REC ? 0 : (const uint32_t *)(vm + (q0 << 4));
+   P6Chk ck;
+   /* a loop for each kind, number of lit lights and passes (2 and 3, or neither) */
+   uint8_t *o1 = (uint8_t *)v1, *o3 = (uint8_t *)v3; uint32_t adc = vi6 & 0x8000;
+   int sel = skin | tint << 1 | (nl - 1) << 2 | chk2 << 4;
+ #define P6L(sk, ti, nl_, pc) case (sk | ti << 1 | (nl_ - 1) << 2 | pc << 4): \
+-    p6_loop(&k, q, n, adc, o1, o3, flags, rgba, &ck, sk, ti, nl_, pc, pc); break;
++    p6_loop(&k, q, r, n, adc, o1, o3, flags, rgba, &ck, sk, ti, nl_, pc, pc, REC); break;
+ #define P6L4(nl_, pc) P6L(0, 0, nl_, pc) P6L(1, 0, nl_, pc) P6L(0, 1, nl_, pc) P6L(1, 1, nl_, pc)
+   switch (sel) { P6L4(1, 0) P6L4(2, 0) P6L4(3, 0) P6L4(1, 1) P6L4(2, 1) P6L4(3, 1) default: return -5; }
+ #undef P6L4
+ #undef P6L
+   const uint32_t any = (ck.uv >> 15) | ck.z | (skin ? 0 : ck.pos >> 16) | (tint ? ck.fac >> 23 : 0);
+-  if (any) return p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
++  if (any) return REC ? -8 : p06_any(vm, top, entry, L, v1, v3, flags, rgba, max);
+   L->kind = kind; L->n = n; L->hy = hy; L->fog = (int)(vi6 >> 4 & 0xff); L->pos16 = !skin; L->uv16 = 1;
+   vc_xform(vm, top, 0, skin ? 1.0f : 32768.0f, &L->x);
+   L->x.n = n; L->x.clip = h[3] != 0;
+@@ -497,14 +517,33 @@
+   L->amin = (int)ck.amin; L->cull = (hy & 4) && (ck.andn & 0x30) != 0x30;
+   return n;
+ }
+-int vc_p06_uv2(const uint8_t *vm, uint32_t top, const VcLit *L, const void *v1, void *v2)
++int vc_p06(const uint8_t *vm, uint32_t top, uint32_t entry, VcLit *L, void *v1, void *v3, uint16_t *flags, uint32_t *rgba, int max)
++{
++  return p06_main(vm, top, entry, 0, L, v1, v3, flags, rgba, max, 0);
++}
++int vc_p06_rec(const uint8_t *vm, uint32_t top, uint32_t entry, const void *const *p, const uint8_t *kind, const uint16_t *num,
++               const uint32_t *row, VcLit *L, void *v1, void *v3, uint16_t *flags, uint32_t *rgba, int max)
++{
++  /* the streams the call reads, each sent in its group with at least the header's count of vectors: A, B (kind 2), C (kind 4), D on
++     pass 2 (header y 0x10), F for the factor (+738, +ab0) */
++  const uint32_t *h = vq(vm, top + 0x14); uint32_t n = h[0] & 0xffff;
++  int tint = entry == VC_P06T || entry == VC_P06ST;
++#define P6S(s, kd) (p[s] && kind[s] == (kd) && num[s] >= n)
++  if (!P6S(0, 2) || !P6S(1, 2) || !P6S(2, 4) || ((h[1] & 0x10) && !P6S(3, 4)) || (tint && !P6S(5, 2))) return -8;
++#undef P6S
++  const P6Rec r = { (const p6h16 *)p[0], (const p6h16 *)p[1], (const p6h16 *)p[2], (const p6h16 *)p[3], (const p6h16 *)p[5], row[2], row[2] };
++  return p06_main(vm, top, entry, &r, L, v1, v3, flags, rgba, max, 1);
++}
++/* pass 2's own vertices from the VU memory (d 0) or, sb2, from the lane's stream D (d: 2 halfwords a vertex) */
++static int p06_uv2(const uint8_t *vm, uint32_t top, const p6h16 *d, const VcLit *L, const void *v1, void *v2)
+ {
+   const uint32_t st = L->kind == 4 ? 7 : 6;   /* P07 (kind 4): 7 quadwords a vertex */
++#define P6U2(i, j) (d ? (uint32_t)(int32_t)d[2 * (i) + (j)] : vq(vm, top + 0x103 + st * (uint32_t)(i))[j])
+   int u16 = 1, t1 = (L->uv16 ? 0 : 1) | (L->pos16 ? 0 : 2);
+-  for (int i = 0; i < L->n; i++) { const uint32_t *U2 = vq(vm, top + 0x103 + st * i); if (U2[0] > 32767 || U2[1] > 32767) u16 = 0; }
++  for (int i = 0; i < L->n; i++) if (P6U2(i, 0) > 32767 || P6U2(i, 1) > 32767) u16 = 0;
+   int t2 = (u16 ? 0 : 1) | (L->pos16 ? 0 : 2), s1 = P6SZ[t1], s2 = P6SZ[t2];
+   for (int i = 0; i < L->n; i++) {
+-    const uint32_t *U2 = vq(vm, top + 0x103 + st * i);
++    const uint32_t U2[2] = { P6U2(i, 0), P6U2(i, 1) };
+     const uint8_t *a = (const uint8_t *)v1 + s1 * i;
+     uint32_t c, P[3] = { 0, 0, 0 }; float p[3] = { 0, 0, 0 }, uvf[2];
+     memcpy(&c, a + 4 + 4 * (t1 & 1), 4);   /* the colour follows the UV: 4 bytes (16-bit) or 8 (floats) */
+@@ -513,8 +552,11 @@
+     uvf[0] = (float)(int32_t)U2[0] * (1.0f / 4096); uvf[1] = (float)(int32_t)U2[1] * (1.0f / 4096);
+     p6_put((uint8_t *)v2 + s2 * i, t2, U2[0], U2[1], uvf, c, P, p);
+   }
++#undef P6U2
+   return t2;
+ }
++int vc_p06_uv2(const uint8_t *vm, uint32_t top, const VcLit *L, const void *v1, void *v2) { return p06_uv2(vm, top, 0, L, v1, v2); }
++int vc_p06_uv2_rec(const void *d, const VcLit *L, const void *v1, void *v2) { return p06_uv2(0, 0, (const p6h16 *)d, L, v1, v2); }
+ 
+ /* ---- P07 (vu1conv.h; re/vu1_programs.md P07) ---- */
+ /* ITOF of an integer as gsref's interpreter computes it ((float)(int32_t)u / 2^sh), through the VU's clamp */
+diff -ruN s1/ge/vu1conv.h b/ge/vu1conv.h
+--- s1/ge/vu1conv.h	2026-10-30 20:55:59.738253874 +0000
++++ b/ge/vu1conv.h	2026-10-30 20:55:59.726950839 +0000
+@@ -106,7 +106,14 @@
+    0..32767, else floats (UV2 / 4096).  v2: L->n vertices; returns their type bits (bit 0 a float UV, bit 1 a float position: VcVert,
+    VcVertE, VcVertS, VcVertF) */
+ int vc_p06_uv2(const uint8_t *vm, uint32_t top, const VcLit *L, const void *v1, void *v2);
+-extern int vc_p06_exact;            /* checks: 1 computes every P06 and P07 call in the exact form (L->fast 0) */
++/* sb2, Stage B lane 2: vc_p06 with the vertices read from the game's data (ge/xlate.h XlRec p, kind, num, row: the streams of slots A to
++   F at T + 0x100 + s + 6 i), the rest from vm as vc_p06 reads it.  The same results as vc_p06 on the VU memory those streams leave;
++   -8: the call needs that VU memory (a stream it reads not sent in its group, short or of another kind, or a call vc_p06 gives to its
++   general form): the caller decodes the VU memory and calls vc_p06.  vc_p06_uv2_rec: vc_p06_uv2 with UV2 from stream D (d) */
++int vc_p06_rec(const uint8_t *vm, uint32_t top, uint32_t entry, const void *const *p, const uint8_t *kind, const uint16_t *num,
++               const uint32_t *row, VcLit *L, void *v1, void *v3, uint16_t *flags, uint32_t *rgba, int max);
++int vc_p06_uv2_rec(const void *d, const VcLit *L, const void *v1, void *v2);
++extern int vc_p06_exact;           /* checks: 1 computes every P06 and P07 call in the exact form (L->fast 0) */
+ int vc_p06_size1(const VcLit *L);   /* the size of a vertex of passes 1 and 2 */
+ int vc_p06_size3(const VcLit *L);   /* of pass 3 */
+ 
+diff -ruN s1/ge/xconv.c b/ge/xconv.c
+--- s1/ge/xconv.c	2026-10-30 20:55:59.738343709 +0000
++++ b/ge/xconv.c	2026-10-30 20:55:59.726979793 +0000
+@@ -296,6 +296,7 @@
+ /* ---- P06 and P07 (ge/vu1conv.h vc_p06, vc_p07; replay_fmt.h GERK_LIT).  The blob: the call's GerXform, a GerLit per pass the
+    program draws, the vertices of passes 1 and 2, pass 3's, the strips.  Passes 2 and 3 come from the translator after the call (xc_pass), each with its own
+    texture: their GerLit's texture scale is written then. ---- */
++int xc_rec_chk; long xc_rec_n, xc_rec_diff, xc_rec_calls, xc_rec6_calls, xc_rec6_vm, xc_rec6_n, xc_rec6_diff;   /* sb1, sb2 (xconv.h) */
+ static const uint32_t LIT_VT[4] = { 0x11e, 0x11f, 0x19e, 0x19f };   /* VcVert, VcVertE, VcVertS, VcVertF (GU_TRANSFORM_3D) */
+ static struct { int on; uint32_t entry, top; int amin, uvk[4], du[4], dv[4]; uint32_t rec[4]; } Lp;   /* the call whose passes come next;
+                                     rec[k]: pass k's GerLit in the blob (0: not drawn); uvk, du, dv: its texture scale's (xc_lit_ts) */
+@@ -341,7 +342,30 @@
+   int np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);   /* a record for each pass the program draws */
+   uint32_t o1 = (uint32_t)(sizeof(GerXform) + np * sizeof(GerLit));
+   if (n0 <= 64 && cap < o1 + n0 * (24 + 24 + 24 + 4)) return -5;
+-  VcLit L; int n = p7 ? vc_p07(c->vm, c->top, &L, blob + o1, v3, fl, 0, 64) : vc_p06(c->vm, c->top, c->entry, &L, blob + o1, v3, fl, 0, 64);
++  VcLit L; int n; const XlRec *rr = 0;   /* sb2: a lane's streams, when the call's vertices come from them */
++  if (p7) n = vc_p07(c->vm, c->top, &L, blob + o1, v3, fl, 0, 64);
++  else if (c->rec && c->rec->lane == 2) {   /* sb2 lane 2: the vertices from the game's data, else the VU memory decoded */
++    rr = c->rec;
++    n = vc_p06_rec(c->vm, c->top, c->entry, rr->p, rr->kind, rr->num, rr->row, &L, blob + o1, v3, fl, 0, 64);
++    if (n == -8) { rr = 0; xc_rec6_vm++; xl_vm_sync(); n = vc_p06(c->vm, c->top, c->entry, &L, blob + o1, v3, fl, 0, 64); }
++    else {
++      xc_rec6_calls++;
++      if (xc_rec_chk) {   /* the same call on the VU memory, decoded for it: every output the same */
++        static uint8_t e1[64 * 24], e2r[64 * 24], e2v[64 * 24], e3[64 * 24]; static uint16_t ef[64]; VcLit LE;
++        xl_vm_sync(); int ne = vc_p06(c->vm, c->top, c->entry, &LE, e1, e3, ef, 0, 64); xc_rec6_n++;
++        int d = ne != n;
++        if (!d && n > 0) {
++          d = memcmp(&LE, &L, sizeof L) || memcmp(e1, blob + o1, (size_t)vc_p06_size1(&L) * (size_t)n) || memcmp(ef, fl, 2 * (size_t)n) ||
++              (L.p3 > 0 && memcmp(e3, v3, (size_t)vc_p06_size3(&L) * (size_t)n));
++          if (!d && L.uv2 == 2) {
++            int tr = vc_p06_uv2_rec(rr->p[3], &L, blob + o1, e2r), tv = vc_p06_uv2(c->vm, c->top, &L, blob + o1, e2v);
++            d = tr != tv || memcmp(e2r, e2v, (size_t)(16 + 4 * ((tr & 1) + (tr >> 1))) * (size_t)n);
++          }
++        }
++        xc_rec6_diff += d;
++      }
++    }
++  } else n = vc_p06(c->vm, c->top, c->entry, &L, blob + o1, v3, fl, 0, 64);
+   if (n < 0) { St.face_unseen += n == -7; return n; }
+   if (p7) {
+     St.face_v += n; St.face_exact += !L.fast; St.face_nopass[2] += L.uv2 < 0; St.face_own2 += L.uv2 == 2; St.face_nopass[3] += L.p3 < 0;
+@@ -364,7 +388,8 @@
+   if (!nst) return 0;
+   int s1 = vc_p06_size1(&L), s3 = vc_p06_size3(&L), t1 = (L.uv16 ? 0 : 1) | (L.pos16 ? 0 : 2), t3 = 1 | (L.pos16 ? 0 : 2), t2 = t1, s2 = 0;
+   uint32_t ov2 = o1 + n * s1;
+-  if (L.uv2 == 2) { t2 = vc_p06_uv2(c->vm, c->top, &L, blob + o1, blob + ov2); s2 = 16 + 4 * ((t2 & 1) + (t2 >> 1)); }   /* 16, 20, 20, 24 bytes */
++  if (L.uv2 == 2) {   /* 16, 20, 20, 24 bytes */
++    t2 = rr ? vc_p06_uv2_rec(rr->p[3], &L, blob + o1, blob + ov2) : vc_p06_uv2(c->vm, c->top, &L, blob + o1, blob + ov2); s2 = 16 + 4 * ((t2 & 1) + (t2 >> 1)); }
+   uint32_t ov3 = ov2 + n * s2, orun = ov3 + (L.p3 > 0 ? n * s3 : 0), end = orun + nst * 4;
+   if (L.p3 > 0) memcpy(blob + ov3, v3, n * s3);
+   memcpy(blob + orun, runs, nst * 4);
+@@ -413,7 +438,7 @@
+   return 1;
+ }
+ 
+-int xc_rec_chk; long xc_rec_n, xc_rec_diff, xc_rec_calls;
++
+ int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   Lp.on = 0;
+diff -ruN s1/ge/xconv.h b/ge/xconv.h
+--- s1/ge/xconv.h	2026-10-30 20:55:59.738467491 +0000
++++ b/ge/xconv.h	2026-10-30 20:55:59.727023854 +0000
+@@ -68,6 +68,9 @@
+ /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
+    memory model, decoded for it (xl_vm_sync): xc_rec_n calls checked, xc_rec_diff of them not the same */
+ extern int xc_rec_chk; extern long xc_rec_n, xc_rec_diff, xc_rec_calls;
++/* sb2, Stage B lane 2: P06 calls whose vertices came from the lane's streams (xc_rec6_calls) and those that needed the VU memory
++   (xc_rec6_vm: ge/vu1conv.h vc_p06_rec -8); with xc_rec_chk, xc_rec6_n of the first checked against vc_p06, xc_rec6_diff not the same */
++extern long xc_rec6_calls, xc_rec6_vm, xc_rec6_n, xc_rec6_diff;
+ 
+ /* 1: the call's batch in *b and its data in blob[0..*size); b->first: the batch's offset in the blob (0 but for P06 and P07), to
+    which the host adds the blob's offset in its data block; 0: no batch (an entry without a converter, an MSCNT, or nothing drawn);
+diff -ruN s1/ge/xlate.c b/ge/xlate.c
+--- s1/ge/xlate.c	2026-10-30 20:55:59.738561477 +0000
++++ b/ge/xlate.c	2026-10-30 20:55:59.727051047 +0000
+@@ -394,10 +394,16 @@
+       uint64_t at = (F.gr[0x1a] & 1) ? F.gr[0x00] : F.gr[0x1b]; dctx = 1 << (int)(at >> 9 & 1); }
+   }
+   gf_unknown(&F, GF_U_ALL);   /* the program kicks its own tags and vertices: PRIM, the vertex queue and the vertex fields */
+-  if (rec && c.entry == XL_DF0) {   /* sb1 lane: what vc_df0 reads besides the streams (its matrix, the header, fog, alpha, viewport) */
++  if (rec && rec->lane == 1 && c.entry == XL_DF0) {   /* sb1 lane: what vc_df0 reads besides the streams (its matrix, the header, fog, alpha, viewport) */
+     for (uint32_t k = 0; k < 4; k++) vmq(c.top + k);
+     vmq(c.top + 0x14); for (uint32_t k = 2; k < 6; k++) vmq(k);
+     c.rec = rec;
++  } else if (rec && rec->lane == 2 && (c.entry == 0x19fe08u || c.entry == 0x1a0160u || c.entry == 0x1a0540u || c.entry == 0x1a08c0u)) {
++    /* sb2 lane 2: what P06 reads besides the streams (vu1conv.c p06_main, xconv.c xc_lit): T + 0 .. 0x14 (the matrix, lights, colours,
++       skin, pass 3's matrix, the header), T + 0xfe, 0xff (pass 3's scale and offset), abs 2 .. 5 (fog, alpha, viewport) */
++    for (uint32_t k = 0; k <= 0x14; k++) vmq(c.top + k);
++    vmq(c.top + 0xfe); vmq(c.top + 0xff); for (uint32_t k = 2; k < 6; k++) vmq(k);
++    c.rec = rec;
+   }
+   c.vm = VM; c.gr = gr;
+   if (call_fn) call_fn(call_ctx, &c);
+@@ -522,9 +528,40 @@
+   up_census(cn[3]); ud_new(cn[3], cn + 4, 4);
+   vsrc0 = tadr + 16 * (uint32_t)nr + 16;
+   memcpy(R.row, V.row, 16);   /* ROW as the descriptors copied it (it changes only with STROW or a running ROW, which copy again) */
++  R.lane = 1;
+   vcmd = cn[8]; vn = 0; dqn = 0; St.cmds[0x14]++;
+   call(cn[8] & 0xffff, 0, ok ? &R : 0);
+   St.cmds[0x00] += 3; vcmd = 0;   /* the three NOPs */
++  xl_lane_groups[1]++;
++  return 1;
++}
++/* sb2, Stage B lane 2 (xlate.h) */
++long xl_lane_groups[3];
++int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp)
++{
++  int nr = 9 + q0; const uint32_t *cn = t + 4 * nr;
++  if (vleft || V.mode >= 2) return 0;
++  { int cl = V.cl, wl = V.wl, ok = 1; V.cl = 6; V.wl = 1;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones always wait) */
++    for (int j = q0 + 3; j < nr; j++) if (dp[j] && !ud_ok(t[4 * j + 3])) ok = 0;
++    V.cl = cl; V.wl = wl; if (!ok) return 0; }
++  static XlRec R;
++  for (int j = 0; j < nr; j++) {   /* each slot: its TTE words (STCYCL, then the UNPACK or a NOP), then a sent slot's data, all waiting */
++    const uint32_t *g = t + 4 * j; int s = j - q0 - 3;   /* s: stream slot 0 .. 5 (A .. F); below 0 the constant block and the materials */
++    St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff);
++    if (!dp[j]) { St.words += 2; St.cmds[0]++; if (s >= 0) R.p[s] = 0; continue; }   /* not sent: a CNT of 0, STCYCL and a NOP */
++    uint32_t w = g[3], nw = 4 * (g[0] & 0xffff); int c = (int)(w >> 24 & 0x7f);
++    St.words += 2 + nw; St.cmds[c]++; XC(St.wd[c] += nw);
++    up_census(w); ud_new(w, dp[j], nw);
++    if (s >= 0) { const Ud *d = &UD[ud_n - 1]; R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)ud_kind(d); }
++  }
++  St.words += 10; St.cmds[1]++; V.cl = V.wl = 1; St.cmds[0x6c]++; XC(St.wd[0x6c] += 4);   /* the CNT: STCYCL, the header's UNPACK and data */
++  up_census(cn[3]); ud_new(cn[3], cn + 4, 4);
++  vsrc0 = tadr + 16 * (uint32_t)nr + 16;
++  memcpy(R.row, V.row, 16); R.lane = 2;
++  vcmd = cn[8]; vn = 0; dqn = 0; St.cmds[0x14]++;
++  call(cn[8] & 0xffff, 0, &R);
++  St.cmds[0x00] += 3; vcmd = 0;   /* the three NOPs */
++  xl_lane_groups[2]++;
+   return 1;
+ }
+ void xl_lane(int on) { vm_all(); lane_on = on; }
+diff -ruN s1/ge/xlate.h b/ge/xlate.h
+--- s1/ge/xlate.h	2026-10-30 20:55:59.738637986 +0000
++++ b/ge/xlate.h	2026-10-30 20:55:59.727085463 +0000
+@@ -25,8 +25,12 @@
+    data, vector i of stream s being VU quadword T + 0x100 + s + 3 i: p the data, num the vectors it holds, kind as the translator decodes
+    them (2 V4-16 signed, 3 the same plus ROW, 4 V2-16 signed as x, y, ROW z, y), row ROW.  Given only when the header's count is at most
+    every stream's num; the translator has decoded the quadwords of the VU memory model that P04+df0 reads besides (T + 0 to 3, T + 0x14,
+-   abs 2 to 5) */
+-typedef struct { const void *p[3]; uint16_t num[3]; uint8_t kind[3]; uint32_t row[4]; } XlRec;
++   abs 2 to 5).
++   sb2, Stage B lane 2: a P06 call whose input came as a P12e8b8 group (xl_lane_p06): lane 2, streams A to F in slots 0 to 5, vector i
++   of slot s being VU quadword T + 0x100 + s + 6 i; p[s] 0 when the group did not send slot s (the VU memory keeps an older group's).
++   Given with every such group: the converter checks the streams it reads (ge/vu1conv.h vc_p06_rec).  The translator has decoded the
++   quadwords P06 reads besides (T + 0 to 0x14, T + 0xfe, 0xff, abs 2 to 5) */
++typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4]; } XlRec;
+ typedef struct {
+   uint32_t entry;               /* 0 when the micro code at the start address was never uploaded, or for an MSCNT after an entry
+                                    without a known continuation */
+@@ -37,7 +41,7 @@
+   const uint8_t *vm;            /* 16 KB, valid until the next VIF1 word (after xl_vif1_span: the quadwords decoded so far; xl_vm_sync
+                                    decodes the rest) */
+   const uint64_t *gr;           /* GS registers (gsref's numbering: the A+D address), valid until the next word */
+-  const XlRec *rec;             /* sb1: the streams of a lane's P04+df0 call, else 0 */
++  const XlRec *rec;             /* sb1, sb2: the streams of a lane's P04+df0 call (lane 1) or P06 call (lane 2), else 0 */
+ } XlCall;
+ typedef void (*XlCallFn)(void *ctx, const XlCall *c);
+ 
+@@ -100,6 +104,10 @@
+    group this way (an UNPACK that cannot wait, a running ROW, a command with data left); the walk then hands it over word by word.
+    xl_lane(1): flushes with many vectors pending scan own[] (the same quadwords decoded) */
+ int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
++/* sb2, Stage B lane 2: a P12e8b8 group (runtime/ee_io.h lane_p06): q0 as above, dp the data of its nine slots after the constant block
++   (0: a slot not sent, its tag a CNT of 0 with the slot's STCYCL and a NOP).  As xl_lane_p04, for every P06 entry (XlCall.rec lane 2) */
++int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
++extern long xl_lane_groups[3];   /* sb2: groups the lanes took (index: the lane) */
+ void xl_lane(int on);
+ /* sb1, Stage B step "direct reads" (renderer_notes 11.22): xl_vm_need decodes, before a converter call, only the quadwords of the VU
+    memory model that its converter reads (for an entry with no converter: all, as xl_vm_sync); the rest wait for a later read, a write
+diff -ruN s1/psp/xl_psp.c b/psp/xl_psp.c
+--- s1/psp/xl_psp.c	2026-10-30 20:55:59.496272062 +0000
++++ b/psp/xl_psp.c	2026-10-30 20:55:59.491261501 +0000
+@@ -53,7 +53,7 @@
+ static int state;                        /* 0: not started, 1: on, 2: off since it was on, -1: no memory for the map */
+ static long ncall, nprim, nrestart, ntransfer, none;
+ extern int g_xl_one;                     /* runtime/ee_io.h: the exact walk feeds the translator */
+-extern int g_xl_lane;                    /* sb1 runtime/ee_io.h: Stage B lane 1 (OPT_XL_LANE) */
++extern int g_xl_lane;                    /* sb1, sb2 runtime/ee_io.h: Stage B lanes 1 (OPT_XL_LANE) and 2 (OPT_XL_LANE2) */
+ char *mgs2_getenv(const char *k);        /* main_psp.c: mgs2.cfg's settings (newlib's getenv does not see them) */
+ static int one_mode = 1, skip_mode = 1, cfg_read;   /* MGS2_XL_ONE, MGS2_XL_SKIP */
+ static int skip_now; static long sk_vb, sk_tr;      /* shown frames only: this step's transfers are skipped; vblanks, transfers skipped */
+@@ -296,7 +296,8 @@
+   if (!(g_opt & OPT_XL)) { if (state == 1) state = 2; return; }
+   { static int ud = 1; int m = (g_opt & OPT_XL_VMUD) != 0; if (m != ud) { xl_vm_mode(m); ud = m; } }   /* (xlate.c's default: 1) */
+   { static int v4 = 1; int m = (g_opt & OPT_XL_V48) != 0; if (m != v4) { xl_ud_v48(m); v4 = m; } }   /* (xlate.c's default: 1) */
+-  { static int ln = 0; int m = (g_opt & OPT_XL_LANE) != 0; if (m != ln) { xl_lane(m); g_xl_lane = m; ln = m; } }   /* sb1 lane 1 (xlate.c starts with it off) */
++  { static int ln = 0; int m = ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0);   /* sb1, sb2 lanes (xlate.c starts with them off) */
++    if (m != ln) { xl_lane(m != 0); g_xl_lane = m; ln = m; } }
+ #ifdef SB_NEED   /* sb1 direct reads: exact, but slower in the model (renderer_notes 11.22), so only in builds made with -DSB_NEED */
+   { static int nd = 0; int m = (g_opt & OPT_XL_NEED) != 0; if (m != nd) { xl_need(m); gl_need = m; nd = m; } }   /* (off at start) */
+ #endif
+diff -ruN s1/runtime/ee_io.h b/runtime/ee_io.h
+--- s1/runtime/ee_io.h	2026-10-30 20:55:59.576185194 +0000
++++ b/runtime/ee_io.h	2026-10-30 20:55:59.572211159 +0000
+@@ -228,10 +228,11 @@
+ #else
+ #define XL_TAG(t, a) ((void)0)
+ #endif
+-/* sb1, Stage B lane 1 (renderer_notes 11.20): g_xl_lane 1 (boot/xlive_chk.c MGS2_SB_LANE) lets the one walk hand a P1214a0 group to the
+-   translator whole (lane_p04 below, ge/xlate.c xl_lane_p04) */
++/* sb1, Stage B lane 1 (renderer_notes 11.20): g_xl_lane bit 0 (boot/xlive_chk.c MGS2_SB_LANE) lets the one walk hand a P1214a0 group to
++   the translator whole (lane_p04 below, ge/xlate.c xl_lane_p04); sb2, lane 2: bit 1 a P12e8b8 group (lane_p06, xl_lane_p06) */
+ int g_xl_lane;
+ int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
++int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
+ #else
+ #define XL_ONE(p, n, src) ((void)0)
+ #define XL_TAG(t, a) ((void)0)
+@@ -435,6 +436,42 @@
+ #endif
+   *next = tadr + 16 * (nr + 3); return nr + 1;
+ }
++/* sb2, Stage B lane 2 (renderer_notes 11.20): at tag t (as lane_p04), a P12e8b8 group (P06: Snake, the crew, the guards; re/mesh_packets.md
++   §6): the constant block's REF when it comes first (24 quadwords to T + 0, STCYCL 1 / 1), three material slots (8 quadwords to T + 0xe8,
++   0xf0, 0xf8, STCYCL 1 / 1) and six stream slots (A, B V4-16 at T + 0x100, 0x101; C, D, E V2-16 masked at 0x102, 0x103, 0x104; F V4-16
++   at 0x105; STCYCL 6 / 1), each slot a REF whose UNPACK takes exactly the REF's data or, when the builder does not send it, a CNT of 0
++   whose TTE words are the slot's STCYCL and a NOP; then the CNT of 2 quadwords as P1214a0's.  No IRQ bit, every piece in one run of RAM
++   or scratchpad.  As lane_p04: afterwards the walk's state is the generic walk's and *next the tag after the group; 0: not such a group,
++   or the translator declines */
++static inline int lane_p06(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t *next)
++{
++  int q0 = t[0] >> 28 == 3 && (t[0] & 0xffff) == 24 && t[3] == 0x6c188000u, nr = 9 + q0, n6c = 1 + q0, n6d = 0, n75 = 0, nop = 3;
++  uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : GUEST_SIZE - (tadr & (GUEST_SIZE - 1) & ~15u);
++  const uint32_t *dp[10], *c = t + 4 * nr;
++  if (room < 16u * (uint32_t)(nr + 3)) return 0;   /* the tags and the CNT's data */
++  for (int j = 0; j < nr; j++) {
++    const uint32_t *g = t + 4 * j; uint32_t n = g[0] & 0xffff, w = g[3], num = (w >> 16) & 0xff; int k = j - q0;   /* k: -1 the constant
++                                                                                    block, 0 1 2 the materials, 3 .. 8 the streams A .. F */
++    if (g[2] != (k < 3 ? 0x01000101u : 0x01000106u)) return 0;   /* the slot's STCYCL */
++    dp[j] = 0;
++    if (k >= 0 && g[0] >> 28 == 1 && !n && !w) { nop++; continue; }   /* not sent: CNT 0, no IRQ, a NOP */
++    if (g[0] >> 28 != 3) return 0;   /* REF, no IRQ */
++    if (!num) num = 256;
++    if (k < 0) { if (n != 24) return 0; }   /* 6c188000: V4-32, 24 vectors at T + 0 */
++    else if (k < 3) { if (w != 0x6c0880e8u + 8u * (uint32_t)k || n != 8) return 0; n6c++; }   /* V4-32, 8 vectors at T + 0xe8 + 8 k */
++    else { int v2 = k >= 5 && k <= 7;   /* C, D, E: V2-16 masked (4 bytes a vector); A, B, F: V4-16 (8 bytes) */
++      if ((w & 0xff00ffffu) != (v2 ? 0x75008100u : 0x6d008100u) + (uint32_t)(k - 3) || num != (v2 ? 4u : 2u) * n) return 0;
++      if (v2) n75++; else n6d++; }
++    if (!(dp[j] = lane_ptr(g[1] & 0xfffffff0u, n))) return 0;
++  }
++  if (c[0] >> 28 != 1 || (c[0] & 0xffff) != 2 || c[2] != 0x01000101u || c[3] != 0x6c018014u || c[8] >> 24 != 0x14 || c[9] || c[10] || c[11]) return 0;
++  if (!xl_lane_p06(t, tadr, q0, dp)) return 0;
++  s->left = 0; s->cmd = 0; s->cl = 1; s->wl = 1;
++#ifndef __psp__
++  vif1_n_cmd[0x01] += nr + 1; vif1_n_cmd[0x6c] += n6c; vif1_n_cmd[0x6d] += n6d; vif1_n_cmd[0x75] += n75; vif1_n_cmd[0x14]++; vif1_n_cmd[0x00] += nop;
++#endif
++  *next = tadr + 16 * (nr + 3); return nr + 1;
++}
+ #endif
+ static void vif1_chain_fast(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* dma_feed for VIF1 */
+ {
+@@ -453,7 +490,10 @@
+     uint32_t t0 = t[0], t1 = t[1], n = t0 & 0xffff, id = (t0 >> 28) & 7, addr = t1 & 0xfffffff0u, data, next; int end = 0;
+     XL_TAG(t, tadr);
+ #ifdef MGS2_XLIVE
+-    if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40)) { uint32_t nx; int nt = lane_p04(t, tadr, &s, &nx); if (nt) { tadr = nx; guard += (uint32_t)nt; continue; } }
++    if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40) && t[2] == 0x01000101u) {   /* (both lanes' groups start with STCYCL 1 / 1) */
++      uint32_t nx; int nt = (g_xl_lane & 1) ? lane_p04(t, tadr, &s, &nx) : 0;
++      if (!nt && (g_xl_lane & 2)) nt = lane_p06(t, tadr, &s, &nx);
++      if (nt) { tadr = nx; guard += (uint32_t)nt; continue; } }
+ #endif
+     if (chcr & 0x40) { XL_ONE(t + 2, 2, tadr + 8); vif1_fast_words(t + 2, t + 4, &s); }   /* TTE: the tag's upper half */
+     switch (id) {
+diff -ruN s1/runtime/host_time.h b/runtime/host_time.h
+--- s1/runtime/host_time.h	2026-10-30 20:55:59.616404524 +0000
++++ b/runtime/host_time.h	2026-10-30 20:55:59.612344170 +0000
+@@ -65,6 +65,9 @@
+ #define OPT_XL_NEED 2097152u            /* sb1, MGS2_GL builds (ge/xlate.c xl_vm_need, ge/gelive.c gl_need): a converter call decodes only the quadwords
+                                            of the VU memory model its converter reads (renderer_notes 11.22; exact but slower in the
+                                            model, so psp/xl_psp.c reads this bit only in builds made with -DSB_NEED) */
++#define OPT_XL_LANE2 4194304u           /* sb2, MGS2_XL builds (runtime/ee_io.h lane_p06, ge/xlate.c xl_lane_p06): Stage B lane 2, the walk hands
++                                           a P12e8b8 group (P06) to the translator whole and P06 reads its vertices from the game's data; off:
++                                           word by word.  The same picture either way */
+ extern uint32_t g_opt;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);

@@ -1,0 +1,20 @@
+Every guest store to 0x1e6c38 on route i, vb 0 to 37,800 (x86 twin, lcen2 build: value before and after each store; state hashes = hr2's at all 378 points). Host offsets are into the twin's translation of each guest function.
+
+16427 stores to the watched word; 15 writer/value pairs
+writer (guest function + host offset)                   value  stores  first   last  vb runs
+P100010 +73                                          00000000       1      0      0  0
+P13ef50 +376                                         00000000       1      0      0  0
+P104f10 +1dbd                                        00000000      16     34  31318  34, 208, 1023, 1041, 3022, 3311, 4242, 15543, 19944, 22997, 23471, 24010, ... (16 runs)
+S_d00t_P2197c8 +89d                                  00000001       1   4246   4246  4246
+S_d00t_P2193e8 +1a5                                  00000000       1   4252   4252  4252
+S_d00t_P2191b0 +a66                                  00000000   11250   4252  15504  4252-15504
+S_d00t_P203798 +27                                   00000001       1  15636  15636  15636
+S_d00t_P203900 +140                                  00000000       1  19943  19943  19943
+S_d01t_P2192a0 +89d                                  00000001       4  20137  25014  20137, 23664, 24014, 25014
+S_d01t_P218ec0 +1a5                                  00000000       4  20141  25018  20141, 23669, 24019, 25018
+S_d01t_P218c88 +a66                                  00000000    5141  20141  26006  20141-22977, 23669-24006, 24019-25006, 25018-26006
+S_w00a_P21fcc8 +27                                   00000000       2  23471  31319  23471, 31319
+S_w00a_P221e78 +27                                   00000000       2  23471  31319  23471, 31319
+S_d01t_P203618 +27                                   00000001       1  26022  26022  26022
+S_d01t_P203780 +140                                  00000000       1  28804  28804  28804
+

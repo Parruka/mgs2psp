@@ -1,0 +1,348 @@
+gl34 build report (build agent, 2026-11-21). gl34 = gl33's tree + (a) the ship's static streams read in place in EVERY turn,
+(b) a fast front end for the ship's native groups behind its own cfg key, in turns, (c) the Media Engine's time split by
+stage and by chain (logs only, behind its own key), on a FRESH profile-guided build and code order trained on that tree
+with both arms. Built and gated in the container; NOT delivered. Marks: [C] measured in the container (x86 twin, PPSSPP
+1.20.4 headless with PPSSPP_VFPU_RN=1, or read in code), [C model] PspProf cost model (ms = (1.65 x instructions + 68 x
+I-misses + 86 x D-misses) / 333,000; a picture = a window's total / 40), [I] inferred (basis named), UNKNOWN. Nothing below
+is a gl34 PSP figure.
+
+RESULT IN ONE PARAGRAPH
+Every gate passes and the package is build_gl34/deliver, EBOOT 9989839b2edf92e4c1ddc09d93f5a9e7 [C]. The lever is exact
+(same GE words: all 17,664 frames' list and frame digests and the translator's own state equal between plain and fast on
+the twin; emulator 62/62 hashes and 916/916 digests equal to the twin) but SMALL: fast against plain, same ELF, -5.89 ms a
+picture in the rain wait's ME turn, -2.37 in its main turn, -1.38 / -0.26 in the rain walk, +0.06 / -0.10 on the steady
+deck and +0.10 / +0.21 in the opening, where no native group exists (0.2 ms is what two runs of the same code differ by)
+[C model]. That is 8.2 percent of the ship's native work in the rain wait's ME turn (71.6 ms a picture, drawn minus not
+drawn), against the plan's target of 30 percent or more: THE TARGET IS NOT REACHED. The retrain is slightly BEHIND gl33: gl34
+plain against gl33 in place +1.96 / +1.70 ms in the rain wait, -1.03 / +1.42 in the walk, +0.99 / +2.53 on the steady deck,
++0.75 / +1.86 in the opening (-0.3 to +2.1 percent); the timers are +0.48 ms of that at most [C model]. Net against gl33 in
+place: gl34's fast turns -3.93 / -0.67 ms in the rain wait, -2.41 / +1.16 in the walk; its plain turns (but the walk's ME
+turn) and every turn before the rain are 0.75 to 2.5 ms behind gl33. So by the plan's rule (lever ahead in the rain ME windows, not behind
+elsewhere) the package qualifies, but the lead should weigh that the build as a whole is not ahead of gl33 outside the fast
+ME turns. The split counters work and are exact (nothing drawn changes; timers on / off: same hashes and digests in the
+emulator); in the model they cost at most 0.2 percent; on the emulator +0.15 to +0.4 percent of the ME's walk time before
+and in the rain wait but +3.6 to +4.0 percent in the walk's four ME turns, where the emulator's clock call is dear (section
+2: an emulator effect as far as I can tell, to be settled by the PSP line's own 'us a read').
+Five things the lead should know before a PSP run: (1) the delivered cfg has MGS2_NAT_FAST_CYCLE=0,0,1,1, not the plan's
+example 1,1,0,0, so that gl34's plain turns fall on the vblanks of gl33's in-place turns (section 8); (2) the retrain's loss
+(section 4.2); (3) the emulator's heap margin is 64 KB as gl33's, with fewer spare blocks (section 5, G5); (4) what the lever
+leaves out and what it would need (section 8); (5) the timers' +4 percent in the emulator's walk turns (section 2).
+
+1. WHAT WAS BUILT
+Tree /home/claude/t34 = copy of t33 (100 files; 17 differ from t33, one of them new; build_gl34/gl34_vs_t33.diff; md5,
+lines added / removed against t33) [C]:
+  ge/natsnap.h 610dd8d9 (+5 -1: flag NATG_FAST)
+  ge/natsplit.h 634ebd81 (new, 53 lines: the stages, NatSplit g_ns, NS_MARK)
+  ge/xlate.h 0bd832f7 (+21 -1), ge/xlate.c 4defd526 (+150 -4: xl_p04_fast, the fast front end; xl_vm_wgen; the decline
+    counters xl_nf_n; xl_state_dig for the twin's state check)
+  ge/natp04.h 8cdc6f87 (+10 -3: a flagged group goes to xl_p04_fast and takes its pointers by hints)
+  ge/vu1conv.c 90ef307e (+23 -2), ge/vu1conv.h 9dd64390 (+9): the transform kept from a mesh call's first group
+  ge/xconv.c 68ec37b9 (+13 -2: the stage marks, the kept transform's use), ge/gelive.c 819313d0 (+3 -1)
+  boot/nat_stub.h 8cff7d1d (+20 -1: keys MGS2_NAT_FAST and MGS2_NAT_FAST_CYCLE, rt_nat_fast_at, the flagging in the stub)
+  ge/xlme.h c3232b61 (+7), ge/xlme.c f4974cf7 (+64 -6: the hinted pointer lookup, the timed group's pick, the read pairs)
+  ge/xme.h b4ea8aaa (+5 -1), ge/xme.c 06e07ee4 (+1)
+  psp/xl_psp.c 2b2b54a6 (+66: the 'nat fast', 'nat split' and 'me chains' lines, the totals, the chain list's read)
+  twin only: boot/nat_x86.c 0e0f5478 (+12: the 'natfast:' lines), boot/xlive_chk.c 3e323357 (+4)
+The tree was frozen before the training (12:35 UTC; build_gl34/t34_files_pgo.md5 re-checked at the end: unchanged) [C].
+
+The lever (MGS2_NAT_FAST=1 in every turn, or MGS2_NAT_FAST_CYCLE=a,b,c,d by turns of 100 vblanks from vb 24,001; absent =
+gl33's path). In a fast turn the stub flags each native group of the plain textured entry with its usual material packet
+(NATG_FAST). For a flagged group:
+  (i)   the translator's front end is one function (xl_p04_fast) that writes the same VU-model words, the same UNPACK
+        descriptors, the same A+D packet and the same converter call as the plain path's general code, without the
+        general decode. It declines and hands the group to the plain path whenever a precondition fails; the reasons are
+        counted in the 'nat fast' line: state, entry, buffers, stream counts, material tag, tables full, path 1 busy;
+  (ii)  a mesh call's later groups reuse the transform its first group computed (keyed by the call; checked bit for bit
+        against a fresh computation on the twin: section 5, G1);
+  (iii) the five pointers of a group (block, material, three streams) are found in the ME's copy with one hint per kind of
+        pointer instead of a binary search each (the hinted lookup returns the same pointer as the search for ANY hint
+        value: it falls back to the search; checked against it: section 5).
+What stays identical, and how it was shown: the GE words (list digest of every frame), the frame digest, the decal text, the
+translator's whole state (the twin's 'nats' digest per frame), the native counters. The lever changes no order of calls and
+no batch: it is a cheaper way to the same converter calls. Share of the groups taken [C]: rain wait ME turn 27,919 taken
+and 1,911 declined a turn (93.6 / 6.4 percent; all declined for 'entry': another entry of the same program); whole
+twin run with the key on in every turn 1,921,823 of 2,233,651 (86.0 percent; declined: entry 307,211, tables full 103,
+every other reason 0).
+
+Keys in the delivered cfg (deliver/mgs2.cfg eafa8c28 = gl33's e666791d with three marked changes) [C]:
+  MGS2_NAT_CYCLE=3,3,3,3 (as gl33); MGS2_NAT_INPL=1 (was MGS2_NAT_INPL_CYCLE=1,1,0,0); MGS2_NAT_FAST_CYCLE=0,0,1,1 (new);
+  MGS2_NAT_SPLIT=1 (new). Everything else is gl33's file. hashref.txt = gl33's (c9ddb593, byte for byte).
+
+2. THE SPLIT COUNTERS (MGS2_NAT_SPLIT=1; logs only)
+Two lines per ME turn from vb 24,000 (38 pairs in the delivered run on the emulator) [C]:
+  'nat split vb A-B': one native group in about 32 (the pick's step moves between 24 and 39 groups, so it does not keep time
+     with the calls' groups) is timed stage by stage with the walk's own clock (the ME's Count, the one gl31-gl33 already
+     read for the 'native time'): 17 stages - walk and pointers, register, A+D packet, call's rest, host call and GS state,
+     transform, positions, cut test, attributes, texture, strips, GE transform and batch data, depth range, into the frame,
+     way back, drawn areas, walk's end - in us a timed group; the timed groups, their vertices, those the cut left out; the
+     cost of one clock read (pairs of back-to-back reads, one pair a merge run: 'clock read pairs N, mean X us a read');
+     the turn's whole native time and us a group; the hand-off (the ME's records ms, the plans' bytes, the groups' data).
+     Each stage figure holds exactly one read, so the line itself says what to take off.
+  'me chains vb A-B': the ME's walk time by chain of the frame's list (each chain is its own VIF1 transfer: 12 in the rain,
+     17 on the deck in d01t), with converter calls, native ms and groups per chain, the transfers' ends (held calls) and the
+     transfers not in a list.
+Cost of the timers [C unless marked]:
+  - reads: per ME turn in the rain wait about 967 timed groups x 17 marks + 3 a transfer x 600 + 2 x 200 pairs = about
+    19,000 reads a turn of 50 pictures; an untimed group pays one load and one branch a mark;
+  - emulator, the package with MGS2_NAT_SPLIT=1 (run e2) against =0 (run e4), the ME's walk ms per ME turn (host time):
+    rain wait +0.37 percent (5 turns, +0.30 to +0.44), steady deck +0.15 percent (13 turns); hashes 62/62 and digests
+    916/916 equal in both. BUT the rain walk's four ME turns (30,600 to 31,200) are +3.6 to +4.0 percent with the timers
+    on (about 100 ms of 3,000 a turn); one d00t turn (25,400) is +16 percent (157 ms; its 6,000 reads cannot make that:
+    host noise [I]). In exactly those walk turns the line's own
+    'us a read' is 1.6 to 3.9 us instead of 0.45 to 0.85, and the 'walk and pointers' stage 11 to 21 us instead of 4.
+    On the emulator the clock is a system call (sceKernelGetSystemTimeLow, 1,000 ticks a ms) and [I] a point where its
+    scheduler can switch threads, and from 30,500 on the delivered cfg has the captures and the display checks running;
+    on the PSP the ME reads its own Count register, with no call into the system [C, code]. So I read the +4 percent as
+    the emulator's, not the PSP's, but it is NOT shown: the PSP line's 'mean X us a read' settles it (1 percent of the ME's
+    walk time would need a read of about 1.6 us; [I] a Count read through the ME call macro is some tens of ns);
+  - model [C model], timers on - off, same ELF: plain +0.48 / +0.19 / +0.14 / -0.01 ms a picture (rain wait ME, main, walk
+    ME, main), fast -0.27 / -0.08 / +0.65 / +0.15: at most +0.2 percent, about the model's run-to-run spread (the model
+    counts the game's instructions and cache misses, not the emulator's system calls);
+  - on the PSP the cost of a read is UNKNOWN until the run: the line measures it ('mean X us a read').
+Finding on the way [C]: the first version kept 14 chains and read "not in a list" for 750 transfers a turn in d01t (its list
+has 17 chains and an old cached list matched later frames); now 24 chains are kept and a matched entry is consumed:
+transfers in a list 192,717, not in one 3 over the delivered run.
+
+3. THE FRESH PROFILE AND ORDER (gl33's method on t34)
+Method as gl33's (five instrumented builds and training runs: game, rtb, pic, w00a, w01a, with gl33's extra memory lines;
+gen.o with -fno-partial-inlining; psp.sh's stop on a split native wrapper; pgochk; two PspProf traces; layout_sim's order
+search, 40,000 moves, 4 threads, seed 1, started from gl33's order; relink; lost-profile check; second build) [C]:
+  - training cfg = the delivered keys but MGS2_NAT_FAST_CYCLE=1,1,0,0 (both arms in equal shares; the delivered order was
+    chosen later, section 8). Training runs' hashes: 124/124 (game), 124/124 (rtb), 124/124 (pic), 63/63 (w00a), 124/124
+    (w01a). The pic run's fast totals equal the twin's with the same keys (flagged 1,017,822, taken 869,642, entry
+    144,996, tables full 3).
+  - use build: ELF text 4,402,316 B (gl33 4,378,420: +23.9 KB), bss +2.6 KB, EBOOT 4,411,892 B (gl33 4,388,020). The
+    native wrapper P1214a0 is whole (psp.sh's check). pgochk: 20 objects, 0 profile warnings.
+  - lost profiles (pgo_lost over the eight rain windows of the model, plain and fast): 1 function, 1,008 instructions of
+    13.9 billion (0.000 percent), as gl33; GCC dropped 0; hot sections hold 94.1 percent of the instructions.
+  - order [C model, layout_sim; I-misses over the two traces' training windows / held-out windows]: as linked 6,608,318 /
+    1,917,300; hot packed 6,451,429 / 1,854,218; gl33's order as seed 5,705,758 / 1,684,521; search 4,624,894 / 1,366,343
+    (-30.0 / -28.7 percent against as linked); a fully associative cache of 256 lines 4,953,500 / 1,421,500. The relinked
+    ELF gives the search's figures exactly. For comparison gl33's search ended at 4,438,317 / 1,285,192 on its own code:
+    gl34's result is 4.2 / 6.3 percent higher.
+  - ONE DEVIATION in the order step: gl33's window order holds out the deck trace's windows 27,801 and 29,801. With the
+    training cfg 29,801 is the plain ME rain window, so I held out 27,801 and 30,101 instead (pgo2.sh; pgo.sh untouched):
+    the search trained on 16,001, 17,501, 26,501, 29,601 (fast ME), 29,801 (plain ME), 31,101 (plain main). The fast
+    main-turn window (30,101) was therefore only a test window; see 4.1's main-turn I-misses.
+  - second build from the tree, the profiles and the order: EBOOT, ELF and all 8 overlays byte-identical, 53 objects, 0
+    differing; deliver = psp byte for byte (g7.out).
+
+4. THE MODEL [C model] (PspProf, the interpreter; windows of 80 vblanks = 40 pictures; ms a picture)
+Runs: gl34's ELF native and in place in every turn with the fast key off in the whole run (g34p), on in the whole run (g34f),
+both again with the timers off (g34p0, g34f0), and the not-drawn arm for the split (g34n4: MGS2_NAT_CYCLE=4,4,4,4); gl33's
+figures are gl33's own model files (g33i = gl33 in place, g33ic2, g33pc1). The model runs' hash lines differ from the
+reference at 2-3 vblanks after the profiled windows, as gl33's model runs did (the profiler's own pattern, not gl34's).
+
+4.1 The lever: gl34 fast - gl34 plain, same ELF (timers on in both)
+  window                              plain     fast      fast - plain   instr       I-miss   D-miss
+  rain wait, ME turn 29,810-29,890    362.73    356.85    -5.89 (-1.6%)  -1,132,544    -287     -844
+  rain wait, main turn 29,910-29,990  322.57    320.20    -2.37 (-0.7%)    -842,547  +10,493   -1,299
+  rain walk, ME turn 31,010-31,090    345.57    344.20    -1.38 (-0.4%)    -301,670     +37     +432
+  rain walk, main turn 31,110-31,190  294.96    294.70    -0.26 (-0.1%)    -302,797   +5,817     +199
+  steady deck d01t, ME 27,410-27,490  141.51    141.57    +0.06             (no native groups: two runs of one path)
+  steady deck d01t, main 27,510-590   122.73    122.63    -0.10
+  opening, ME 16,010-16,090           136.51    136.61    +0.10
+  opening, main 16,110-16,190         120.72    120.93    +0.21
+The lever is ahead in both rain ME windows and in both rain main windows, and level (within the 0.2 ms spread of two equal
+runs) where it cannot act. In main turns it saves three quarters of the instructions it saves in ME turns, and I-misses eat
+half of that (+10,493 a picture in the rain wait's main turn): the fast main-turn window was not among the order search's training
+windows (section 3). An order trained with it could give back up to about 2 ms a picture there [I, from 10,493 x 68 /
+333,000].
+By part, rain wait ME turn, ms a picture (split34.py, drawn - not drawn; 609 groups and 11,545 vertices a picture):
+  part                                             plain     fast      fast - plain
+  all (the ship's native work, drawn - not drawn)  71.58     65.70     -5.89 (-8.2%)
+  waits (not work)                                  4.18      4.19      0.00
+  main CPU: the stub                                0.99      1.01     +0.02
+  hand-off: copy plan and copy                      4.27      3.87     -0.40
+  the walk: merge, record, pointers                 5.76      5.25     -0.51   (the hinted lookup: -325 instructions a group,
+                                                                                +3.1 I-misses a group)
+  front end                                        15.20     11.65     -3.55   (fast function 8.34 + declined groups 3.31;
+                                                                                1,228 instructions and 21.5 I-misses a group
+                                                                                in the fast function)
+  GS model tracking (CLUT loads, drawn areas)       4.58      5.01     +0.42
+  converter per group (set-up, GS state, texture)  10.39     10.23     -0.16
+  converter: the transform                          2.27      0.54     -1.74   (the kept transform)
+  converter: off-screen cut                         2.06      2.11     +0.04
+  converter: depth range                            1.36      1.29     -0.07
+  converter per vertex                              4.08      4.77     +0.70   (+118 instructions a group)
+  list build at the frame's end                     5.58      5.52     -0.06
+Why the target is out of reach for this lever [C model]: the front end was 15.2 ms of 71.6 (21 percent) and the transform
+2.3; even at zero cost the two give 24 percent. What is left is spread: converter per group 10.4, the walk 5.8, list build
+5.6, GS tracking 4.6, the copy 4.3, per vertex 4.1. And the fast function itself is I-miss bound: 21.5 I-misses a group
+cost 1,462 cycles against 2,026 for its 1,228 instructions.
+
+4.2 The retrain and the timers: gl34 plain against gl33 in place (gl33's ELF)
+  window                    gl33 in place   gl34 plain, timers off   gl34 plain      of it: I-miss / D-miss a picture (g34p)
+  rain wait, ME turn        360.78          362.25 (+1.48)           362.73 (+1.96)  +5,683 / -1,638; instr +246,374
+  rain wait, main turn      320.87          322.38 (+1.51)           322.57 (+1.70)  -6,983 / +8,338; instr +196,608
+  rain walk, ME turn        346.61          345.43 (-1.18)           345.57 (-1.03)  +1,733 / -7,055
+  rain walk, main turn      293.54          294.97 (+1.43)           294.96 (+1.42)  -5,111 / +7,683
+  steady deck, ME turn      140.52          -                        141.51 (+0.99)  +4,613 / -380
+  steady deck, main turn    120.20          -                        122.73 (+2.53)  +6,294 / +4,122
+  opening, ME turn          135.75          -                        136.51 (+0.75)  +4,682 / -1,770
+  opening, main turn        118.86          -                        120.72 (+1.86)  +6,015 / +1,508
+The fresh profile and order did not pay this time: gl34's code is behind gl33's in seven of eight windows by 0.5 to 2.1
+percent, even with the timers off and the lever off. Where it comes from [C model unless marked]:
+  - instructions: +0.2 to +0.5 percent a picture (the flag tests, the marks' load-and-branch, and changed inlining: with
+    two callers ent_index is out of line now, +56,893 instructions a picture under its own name against -18,199 in call;
+    lw_p07 is out of line of xm_walk);
+  - I-misses on the deck before the rain and in the opening +5.2 to +7.7 percent; a fully associative cache of the same
+    size also misses +2.3 to +4.5 percent more there, so about half is the code's own footprint (24 KB more text; the hot
+    set is 1,007 + 482 + 457 functions, gl33's was 1,007 + 502 + 454) and half is placement; the differences are
+    spread over many functions (xc_xform, xc_lit, vc_p07_c1s, tk_pal, xc_hold, ... +0.2 to +0.5 ms each on the steady
+    deck's main turn), no single culprit;
+  - D-misses in main turns +1.5 to +4 percent (the data moved: bss +2.6 KB).
+I did not try a second search or pins on the inlining: either needs another full training cycle (about 1.5 hours) and the
+plan's rule for delivery is on the lever. It is the first thing I would look at for gl35 (section 9).
+
+4.3 Against gl33 in place, all together (what the PSP run's turns stand for)
+  window                    gl34 fast - gl33 in place     gl34 plain - gl33 in place
+  rain wait, ME turn        -3.93                         +1.96
+  rain wait, main turn      -0.67                         +1.70
+  rain walk, ME turn        -2.41                         -1.03
+  rain walk, main turn      +1.16                         +1.42
+  steady deck, ME / main    +1.05 / +2.43                 +0.99 / +2.53
+  opening, ME / main        +0.86 / +2.07                 +0.75 / +1.86
+
+4.4 The model's split next to the emulator's counters (rain wait, ME turns; build_gl34/model_vs_emu.out)
+The emulator's stage times are the PC's (a JIT on x86: no PSP cache, no PSP clock), so only shares mean anything; each stage
+holds one clock read (0.45 to 0.85 us in these turns), taken off in the 'net' column. Plain turns 29,600 / 30,000 / 30,400,
+fast turns 29,800 / 30,200 of the delivered run (e2) [C]; model us a group from split34.py [C model]:
+  part                                  emulator plain: us, net, share   emulator fast: us, net, share   model plain / fast us a group (share)
+  walk (merge, record, pointers)         4.60   3.33  14.5%               3.50   2.12  12.7%              9.5 (12.6%) /  8.6 (12.8%)
+  front end with the CLUT tracking      13.19  10.65  46.3%               9.32   6.58  39.5%             32.5 (43.3%) / 27.3 (40.7%)
+  converter per group                    5.61   3.07  13.4%               5.58   2.84  17.0%             17.1 (22.8%) / 16.8 (25.1%)
+  transform                              2.23   1.59   6.9%               1.56   0.87   5.2%              3.7 ( 4.9%) /  0.9 ( 1.3%)
+  cut test                               2.30   1.66   7.2%               2.34   1.65   9.9%              3.4 ( 4.5%) /  3.5 ( 5.2%)
+  depth range                            0.74   0.10   0.4%               0.64  -0.04  -0.3%              2.2 ( 2.9%) /  2.1 ( 3.1%)
+  per vertex                             3.66   1.75   7.6%               3.82   1.77  10.6%              6.7 ( 8.9%) /  7.8 (11.6%)
+  drawn areas (model: in the front end)  1.45   0.81   3.5%               1.56   0.88   5.2%              -
+  sum of the timed stages               33.77  22.98                     28.32  16.67                    75.1 / 67.0
+The two agree on the order of the parts (front end first, then converter per group, then the walk) and on where the lever
+acts (front end and transform; nothing else moves). The model gives the converter per group a larger share (it is the
+I-miss-heavy part: 38 I-misses a group, which the PC does not have). The emulator's turn figures [C, host time, NOT a
+speed]: the turn's native time 26.1 to 26.3 us a group in the plain turns, 20.5 to 20.6 in the fast turns (-21.7 percent);
+the walk's chain 3 (the ship) 845.7 / 824.3 / 809.0 ms a turn plain, 661.1 / 665.7 fast.
+'me chains' on the emulator, rain wait, plain turn 29,600 (ms a turn of host time: converter calls) [C]: chain 2 862.5:
+14,100; chain 3 (the ship) 845.7: 30,773; chain 6 934.9: 18,100; chain 10 213.2: 20,894; chain 5 86.0: 4,352; the
+transfers' ends 53.2; the other chains under 25 each; walks 3,037 ms. So on the PC the ship is 28 percent of the ME's walk
+time and chains 2 and 6 are each as large with half the calls: if the PSP's line says the same, they are the next place to
+look, not the ship.
+
+5. GATES
+G1 twin (x86, to vb 37,800), every run 685/685 hash lines against hashref c9ddb593 (g31f against gl31's 177108d4) [C]:
+  p (plain), f (fast in every turn), dx (MGS2_NAT_FAST_CYCLE=1,1,0,0, DZ X in the whole run), dx2 (the delivered keys:
+  0,0,1,1, DZ X), dxp (plain, DZ X), fc2 (0,1,1,0), lw2f / lw2p (the late walk, fast / plain), g31f (MGS2_NAT_CYCLE=0,0,3,3
+  with fast), need / needp (MGS2_SB_NEED=1 as the PSP's cfg).
+  Per frame (g1cmp34.py: list digest, frame digest, counts, decal text, content, the native batches' natb / natz / natq
+  lines, the translator's state 'nats'): p against f, fc2, lw2f, lw2p, need, needp, and dxp against dx and dx2: 17,664
+  frames, 0 differences in every column. gl34's dx = gl33's twin dx in all 17,664 frames.
+  Kept transforms checked against a fresh computation: 1,461,744 (f) and 725,444 (dx2), differing 0. Pointers by hints
+  checked against the search: 9,555,359 (lw2f), differing 0.
+G2 read hash (the game's reads of the picture path's outputs; g2_rhcmp.out) [C]: gl34 base = gl33's base; gl34 native =
+  gl33's native; native = fast in every turn = fast by turns in all 31,399 vblanks; base against native differs in the 2
+  known vblanks (25,944, 25,974) as in gl33.
+G3 emulator, the package (deliver, EBOOT 9989839b) [C]:
+  e2 (the delivered cfg): 62/62 hashes; 916/916 digests equal to the twin (list, frame, decal text) and to gl33's emulator
+  run; 52 pictures, 51 byte-identical to gl33's emulator pictures, shot_24784 the known noise frame (7 pixels by 2+ in
+  luma, largest 3); nat problem turns 0 of 75; 75 'nat fast', 38 'nat split', 38 'me chains' lines; fast totals: flagged
+  614,225, taken 541,836, declined entry 70,956, tables full 100, every other reason 0.
+  e3 (dense: a digest at every frame to 31,400, a picture every 2 vblanks in the walk): 62/62; 14,592 digests, all equal
+  to gl33's emulator e3; against the twin LIST 0 differ, FRAME 1,154 (vb 536-3,021: 1,153, the title frames that differ
+  from the twin in every profile-built emulator run since gl31, cause UNKNOWN; and vb 26,007, the known one); 455
+  pictures, 454 byte-identical to gl33's, shot_24784 the noise frame.
+  e4 (the delivered cfg with MGS2_NAT_SPLIT=0): 62/62, 916/916 equal to the twin.
+  A no-profile build of the same tree (np2, EBOOT 9f2a8e54) with MGS2_NAT_HCHK=1 in the emulator: 62/62; pointers by hints
+  1,637,644 checked, 0 differing; its title frames EQUAL the twin's (so the 536-3,021 difference belongs to the
+  profile-built code, not to gl34's changes).
+G4 imports and the ME's code [C]: the ELF's sce* names 133 / 133, 0 differences against gl33's; stub sections the same sizes;
+  ge_xme_me.o byte-identical to gl33's; new symbols all defined in the ELF; xme_me_chk, xme_rest_chk, mesec_chk,
+  me_call_chk PASS for the use build and the final build. 35 of 45 objects are byte-identical to gl33's.
+G5 memory on the emulator [C]: 'free memory now: heap headroom 64 KB; outside the heap: largest block 116 KB, total 216 KB'
+  (gl33: the same three figures); at the end malloc can still give 80 KB in 2 blocks (64 + 16; gl33: 128 KB in 4), arena
+  12,540 KB with 12,463 KB in use (gl33 12,538 / 12,462); the heap block starts 27 KB higher (the larger code and bss).
+  The no-profile build had 160 KB headroom. On the PSP gl30's run had about 2.7 MB free at its lowest [C, gl30's log]; the
+  emulator has less memory than the PSP, so this is a margin check, not the PSP's figure.
+G6 readers [C]: build_gl34/rd34.py (rd33 + the three new line kinds; run on e2, e3 and the no-profile run) and
+  build_gl34/rd34pc.py (one file, standard library only; made by mkpc34.py with the emulator run's fingerprints: 62 hash
+  lines 66499cdb584a, 916 digest lines b4bf989fb1d6 / 7d2f93ab5f56; tested on a PC-style folder pair made from e2 and
+  gl33's e2: HASHES EQUAL, DIGESTS EQUAL, the turn table next to gl33's same vblanks, the split per turn and by arm).
+G7 reproducible [C]: section 3, last point.
+
+6. WHAT THE PSP RUN WOULD MEASURE
+  (a) the lever: 'fast 1' turns against the 'fast 0' turns next to them, ME turns and main turns separately (rd34pc.py's
+      MEANS tables); the model says -5.9 ms a picture (-1.6 percent) in the rain wait's ME turns, -2.4 in its main turns;
+  (b) the retrain and the timers: gl34's 'fast 0' turns against gl33's log on the same vblanks (gl33's in-place turns);
+      the model says +2.0 / +1.7 ms in the rain wait, about +1 to +2.5 before the rain;
+  (c) the split: the 17 stages and the 12 chains on the real ME, with the real cost of a clock read. This is the first
+      PSP measurement of where the ME's time goes inside the native path, and the main reason to run the package.
+
+7. UNKNOWN UNTIL THE PSP RUN
+  - every speed above (the model has been right in direction since gl20, not always in size);
+  - the cost of a clock read on the ME and whether the timers stay within 1 percent there (the model says yes; the
+    emulator says yes before the walk and +4 percent in the walk's ME turns, section 2);
+  - the hinted lookup and the fast front end on the real ME: both are plain C on the ME's side with no new call, no new
+    memory block and no write outside what the plain path writes [C, code]; the check key MGS2_NAT_HCHK is off in the
+    delivered cfg;
+  - the heap margin on the PSP with 27 KB more code and bss (expected ample: 2.7 MB in gl30).
+
+8. DEVIATIONS FROM THE PLAN, AND WHAT WAS LEFT OUT
+  - DELIVERED TURN ORDER: MGS2_NAT_FAST_CYCLE=0,0,1,1 instead of the plan's example 1,1,0,0. gl33's PSP run had its
+    in-place turns on cycle places 0 and 1 (MGS2_NAT_INPL_CYCLE=1,1,0,0); with 0,0,1,1 gl34's PLAIN turns fall on those
+    vblanks, so gl34 plain against gl33's log on the same vblanks is the retrain and the timers alone, as the plan's
+    sentence "plain turns = gl33's in-place turns" asks. One cfg line flips it; hashes, digests and fingerprints are the
+    same for either order; the twin was run with both (dx: 1,1,0,0; dx2: 0,0,1,1). The training cfg used 1,1,0,0 (both
+    arms in equal shares either way).
+  - THE TARGET (-30 percent of the ship's native ME work in the rain wait): not reached, -8.2 percent (4.1).
+  - Left out of the lever, with what each would need:
+      * the 6 percent of the rain's groups of other entries stay on the plain path (14 percent over the run): a second
+        fast form per entry, each with its own twin check;
+      * batching the calls of one mesh into one converter call, and skipping the GS model's tracking (CLUT loads, drawn
+        areas: 4.6 ms a picture) for native groups: both change the translator's state between calls, so the state digest
+        would no longer be equal call by call; they need a design that shows the state equal at the points where anything
+        reads it (the frame's end, a readback, a non-native call), and a new twin check for that. Not attempted;
+      * a cheaper merge of the hand-off plan (xc_merge, about 1 ms a picture here): exact and easy, but a separate lever
+        with its own key; not in this plan;
+      * the converter per group (10.4 ms, 38 I-misses a group) was not touched.
+  - Not run: gl33's 'r' model runs (the rain windows alone); MGS2_NAT_XMCHK is not read in MGS2_NAT_LW=2 twin runs
+    (checked 0 there; the transform check ran in the other twin runs).
+  - The order step's held-out windows (section 3).
+  - No emulator on/off pair for the fast key was needed: the turns of one run give it.
+
+9. WHAT THE LEAD CAN DECIDE
+  - Deliver gl34 as built: the PSP run gives the first real split of the ME's time and the lever's real size; the model
+    expects the fast ME turns in the rain about 1 percent ahead of gl33 and the rest level or up to 2 percent behind.
+  - Or flip the order to the plan's example (MGS2_NAT_FAST_CYCLE=1,1,0,0): gated on the twin (dx); the emulator
+    fingerprints in rd34pc.py are the same.
+  - Or run it with MGS2_NAT_FAST=0 / =1 in every turn for a cleaner comparison with gl33 (both gated on the twin).
+  - For gl35 [I]: (1) get the retrain's loss back first: pin the inlining that changed (ent_index, lw_p07), put the fast
+    main-turn window into the order's training set, and compare the search's result with gl33's before building on it;
+    (2) pick the next lever from the PSP's 'me chains' and 'nat split' lines rather than from the model alone: on the PC
+    chains 2 and 6 cost as much ME time as the ship.
+
+10. FILES
+/home/claude/main/build_gl34/ (the container):
+  deliver/   EBOOT.PBP 9989839b2edf92e4c1ddc09d93f5a9e7, ovl_d00t.bin 04e8aaa4, ovl_d01t.bin 0bcd0e8b, ovl_init.bin 121bc5fb,
+             ovl_n_title.bin 128f6a14, ovl_r_title.bin 9fd05abb, ovl_r_tnk0.bin 9ded42d9, ovl_w00a.bin 5b5e43d5,
+             ovl_w01a.bin f3e46d80, mgs2.cfg eafa8c28, hashref.txt c9ddb593, pad.txt 7bc72ace, README.txt (for the owner),
+             MANIFEST.md5 (these plus SLES_503.83 e3f4c0df and mgs2disc.pak 189ca53f, which stay on the stick)
+  psp/ (the final build; deliver = psp byte for byte), u/ (the use build), gcda/ (20 profiles), ord/final/ (the order:
+  layout_elf.ld 0d04b761, layout_w00a.ld fa9dfc4d, layout_w01a.ld 94023269), pgochk_u/, np2/ (the no-profile build)
+  tw/x86/ (the twin and its 11 logs), xt34/ (the read-hash twin and its 4 logs)
+  emu_e2/ (the delivered cfg), emu_e3/ (dense; its pic/ is rd34.py's reference), emu_e4/ (timers off), emu_np2/ (logs)
+  model/ (PspProf files and logs), model_tot4.out, model_totc.out, model_split.out, model_lever.out, model_vs_emu.out
+  cfg/, cfg_emu/, the scripts (*.sh, m/scripts/), the tools (*.py), gl34_vs_t33.diff, the gates' outputs (*.out)
+Readers:
+  container:  python3 -I /home/claude/main/build_gl34/rd34.py <log.txt> --bat <battery.txt> [--live <folder with the bmp>]
+  PC:         python -I rd34pc.py <LOGS\gl34> <LOGS\gl33>
+Copies under /mnt/project-files/mgs2/main/attic/gl34/ (text only, read back after the copy): report.txt, README_gl34.txt,
+  MANIFEST_gl34.md5, rd34.py, rd34pc.py, gl34_vs_t33.diff, cfg/ (the delivered, training, model and test cfgs), scripts/
+  (34 scripts and tools), out/ (the gates' and the model's text outputs; the readers' outputs for e2 and e3 as their
+  first 330 lines).
+Deleted, all inside build_gl34 after a look, by literal path: the emulator's game folders of finished runs (ms/em_e2, em_e3,
+  em_e4, g34p, g34f, g34p0, g34f0, g34pc2, g34fc2, g34pc1, g34fc1, g34n4; their logs and pictures are in emu_* and
+  model/), the merged traces lay/t0m.it and lay/t1m.it (563 MB; their figures are in order34.out and fa34.out; the raw
+  traces went earlier), the second build u2/ and psp2/ after G7, emu_np2/pic (455 pictures, compared before), and the
+  half-written outputs a container restart left at 14:01 UTC. Nothing outside build_gl34 and attic/gl34 was written or
+  deleted; nothing of build_gl30, build_gl30n or build_gl32 was touched. Free disk at the end: about 2.0 GB.
+Limits kept: no PSP, nothing on the owner's PC, game data and pictures stay in the container, t33 and build_gl33 read only.

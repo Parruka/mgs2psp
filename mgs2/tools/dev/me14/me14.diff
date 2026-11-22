@@ -1,0 +1,1156 @@
+--- a/ge/xlive.c
++++ b/ge/xlive.c
+@@ -3,6 +3,7 @@
+ #include <string.h>
+ #include "xlive.h"
+ #include "xlate.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static const uint8_t *qp(const XlvMem *m, uint32_t a)
+ { return (a & 0x80000000u) ? m->spr + (a & 0x3ff0) : m->mem + (a & (m->mem_size - 1) & ~15u); }
+@@ -16,7 +17,7 @@
+       uint32_t spr = a & 0x80000000u, o = spr ? (a & 0x3ff0) : (a & (m->mem_size - 1) & ~15u), k = ((spr ? 0x4000 : m->mem_size) - o) / 16;
+       const uint8_t *p = qp(m, a);
+       if (k > n) k = n;
+-      if (m->seen) for (uint32_t i = 0; i < k; i++) m->seen(m->ctx, ch, a + 16 * i, p + 16 * i, 0, chcr);
++      if (m->seen) for (uint32_t i = 0; i < k; i++) ME_CALLP(m->seen)(m->ctx, ch, a + 16 * i, p + 16 * i, 0, chcr);
+       m->qw += k;
+       if (ch == 1) xl_vif1_span((const uint32_t *)p, 4 * k, a); else xl_gif3_span((const uint32_t *)p, k, a);
+       a += 16 * k; n -= k;
+@@ -26,7 +27,7 @@
+   for (uint32_t i = 0; i < n; i++) {
+     uint32_t q = a + 16 * i, w[4]; const uint8_t *p = qp(m, q);
+     memcpy(w, p, 16); m->qw++;
+-    if (m->seen) m->seen(m->ctx, ch, q, p, 0, chcr);
++    if (m->seen) ME_CALLP(m->seen)(m->ctx, ch, q, p, 0, chcr);
+     if (ch == 1) { xl_vif1(w[0], q); xl_vif1(w[1], q + 4); xl_vif1(w[2], q + 8); xl_vif1(w[3], q + 12); }
+     else xl_gif3(w, q);
+   }
+@@ -46,7 +47,7 @@
+     const uint8_t *t = qp(m, tadr); uint64_t tag; uint32_t n, id, addr, data, next; int end = 0;
+     memcpy(&tag, t, 8); n = tag & 0xffff; id = (tag >> 28) & 7; addr = (uint32_t)(tag >> 32) & 0x7ffffff0u; addr |= (uint32_t)(tag >> 32) & 0x80000000u;
+     m->tags++;
+-    if (m->seen) m->seen(m->ctx, ch, tadr, t, 1, chcr);
++    if (m->seen) ME_CALLP(m->seen)(m->ctx, ch, tadr, t, 1, chcr);
+     if ((chcr & 0x40) && ch == 1) {   /* TTE */
+       if (m->fast) xl_vif1_span((const uint32_t *)t + 2, 2, tadr + 8);
+       else { uint32_t w[4]; memcpy(w, t, 16); xl_vif1(w[2], tadr + 8); xl_vif1(w[3], tadr + 12); } }
+--- a/ge/xlate.c
++++ b/ge/xlate.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include "xlate.h"
+ #include "gsfront.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static XlStats St;
+ #ifdef XL_CENSUS
+@@ -433,7 +434,7 @@
+   uint32_t y = kind == 2 ? vmq(c->top)[3] : vmq(c->top + 0x14)[1];
+   for (int k = 0; k < 2; k++) if (y & P[k].bits) {
+     St.ad_kicks++; if (!kick_vm((c->top + P[k].off) & 0x3ff)) St.ad_bad++;
+-    if (pass_fn) pass_fn(pass_ctx, c, k + 2);
++    if (pass_fn) ME_CALLP(pass_fn)(pass_ctx, c, k + 2);
+   }
+ }
+ static uint32_t last_entry; static int last_cont;
+@@ -499,7 +500,7 @@
+   }
+   if (rec) c.lane = rec->lane;
+   c.vm = VM; c.gr = gr;
+-  if (call_fn) call_fn(call_ctx, &c);
++  if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
+   if (r && r->passes) passes(&c, r->passes);
+   gf_drew(&F, dctx);   /* after the callbacks: the call reads its texels before it draws */
+ }
+@@ -747,7 +748,7 @@
+ void xl_need(int on) { vm_all(); need_on = on; }
+ static void (*flush_fn)(void *); static void *flush_ctx;   /* sb4: xl_on_flush */
+ void xl_on_flush(void (*fn)(void *ctx), void *ctx) { flush_fn = fn; flush_ctx = ctx; }
+-void xl_flush(void) { vm_all(); if (flush_fn) flush_fn(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
++void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
+ void xl_vm_sync(void) { vm_all(); }
+ const uint32_t *xl_vm_q(uint32_t qa) { return vmq(qa); }
+ void xl_vm_logical(uint8_t *out)
+--- a/ge/gsfront.c
++++ b/ge/gsfront.c
+@@ -3,6 +3,7 @@
+ #include <string.h>
+ #include "gsfront.h"
+ #include "gsup.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ void gf_setup(const uint64_t *gr, GfDraw *d)
+ {
+@@ -58,7 +59,7 @@
+   g->unk_used = (g->unk & (GF_U_PRIM | GF_U_QUEUE)) | (uv & used(&g->d));
+   g->prims[g->d.prim]++; if (g->unk_used) g->uncertain++;
+   const GfVtx *v[3] = { a, b, c };
+-  if (g->fn) g->fn(g->ctx, g, &g->d, v, n);
++  if (g->fn) ME_CALLP(g->fn)(g->ctx, g, &g->d, v, n);
+   if (g->up) drew_ctx(g, g->d.ctxt);   /* after the callback: a primitive reads its texels before it writes */
+ }
+ /* a vertex kick: draw = 0 for XYZ3 / XYZF3 and the ADC bit (the vertex enters the queue without drawing) */
+--- a/ge/texconv.c
++++ b/ge/texconv.c
+@@ -2,6 +2,7 @@
+ #include "texconv.h"
+ #include "gslayout.h"
+ #include <string.h>
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ /* GS memory layout (block order in a page, pixel order in a block), as PCSX2 GS/GSTables.cpp (same tables as tools/gsref.c) */
+ static const uint8_t bt32[4][8] = { {0,1,4,5,16,17,20,21}, {2,3,6,7,18,19,22,23}, {8,9,12,13,24,25,28,29}, {10,11,14,15,26,27,30,31} };
+@@ -45,7 +46,7 @@
+     int rrw = r[2] & 0xfff, rrh = r[2] >> 32 & 0xfff;
+     if (!qwc || !rrh) continue;                                       /* empty block */
+     if (dpsm != 0 || dbw != 1 || dsax != 0 || rrw != 64 || (uint32_t)rrh * 16 != qwc || (r[3] & 3) != 0 || pg->n == 4) return -1;
+-    pg->up[pg->n++] = (TcUpload){ ram(rd32(pkt + 0x74)), (uint32_t)dbp, dsay, rrh };
++    pg->up[pg->n++] = (TcUpload){ ME_CALLP(ram)(rd32(pkt + 0x74)), (uint32_t)dbp, dsay, rrh };
+   }
+   return -1;
+ }
+@@ -142,7 +143,7 @@
+   for (int y = 0; y < rows; y++) {
+     int sy = v0 + (y < h ? y : h - 1);
+     for (int x = 0; x < bw; x++) {
+-      int sx = u0 + (x < w ? x : w - 1), v = fetch(ctx, sx, sy);
++      int sx = u0 + (x < w ? x : w - 1), v = ME_CALLP(fetch)(ctx, sx, sy);
+       if (psm == 16) { out[swz(2 * x, y, bpr)] = (uint8_t)v; out[swz(2 * x + 1, y, bpr)] = (uint8_t)(v >> 8); continue; }   /* 5551, the PS2's own order */
+       if (x < w && y < h) t->used[v >> 3] |= (uint8_t)(1 << (v & 7));
+       if (psm == 8) out[swz(x, y, bpr)] = (uint8_t)v;
+@@ -171,7 +172,7 @@
+   uint32_t m0 = psm == 8 ? 0xffu : 0xfu, sh0 = gp == 0x2c ? 28 : 24;
+   for (int by = v0 & -bhy; by < v0 + h; by += bhy)
+     for (int bx = u0 & -bwx; bx < u0 + w; bx += bwx) {
+-      blk(ctx, gp == 0x13 ? pa8(tbp, tbw, bx, by) >> 8 : gp == 0x14 ? pa4(tbp, tbw, bx, by) >> 9 : psm == 16 ? gs_pa16(tbp, tbw, bx, by, gp == 0x0a, 0) >> 8
++      ME_CALLP(blk)(ctx, gp == 0x13 ? pa8(tbp, tbw, bx, by) >> 8 : gp == 0x14 ? pa4(tbp, tbw, bx, by) >> 9 : psm == 16 ? gs_pa16(tbp, tbw, bx, by, gp == 0x0a, 0) >> 8
+           : pa32(tbp, tbw, bx, by) >> 8, v, kn);
+       uint32_t all = ~0u; for (int i = 0; i < 64; i++) all &= kn[i];
+       int ya = by > v0 ? by : v0, yb = by + bhy < v0 + h ? by + bhy : v0 + h, xa = bx > u0 ? bx : u0, xb = bx + bwx < u0 + w ? bx + bwx : u0 + w;
+--- a/ge/texcache.c
++++ b/ge/texcache.c
+@@ -3,6 +3,7 @@
+ #include <string.h>
+ #include "texcache.h"
+ #include "gslayout.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ typedef struct {
+   uint64_t id;                 /* 0: a free entry */
+--- a/ge/gelive.c
++++ b/ge/gelive.c
+@@ -10,6 +10,7 @@
+ #include "vu1conv.h"
+ #include "gelist.h"
+ #include "fxthin.h"   /* task #114 */
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
+ {
+@@ -70,7 +71,7 @@
+   if (f->memo_on) { f->memo.t0 = t0; f->memo.cl = cl; f->memo.texa = texa; f->memo.gen = gen; f->memo.ti = i; f->memo.xt = *xt; f->memo.valid = 1; }
+   return i;
+ }
+-static int xtex_cb(void *ctx, const uint64_t *gr, int ctxt, XcTex *t)
++int gl_tex_cb(void *ctx, const uint64_t *gr, int ctxt, XcTex *t)   /* task #149: was static xtex_cb (gelive.h) */
+ {
+   GlFrame *f = ctx; return gl_tex(f, gr, ctxt, (uint32_t)(gr[0x4c + ctxt] & 0x1ff) * 32, t, 0) >= 0;
+ }
+@@ -87,7 +88,7 @@
+   f->held = aligned_alloc(64, GL_HOLD * sizeof *f->held); f->hold_max = GL_HOLD;   /* sb4: step c's records (64-byte lines: XcHeld.img) */
+   if (f->held) memset(f->held, 0, GL_HOLD * sizeof *f->held);
+   if (!f->tdata || !f->tpal || !f->tkey || !f->tsize || !f->held) return -1;
+-  f->h.tex = xtex_cb; f->h.ctx = f; f->h.zk = f->o.zk; f->h.noidx = 1; f->h.zr = &f->zr;
++  f->h.tex = gl_tex_cb; f->h.ctx = f; f->h.zk = f->o.zk; f->h.zkf = f->o.zkf; f->h.noidx = 1; f->h.zr = &f->zr;
+   f->h.cut = 1;   /* df0 calls wholly off the scissor are left out (ge/xconv.h XcHost.cut); the host may turn it off */
+   f->h.clipfast = 1;   /* sb3: the effects' clip positions without needless clamps (XcHost.clipfast); the host may turn it off */
+   if (f->zraw) { f->h.zlo = 1; f->h.zhi = 0; } else { f->h.zlo = 0; f->h.zhi = (float)(65535.0 / zk); }   /* raw: no window before a
+@@ -103,6 +104,14 @@
+   f->o.dropped = 0; xc_zr_begin(&f->zr); f->tlo = 3.0e38f; f->thi = -1; f->tz0 = f->tztop = 0;
+   f->nheld = 0; f->held_cur = -1; f->held_gone = 0; f->pend = 0; xc_hold7_reset();   /* sb4 (sb10 T2: and the P07 calls' copies) */
+   f->ft_done = 0; f->h.nthin = 0;   /* task #114 */
++  f->ft_n = 0;                      /* task #149 */
++}
++void gl_thin(GlFrame *f, const XcThin *r, int n)
++{
++  _Static_assert(FX_RANGES == 16, "GlFrame.ft_r");
++  if (n > 16) n = 16;
++  for (int i = 0; i < n; i++) f->ft_r[i] = r[i];
++  f->ft_n = n < 0 ? 0 : n;
+ }
+ /* zchk: what the frame's map leaves outside the GE's range (x86 checks; float, as the GE) */
+ static float zc_depth(const GerXform *x, const float *p, float *w)   /* GE depth before the map (Z24 x zk) of a position, its w */
+@@ -114,7 +123,7 @@
+ }
+ static void gl_zchk(GlFrame *f)
+ {
+-  float zs, zo; gx_depth_map(f->map_lo, f->map_hi, (float)f->o.zk, &zs, &zo);
++  float zs, zo; gx_depth_map(f->map_lo, f->map_hi, f->o.zkf, &zs, &zo);   /* (task #149: (float)zk, made at init) */
+   for (int i = 0; i < f->o.nb; i++) {
+     const GerBatch *b = &f->o.b[i]; const GerXform *x = (const GerXform *)(f->o.d + b->first);
+     if (b->kind == GERK_XFORM) {
+@@ -299,8 +308,13 @@
+   f->lit_ok = 0; f->held_cur = -1; f->held_gone = 0;
+   if (!gl_conv_entry(c->entry) || c->cont) { f->n.other++; return; }
+   f->n.calls++;
++#ifdef MGS2_ME_SAFE
++  if (f->ft_on && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2)) {   /* task #149: the ranges the host's scan found (gl_thin) */
++    f->ft_done = 1; f->h.nthin = f->ft_n; f->h.thin = f->ft_r; }
++#else
+   if (f->ft && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2)) {   /* task #114: the frame's thinned effects, as they are now */
+     f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram); f->h.thin = f->ft->r; }
++#endif
+   /* sb4, step c (renderer_notes 11.29): a call xc_hold_test takes is held when the frame has a record, its batch slots and data room
+      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
+   uint32_t bound; int npd;
+--- a/ge/gebatch.c
++++ b/ge/gebatch.c
+@@ -3,6 +3,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include "gebatch.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ /* room for one more element in *p (capacity *cap, elements of size sz), doubling from first; 0, or -1 with *p unchanged */
+ static int grow(void **p, int n, int *cap, size_t sz, int first, int fixed)
+@@ -15,7 +16,7 @@
+ }
+ int gb_init(GbOut *o, double zk, int max_tex)
+ {
+-  memset(o, 0, sizeof *o); o->cur = -1; o->zk = zk; o->cap_t = max_tex;
++  memset(o, 0, sizeof *o); o->cur = -1; o->zk = zk; o->zkf = (float)zk; o->cap_t = max_tex;
+   o->t = calloc((size_t)max_tex, sizeof *o->t); o->u0 = calloc((size_t)max_tex, sizeof *o->u0); o->v0 = calloc((size_t)max_tex, sizeof *o->v0);
+   return o->t && o->u0 && o->v0 ? 0 : -1;
+ }
+@@ -85,10 +86,14 @@
+   r.c = (uint32_t)v->r | v->g << 8 | v->b << 16 | (uint32_t)a << 24;
+   r.x = (float)(v->x - d->ofx) * 0.05859375f; r.y = (float)(v->y - d->ofy) * 0.033203125f;   /* / 16 x 480 / 512 and / 16 x 272 / 512, exact */
+   if (o->zraw) r.z = (float)(d->zpsm == 0x32 || d->zpsm == 0x3a || v->z < 0xffffff ? v->z : 0xffffff);
++#if defined(MGS2_ME_SAFE) && defined(__psp__)   /* task #149: no doubles on the ME; the live picture keeps the raw depth (gl_init, zk 0) */
++  else { me_faults.zk++; r.z = 0; }
++#else
+   else {
+     double z = (d->zpsm == 0x32 || d->zpsm == 0x3a) ? v->z : (v->z > 0xffffff ? 0xffffff : v->z) * o->zk;   /* Z16 / Z16S as they are; the GS clamps Z to the buffer's range; GE depth = Z24 x zk */
+     r.z = (float)(z > 65535 ? 65535 : z);
+   }
++#endif
+   float u = 0, w = 0;
+   if (d->tme) {
+     if (d->fst) { u = v->u / 16.0f; w = v->v / 16.0f; } else { float iq = v->q ? 1.0f / v->q : 0; u = v->s * iq * (float)(1 << d->tw); w = v->t * iq * (float)(1 << d->th); }
+--- a/ge/xconv.c
++++ b/ge/xconv.c
+@@ -10,6 +10,7 @@
+ #include <stddef.h>
+ #include <string.h>
+ #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
+@@ -59,7 +60,12 @@
+   memcpy(gx->world, x->world, sizeof gx->world);
+   gx->proj[0] = 1; gx->proj[5] = 1; gx->proj[10] = x->pa; gx->proj[11] = 1; gx->proj[14] = -x->pb;
+   /* float only (the PSP has no double unit, and the x86 check build rounds as the PSP's FPU): 480 / 512 = 0.9375, 272 / 512 = 0.53125 */
+-  float ofx = d->ofx / 16.0f, ofy = d->ofy / 16.0f, zk = (float)h->zk;
++  float ofx = d->ofx / 16.0f, ofy = d->ofy / 16.0f, zk =
++#ifdef MGS2_ME_SAFE
++    h->zkf;
++#else
++    (float)h->zk;
++#endif
+   gx->vs[0] = x->vs[0] * 0.9375f; gx->vo[0] = (2048 - 240) + (x->vo[0] - ofx) * 0.9375f;
+   gx->vs[1] = x->vs[1] * 0.53125f; gx->vo[1] = (2048 - 136) + (x->vo[1] - ofy) * 0.53125f;
+   gx->vs[2] = -x->vs[2] * zk; gx->vo[2] = x->vo[2] * zk;
+@@ -842,7 +848,7 @@
+ {
+   xc_gs(c->gr, d);
+   memset(t, 0, sizeof *t); t->index = -1;
+-  if (d->tme && h->tex && !h->tex(h->ctx, c->gr, d->ctxt, t)) t->index = -1;
++  if (d->tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d->ctxt, t)) t->index = -1;
+ }
+ /* the pass's batch from them (Lp: its call's xc_lit), its texture scale written into the call's blob */
+ static void xc_pass_do(const XcGs *d, const XcTex *t, int pass, uint32_t entry, GerBatch *b, uint8_t *blob)
+@@ -926,7 +932,7 @@
+     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+   }
+   XcTex t; memset(&t, 0, sizeof t); t.index = -1;
+-  if (d.tme && h->tex && !h->tex(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
++  if (d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
+   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
+           k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
+   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
+@@ -989,7 +995,7 @@
+     St.calls[4]++;
+     xc_gs(c->gr, &r->d);
+     memset(&r->t, 0, sizeof r->t); r->t.index = -1;
+-    if (r->d.tme && h->tex && !h->tex(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
++    if (r->d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
+     r->entry = c->entry; r->top = c->top; r->hy = vq(c->vm, c->top)[3] & 0xffff; r->fogcol = (uint32_t)(c->gr[0x3d] & 0xffffff);
+     r->rec = *c->rec; r->np = 0; r->slot = r->pslot[0] = r->pslot[1] = -1;
+     hold7(c, r);
+@@ -998,7 +1004,7 @@
+   St.calls[3]++;
+   xc_gs(c->gr, &r->d);
+   memset(&r->t, 0, sizeof r->t); r->t.index = -1;
+-  if (r->d.tme && h->tex && !h->tex(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
++  if (r->d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
+   r->entry = c->entry; r->top = c->top; r->hy = vq(c->vm, c->top + 0x14)[1] & 0xffff; r->fogcol = (uint32_t)(c->gr[0x3d] & 0xffffff);
+   r->rec = *c->rec; r->np = 0; r->slot = r->pslot[0] = r->pslot[1] = -1;
+   if (xc_held_poison) memset(r->img, 0xa5, sizeof r->img);
+--- a/ge/vu1conv.c
++++ b/ge/vu1conv.c
+@@ -2,6 +2,7 @@
+ #include "vu1conv.h"
+ #include <math.h>
+ #include <string.h>
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static const uint32_t *vq(const uint8_t *vm, uint32_t qa) { return (const uint32_t *)(vm + ((qa & 0x3ffu) << 4)); }
+ /* a float as the VU reads it: no denormals, and an exponent of 255 is the largest finite value */
+--- a/ge/gelist.c
++++ b/ge/gelist.c
+@@ -9,6 +9,7 @@
+ #include <string.h>
+ #include "gelist.h"
+ #include "vu1conv.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ enum {   /* GE commands (pspsdk guInternal.h) */
+   C_VADDR = 0x01, C_IADDR = 0x02, C_PRIM = 0x04, C_RET = 0x0b, C_END = 0x0c, C_FINISH = 0x0f, C_BASE = 0x10, C_VTYPE = 0x12, C_REGION1 = 0x15,
+@@ -79,7 +80,7 @@
+ /* BASE (when its bits change: not hashed) and VADDR / IADDR of p (sceGuDrawArray's words) */
+ static void addr_cmd(uint32_t c, const void *p)
+ {
+-  uint32_t a = H->addr(H->ctx, p), base = (a >> 8) & 0xf0000;
++  uint32_t a = ME_CALLP(H->addr)(H->ctx, p), base = (a >> 8) & 0xf0000;
+   if (L->s_base != base) { L->w[L->n++] = (uint32_t)C_BASE << 24 | base; L->s_base = base; }
+   if (L->dig_on) { int r; uint32_t o; sym(p, &r, &o); put_sym(c, a, r, o); } else L->w[L->n++] = c << 24 | (a & 0xffffff);
+   if (c == C_VADDR) L->c.vaddr++;
+@@ -121,12 +122,12 @@
+     put_sym(C_TBP0, a, R_VRAM, rel); put_sym(C_TBW0, (a >> 8 & 0x0f0000) | 512, R_VRAM, 512);
+     put(C_TSIZE0, 9 << 8 | 9);
+   } else if (t->psm == 16) {   /* direct colour: the PS2's CT16 halves as the GE's 5551, no palette (task #83) */
+-    uint32_t a = H->addr(H->ctx, F->tdata[ti]);
++    uint32_t a = ME_CALLP(H->addr)(H->ctx, F->tdata[ti]);
+     put(C_TMODE, 1); put(C_TPSM, G_PSM_5551);
+     put_sym(C_TBP0, a, R_TEX, (uint32_t)ti); put_sym(C_TBW0, (a >> 8 & 0x0f0000) | t->bw, R_TEX, t->bw);
+     put(C_TSIZE0, (uint32_t)(get_exp(t->th) << 8 | get_exp(t->tw)));
+   } else {
+-    uint32_t a = H->addr(H->ctx, F->tdata[ti]), p = H->addr(H->ctx, F->tpal[ti]);
++    uint32_t a = ME_CALLP(H->addr)(H->ctx, F->tdata[ti]), p = ME_CALLP(H->addr)(H->ctx, F->tpal[ti]);
+     put(C_TMODE, 1); put(C_TPSM, t->psm == 8 ? G_PSM_T8 : G_PSM_T4);
+     put_sym(C_TBP0, a, R_TEX, (uint32_t)ti); put_sym(C_TBW0, (a >> 8 & 0x0f0000) | t->bw, R_TEX, t->bw);
+     put(C_TSIZE0, (uint32_t)(get_exp(t->th) << 8 | get_exp(t->tw)));
+--- a/ge/gsup2.c
++++ b/ge/gsup2.c
+@@ -23,6 +23,7 @@
+ #include <string.h>
+ #include "gsup.h"
+ #include "gslayout.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #if defined GU_SENT || defined GU_MEMO_CHECK
+ #include <stdio.h>
+ #endif
+@@ -231,7 +232,7 @@
+ #ifdef GU_SENT
+   if (m->read_sent) return x->sent ? x->sent + off : 0;
+ #endif
+-  return x->own ? x->own + off : m->ram(m->ctx, x->src + off, n);
++  return x->own ? x->own + off : ME_CALLP(m->ram)(m->ctx, x->src + off, n);
+ }
+ 
+ /* ---- records, list nodes, CLUT loads: pools with free lists, swept ---- */
+@@ -407,7 +408,7 @@
+ static void rec_ident(GuMap *m, Rec *x, int fin)
+ {
+   uint32_t n = x->got < x->need ? x->got : x->need; uint64_t k = 0;
+-  const uint8_t *s = n ? m->ram(m->ctx, x->src, n) : 0;
++  const uint8_t *s = n ? ME_CALLP(m->ram)(m->ctx, x->src, n) : 0;
+   DC_(ident_calls);
+   if (n && !s) x->bad = 1;
+   if (s) {
+@@ -889,18 +890,28 @@
+ }
+ 
+ /* ---- transfers ---- */
++/* one texel of a local copy's source as local_copy reads it (an index or 16-bit texel, or a 32-bit word): 0 when the map does not know
++   all of its bits */
++static inline int lc_src(const GuMap *m, int spsm, uint32_t sbp, uint32_t sbw, int texel, int sx, int sy, uint32_t *v)
++{
++  if (texel) { int64_t k = gu_texel(m, spsm, sbp, sbw, sx, sy); if (k < 0) return 0; *v = (uint32_t)k; return 1; }
++  uint32_t kn, mk = spsm == GS_CT24 ? 0xffffffu : 0xffffffffu; *v = gu_word(m, gs_pa32(sbp, sbw, sx, sy, 0) >> 2, &kn); return (kn & mk) == mk;
++}
+ static uint8_t *local_copy(GuMap *m, const Rec *x, uint64_t b, uint64_t p)
+ {
+   int spsm = (int)(b >> 24 & 63), ssx = (int)(p & 0x7ff), ssy = (int)(p >> 16 & 0x7ff), bits = psm_bits(x->psm);
+   uint32_t sbp = (uint32_t)(b & 0x3fff), sbw = (uint32_t)(b >> 16 & 63);
+   int sidx = spsm == GS_T8 || spsm == GS_T4 || spsm == GS_T8H || spsm == GS_T4HL || spsm == GS_T4HH, s16 = spsm == GS_CT16 || spsm == GS_CT16S;
+   if (psm_bits(spsm) != bits || (!sidx && !s16 && spsm != GS_CT32 && spsm != GS_CT24) || !sbw) return 0;
++  /* task #149: every texel of the source first, the buffer only when the map knows them all (most local copies read a drawn area) */
++  int tx = sidx || s16; uint32_t v;
++  for (int j = 0; j < x->h; j++)
++    for (int i = 0; i < x->w; i++) if (!lc_src(m, spsm, sbp, sbw, tx, (ssx + i) & 2047, (ssy + j) & 2047, &v)) return 0;
+   uint8_t *o = calloc(1, x->need ? x->need : 1); if (!o) return 0;
+   for (int j = 0; j < x->h; j++)
+     for (int i = 0; i < x->w; i++) {
+-      uint32_t pi = (uint32_t)j * (uint32_t)x->w + (uint32_t)i, v, kn; int sx = (ssx + i) & 2047, sy = (ssy + j) & 2047;
+-      if (sidx || s16) { int64_t k = gu_texel(m, spsm, sbp, sbw, sx, sy); if (k < 0) { free(o); return 0; } v = (uint32_t)k; kn = 0; }
+-      else { v = gu_word(m, gs_pa32(sbp, sbw, sx, sy, 0) >> 2, &kn); if ((kn & (spsm == GS_CT24 ? 0xffffffu : 0xffffffffu)) != (spsm == GS_CT24 ? 0xffffffu : 0xffffffffu)) { free(o); return 0; } }
++      uint32_t pi = (uint32_t)j * (uint32_t)x->w + (uint32_t)i;
++      if (!lc_src(m, spsm, sbp, sbw, tx, (ssx + i) & 2047, (ssy + j) & 2047, &v)) { free(o); return 0; }   /* (cannot happen) */
+       switch (x->psm) {
+         case GS_CT32: memcpy(o + 4 * pi, &v, 4); break;
+         case GS_CT24: o[3 * pi] = (uint8_t)v; o[3 * pi + 1] = (uint8_t)(v >> 8); o[3 * pi + 2] = (uint8_t)(v >> 16); break;
+@@ -928,7 +939,7 @@
+   Rec *x = &m->r[i];
+   x->bp = bp; x->bw = bw; x->psm = psm; x->sx = sx; x->sy = sy; x->w = w; x->h = h; x->need = (uint32_t)(((uint64_t)w * h * psm_bits(psm) + 7) / 8);
+ #ifdef GU_SENT
+-  if (m->trx_fn) m->trx_fn(m->trx_ctx, gr);
++  if (m->trx_fn) ME_CALLP(m->trx_fn)(m->trx_ctx, gr);
+ #endif
+   if (dir == 2) {   /* a local copy: resolved from the map now, in a modelled layout; else not known */
+     uint32_t ln = psm_lanes(psm);
+@@ -973,14 +984,14 @@
+   if (x->src == GU_NOSRC) x->src = ee;
+   else if (ee != x->src + x->got && !x->bad) { x->bad = 1; m->st.xfer_split++; }
+ #ifdef GU_SENT
+-  if (x->sent && !x->bad) { const uint8_t *s = m->ram(m->ctx, ee, n); uint32_t k = x->need - x->got < n ? x->need - x->got : n; if (s) memcpy(x->sent + x->got, s, k); }
++  if (x->sent && !x->bad) { const uint8_t *s = ME_CALLP(m->ram)(m->ctx, ee, n); uint32_t k = x->need - x->got < n ? x->need - x->got : n; if (s) memcpy(x->sent + x->got, s, k); }
+ #endif
+   x->got += n;
+   if (x->in == 1 && !was_bad) m->epoch++;   /* in the blocks before its data was all in: what they hold changes */
+   if (m->keys && !x->bad && x->got >= x->need && x->got - n < x->need) rec_ident(m, x, 1);
+   uint32_t no = x->no, got = x->got, need = x->need;
+   if (!x->in && got >= need) commit(m, m->cur);   /* its data is all in */
+-  if (m->data_fn) m->data_fn(m->data_ctx, no, ee, n, got, need);
++  if (m->data_fn) ME_CALLP(m->data_fn)(m->data_ctx, no, ee, n, got, need);
+ }
+ void gu_image_run(GuMap *m, uint32_t ee, uint32_t n)
+ {
+@@ -1301,12 +1312,12 @@
+   for (int i = 0; i < m->nr; i++) {
+     const Rec *x = &m->r[i]; uint32_t got = x->got < x->need ? x->got : x->need;
+     if (!x->live || !x->sent || x->bad || x->src == GU_NOSRC || !got) continue;
+-    const uint8_t *s = m->ram(m->ctx, x->src, got); if (!s) continue;
++    const uint8_t *s = ME_CALLP(m->ram)(m->ctx, x->src, got); if (!s) continue;
+     n++;
+     if (!memcmp(s, x->sent, got)) continue;
+     uint32_t first = ~0u, nd = 0;
+     for (uint32_t k = 0; k < got; k++) if (s[k] != x->sent[k]) { if (first == ~0u) first = k; nd++; }
+-    fn(ctx, x->no, x->src, got, first, nd);
++    ME_CALLP(fn)(ctx, x->no, x->src, got, first, nd);
+   }
+   return n;
+ }
+--- a/ge/gelive.h
++++ b/ge/gelive.h
+@@ -82,7 +82,13 @@
+   /* task #114: the effects drawn thinner (ge/fxthin.h): ft 0 none; ram the guest's 32 MB, read by the scan the frame's first effect call
+      makes (ft_done 1: made; gl_begin clears it and h.nthin) */
+   struct FxThin *ft; const uint8_t *ram; int ft_done;
++  /* task #149 (-DMGS2_ME_SAFE): the scan runs on the host's side at the step's first transfer (fx_thin_scan reads the game's RAM, which
++     the ME must not), and gl_thin hands its ranges in; ft_on: the thinning is on (the host sets it with ft) */
++  int ft_on, ft_n; XcThin ft_r[16];
+ } GlFrame;
++void gl_thin(GlFrame *f, const XcThin *r, int n);   /* task #149: this frame's thinned ranges (the host's fx_thin_scan, FX_RANGES at most) */
++int gl_tex_cb(void *ctx, const uint64_t *gr, int ctxt, XcTex *t);   /* task #149: XcHost.tex as gl_init installs it (global, so that the
++                                                                        ME unit's check can keep it as an entry: the ME calls it) */
+ #define GL_HOLD 256
+ 
+ /* zk: GE depth = Z24 x zk, or 0 for zraw.  0, or -1: no memory; then gb_arena on f->o for an arena */
+--- a/ge/gebatch.h
++++ b/ge/gebatch.h
+@@ -20,6 +20,7 @@
+   uint8_t *d; uint32_t nd, cap_d;      /* the data block: texels, palettes and transform batch data, each at a 64-byte boundary */
+   GerVert last[2];                     /* the current batch's last two vertices (strip and fan continuation) */
+   double zk;                           /* GE depth = Z24 x zk (the file's zscale) */
++  float zkf;                           /* task #149: (float)zk, made by gb_init (no doubles on the ME) */
+   int zraw;                            /* 1: a through vertex's z is the PS2's Z as it is (Z24 at most 0xffffff; Z16 buffers' Z16), for a
+                                           depth map applied later (ge/gelist.h); 0: Z24 x zk, at most 65535 */
+   long dropped;                        /* what did not fit: no memory, or the texture table full */
+--- a/ge/xconv.h
++++ b/ge/xconv.h
+@@ -44,6 +44,7 @@
+   int (*tex)(void *ctx, const uint64_t *gr, int ctxt, XcTex *t);   /* 0: no GE texture (the batch is drawn untextured) */
+   void *ctx;
+   double zk;               /* GE depth = Z24 x zk (the replay file's zscale) */
++  float zkf;               /* task #149: (float)zk (hosts built with -DMGS2_ME_SAFE set it: gl_init) */
+   float zlo, zhi;          /* the depth window in Z24 for the effects' class 3 (renderer_notes 11.9); zlo < 0: none */
+   XcTrace *trace;          /* 0: none */
+   int noidx;               /* 1: df0 batches without the joined index list (nidx 0: the live renderer draws each strip, renderer_notes
+--- a/ge_e/xlate.c
++++ b/ge_e/xlate.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include "xlate.h"
+ #include "gsfront.h"
++#include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ 
+ static XlStats St;
+ #ifdef XL_CENSUS
+@@ -433,7 +434,7 @@
+   uint32_t y = kind == 2 ? vmq(c->top)[3] : vmq(c->top + 0x14)[1];
+   for (int k = 0; k < 2; k++) if (y & P[k].bits) {
+     St.ad_kicks++; if (!kick_vm((c->top + P[k].off) & 0x3ff)) St.ad_bad++;
+-    if (pass_fn) pass_fn(pass_ctx, c, k + 2);
++    if (pass_fn) ME_CALLP(pass_fn)(pass_ctx, c, k + 2);
+   }
+ }
+ static uint32_t last_entry; static int last_cont;
+@@ -499,7 +500,7 @@
+   }
+   if (rec) c.lane = rec->lane;
+   c.vm = VM; c.gr = gr;
+-  if (call_fn) call_fn(call_ctx, &c);
++  if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
+   if (r && r->passes) passes(&c, r->passes);
+   gf_drew(&F, dctx);   /* after the callbacks: the call reads its texels before it draws */
+ }
+@@ -747,7 +748,7 @@
+ void xl_need(int on) { vm_all(); need_on = on; }
+ static void (*flush_fn)(void *); static void *flush_ctx;   /* sb4: xl_on_flush */
+ void xl_on_flush(void (*fn)(void *ctx), void *ctx) { flush_fn = fn; flush_ctx = ctx; }
+-void xl_flush(void) { vm_all(); if (flush_fn) flush_fn(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
++void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
+ void xl_vm_sync(void) { vm_all(); }
+ const uint32_t *xl_vm_q(uint32_t qa) { return vmq(qa); }
+ void xl_vm_logical(uint8_t *out)
+--- a/boot/xlive_chk.c
++++ b/boot/xlive_chk.c
+@@ -99,6 +99,7 @@
+ #include "../ge/gelive.h"
+ #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
+ #include "../ge/fxthin.h"    /* task #114 */
++#include "../ge/me_rt.h"     /* task #149: the picture heap, its counts */
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+@@ -737,7 +738,24 @@
+   if (gb_now) gl_prim(&glf, g, d, v, n);
+ }
+ 
++static size_t x_grow = 32 << 10;   /* task #149: MGS2_ME_HEAP_KB's hooks, as psp/xl_psp.c's me_more and me_less */
++static void *x_more(size_t want, size_t *got)
++{
++  size_t n = want < x_grow ? x_grow : (want + 4095) & ~(size_t)4095; void *p = malloc(n); if (p) *got = n; return p;
++}
++static void x_less(void *r) { free(r); }
++static void *x_resize(void *r, size_t want) { return realloc(r, want); }
+ static void setup(void);
++static int thin_due = 1;   /* task #149: a frame began (gl_begin) and the thinning's scan has not run for it yet */
++static void heap_line(const char *pre)   /* task #149: the picture heap (ge/me_rt.c) and the faults me_rt counts */
++{
++  const MeHeapStats *h = me_heap_stats();
++  fprintf(stderr, "%s picture heap: %zu KB in %d regions now (%zu KB added now, %zu KB at most: the hook gave %ld regions, took back %ld, resized %ld, "
++          "refused %ld), peak %zu KB in use (extent %zu KB), now %zu KB; blocks peak %ld; allocations %ld, frees %ld, "
++          "reallocs %ld (moved %ld); refused %ld (first %zu bytes); check %d; me_rt faults: overlapping copies %ld, depth by zk %ld\n", pre,
++          h->size >> 10, h->pools, h->added >> 10, h->added_peak >> 10, h->grows, h->returned, h->resized, h->grow_fails, h->peak >> 10, h->extent >> 10, h->used >> 10, h->blocks_peak, h->allocs, h->frees, h->reallocs, h->moved, h->fails,
++          h->fail_first, me_heap_check(), me_faults.overlap, me_faults.zk);
++}
+ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int one)
+ {
+   if (from == -2) setup();
+@@ -759,6 +777,8 @@
+   glf.ram = mem;   /* sb6: the thinning's scan (gelive.c fx_thin_scan) reads the game's RAM through glf.ram, which a frame's start copies
+                       from M.mem; with the translator started late (MGS2_XLIVE <from> > 0) the first frame begins before this first transfer,
+                       M.mem still 0: the digest runs from vb 30,800 stopped there at the rain's first +25f0 call.  The same pointer otherwise */
++  if (thin_due && glf.ft_on) { thin_due = 0; gl_thin(&glf, glf.ft->r, fx_thin_scan(glf.ft, glf.ram)); }   /* task #149: the thinning's scan
++                                         on the host's side, at the frame's first walked transfer (it was gl_call's at the frame's first effect call) */
+   if (one_on && one) { one_tr++; g_xl_one = 1; clock_gettime(CLOCK_MONOTONIC, &one_t0); return; }   /* the exact walk feeds it */
+   struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
+   xlv_dma(&M, ch, chcr, madr, qwc, tadr);
+@@ -787,6 +807,7 @@
+ }
+ static void totals(void)
+ {
++  heap_line("xlive:");
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+   if (g_xl_lane) fprintf(stderr, "sb lane: groups %ld (lane 1) %ld (lane 2); %ld df0 calls from the game's streams, checked %ld, differing %ld; "
+                          "%ld P06 calls from the game's streams, %ld from the VU memory, checked %ld, differing %ld\n", xl_lane_groups[1],
+@@ -895,6 +916,14 @@
+   const char *e = getenv("MGS2_XLIVE"); char fn[256] = ""; from = -1;
+   if (e && sscanf(e, "%ld:%ld:%255s", &from, &to, fn) < 2) from = -1;
+   if (from >= 0) {
++    { size_t hn = (size_t)(getenv("MGS2_ME_HEAP_MB") ? atol(getenv("MGS2_ME_HEAP_MB")) : 256) << 20; static uint8_t *hb;   /* task #149 */
++      const char *hk = getenv("MGS2_ME_HEAP_KB"), *gk = getenv("MGS2_ME_HEAP_GROW_KB");
++      if (hk) hn = (size_t)atol(hk) << 10;
++      if (gk) x_grow = (size_t)atol(gk) << 10;
++      if (!(hb = malloc(hn)) || me_heap_init(hb, hn)) { fprintf(stderr, "xlive: no memory for the picture heap\n"); exit(1); }
++      if (hk) { const char *z = getenv("MGS2_ME_HEAP_RESIZE"); me_heap_grow(x_more, x_less); if (!z || atoi(z)) me_heap_resize(x_resize); }
++      fprintf(stderr, "xlive mode: the picture code built ME-safe (task #149), its heap a region of %zu KB (MGS2_ME_HEAP_MB or _KB)%s\n", hn >> 10,
++              hk ? "; more from the C library's heap when nothing fits, given back when empty, resized by realloc (MGS2_ME_HEAP_KB: the PSP's hooks)" : ""); }
+     M.seen = seen;
+     if (!(map = gu_new(ram, 0))) { fprintf(stderr, "xlive: no memory for the texture sources\n"); exit(1); }
+     xl_on_call(on_call, 0); xl_on_prim(on_prim, 0); xl_uploads(map); xl_on_pass(on_pass, 0); xl_on_flush(on_flush, 0);
+@@ -945,7 +974,7 @@
+         glf.hold_max = atoi(getenv("MGS2_GL_HOLD")); fprintf(stderr, "xlive mode: step c holds up to %d P06 calls (MGS2_GL_HOLD)\n", glf.hold_max); }
+       { static FxThin ft; fx_thin_init(&ft, getenv("MGS2_GL_RAIN") ? atoi(getenv("MGS2_GL_RAIN")) : 1,   /* task #114: as the PSP's cfg */
+           getenv("MGS2_GL_SPLASH") ? atoi(getenv("MGS2_GL_SPLASH")) : 1);
+-        if (fx_thin_on(&ft)) { glf.ft = &ft; fprintf(stderr, "xlive mode: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d "
++        if (fx_thin_on(&ft)) { glf.ft = &ft; glf.ft_on = 1; fprintf(stderr, "xlive mode: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d "
+           "(MGS2_GL_RAIN, MGS2_GL_SPLASH)\n", ft.keep[0], ft.keep[1]); } }
+       if (getenv("MGS2_XLIVE_CUT") && !atoi(getenv("MGS2_XLIVE_CUT"))) { glf.h.cut = 0;   /* the PSP's OPT_GL_CUT off */
+         fprintf(stderr, "xlive mode: every df0 call converted (MGS2_XLIVE_CUT=0)\n"); }
+@@ -1022,7 +1051,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf); thin_due = 1;
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+--- a/boot/xlive_chk_g.c
++++ b/boot/xlive_chk_g.c
+@@ -99,6 +99,7 @@
+ #include "../ge/gelive.h"
+ #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
+ #include "../ge/fxthin.h"    /* task #114 */
++#include "../ge/me_rt.h"     /* task #149: the picture heap, its counts */
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+@@ -135,7 +136,7 @@
+    translator reads (packets, uploads, the texture sources, the thinning's RAM) is still what it was.  Also: the host time of each transfer
+    in its step (where the work could start on a second CPU), the scratchpad quadwords the walks take, a line every 100 vblanks. */
+ static int dfr; static long df_q_tr, df_q_hk, df_runs, df_spr, df_maxq;
+-typedef struct { int kind; int ch; uint32_t chcr, madr, qwc, tadr; long vb; int fe, fb; uint8_t *lg; size_t ln; int fs; uint32_t opt, opt2; int lane; } DfE;   /* kind 0 transfer, 1 hook
++typedef struct { int kind; int ch; uint32_t chcr, madr, qwc, tadr; long vb; int fe, fb; uint8_t *lg; size_t ln; int fs; uint32_t opt, opt2; int lane; int thin_set, nthin; XcThin thin[16]; } DfE;   /* kind 0 transfer, 1 hook
+    (me13: a hook event carries g_opt and g_opt2 as they were at the real hook, for the frame it begins; me13 b: a transfer carries g_opt
+    and g_opt2 (me13 c: the per-transfer switches, tr_switch) and, when the runtime's walk would have fed it to the translator (the one
+    walk), the lanes then on (g_xl_lane, or with MGS2_SB_LANE_OPT g_opt's lane bits); else lane 0) */
+@@ -1257,7 +1258,7 @@
+     tk_free(tkc); if (!(tkc = tk_new(map, gx_pool_n / 8 * 7)) || tk_pool(tkc, gx_pool, gx_pool_n)) { fprintf(stderr, "me13: take-back: no texture cache\n"); exit(1); } }
+   if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA, GL_PSP_NB, GL_PSP_NV)) {
+     fprintf(stderr, "me13: take-back: no memory for the live frame\n"); exit(1); }
+-  glf.memo_check = k.memo_check; glf.zchk = k.zchk; glf.hold_max = k.hold_max; glf.ft = k.ft; glf.h.cut = k.h.cut; glf.ram = k.ram;
++  glf.memo_check = k.memo_check; glf.zchk = k.zchk; glf.hold_max = k.hold_max; glf.ft = k.ft; glf.ft_on = k.ft_on; glf.h.cut = k.h.cut; glf.ram = k.ram;
+   if (tb_keep & 4) { glf.map_lo = k.map_lo; glf.map_hi = k.map_hi; glf.h.zlo = k.h.zlo; glf.h.zhi = k.h.zhi; glf.zlo = k.zlo; glf.zhi = k.zhi; }   /* me13 f */
+   gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;
+   xl_reset();
+@@ -1270,6 +1271,16 @@
+   if (tb_keep & 8) fprintf(stderr, "me13 tb: vb %ld: and the texture cache kept\n", vb);   /* me13 g */
+ }
+ static void setup(void);
++static int thin_due = 1;   /* task #149: a frame began and the thinning's scan has not run for it yet (the host's side) */
++static long thin_scans;
++static void heap_line(const char *pre)   /* task #149: the picture heap (ge/me_rt.c) and the faults me_rt counts */
++{
++  const MeHeapStats *h = me_heap_stats();
++  fprintf(stderr, "%s picture heap: region %zu KB, peak %zu KB in use (extent %zu KB), now %zu KB; blocks peak %ld; allocations %ld, frees %ld, "
++          "reallocs %ld (moved %ld); refused %ld (first %zu bytes); check %d; me_rt faults: overlapping copies %ld, depth by zk %ld; "
++          "thinning scans by the host %ld\n", pre, h->size >> 10, h->peak >> 10, h->extent >> 10, h->used >> 10, h->blocks_peak, h->allocs,
++          h->frees, h->reallocs, h->moved, h->fails, h->fail_first, me_heap_check(), me_faults.overlap, me_faults.zk, thin_scans);
++}
+ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int one)
+ {
+   if (from == -2) setup();
+@@ -1289,6 +1300,8 @@
+     if (dft - dfh >= DF_N) { fprintf(stderr, "me9: the queue is full\n"); exit(3); }
+     DfE *q = &dfq[dft++ & (DF_N - 1)]; q->kind = 0; q->ch = ch; q->chcr = chcr; q->madr = madr; q->qwc = qwc; q->tadr = tadr; q->vb = cur_vb;
+     q->lg = 0; q->ln = 0; q->fs = -1; q->opt = g_opt; q->opt2 = g_opt2; q->lane = one ? (lane_opt ? lane_m(g_opt) : g_xl_lane) : 0;   /* me13 b, c */
++    q->thin_set = 0;   /* task #149: the frame's first transfer carries the host's scan of the game's RAM as it is now */
++    if (thin_due && glf.ft_on) { thin_due = 0; thin_scans++; q->thin_set = 1; q->nthin = fx_thin_scan(glf.ft, mem); memcpy(q->thin, glf.ft->r, sizeof q->thin); }
+     if (df_snap) { df_walk(mem, spr, chcr, madr, qwc, tadr); if (wt_on) wt_kick(); q->lg = df_copy(mem, &q->ln);
+       if (dl_on) { if (dl_lseq >= DL_TMAX) { fprintf(stderr, "me13: too many transfers in a step\n"); exit(3); } dl_q[dl_lseq++] = q; dl_spr = spr;   /* me13 */
+         if (dl_filt) dl_mark(); }
+@@ -1297,6 +1310,7 @@
+         q->fs = cur; } }
+     if (dft - dfh > df_maxq) df_maxq = dft - dfh;
+     return; }
++  if (thin_due && glf.ft_on) { thin_due = 0; thin_scans++; gl_thin(&glf, glf.ft->r, fx_thin_scan(glf.ft, mem)); }   /* task #149 (no queue) */
+   if (one_on && one) { one_tr++; g_xl_one = 1; clock_gettime(CLOCK_MONOTONIC, &one_t0); return; }   /* the exact walk feeds it */
+   struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
+   xlv_dma(&M, ch, chcr, madr, qwc, tadr);
+@@ -1325,6 +1339,7 @@
+ }
+ static void totals(void)
+ {
++  heap_line("xlive:");
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+   if (g_xl_lane) fprintf(stderr, "sb lane: groups %ld (lane 1) %ld (lane 2); %ld df0 calls from the game's streams, checked %ld, differing %ld; "
+                          "%ld P06 calls from the game's streams, %ld from the VU memory, checked %ld, differing %ld\n", xl_lane_groups[1],
+@@ -1438,6 +1453,9 @@
+   const char *e = getenv("MGS2_XLIVE"); char fn[256] = ""; from = -1;
+   if (e && sscanf(e, "%ld:%ld:%255s", &from, &to, fn) < 2) from = -1;
+   if (from >= 0) {
++    { size_t hn = (size_t)(getenv("MGS2_ME_HEAP_MB") ? atol(getenv("MGS2_ME_HEAP_MB")) : 256) << 20; static uint8_t *hb;   /* task #149 */
++      if (!(hb = malloc(hn)) || me_heap_init(hb, hn)) { fprintf(stderr, "xlive: no memory for the picture heap\n"); exit(1); }
++      fprintf(stderr, "xlive mode: the picture code built ME-safe (task #149), its heap a region of %zu MB (MGS2_ME_HEAP_MB)\n", hn >> 20); }
+     M.seen = seen;
+     if (!(map = gu_new(ram, 0))) { fprintf(stderr, "xlive: no memory for the texture sources\n"); exit(1); }
+     xl_on_call(on_call, 0); xl_on_prim(on_prim, 0); xl_uploads(map); xl_on_pass(on_pass, 0); xl_on_flush(on_flush, 0);
+@@ -1488,7 +1506,7 @@
+         glf.hold_max = atoi(getenv("MGS2_GL_HOLD")); fprintf(stderr, "xlive mode: step c holds up to %d P06 calls (MGS2_GL_HOLD)\n", glf.hold_max); }
+       { static FxThin ft; fx_thin_init(&ft, getenv("MGS2_GL_RAIN") ? atoi(getenv("MGS2_GL_RAIN")) : 1,   /* task #114: as the PSP's cfg */
+           getenv("MGS2_GL_SPLASH") ? atoi(getenv("MGS2_GL_SPLASH")) : 1);
+-        if (fx_thin_on(&ft)) { glf.ft = &ft; fprintf(stderr, "xlive mode: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d "
++        if (fx_thin_on(&ft)) { glf.ft = &ft; glf.ft_on = 1; fprintf(stderr, "xlive mode: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d "
+           "(MGS2_GL_RAIN, MGS2_GL_SPLASH)\n", ft.keep[0], ft.keep[1]); } }
+       if (getenv("MGS2_XLIVE_CUT") && !atoi(getenv("MGS2_XLIVE_CUT"))) { glf.h.cut = 0;   /* the PSP's OPT_GL_CUT off */
+         fprintf(stderr, "xlive mode: every df0 call converted (MGS2_XLIVE_CUT=0)\n"); }
+@@ -1695,6 +1713,7 @@
+ {
+   if (!e->kind) { struct timespec a, b;
+     tr_switch(e->opt, e->opt2);   /* me13 c */
++    if (e->thin_set) gl_thin(&glf, e->thin, e->nthin);   /* task #149: the host's scan, before the walk reaches the frame's effects */
+     if (ov_on) { ov_lay(e); glf.ram = df_full[e->fs];
+       clock_gettime(CLOCK_MONOTONIC, &a); lw_dma(e);
+       clock_gettime(CLOCK_MONOTONIC, &b); t_walk += df_ms(&a, &b); ov_back(e); return; }   /* me11 (me13 b: lw_dma) */
+@@ -1734,7 +1753,7 @@
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+     h.fb = gb_on && (k & 1) && on && vb < to && (!gx_on || gx_seen); }
+-  df_rgb = h.fb;
++  df_rgb = h.fb; if (h.fb) thin_due = 1;   /* task #149: the host decides here that a frame begins */
+   if (dft - dfh >= DF_N) { fprintf(stderr, "me9: the queue is full\n"); exit(3); }
+   dfq[dft++ & (DF_N - 1)] = h; dfhk++; df_q_hk++;
+   last = on && vb >= to;
+@@ -1770,7 +1789,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf); thin_due = 1;
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+--- a/boot/xlive_chk_g.c
++++ b/boot/xlive_chk_g2.c
+@@ -100,6 +100,8 @@
+ #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
+ #include "../ge/fxthin.h"    /* task #114 */
+ #include "../ge/me_rt.h"     /* task #149: the picture heap, its counts */
++#include "../ge/xlme.h"      /* task #149 step 2b: the ME loop's code (the late walk, the switches, the callbacks, a frame's end and start) */
++static XmPic xm;
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+@@ -141,7 +143,7 @@
+    and g_opt2 (me13 c: the per-transfer switches, tr_switch) and, when the runtime's walk would have fed it to the translator (the one
+    walk), the lanes then on (g_xl_lane, or with MGS2_SB_LANE_OPT g_opt's lane bits); else lane 0) */
+ #define DF_N (1 << 16)
+-static int lw_on; static long lw_tr, lw_tags[5], lw_grp[5], lw_bad, lw7_miss[8], lw3_miss[8];   /* me13 b: the late walk with the lanes (lw_walk) */
++static int lw_on;   /* me13 b: the late walk with the lanes (task #149 step 2b: ge/xlme.c xm_walk, its counts in xm) */
+ static DfE *dfq; static long dfh, dft, dfhk;   /* ring head and tail (counts), hook events in it */
+ static struct timespec df_tafter; static double df_first, df_last;   /* the step's game part starts at df_tafter */
+ static int df_ntr, df_rgb;                      /* transfers queued in this step; the real frame state (gb_now as the hooks decide it) */
+@@ -627,7 +629,8 @@
+ static int um_chk, li_chk;   /* sb9: MGS2_TX_UMEMO_CHK=1, MGS2_GU_LDID_CHK=1: the step 0 bits' "on" is their check mode */
+ static int uf_chk;           /* sb10 T1: MGS2_TX_FRONT_CHK=1: OPT2_TX_FRONT's "on" is its check mode */
+ /* MGS2_XLIVE_GB: the live renderer's frame */
+-static GlFrame glf; static int gb_on, gb_now; static char ger_pre[200]; static long ger_vb[64]; static int ger_n;
++#define gb_now xm.now   /* task #149 step 2b: the frame state the callbacks see is the ME loop's (ge/xlme.c) */
++static GlFrame glf; static int gb_on; static char ger_pre[200]; static long ger_vb[64]; static int ger_n;
+ /* MGS2_XLIVE_GX: the PSP harness's frames and GE lists */
+ static int gx_on, gx_seen; static long gx_from = -1, gx_to = -1, gx_count, gx_n, gx_fail, gx_first = -1, gx_wmax, gx_amax, gx_bmax, gx_drop;
+ static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
+@@ -647,17 +650,14 @@
+ static void gx_list(long vb)   /* psp/xl_psp.c gl_list's work on the frame that ended (its last vblank vb) */
+ {
+   int d = (int)(gx_count++ & 1), dg = vb >= gx_from && vb <= gx_to;
+-  GxFrame F = { glf.o.b, (uint32_t)glf.o.nb, glf.o.v, (uint32_t)glf.o.nv, glf.o.d, glf.o.t, (uint32_t)glf.o.nt, glf.tdata, glf.tpal, 1, 0 };
+-  gx_depth_map(glf.map_lo, glf.map_hi, 1.0f, &F.zs, &F.zo);
+-  gxl.dig_on = dg;
+-  if (gx_frame(&gxl, &gxh, &F, d) && ++gx_fail <= 50)
++  if (xm_list(&xm, d, dg) && ++gx_fail <= 50)   /* task #149 step 2b: the list and its digest by the ME loop (ge/xlme.c) */
+     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", vb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+   gx_drop += gxl.c.dropped; if (gxl.c.words > gx_wmax) gx_wmax = gxl.c.words; if (gxl.c.aux > gx_amax) gx_amax = gxl.c.aux;
+   gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
+   gx_c2p += gxl.c.c2_passes; gx_c2b += gxl.c.c2_bones; gx_c2w += gxl.c.c2_words;
+   if (4 * gxl.c.words + gxl.c.aux > gx_bmax) gx_bmax = 4 * gxl.c.words + gxl.c.aux;
+   if (dg) {
+-    uint64_t g = gl_digest(&glf, &gxl); gx_all = (gx_all ^ g) * 0x100000001b3ull; gx_n++;
++    uint64_t g = xm.dig_frame; gx_all = (gx_all ^ g) * 0x100000001b3ull; gx_n++;
+     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
+             "%ld dropped\n", vb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
+             glf.o.nt, gxl.c.dropped);
+@@ -682,7 +682,7 @@
+   if (glf.ft && vb >= tp_vb && vb <= tp_to) { fprintf(stderr, "thin vb %ld n %d", vb, glf.h.nthin);   /* (dev, task #114) */
+     for (int k = 0; k < glf.h.nthin; k++) fprintf(stderr, " %07x-%07x/%d", glf.h.thin[k].lo, glf.h.thin[k].hi, glf.h.thin[k].keep);
+     fputc('\n', stderr); }
+-  gl_end(&glf);
++  xm_end(&xm);   /* task #149 step 2b: gl_end */
+   if (gx_on) gx_list(vb);
+   char w[64]; snprintf(w, sizeof w, "xlive gb: vb %ld:", vb); gb_line(&glf.n, glf.n.dbytes, glf.n.tbytes, w);
+   if (glf.zraw) {
+@@ -988,7 +988,7 @@
+ {
+   (void)ctx;
+   if (call_ctxt >= 0) { ck.passes++; tex_use(xl_front()->gr, call_ctxt, 0); }
+-  if (gb_now) gl_pass(&glf, c, pass);
++  xm_pass(&xm, c, pass);   /* task #149 step 2b */
+ }
+ static void tex_call(const XlCall *c)
+ {
+@@ -1185,11 +1185,11 @@
+   if (dig) { XlCall l = *c; xl_vm_logical(lvm); l.vm = lvm; xdg_call(&l); }   /* the VU memory as it reads (spans: pending quadwords decoded) */
+   if (tx_on) tex_call(c);
+   if (vc_on) vc_calls[gl_conv_entry(c->entry) ? 0 : xl_rule(c->entry) ? 1 : 2]++;
+-  if (gb_now) gl_call(&glf, c);
++  xm_call(&xm, c);   /* task #149 step 2b: the ME loop's (ge/xlme.c) */
+   { static int tc = -1; if (tc < 0) tc = getenv("MGS2_THIN_CHK") && atoi(getenv("MGS2_THIN_CHK"));   /* task #114 check */
+     if (tc && gb_now && glf.ft && (c->entry == XL_FX || c->entry == XL_FX2) && !c->cont) thin_chk(c); }
+ }
+-static void on_flush(void *ctx) { (void)ctx; if (glf.nheld) { glf.hflush[0]++; gl_flush(&glf); } }   /* sb4: a transfer's end */
++static void on_flush(void *ctx) { (void)ctx; xm_flush(&xm); }   /* sb4: a transfer's end */
+ /* MGS2_XLIVE_RTLOG (dev): a textured primitive's TEX0 / CLAMP / TEXA / FRAME / ZBUF, texel box and what the map says of its texture's
+    area: the whole, the box, and the 64 x 64 squares that hold a drawn area */
+ static long rt_from = -1, rt_to = -1; static int rt_shown;
+@@ -1218,28 +1218,19 @@
+   int box[4]; (void)ctx; nprim++; xdg_prim(g, d, v, n);
+   if (tx_on && d->tme) { ck.prims++; tex_use(g->gr, d->ctxt, prim_box(d, v, n, box) ? box : 0); }
+   if (d->tme && cur_vb >= rt_from && cur_vb <= rt_to && rt_shown < 80) rt_log(g, d, v, n);
+-  if (gb_now) gl_prim(&glf, g, d, v, n);
++  xm_prim(&xm, g, d, v, n);   /* task #149 step 2b */
+ }
+ 
+ /* the per-transfer switches (gl11 the lanes, sb8 eager and mark, sb9 and sb10 step 0's bits), as psp/xl_psp.c xlive_chk_dma's first
+    lines: at each transfer in today's walk; me13 c: in the late path at the transfer's late walk (df_exec), from the g_opt and g_opt2
+    the transfer carries, as the ME's walk would take them from the transfer's record, so that turns (MGS2_OPT_CYCLE) switch the late
+    walk at the transfer where they switch the game's */
+-static int trs_um = -1, trs_li = -1, trs_uf = -1;   /* me13 d */
+ static int lane_m(uint32_t opt)
+ { return lane_base & (((opt & OPT_XL_LANE) ? 1 : 0) | ((opt & OPT_XL_LANE2) ? 2 : 0) | ((opt & OPT_XL_LANE3) ? 4 : 0) | ((opt & OPT_XL_LANE4) ? 8 : 0)); }
+-static void tr_switch(uint32_t opt, uint32_t opt2)
++static void tr_switch(uint32_t opt, uint32_t opt2)   /* task #149 step 2b: ge/xlme.c xm_switch (which switches follow: xm.follow) */
+ {
+-  if (lane_opt) { int m = lane_m(opt);   /* gl11 */
+-    if (m != g_xl_lane) { xl_lane(m != 0); g_xl_lane = m; }
+-    { static int eg = 1, mk = 1; int e = (opt & OPT_XL_EAGER) != 0, k = (opt & OPT_XL_MARK) != 0;   /* sb8 */
+-      if (e != eg) { xl_ud_eager(e); eg = e; }
+-      if (k != mk) { xl_ud_mark(k); mk = k; } } }
+-  {   /* sb9: g_opt2's step 0 bits (me13 d: the last values set, trs_*, at file scope) */
+-    int u = (opt2 & OPT2_TX_UMEMO) ? 1 + um_chk : 0, l = (opt2 & OPT2_GU_LDID) ? 1 + li_chk : 0;
+-    if (tkc && u != trs_um) { tk_umemo(tkc, u); trs_um = u; }
+-    { int f = (opt2 & OPT2_TX_FRONT) ? 1 + uf_chk : 0; if (tkc && f != trs_uf) { tk_ufront(tkc, f); trs_uf = f; } }   /* sb10 T1 */
+-    if (map && l != trs_li) { gu_ld_ident(map, l); trs_li = l; } }
++  xm_switch(&xm, opt, opt2);
++  if (lane_opt) g_xl_lane = xm.sw[XS_LANE];   /* (as tr_switch did: the runtime's lanes too) */
+ }
+ /* me13 d: the take-back (MGS2_XLIVE_TB=<vb>), at the first frame beginning at or after <vb>: the picture started afresh as the PSP's set-up
+    makes it (setup's GX branch: map, cache, live frame, list), the translator reset; the thinning (glf.ft) and the frame buffers kept */
+@@ -1251,7 +1242,7 @@
+   GlFrame k = glf;
+   if (tb_keep & 1) xl_keep_save();   /* me13 e */
+   if (!(tb_keep & 2)) {
+-    gu_free(map); if (!(map = gu_new(ram, 0))) { fprintf(stderr, "me13: take-back: no memory for the map\n"); exit(1); }
++    gu_free(map); if (!(map = gu_new(xm_ram, &xm))) { fprintf(stderr, "me13: take-back: no memory for the map\n"); exit(1); }
+     xl_uploads(map); gu_keys(map, 1); gu_zero_empty(map, 1);
+     if (cs_up) gu_on_data(map, cs_mark, 0); }   /* me13 e: the copy set's upload marks, as setup's */
+   if (!(tb_keep & 8)) {   /* me13 g: bit 8 keeps the texture cache */
+@@ -1263,7 +1254,7 @@
+   gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;
+   xl_reset();
+   if (tb_keep & 1) xl_keep_load();   /* me13 e */
+-  trs_um = trs_li = trs_uf = -1;   /* tr_switch sets the modes again on the new map and cache at the next transfer */
++  xm_objects(&xm, map, tkc);   /* the switches set again on the new map and cache at the next transfer (task #149 step 2b; me13 d: trs_*) */
+   tb_done = 1;
+   fprintf(stderr, "me13 tb: vb %ld: the picture started afresh (texture cache, live frame, GE list%s%s), kept (TBK %d):%s%s%s\n", vb,
+           tb_keep & 2 ? "" : ", GS map", tb_keep & 1 ? "" : ", translator", tb_keep, tb_keep & 1 ? " the translator's state" : "",
+@@ -1340,6 +1331,7 @@
+ static void totals(void)
+ {
+   heap_line("xlive:");
++  fprintf(stderr, "xlive xm: the ME loop's code: calls %ld, primitives %ld, lists %ld (did not fit %ld)\n", xm.calls, xm.prims, xm.lists, xm.list_fail);
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+   if (g_xl_lane) fprintf(stderr, "sb lane: groups %ld (lane 1) %ld (lane 2); %ld df0 calls from the game's streams, checked %ld, differing %ld; "
+                          "%ld P06 calls from the game's streams, %ld from the VU memory, checked %ld, differing %ld\n", xl_lane_groups[1],
+@@ -1375,9 +1367,9 @@
+   if (one_on) fprintf(stderr, "xlive one: %ld VIF1 transfers fed by the exact walk\n", one_tr);
+   if (lw_on) fprintf(stderr, "me13 lw: %ld VIF1 transfers walked late with the lanes; groups (tags) the lanes took: lane 1 %ld (%ld), lane 2 %ld (%ld), "
+                      "lane 3 %ld (%ld), lane 4 %ld (%ld); hash walks that missed the lane's next tag %ld; lane 4 misses %ld %ld %ld %ld %ld %ld, "
+-                     "lane 3 misses %ld %ld %ld %ld %ld %ld\n", lw_tr, lw_grp[1], lw_tags[1], lw_grp[2], lw_tags[2], lw_grp[3], lw_tags[3], lw_grp[4],
+-                     lw_tags[4], lw_bad, lw7_miss[0], lw7_miss[1], lw7_miss[2], lw7_miss[3], lw7_miss[4], lw7_miss[5], lw3_miss[0], lw3_miss[1],
+-                     lw3_miss[2], lw3_miss[3], lw3_miss[4], lw3_miss[5]);
++                     "lane 3 misses %ld %ld %ld %ld %ld %ld\n", xm.lw_tr, xm.lw_grp[1], xm.lw_tags[1], xm.lw_grp[2], xm.lw_tags[2], xm.lw_grp[3], xm.lw_tags[3],
++                     xm.lw_grp[4], xm.lw_tags[4], xm.lw_bad, xm_lw7_miss[0], xm_lw7_miss[1], xm_lw7_miss[2], xm_lw7_miss[3], xm_lw7_miss[4],
++                     xm_lw7_miss[5], xm_lw3_miss[0], xm_lw3_miss[1], xm_lw3_miss[2], xm_lw3_miss[3], xm_lw3_miss[4], xm_lw3_miss[5]);
+   if (gb_on) { char w[64]; snprintf(w, sizeof w, "xlive gb: %ld frames:", glf.all.frames); gb_line(&glf.all, glf.all_dbytes, glf.all_tbytes, w);
+     fprintf(stderr, "; memo answers that differed %ld\n", glf.memo_bad); gb_line(&glf.max, glf.max.dbytes, glf.max.tbytes, "xlive gb: the largest of each in one frame:"); fputc('\n', stderr);
+     if (gx_on) { const TkStats *k = tk_stats(tkc);
+@@ -1456,8 +1448,8 @@
+     { size_t hn = (size_t)(getenv("MGS2_ME_HEAP_MB") ? atol(getenv("MGS2_ME_HEAP_MB")) : 256) << 20; static uint8_t *hb;   /* task #149 */
+       if (!(hb = malloc(hn)) || me_heap_init(hb, hn)) { fprintf(stderr, "xlive: no memory for the picture heap\n"); exit(1); }
+       fprintf(stderr, "xlive mode: the picture code built ME-safe (task #149), its heap a region of %zu MB (MGS2_ME_HEAP_MB)\n", hn >> 20); }
+-    M.seen = seen;
+-    if (!(map = gu_new(ram, 0))) { fprintf(stderr, "xlive: no memory for the texture sources\n"); exit(1); }
++    M.seen = seen; xm.m = &M;   /* task #149 step 2b */
++    if (!(map = gu_new(xm_ram, &xm))) { fprintf(stderr, "xlive: no memory for the texture sources\n"); exit(1); }
+     xl_on_call(on_call, 0); xl_on_prim(on_prim, 0); xl_uploads(map); xl_on_pass(on_pass, 0); xl_on_flush(on_flush, 0);
+     M.fast = getenv("MGS2_XLIVE_FAST") && atoi(getenv("MGS2_XLIVE_FAST"));
+     sync_on = getenv("MGS2_XLIVE_SYNC") && atoi(getenv("MGS2_XLIVE_SYNC"));
+@@ -1614,100 +1606,22 @@
+           wt_on = 1; fprintf(stderr, "xlive mode: me12: writes into the bytes of transfers in flight, by writer (MGS2_XLIVE_WT)\n"); }
+         fprintf(stderr, "xlive mode: me9: each transfer's chain copied as it comes, the queue reads the copy (MGS2_XLIVE_SNAP=%d; the thinning "
+                 "reads %s)\n", df_snap, df_snap == 2 ? "a whole copy of RAM taken at its step's first transfer" : "RAM as the queue runs"); } }
++    xm.map = map; xm.tk = tkc; xm.glf = &glf; xm.gxl = &gxl; xm.gxh = &gxh;   /* task #149 step 2b: the ME loop (ge/xlme.c) */
++    xm.follow = getenv("MGS2_XM_FOLLOW") ? (unsigned)strtoul(getenv("MGS2_XM_FOLLOW"), 0, 0) & XM_F_ALL : (lane_opt ? XM_F_LANES : 0) | XM_F_STEP0;
++    xm.lanes = lane_opt ? lane_base : g_xl_lane; xm.lw_on = lw_on; xm.chk_um = um_chk; xm.chk_li = li_chk; xm.chk_uf = uf_chk;
++    xm_init(&xm);
++    xm.sw[XS_LANE] = g_xl_lane; xm.sw[XS_UMEMO] = xm.sw[XS_LDID] = xm.sw[XS_UFRONT] = -1;   /* as tr_switch's state started (me13 d) */
++    { const char *e = getenv("MGS2_XL_EAGER"); if (e) xm.sw[XS_EAGER] = atoi(e) != 0; e = getenv("MGS2_XL_MARK"); if (e) xm.sw[XS_MARK] = atoi(e) != 0; }
++    fprintf(stderr, "xlive mode: task #149 step 2b: the late walk, the switches (those that follow each record: %u, MGS2_XM_FOLLOW), the "
++            "callbacks' picture work and a frame's end, list and start by the ME loop's code (ge/xlme.c)\n", xm.follow);
+     if (one_on) fprintf(stderr, "xlive mode: one walk (MGS2_XLIVE_ONE)\n");
+     if (from == 0) { on = 1; xl_reset(); xdg_open(dig); vc_start(); if (cg_on) CALLGRIND_START_INSTRUMENTATION; }
+   }
+ }
+ /* each vblank start (boot.c k_vblank_hook, after pkt_vblank): the line of the vblank that ended, then the window */
+-/* me13 b (task #147): the late walk with the lanes.  The Stage B lanes (runtime/ee_io.h vif1_chain_fast) run only in the one walk, so the
+-   me9 late path walked every transfer the generic way: its picture equals today's only while no call needs a lane's record (C1 and C2
+-   take only calls with one, and step 3's trims only lane 1's).  The ME's own walk takes the lanes as the one walk does: lw_walk is
+-   ge/xlive.c's walk (VIF1, spans) with vif1_chain_fast's lane block, on the copy laid over RAM, through lw_lanes.h (generated by
+-   tools/mk_lw.py from the runtime's lane code: the same tests, reading lw_mem / lw_spr), for the transfers the runtime's walk would
+-   have fed the translator (DfE.lane), with g_opt as it was then (OPT_LANE_MATCH).  vif1_chain_fast tries a lane only while its walk has
+-   no command data left; here the translator's own test decides (xl_lane_* decline while it has data left, so the outcome is the same).
+-   The packet hash (seen) still takes every quadword in walk order: a group a lane took is hashed tag by tag after it (lw_seen).
+-   MGS2_XLIVE_LW=0: the late walk without the lanes, as me9 to me13 a */
+-typedef struct { uint32_t left, cmd, cl, wl; } LwLoc;
+-static const uint8_t *lw_mem, *lw_spr; static uint32_t lw_size; static long lw_ncmd[256];
+-int xl_lane_p07(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
+-int xl_lane_fx(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
+-#include "lw_lanes.h"
+-static inline const uint32_t *lw_q(const XlvMem *m, uint32_t a)
+-{ return (const uint32_t *)((a & 0x80000000u) ? m->spr + (a & 0x3ff0) : m->mem + (a & (m->mem_size - 1) & ~15u)); }
+-static void lw_run(XlvMem *m, uint32_t a, uint32_t n, uint32_t chcr)   /* ge/xlive.c run(): VIF1, spans */
+-{
+-  while (n) {
+-    uint32_t spr = a & 0x80000000u, o = spr ? (a & 0x3ff0) : (a & (m->mem_size - 1) & ~15u), k = ((spr ? 0x4000 : m->mem_size) - o) / 16;
+-    const uint8_t *p = (const uint8_t *)lw_q(m, a);
+-    if (k > n) k = n;
+-    if (m->seen) for (uint32_t i = 0; i < k; i++) m->seen(m->ctx, 1, a + 16 * i, p + 16 * i, 0, chcr);
+-    m->qw += k;
+-    xl_vif1_span((const uint32_t *)p, 4 * k, a);
+-    a += 16 * k; n -= k;
+-  }
+-}
+-static void lw_seen(XlvMem *m, uint32_t chcr, uint32_t tadr, uint32_t nx, int nt)   /* a lane's group: its nt tags (CNT, REF) and data */
+-{
+-  for (int i = 0; i < nt; i++) {
+-    const uint8_t *t = (const uint8_t *)lw_q(m, tadr); uint64_t tag; uint32_t n, id, addr, data, next;
+-    memcpy(&tag, t, 8); n = tag & 0xffff; id = (tag >> 28) & 7; addr = (uint32_t)(tag >> 32) & 0xfffffff0u;
+-    m->tags++; if (m->seen) m->seen(m->ctx, 1, tadr, t, 1, chcr);
+-    if (id == 1) { data = tadr + 16; next = data + 16 * n; } else if (id == 3) { data = addr; next = tadr + 16; } else { lw_bad++; return; }
+-    if (m->seen) for (uint32_t j = 0; j < n; j++) m->seen(m->ctx, 1, data + 16 * j, (const uint8_t *)lw_q(m, data + 16 * j), 0, chcr);
+-    m->qw += n; tadr = next;
+-  }
+-  if (tadr != nx) lw_bad++;
+-}
+-static void lw_walk(XlvMem *m, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int lanes, uint32_t opt)   /* ge/xlive.c walk(), VIF1 */
+-{
+-  uint32_t asp[2], nasp = 0, guard = 0;
+-  m->transfers++; lw_tr++; lw_mem = m->mem; lw_spr = m->spr; lw_size = m->mem_size;
+-  if (((chcr >> 2) & 3) == 0) { lw_run(m, madr & ~0x80000000u, qwc, chcr); return; }   /* normal mode: RAM only */
+-  if (qwc) {
+-    uint32_t id = (chcr >> 28) & 7;
+-    lw_run(m, madr, qwc, chcr);
+-    if (id == 0 || id == 7 || ((chcr & 0x80) && (chcr >> 31))) return;
+-  }
+-  for (;;) {
+-    const uint32_t *t = lw_q(m, tadr); uint64_t tag; uint32_t n, id, addr, data, next; int end = 0;
+-    if ((chcr & 0x40) && (t[2] & 0xffffff00u) == 0x01000100u) {   /* vif1_chain_fast's lane block */
+-      uint32_t nx, cl = t[2] & 0xff; int nt = 0, ln = 0; LwLoc s; memset(&s, 0, sizeof s);
+-      if (cl == 1) {
+-        int l = lanes;
+-        if (opt & OPT_LANE_MATCH) {
+-          uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : lw_size - (tadr & (lw_size - 1) & ~15u), u;
+-          if (room < 112u) l = 0;
+-          else { u = t[t[3] == 0x6c188000u ? 10 : 6]; l &= u == 0x01000103u ? 1 : u == 0x01000101u ? 2 : 0; } }
+-        if (l & 1) { nt = lw_p04(t, tadr, &s, &nx); ln = 1; }
+-        if (!nt && (l & 2)) { nt = lw_p06(t, tadr, &s, &nx); ln = 2; } }
+-      else if (cl == 7) { if (lanes & 8) { nt = lw_p07(t, tadr, &s, &nx); ln = 4; } }
+-      else if ((cl == 3 || cl == 6 || cl == 12) && (lanes & 4) && (t[3] & 0xff00ffffu) == 0x6c008100u) { nt = lw_fx(t, tadr, &s, &nx); ln = 3; }
+-      if (nt) { lw_grp[ln]++; lw_tags[ln] += nt; lw_seen(m, chcr, tadr, nx, nt); tadr = nx; guard += (uint32_t)nt; continue; } }
+-    memcpy(&tag, t, 8); n = tag & 0xffff; id = (tag >> 28) & 7; addr = (uint32_t)(tag >> 32) & 0x7ffffff0u; addr |= (uint32_t)(tag >> 32) & 0x80000000u;
+-    m->tags++;
+-    if (m->seen) m->seen(m->ctx, 1, tadr, (const uint8_t *)t, 1, chcr);
+-    if (chcr & 0x40) xl_vif1_span(t + 2, 2, tadr + 8);   /* TTE */
+-    switch (id) {
+-    case 0: data = addr; next = 0; end = 1; break;                    /* refe */
+-    case 1: data = tadr + 16; next = data + 16 * n; break;              /* cnt */
+-    case 2: data = tadr + 16; next = addr; break;                       /* next */
+-    case 3: case 4: data = addr; next = tadr + 16; break;               /* ref, refs */
+-    case 5: data = tadr + 16; if (nasp < 2) asp[nasp++] = data + 16 * n; next = addr; break;   /* call */
+-    case 6: data = tadr + 16; if (nasp) next = asp[--nasp]; else { next = 0; end = 1; } break;   /* ret */
+-    default: data = tadr + 16; next = 0; end = 1; break;                /* end */
+-    }
+-    lw_run(m, data, n, chcr);
+-    if (end || ((chcr & 0x80) && (tag >> 31) & 1)) break;
+-    tadr = next;
+-    if (++guard > 1000000) { m->guard_stops++; break; }
+-  }
+-}
+-static void lw_dma(const DfE *e)
+-{
+-  if (lw_on && e->ch == 1 && e->lane && M.fast) { lw_walk(&M, e->chcr, e->madr, e->qwc, e->tadr, e->lane, e->opt); xl_flush(); }   /* as xlv_dma */
+-  else xlv_dma(&M, e->ch, e->chcr, e->madr, e->qwc, e->tadr);
+-}
++/* me13 b (task #147): the late walk with the lanes; task #149 step 2b: moved to ge/xlme.c (xm_walk, lw_lanes.h there), the code the ME
++   runs: the transfers the runtime's walk would have fed to the translator walked with their record's lanes, the others by xlv_dma */
++static void lw_dma(const DfE *e) { xm_walk(&xm, e->ch, e->chcr, e->madr, e->qwc, e->tadr, e->lane, e->opt); }
+ /* me9: one queued event: a transfer through the second walk, or a hook's frame work as the normal hook does it (below) */
+ static void df_exec(DfE *e)
+ {
+@@ -1726,10 +1640,8 @@
+   if (on) fprintf(stderr, "xlive: vb %ld %016llx\n", e->vb - 1, (unsigned long long)ph);
+   if (e->fe) { gb_frame_end(e->vb - 1); gb_now = 0; }   /* gb_now: the frame state the callbacks see, as the queue runs */
+   if (e->fb) { if (tb_vb >= 0 && !tb_done && e->vb >= tb_vb) tb_reset(e->vb);   /* me13 d */
+-    gb_now = 1; glf.h.clipfast = (e->opt & OPT_CLIP_FAST) != 0; glf.stepc = (e->opt & OPT_XL_STEPC) != 0;
+-    glf.stepc7 = (e->opt2 & OPT2_C7) != 0; glf.h.c1 = (e->opt2 & OPT2_C1) != 0; glf.h.c2 = (e->opt2 & OPT2_C2) != 0; glf.h.c3v = (e->opt2 & OPT2_C3V) != 0;
+-    glf.h.c3z = (e->opt2 & OPT2_C3Z) != 0; glf.h.c3w = (e->opt2 & OPT2_C3W) != 0;   /* me13: the frame's switches as the normal hook sets them (sb10-sb14's; me9 had sb9's two) */
+-    glf.ram = df_snap ? df_live : M.mem; gl_begin(&glf);
++    glf.ram = df_snap ? df_live : M.mem; xm_begin(&xm, e->opt, e->opt2);   /* task #149 step 2b: the frame's switches (me13: as the normal hook
++                                                                          sets them) and gl_begin by the ME loop (ge/xlme.c) */
+     if (gx_on && gx_first < 0) { gx_first = e->vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", e->vb); } }
+   ph = 0xcbf29ce484222325ull;
+   if (tkc) tk_frame(tkc);
+--- a/psp/xl_psp.c
++++ b/psp/xl_psp.c
+@@ -36,6 +36,56 @@
+ #include "../ge/xlate.h"
+ #include "../ge/gsfront.h"
+ #include "../ge/gsup.h"
++#include "../ge/me_rt.h"   /* task #149: the picture files built ME-safe: their heap (me_heap_init), its counts */
++#include <unistd.h>       /* sbrk(0), for the heap's events */
++#include <malloc.h>       /* newlib's mallinfo and malloc_usable_size, for the resize hook */
++#ifndef ME_HEAP_KB
++#define ME_HEAP_KB 768              /* the picture heap's first region (KB) without MGS2_ME_HEAP_KB in mgs2.cfg: what the
++                                       picture's set-up takes (734 KB in 13 blocks before the first frame: me14p2 on the
++                                       emulator) and a margin; the hooks below give the rest and take it back */
++#endif
++#ifndef ME_HEAP_GROW_KB
++#define ME_HEAP_GROW_KB 0          /* the least region the hook gives when nothing fits (KB); a larger request gets its own
++                                       size, rounded up to 64 bytes (0: every region; 32 left 20 KB unused below newlib's break
++                                       at its highest in me14p8, vb 23,674) */
++#endif
++static uint8_t *me_hb; static size_t me_hn;   /* its first region */
++/* the picture heap's hook (the main CPU only): a region from newlib's heap when no free block fits a request */
++static size_t me_grow = (size_t)ME_HEAP_GROW_KB << 10;   /* MGS2_ME_HEAP_GROW_KB in mgs2.cfg (0: each region the request's own size) */
++static long me_vb;   /* the step the picture is in (xl_psp_frame), for the hooks' events */
++/* the hooks' events for the log (op: + a region given, ! refused, - taken back, = resized in place, > resized and moved, ? resize
++   refused), with newlib's break after each */
++static struct { long vb; uint32_t at, from, n, w, brk; char op; } me_ev[48]; static int me_nev, me_nev_all;
++static void me_ev_add(char op, void *at, void *from, size_t n, size_t w)
++{
++  me_nev_all++; if (me_nev == 48) return;
++  me_ev[me_nev].vb = me_vb; me_ev[me_nev].op = op; me_ev[me_nev].at = (uint32_t)(uintptr_t)at; me_ev[me_nev].from = (uint32_t)(uintptr_t)from;
++  me_ev[me_nev].n = (uint32_t)n; me_ev[me_nev].w = (uint32_t)w; me_ev[me_nev].brk = (uint32_t)(uintptr_t)sbrk(0); me_nev++;
++}
++static void *me_more(size_t want, size_t *got)
++{
++  size_t n = want < me_grow ? me_grow : (want + 63) & ~(size_t)63;
++  void *p = malloc(n); if (p) *got = n; me_ev_add(p ? '+' : '!', p, 0, p ? n : want, want); return p;
++}
++/* the other hook: a region the hook gave goes back to newlib's heap once no block in it is in use */
++static void me_less(void *r) { free(r); me_ev_add('-', r, 0, 0, 0); }
++/* the third: a region whose one block a realloc grows, resized by newlib's realloc (in place at the top of its heap, as gl16's tables grew).
++   newlib's realloc grows a block that ends at its top chunk in place only when the top already holds the growth; otherwise it takes the
++   whole new size from a top grown by sbrk and joins it to the block, so the break rises by the new size, not the growth, and the rest
++   stays free at the top (me14p6: 72 and 132 KB for 32 and 64 KB of growth of the texture cache's table at vb 10,340 and 10,848; a block
++   made and freed first, to grow the top by the shortfall alone, came from a free chunk elsewhere instead: me14p7).  So after a resize of
++   a region that ended at the top chunk (its block ends malloc_usable_size - 4 bytes on: newlib's next chunk; the top runs to the break)
++   while the top was short, the free top is given back at once (malloc_trim): the break then stands where a growth in place would have
++   left it.  me_trim counts the times memory went back. */
++static long me_trim;
++static void *me_resize(void *r, size_t want)
++{
++  struct mallinfo mi = mallinfo(); size_t have = malloc_usable_size(r);
++  int top = want > have && (uint8_t *)r + have - 4 + mi.keepcost == (uint8_t *)sbrk(0) && mi.keepcost < want - have + 64;
++  void *p = realloc(r, want);
++  if (top && p) me_trim += malloc_trim(0);
++  me_ev_add(!p ? '?' : p == r ? '=' : '>', p ? p : r, r, want, want); return p;
++}
+ #ifdef MGS2_GL
+ #include <string.h>
+ #include <malloc.h>
+@@ -82,6 +132,7 @@
+                                             GE did not finish (gl_sync) */
+ #define GL_GE_LIMIT 2000000u             /* us: the GE draws a frame in 10-45 ms (MGS2GE v4-v6 on the PSP) */
+ static int gl_now, gl_full;              /* a frame is being made; the step that ended had full draw-pipeline calls */
++static int thin_due;                     /* task #149: a frame began and the thinning's scan has not run for it yet */
+ static int gl_ge, gl_ge_buf; static long gl_ge_vb;   /* the GE has a frame not shown yet: its buffer and its last vblank */
+ static int gl_shown_buf = -1; static long gl_shown_vb = -1, gl_first_vb = -1;
+ static long gl_built, gl_shown, gl_listfail, gl_shots;   /* frames made (the one drawn into buffer gl_built & 1), shown, saved */
+@@ -162,7 +213,7 @@
+   if (dig_from >= 0) fprintf(stderr, "picture: digests of the frames whose last vblank is in %ld..%ld\n", dig_from, dig_to);
+   if (gl_hold >= 1 && gl_hold <= GL_HOLD) glf.hold_max = gl_hold;
+   fprintf(stderr, "picture: step c holds up to %d P06 calls (%u bytes a call)\n", glf.hold_max, (unsigned)sizeof(XcHeld));
+-  if (fx_thin_on(&gl_ft)) { glf.ft = &gl_ft; glf.ram = M.mem; }   /* task #114 (after gl_init, which clears glf) */
++  if (fx_thin_on(&gl_ft)) { glf.ft = &gl_ft; glf.ram = M.mem; glf.ft_on = 1; }   /* task #114 (after gl_init, which clears glf) */
+   if (!fx_thin_on(&gl_ft)) fprintf(stderr, "picture: the rain's drop sheets and the foot splash drawn as the PS2 (MGS2_GL_RAIN, MGS2_GL_SPLASH)\n");
+   else fprintf(stderr, "picture: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d (MGS2_GL_RAIN, MGS2_GL_SPLASH; 1: as "
+                "the PS2)\n", gl_ft.keep[0], gl_ft.keep[1]);
+@@ -226,6 +277,7 @@
+ /* psp/main_psp.c host_vb_end, after the next step's timer started: the picture's work at the hook that starts step vb counts in step vb */
+ void xl_psp_frame(long vb)
+ {
++  me_vb = vb;   /* task #149: the heap hooks' events */
+   if (gl_ok != 1) return;
+   HOST_ENTER(HOST_GL);
+   if (gl_now) { gl_now = 0; gl_end(&glf); gl_list(vb - 1); }
+@@ -241,7 +293,7 @@
+       glf.h.c3v = (g_opt2 & OPT2_C3V) != 0;      /* sb14 3v: df0 in two passes */
+       glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0;      /* sb14 3z: df0's depth range by the box */
+       glf.h.c3w = (g_opt2 & OPT2_C3W) != 0;      /* sb14 3w: two-pass df0 vertices straight into the frame */
+-      gl_begin(&glf); gl_now = 1;
++      gl_begin(&glf); gl_now = 1; thin_due = 1;   /* task #149 */
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+   }
+@@ -345,6 +397,17 @@
+     if (state < 0) return;
+     if (!state) {
+       M.mem = mem; M.mem_size = XL_GSZ; M.spr = spr; M.seen = 0; M.fast = 1;
++      { const char *e = mgs2_getenv("MGS2_ME_HEAP_KB"); me_hn = (size_t)(e && atoi(e) >= 64 ? atoi(e) : ME_HEAP_KB) << 10;   /* task #149 */
++        if (!(me_hb = malloc(me_hn)) || me_heap_init(me_hb, me_hn)) {
++          state = -1; fprintf(stderr, "translator: no memory for the picture heap (%u KB), off\n", (unsigned)(me_hn >> 10)); return; }
++        { const char *g = mgs2_getenv("MGS2_ME_HEAP_GROW_KB"); if (g) me_grow = (size_t)atoi(g) << 10; }
++        me_heap_grow(me_more, me_less);
++        { const char *z = mgs2_getenv("MGS2_ME_HEAP_RESIZE"); if (!z || atoi(z)) me_heap_resize(me_resize); }
++        fprintf(stderr, "translator: the picture code built ME-safe (task #149): its heap a region of %u KB at %08x (MGS2_ME_HEAP_KB), more "
++                "from newlib's heap when nothing fits (regions of at least %u KB: MGS2_ME_HEAP_GROW_KB), given back when empty, %s\n",
++                (unsigned)(me_hn >> 10), (unsigned)(uintptr_t)me_hb, (unsigned)(me_grow >> 10),
++                mgs2_getenv("MGS2_ME_HEAP_RESIZE") && !atoi(mgs2_getenv("MGS2_ME_HEAP_RESIZE")) ? "not resized (MGS2_ME_HEAP_RESIZE=0)"
++                : "resized by realloc when one block fills it"); }
+       if (!(map = gu_new(ram, 0))) { state = -1; fprintf(stderr, "translator: no memory for the texture map, off\n"); return; }
+       gu_keys(map, 1);
+       xl_on_call(on_call, 0); xl_on_prim(on_prim, 0); xl_uploads(map);
+@@ -362,6 +425,11 @@
+   }
+   if (skip_now) { sk_tr++; return; }   /* after reduced calls only: the shown frame does not need it */
+   ntransfer++;
++#ifdef MGS2_GL
++  if (thin_due && glf.ft_on) {   /* task #149: the thinning's scan on the host's side, at the frame's first walked transfer (it was gl_call's
++                                    at the frame's first effect call); the ME will not read the game's RAM for it */
++    thin_due = 0; HOST_ENTER(HOST_GL); gl_thin(&glf, glf.ft->r, fx_thin_scan(glf.ft, glf.ram)); HOST_LEAVE(HOST_GL); }
++#endif
+   if (one_mode && one) { none++; g_xl_one = 1; return; }   /* the exact walk feeds it, then xlive_one_end */
+   HOST_ENTER(HOST_XL); xlv_dma(&M, ch, chcr, madr, qwc, tadr); HOST_LEAVE(HOST_XL);
+   sum();
+@@ -372,6 +440,24 @@
+ {
+   if (!f) return;
+   if (!state) { fprintf(f, "translator: never ran (OPT_XL off)\n"); return; }
++  { const MeHeapStats *h = me_heap_stats();   /* task #149 */
++    fprintf(f, "picture heap: %u KB in %d regions now (the first %u KB; %u KB added now, %u KB at most: the hook gave %ld regions, took back "
++            "%ld, resized %ld, refused %ld), peak %u KB in use (extent %u KB "
++            "in the first), now %u KB; blocks peak %ld; allocations %ld, frees %ld, reallocs %ld (moved %ld); refused %ld (first %u bytes); check %d; "
++            "depth by zk %ld\n", (unsigned)(h->size >> 10), h->pools, (unsigned)((h->size - h->added) >> 10), (unsigned)(h->added >> 10),
++            (unsigned)(h->added_peak >> 10), h->grows, h->returned, h->resized, h->grow_fails, (unsigned)(h->peak >> 10), (unsigned)(h->extent >> 10),
++            (unsigned)(h->used >> 10), h->blocks_peak, h->allocs, h->frees,
++            h->reallocs, h->moved, h->fails, (unsigned)h->fail_first, me_heap_check(), me_faults.zk);
++    fprintf(f, "picture heap: the hooks' %d events (vb: + KB given at, ! refused, - taken back, = resized in place, > resized and moved "
++            "from, ? resize refused; newlib's break after it; its free top given back after a resize %ld times)", me_nev_all, me_trim);
++    for (int k = 0; k < me_nev; k++) {
++      fprintf(f, "%s vb %ld: %c", k ? ";" : ":", me_ev[k].vb, me_ev[k].op);
++      if (me_ev[k].op != '-') fprintf(f, "%u.%u KB ", me_ev[k].n >> 10, (me_ev[k].n & 1023) * 10 >> 10);
++      if (me_ev[k].op == '+' || me_ev[k].op == '!') fprintf(f, "(for %u B) ", me_ev[k].w);
++      fprintf(f, "at %08x", me_ev[k].at);
++      if (me_ev[k].op == '>') fprintf(f, " from %08x", me_ev[k].from);
++      fprintf(f, " (%08x)", me_ev[k].brk); }
++    fprintf(f, "\n"); }
+   if (state < 0) { fprintf(f, "translator: no memory for the texture map, it did not run\n"); return; }
+   const XlStats *S = xl_stats(); const GfGs *F = xl_front(); const GuStats *U = gu_stats(map);
+   fprintf(f, "translator: one walk %s, shown frames only %s: %ld vblanks after reduced calls only, %ld transfers not handed over\n",

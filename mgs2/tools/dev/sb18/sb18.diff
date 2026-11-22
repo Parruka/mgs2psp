@@ -1,0 +1,112 @@
+--- sb17/runtime/host_time.h	2026-11-03 13:06:59.739975759 +0000
++++ sb18/runtime/host_time.h	2026-11-06 06:14:49.796113183 +0000
+@@ -131,7 +131,34 @@
+                                            (up to 4.6 px off in the opening's rain); and an untextured call's stale UV q not refused (the
+                                            deck's flat triangles at vb 24,467-24,947).  A different picture (closer to the PS2's), so off by
+                                            default until Ffm's OK */
+-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X))   /* g_opt2 at the start: every switch on but C2, C4 and C4X (sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++#define OPT2_G0 2048u                   /* sbg0, G0 (task #165, rain_study.md section 6), boot/native_w00a.c (the private nat/ copy): line_sph's
++                                           prims done natively without placing their vertices (the seed jumped, the polls, registers and
++                                           the scratchpad as the translation leaves them); off: placed in place as since v18.  The game's
++                                           state differs only in memory the renderer alone reads, so off by default until it is proven.
++                                           NOTE: gl16 / gl17 cycle words (fffff9df, ffffffdf) have this bit set */
++#define OPT2_G0H 4096u                  /* sbg0, with OPT2_G0: those prims hidden from the draw pipeline (+164 |= 0x3000, as the game hides
++                                           them itself), so it builds no packets from their unplaced vertices */
++#define OPT2_H3 8192u                   /* sbg0, H3 (task #165, rain_study.md section 6 "Next"): body_sph's, charaspread's and rain_gas_pers's
++                                           prims hidden from the draw pipeline in their acts' show paths (the private wpl/gen_s_w00a.h, H3_WR);
++                                           their acts' work unchanged.  NOTE: gl16 / gl17 cycle words have this bit set too */
++#define OPT2_NBS 16384u                 /* sbg0, task #165 (rain_study.md section 8): body_sph's parts done natively (boot/native_w00a.c, the
++                                           private nat/ copy, nat_bs_part; the hook in the private wpl/gen_s_w00a.h): the same VU0 operations,
++                                           draws, memory, registers and time as the translation.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_G0C 32768u                /* sbg0, task #165 (rain_study.md section 9): charaspread's particle sets skipped natively (boot/native_w00a.c,
++                                           the private nat/ copy, nat_cs_sets; the hook in the private wpl/gen_s_w00a.h), only with OPT2_H3 and both
++                                           prims hidden: the lives, births, draws, game random calls, registers, frames and time as the translation
++                                           leaves them; the positions, velocities and packets (which only the hidden prims' drawing reads) left as
++                                           they are.  Once on, keep H3 on for the rest of the run.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_H3R 65536u               /* sbg0, task #167 (rain_study.md section 10): rain.c's streak prims hidden from the draw pipeline (the private
++                                           wpl/gen_s_w00a.h H3R_WR, h3r_second): the first set's show path keeps the hide bits, the second set gets bit 12
++                                           each act call and back with the bit off.  Only with the streaks not drawn (MGS2_GL_STREAKS=0) is the
++                                           picture the same.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_G0R 131072u              /* sbg0, task #167 (rain_study.md section 10): with OPT2_H3R, rain.c's streak loop does its entries but the
++                                           last in place in RAM (boot/native_w00a.c g0r_call / g0r_entry; the hooks in the private wpl/gen_s_w00a.h): no
++                                           copies through the scratchpad and no copy of the hidden second set's vertices; the vertex maths (VU0's random
++                                           numbers) and the first set's buffers as the translation leaves them.  Once on, keep H3R on for the rest of
++                                           the run.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+ extern uint32_t g_opt2;
+--- sb17/psp/main_psp.c	2026-11-03 13:06:59.739917847 +0000
++++ sb18/psp/main_psp.c	2026-11-08 06:23:58.696367939 +0000
+@@ -325,7 +325,10 @@
+                  g_opt2 == (OPT2_DEFAULT & ~OPT2_C3V) ? 28 : g_opt2 == (OPT2_DEFAULT & ~OPT2_C3Z) ? 29 :
+                  g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z)) || g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z | OPT2_C3W)) ? 30 :
+                  g_opt2 == (OPT2_DEFAULT & ~OPT2_C3W) ? 31 : g_opt2 == (OPT2_DEFAULT | OPT2_C4) ? 32 : g_opt2 == (OPT2_DEFAULT | OPT2_C4X) ? 33 :
+-                 g_opt2 == (OPT2_DEFAULT | OPT2_C4 | OPT2_C4X) ? 34 : 4;   /* sb14: 28-31 (30: 3w has no effect without 3v); sb15: 32-34 */
++                 g_opt2 == (OPT2_DEFAULT | OPT2_C4 | OPT2_C4X) ? 34 :
++                 g_opt2 == (OPT2_DEFAULT | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R) ? 35 :
++                 g_opt2 == (OPT2_DEFAULT | OPT2_H3 | OPT2_H3R) ? 36 : 4;   /* sb14: 28-31 (30: 3w has no effect without 3v); sb15: 32-34;
++                                           sb18 (gl18, task #179): 35 the rain's exact skips all on, 36 only their hide bits H3 and H3R */
+ #endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+--- sb17/pgo_gl.sh	2026-11-03 18:39:56.443733135 +0000
++++ sb18/pgo_gl.sh	2026-11-08 06:33:19.286493405 +0000
+@@ -1,5 +1,9 @@
+ #!/bin/sh
+-# pgo_gl.sh <step> [<work dir, default /home/claude/sbg>]: (sb17's copy, gl17, task #156: T = sb17's tree (sb14 + Stage C step 4, the
++# pgo_gl.sh <step> [<work dir, default /home/claude/sbg>]: (sb18's copy, gl18, task #179: T = sb18's tree (sb17's, with sbg0's host_time.h:
++# OPT2_DEFAULT with the rain's skip bits off, and main_psp.c's cfg 35 / 36); D0 = /home/claude/sbg18/base (gl7/d with the deck's game unit
++# gen_s_w00a.o from sbg0/wpl and sb18/nat: the rain's exact skips G0..G0R); the training run and both traces take XCFG's turns, hide-only
++# (fffd21df: H3 and H3R) and all skips on (fffff9df) in every other 100 vblanks, C4 and C4X off, and gl18's x86 reference as hashref.txt;
++# sb17's copy, gl17, task #156: T = sb17's tree (sb14 + Stage C step 4, the
+ # effects behind OPT2_C4 / OPT2_C4X (tools/dev/sb15), the streak options (tools/dev/sb17 patch_none, patch_calls), the rain's sprite filter
+ # (patch_rainspr), the heap trim after the texture table's growth (patch_trim159) and me14's local-copy fix); the training run and both
+ # traces take XCFG's turns, the effects off and on in every other 100 vblanks (MGS2_OPT2_CYCLE fffff9df,ffffffdf: off first) with the rain as
+@@ -29,8 +33,8 @@
+ #   order <seed>  tools/layout_sim.c on both traces (one ELF order for the two overlays), 40,000 moves; lay/order_s<seed>.txt
+ #   d <seed>      build d = u relinked with that order (tools/dev/relink_order.sh), and layout_sim -new on its real addresses
+ # Then psp/gl3.sh with GL3=<work dir>: "emu hw" (the delivery's cfg, dl_cfg.txt from gl7) and "model" on d.
+-D0=/home/claude/gl7/d; T=/home/claude/sb17; MG=/mnt/project-files/mgs2; SDK=/home/claude/pspsdk/pspdev/psp/sdk
+-XCFG="${XCFG-MGS2_GL_RAIN=1 MGS2_GL_SPLASH=2 MGS2_GL_STREAKS=0 MGS2_GL_RAIN_SPRITES=0 MGS2_OPT_CYCLE=1000:100:ffffffff,ffffffff MGS2_OPT2_CYCLE=fffff9df,ffffffdf}"   # cfg lines the training (run) and trace runs add: gl10's splash at 1/2 (task #114); gl17: C1 on, C2 off, the trims on, the effects (C4 + C4X) off and on in turns (off first, so the deck's rain shots and more of the deck trace windows fall in turns with them on), the rain as Ffm chose (no streaks, the drop sheets whole, card 17:38; the rain's own sprites left out, card 18:19; gl16: the trims on and off; gl15: C2 off and on; gl14: C1 off and on)
++D0=/home/claude/sbg18/base; T=/home/claude/sb18; MG=/mnt/project-files/mgs2; SDK=/home/claude/pspsdk/pspdev/psp/sdk
++XCFG="${XCFG-MGS2_GL_RAIN=1 MGS2_GL_SPLASH=2 MGS2_GL_STREAKS=0 MGS2_GL_RAIN_SPRITES=0 MGS2_OPT_CYCLE=1000:100:ffffffff,ffffffff MGS2_OPT2_CYCLE=fffd21df,fffff9df}"   # cfg lines the training (run) and trace runs add: gl10's splash at 1/2 (task #114); gl17: C1 on, C2 off, the trims on, the effects (C4 + C4X) off and on in turns (off first, so the deck's rain shots and more of the deck trace windows fall in turns with them on), the rain as Ffm chose (no streaks, the drop sheets whole, card 17:38; the rain's own sprites left out, card 18:19; gl16: the trims on and off; gl15: C2 off and on; gl14: C1 off and on)
+ S=$1; X=${2:-/home/claude/sbg}; GG=/home/claude/ms_home/.ppsspp/PSP/GAME; P=/home/claude/ms_home/.ppsspp/pgo
+ export PATH=/home/claude/pspsdk/pspdev/bin:$PATH
+ GF="-O2 -G0 -w -fpermissive -fwrapv -fno-strict-aliasing -ffp-contract=off -fno-math-errno -ffixed-23 -D_PSP_FW_VERSION=600 -ffunction-sections"
+@@ -68,7 +72,7 @@
+   rm -f $G/log.txt $G/steps.csv $G/battery.txt $G/crash.txt
+   cp $X/g/EBOOT.PBP $X/g/ovl_*.bin $G/; cp /home/claude/mgs2/SLES_503.83 $G/
+   cp $MG/play/pad_w01af.txt $G/pad.txt; ln -sf /home/claude/v30/pak/mgs2disc.pak $G/mgs2disc.pak
+-  cp /home/claude/v30/dl_draft/mgs2.cfg $G/mgs2.cfg; cp $MG/prof/hashref_x86_in_h2.txt $G/hashref.txt
++  cp /home/claude/v30/dl_draft/mgs2.cfg $G/mgs2.cfg; cp ${HR:-$MG/prof/hashref_x86_in_gl18.txt} $G/hashref.txt
+   printf 'MGS2_GL_TEXKB=2688\npgo 15000 37790\n' >> $G/mgs2.cfg
+   for l in $XCFG; do echo "$l"; done >> $G/mgs2.cfg
+   F=$(psp-nm $X/g/MGS2T.elf | awk '$3=="g_emuprof"{print $1}')
+@@ -79,7 +83,7 @@
+   cp $X/pg/gcda/*.gcda . || exit 1
+   objs "$PUSE" || { echo "pgo_gl.sh use: a compile failed"; exit 1; }
+   # sb9: main_psp.o from this tree's psp/main_psp.c (g_opt2's turns in the log and steps.csv), titled HT (gl7's make.log line otherwise)
+-  L=$(grep -o "psp-gcc [^&]*-o main_psp.o" $D0/make.log | head -1 | sed "s|/mnt/project-files/mgs2/psp/main_psp.c|$T/psp/main_psp.c|; s|-I/mnt/project-files/mgs2/runtime|-I$T/runtime &|; s|HARNESS_TITLE='\"[^\"]*\"'|HARNESS_TITLE='\"${HT:-MGS2 harness gl17 effects}\"'|")
++  L=$(grep -o "psp-gcc [^&]*-o main_psp.o" $D0/make.log | head -1 | sed "s|/mnt/project-files/mgs2/psp/main_psp.c|$T/psp/main_psp.c|; s|-I/mnt/project-files/mgs2/runtime|-I$T/runtime &|; s|HARNESS_TITLE='\"[^\"]*\"'|HARNESS_TITLE='\"${HT:-MGS2 harness gl18 rain skips}\"'|")
+   eval "$L" > main_psp.out 2>&1 || { echo "pgo_gl.sh use: main_psp.o failed"; exit 1; }
+   W=/home/claude/v31/WPL VP=/home/claude/psp/vp22 TITLE="MGS2 harness sb1 pgo" sh $MG/tools/dev/rebuild_use.sh $X/u > relink.out 2>&1
+   tail -n 3 relink.out; ls -l EBOOT.PBP && md5sum EBOOT.PBP ;;
+@@ -90,7 +94,7 @@
+   rm -f $G/log.txt $G/steps.csv $G/battery.txt $G/crash.txt
+   cp $X/u/EBOOT.PBP $X/u/ovl_*.bin $G/; cp /home/claude/mgs2/SLES_503.83 $G/
+   cp $MG/play/pad_w01af.txt $G/pad.txt; ln -sf /home/claude/v30/pak/mgs2disc.pak $G/mgs2disc.pak
+-  cp /home/claude/v30/dl_draft/mgs2.cfg $G/mgs2.cfg; cp $MG/prof/hashref_x86_in_h2.txt $G/hashref.txt
++  cp /home/claude/v30/dl_draft/mgs2.cfg $G/mgs2.cfg; cp ${HR:-$MG/prof/hashref_x86_in_gl18.txt} $G/hashref.txt
+   sed -i '/^MGS2_HASH_EVERY=/d; /^vblanks /d' $G/mgs2.cfg; e=0
+   { echo 'MGS2_GL_TEXKB=2688'; echo 'MGS2_HASH_EVERY=500'; for l in $XCFG; do echo "$l"; done; for a in $W; do echo "prof $a $((a + 5)) all"; e=$((a + 10)); done; echo "vblanks $e"; } >> $G/mgs2.cfg
+   F=$(psp-nm $X/u/MGS2T.elf | awk '$3=="g_emuprof"{print $1}')
+@@ -127,7 +131,7 @@
+     -seed $sd -out order_s$sd.txt > ls_s$sd.out 2>&1 ;;
+ d)
+   sd=$3; [ ! -e $X/d ] && cp -a $X/u $X/d || { echo "pgo_gl.sh d: $X/d exists"; exit 1; }
+-  W=/home/claude/v31/WPL VP=/home/claude/psp/vp22 TITLE="${DT:-MGS2 harness gl17}" sh $MG/tools/dev/relink_order.sh $X/lay/order_s$sd.txt $X/d > $X/d_build.out 2>&1
++  W=/home/claude/v31/WPL VP=/home/claude/psp/vp22 TITLE="${DT:-MGS2 harness gl18}" sh $MG/tools/dev/relink_order.sh $X/lay/order_s$sd.txt $X/d > $X/d_build.out 2>&1
+   cd $X/lay && python3 $MG/tools/layout_funcs.py ../d/MGS2T.elf ../d/ovl_w00a.elf ../d w00a > funcs_deck_d.txt 2>/dev/null \
+     && python3 $MG/tools/layout_funcs.py ../d/MGS2T.elf ../d/ovl_w01a.elf ../d w01a > funcs_w01a_d.txt 2>/dev/null
+   B0=$(psp-nm ../d/MGS2T.elf | awk '$3 == "_ftext" { print $1 }')

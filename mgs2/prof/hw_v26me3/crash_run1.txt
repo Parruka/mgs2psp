@@ -1,0 +1,1 @@
+crash catcher: on; self-test starting (if the PSP switches off now, set MGS2_EXC=0 in mgs2.cfg)

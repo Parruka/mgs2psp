@@ -1,0 +1,15 @@
+== base (rb) vs gl31's base (build_gl31/xt31/out_rb.log)
+../build_gl31/xt31/out_rb.log: 31399 vblanks (0..31398); xt33/out_rb.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl32's native every turn (build_gl32/xt32/out_rn.log) vs gl33's (rn)
+../build_gl32/xt32/out_rn.log: 31399 vblanks (0..31398); xt33/out_rn.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== native every turn (rn) vs native + the in-place key by turns (ri: MGS2_NAT_INPL_CYCLE=0,0,1,1)
+xt33/out_rn.log: 31399 vblanks (0..31398); xt33/out_ri.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== base (rb) vs native every turn (rn)
+xt33/out_rb.log: 31399 vblanks (0..31398); xt33/out_rn.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+rc 1
+== native every turn (rn) vs native + the in-place key in every turn (r1: MGS2_NAT_INPL=1)
+xt33/out_rn.log: 31399 vblanks (0..31398); xt33/out_r1.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0

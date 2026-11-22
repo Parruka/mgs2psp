@@ -1,0 +1,167 @@
+u rc 0 07:28:13
+traces and pgochk done 07:42:15
+gen_dispatch.o rc 0 0 s, 0 profile lines, object equal to the build's
+ge_xme.o rc 0 1 s, 0 profile lines, object (renamed after compile in the build: not compared)
+pgochk.sh: done
+order rc 0 08:09:06
+optimized order: slice 1331874234
+optimized order, whole traces: trace 1 2628905 I-misses (weighted 2628905) test windows 194421 (weighted 194421) trace 2 2576705 I-misses (weighted 2576705) test windows 268059 (weighted 268059), weig
+per-window table (I-misses of each whole window; the columns: [0] start (-in) [1] /home/claude/main/build_gl36/lay/gl35_n.txt [2] result)
+  trace 1 window 0        :    149678    141161 ( -5.69%)    120041 (-19.80%)
+  trace 1 window 1        :    259701    242510 ( -6.62%)    199360 (-23.23%)
+  trace 1 window 2        :    201629    192598 ( -4.48%)    160192 (-20.55%)
+  trace 1 window 3        :    203265    195444 ( -3.85%)    161107 (-20.74%)
+  trace 1 window 4        :    210479    205642 ( -2.30%)    168288 (-20.05%)
+  trace 1 window 5        :    559643    616343 (+10.13%)    486503 (-13.07%)
+  trace 1 window 6        :    560961    619343 (+10.41%)    481823 (-14.11%)
+  trace 1 window 7        :    525015    584652 (+11.36%)    446645 (-14.93%)
+  trace 1 window 8        :    484751    536073 (+10.59%)    404946 (-16.46%)
+  trace 1 window 9 (test):    251652    236450 ( -6.04%)    194421 (-22.74%)
+  trace 2 window 0        :    415635    464909 (+11.86%)    345758 (-16.81%)
+  trace 2 window 1        :    348220    392485 (+12.71%)    294454 (-15.44%)
+  trace 2 window 2        :    284510    314507 (+10.54%)    244921 (-13.91%)
+  trace 2 window 3        :    531697    604142 (+13.63%)    447680 (-15.80%)
+  trace 2 window 4        :    502322    560068 (+11.50%)    426297 (-15.13%)
+  trace 2 window 5        :    565022    607860 ( +7.58%)    484438 (-14.26%)
+  trace 2 window 6        :    386588    428901 (+10.95%)    333157 (-13.82%)
+  trace 2 window 7 (test):    309197    336393 ( +8.80%)    268059 (-13.30%)
+  sums, training windows: 6189116 6706638 5205610; test windows: 560849 572843 462480
+region 0: 1023 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 482 input sections listed, 0 functions in shared sections, 0 left to the linker
+region 0: 1023 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 457 input sections listed, 0 functions in shared sections, 0 left to the linker
+layout_elf.ld equal for both routes
+32aa49d0bad0e24d3d773d922d8a225c  final/layout_elf.ld
+30c322534839f7eb15c7c06a131deb0b  final/layout_w00a.ld
+c2535bf1bde9e75a70bafad88d3836cb  final/layout_w01a.ld
+relink rc 0 08:09:10
+086f9e4b3eeec88586d2103a9fbfd0d4  ovl_w00a.bin
+718bb33fbcb784c942f59eac20225ab4  ovl_w01a.bin
+psp.sh: done 4 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS
+10472 functions, fetched: region 0 946 (2293712 bytes), 1 482 (1872772), 2 0 (0)
+current placement: trace 1 4102792 I-misses (weighted 4102792) test windows 291062 (weighted 291062), 4102792, test 291062
+current order, hot functions packed: trace 1 3999052 I-misses (weighted 3999052) test windows 296827 (weighted 296827), 3999052, test 296827
+funcs_deck_f.txt: 10472 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2628905 I-misses (weighted 2628905) test windows 194421 (weighted 194421), 2628905, test 194421
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    120041
+  trace 1 window 1        :    199360
+  trace 1 window 2        :    160192
+  trace 1 window 3        :    161107
+  trace 1 window 4        :    168288
+  trace 1 window 5        :    486503
+  trace 1 window 6        :    481823
+  trace 1 window 7        :    446645
+  trace 1 window 8        :    404946
+  trace 1 window 9 (test):    194421
+  sums, training windows: 2628905; test windows: 194421
+current order, hot functions packed: trace 1 3684914 I-misses (weighted 3684914) test windows 379859 (weighted 379859), 3684914, test 379859
+funcs_w01a_f.txt: 10279 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2576705 I-misses (weighted 2576705) test windows 268059 (weighted 268059), 2576705, test 268059
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    345758
+  trace 1 window 1        :    294454
+  trace 1 window 2        :    244921
+  trace 1 window 3        :    447680
+  trace 1 window 4        :    426297
+  trace 1 window 5        :    484438
+  trace 1 window 6        :    333157
+  trace 1 window 7 (test):    268059
+  sums, training windows: 2576705; test windows: 268059
+t0n window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 2.59 k, total 2.59 k 
+t0n window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 4.33 k, total 4.33 k 
+t0n window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.47 k, total 3.47 k 
+t0n window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.47 k, total 3.47 k 
+t0n window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.74 k, total 3.74 k 
+t0n window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.81 k, total 10.81 k 
+t0n window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.95 k, total 10.95 k 
+t0n window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.01 k, total 10.01 k 
+t0n window 8: window 8 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.61 k, total 8.61 k 
+t0n window 9: window 9 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 4.21 k, total 4.21 k 
+t1n window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.83 k, total 7.83 k 
+t1n window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.01 k, total 7.01 k 
+t1n window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 5.85 k, total 5.85 k 
+t1n window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.72 k, total 11.72 k 
+t1n window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.46 k, total 10.46 k 
+t1n window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 12.02 k, total 12.02 k 
+t1n window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.92 k, total 7.92 k 
+t1n window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 6.03 k, total 6.03 k 
+== the rain windows: g36p (levers off) | g36r (reuse) | g36c (cull) | g36rc (both) | g35p (gl35 keep 0) | g35k (gl35 keeps 15)
+waiting deck, ME turn 29,810-29,890
+   g36p     46281933 instr  220462 I-miss (fully associative  234418)  319416 D-miss =  356.84 ms a picture; against g36p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36r     45945139 instr  218120 I-miss (fully associative  235664)  314348 D-miss =  353.38 ms a picture; against g36p   -3.46 ms (instr  -336794, I-miss  -2342, D-miss  -5068)
+   g36c     45517619 instr  221683 I-miss (fully associative  238495)  314849 D-miss =  352.12 ms a picture; against g36p   -4.72 ms (instr  -764314, I-miss  +1221, D-miss  -4567)
+   g36rc    45180928 instr  219451 I-miss (fully associative  239829)  309980 D-miss =  348.74 ms a picture; against g36p   -8.10 ms (instr -1101005, I-miss  -1011, D-miss  -9436)
+   g35p     46366515 instr  213339 I-miss (fully associative  244815)  308104 D-miss =  352.88 ms a picture; against g36p   -3.96 ms (instr   +84582, I-miss  -7123, D-miss -11312)
+   g35k     46173389 instr  216758 I-miss (fully associative  231336)  307031 D-miss =  352.34 ms a picture; against g36p   -4.49 ms (instr  -108544, I-miss  -3704, D-miss -12385)
+waiting deck, main turn 29,910-29,990
+   g36p     41796403 instr  203061 I-miss (fully associative  197803)  257407 D-miss =  315.04 ms a picture; against g36p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36r     41476608 instr  202362 I-miss (fully associative  198195)  253222 D-miss =  312.23 ms a picture; against g36p   -2.81 ms (instr  -319795, I-miss   -699, D-miss  -4185)
+   g36c     40944128 instr  203906 I-miss (fully associative  201113)  254423 D-miss =  310.22 ms a picture; against g36p   -4.82 ms (instr  -852275, I-miss   +845, D-miss  -2984)
+   g36rc    40690381 instr  203415 I-miss (fully associative  201518)  251006 D-miss =  307.98 ms a picture; against g36p   -7.06 ms (instr -1106022, I-miss   +354, D-miss  -6400)
+   g35p     41951334 instr  197692 I-miss (fully associative  227280)  258761 D-miss =  315.06 ms a picture; against g36p   +0.02 ms (instr  +154931, I-miss  -5369, D-miss  +1355)
+   g35k     41815142 instr  201772 I-miss (fully associative  207698)  258094 D-miss =  315.05 ms a picture; against g36p   +0.01 ms (instr   +18739, I-miss  -1289, D-miss   +687)
+rain walk, ME turn 31,010-31,090
+   g36p     45410099 instr  200387 I-miss (fully associative  197818)  304411 D-miss =  344.54 ms a picture; against g36p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36r     45585920 instr  204417 I-miss (fully associative  199305)  306366 D-miss =  346.74 ms a picture; against g36p   +2.20 ms (instr  +175821, I-miss  +4030, D-miss  +1955)
+   g36c     44404224 instr  199163 I-miss (fully associative  197535)  298937 D-miss =  337.89 ms a picture; against g36p   -6.65 ms (instr -1005875, I-miss  -1224, D-miss  -5474)
+   g36rc    44596429 instr  203348 I-miss (fully associative  199190)  301152 D-miss =  340.27 ms a picture; against g36p   -4.27 ms (instr  -813670, I-miss  +2962, D-miss  -3259)
+   g35p     45441946 instr  197508 I-miss (fully associative  204622)  295337 D-miss =  341.77 ms a picture; against g36p   -2.77 ms (instr   +31846, I-miss  -2879, D-miss  -9074)
+   g35k     45410406 instr  204214 I-miss (fully associative  200413)  295778 D-miss =  343.09 ms a picture; against g36p   -1.45 ms (instr     +307, I-miss  +3827, D-miss  -8632)
+rain walk, main turn 31,110-31,190
+   g36p     39327949 instr  175020 I-miss (fully associative  155289)  234776 D-miss =  291.24 ms a picture; against g36p   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36r     39282688 instr  177383 I-miss (fully associative  155620)  234919 D-miss =  291.54 ms a picture; against g36p   +0.29 ms (instr   -45261, I-miss  +2362, D-miss   +142)
+   g36c     38290534 instr  173623 I-miss (fully associative  154259)  230671 D-miss =  284.76 ms a picture; against g36p   -6.49 ms (instr -1037414, I-miss  -1398, D-miss  -4105)
+   g36rc    38311731 instr  176407 I-miss (fully associative  154994)  231487 D-miss =  285.64 ms a picture; against g36p   -5.60 ms (instr -1016218, I-miss  +1387, D-miss  -3289)
+   g35p     39317094 instr  171223 I-miss (fully associative  181483)  236195 D-miss =  290.78 ms a picture; against g36p   -0.46 ms (instr   -10854, I-miss  -3797, D-miss  +1418)
+   g35k     39272550 instr  177126 I-miss (fully associative  165850)  235924 D-miss =  291.69 ms a picture; against g36p   +0.45 ms (instr   -55398, I-miss  +2106, D-miss  +1148)
+== the deck and the opening: g36 levers off | levers on | gl35 keep 0 | gl35 keeps 15
+steady deck (d01t), ME turn 27,410-27,490
+   g36pc2   17766810 instr   80094 I-miss (fully associative   85083)  134759 D-miss =  139.19 ms a picture; against g36pc2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rcc2  17818419 instr   80328 I-miss (fully associative   85305)  135087 D-miss =  139.58 ms a picture; against g36pc2   +0.39 ms (instr   +51610, I-miss   +234, D-miss   +329)
+   g35pc2   17808998 instr   81995 I-miss (fully associative   87835)  135643 D-miss =  140.02 ms a picture; against g36pc2   +0.83 ms (instr   +42189, I-miss  +1901, D-miss   +885)
+   g35kc2   17729434 instr   83518 I-miss (fully associative   85687)  135492 D-miss =  139.90 ms a picture; against g36pc2   +0.70 ms (instr   -37376, I-miss  +3424, D-miss   +733)
+steady deck (d01t), main turn 27,510-27,590
+   g36pc2   15802266 instr   76507 I-miss (fully associative   77101)  104896 D-miss =  121.01 ms a picture; against g36pc2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rcc2  15828173 instr   76687 I-miss (fully associative   77331)  105123 D-miss =  121.24 ms a picture; against g36pc2   +0.22 ms (instr   +25907, I-miss   +180, D-miss   +227)
+   g35pc2   15717990 instr   76465 I-miss (fully associative   79050)  113289 D-miss =  122.75 ms a picture; against g36pc2   +1.74 ms (instr   -84275, I-miss    -42, D-miss  +8393)
+   g35kc2   15654605 instr   78272 I-miss (fully associative   65119)  113394 D-miss =  122.84 ms a picture; against g36pc2   +1.82 ms (instr  -147661, I-miss  +1765, D-miss  +8498)
+opening, ME turn 16,010-16,090
+   g36pc1   17121178 instr   80103 I-miss (fully associative   84974)  127836 D-miss =  134.21 ms a picture; against g36pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rcc1  17230131 instr   80709 I-miss (fully associative   85622)  128662 D-miss =  135.08 ms a picture; against g36pc1   +0.88 ms (instr  +108954, I-miss   +606, D-miss   +826)
+   g35pc1   17192141 instr   82769 I-miss (fully associative   87812)  127039 D-miss =  134.90 ms a picture; against g36pc1   +0.69 ms (instr   +70963, I-miss  +2666, D-miss   -798)
+   g35kc1   17234842 instr   83173 I-miss (fully associative   88344)  127383 D-miss =  135.28 ms a picture; against g36pc1   +1.07 ms (instr  +113664, I-miss  +3070, D-miss   -454)
+opening, main turn 16,110-16,190
+   g36pc1   15469261 instr   76915 I-miss (fully associative   78019)  104040 D-miss =  119.23 ms a picture; against g36pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g36rcc1  15448269 instr   76885 I-miss (fully associative   78007)  103982 D-miss =  119.10 ms a picture; against g36pc1   -0.13 ms (instr   -20992, I-miss    -30, D-miss    -58)
+   g35pc1   15395226 instr   77921 I-miss (fully associative   80271)  111422 D-miss =  120.97 ms a picture; against g36pc1   +1.74 ms (instr   -74035, I-miss  +1006, D-miss  +7382)
+   g35kc1   15443661 instr   78156 I-miss (fully associative   80469)  111651 D-miss =  121.32 ms a picture; against g36pc1   +2.09 ms (instr   -25600, I-miss  +1241, D-miss  +7611)
+== pair means [C model], ms a step (ME turn and the main turn after it, which alternate)
+-- the reuse lever, cull equal:
+g36p:,.1       -> g36r:,.1       ME turn  -3.46, main turn  -2.81, PAIR MEAN  -3.13 ms a step [C model]  (pair means: instr -328294, I-miss  -1520, D-miss  -4627)
+g36p:.2,.3     -> g36r:.2,.3     ME turn  +2.20, main turn  +0.29, PAIR MEAN  +1.25 ms a step [C model]  (pair means: instr  +65280, I-miss  +3196, D-miss  +1049)
+g36c:,.1       -> g36rc:,.1      ME turn  -3.38, main turn  -2.24, PAIR MEAN  -2.81 ms a step [C model]  (pair means: instr -295219, I-miss  -1361, D-miss  -4142)
+g36c:.2,.3     -> g36rc:.2,.3    ME turn  +2.38, main turn  +0.88, PAIR MEAN  +1.63 ms a step [C model]  (pair means: instr +106701, I-miss  +3485, D-miss  +1515)
+-- the cull lever, reuse equal:
+g36p:,.1       -> g36c:,.1       ME turn  -4.72, main turn  -4.82, PAIR MEAN  -4.77 ms a step [C model]  (pair means: instr -808294, I-miss  +1033, D-miss  -3776)
+g36p:.2,.3     -> g36c:.2,.3     ME turn  -6.65, main turn  -6.49, PAIR MEAN  -6.57 ms a step [C model]  (pair means: instr -1021645, I-miss  -1311, D-miss  -4789)
+g36r:,.1       -> g36rc:,.1      ME turn  -4.64, main turn  -4.25, PAIR MEAN  -4.45 ms a step [C model]  (pair means: instr -775219, I-miss  +1192, D-miss  -3291)
+g36r:.2,.3     -> g36rc:.2,.3    ME turn  -6.47, main turn  -5.90, PAIR MEAN  -6.18 ms a step [C model]  (pair means: instr -980224, I-miss  -1022, D-miss  -4323)
+-- the retrain against gl35 (levers off against gl35 keep 0): rain wait, rain walk, steady deck, opening:
+g35p:,.1       -> g36p:,.1       ME turn  +3.96, main turn  -0.02, PAIR MEAN  +1.97 ms a step [C model]  (pair means: instr -119757, I-miss  +6246, D-miss  +4979)
+g35p:.2,.3     -> g36p:.2,.3     ME turn  +2.77, main turn  +0.46, PAIR MEAN  +1.62 ms a step [C model]  (pair means: instr  -10496, I-miss  +3338, D-miss  +3828)
+g35pc2:,.1     -> g36pc2:,.1     ME turn  -0.83, main turn  -1.74, PAIR MEAN  -1.28 ms a step [C model]  (pair means: instr  +21043, I-miss   -929, D-miss  -4639)
+g35pc1:,.1     -> g36pc1:,.1     ME turn  -0.69, main turn  -1.74, PAIR MEAN  -1.22 ms a step [C model]  (pair means: instr   +1536, I-miss  -1836, D-miss  -3292)
+-- the delivered arms against gl35's (both levers on against gl35 keeps 15; rain):
+g35k:,.1       -> g36rc:,.1      ME turn  -3.61, main turn  -7.07, PAIR MEAN  -5.34 ms a step [C model]  (pair means: instr -1058611, I-miss  +2168, D-miss  -2069)
+g35k:.2,.3     -> g36rc:.2,.3    ME turn  -2.82, main turn  -6.05, PAIR MEAN  -4.44 ms a step [C model]  (pair means: instr -887398, I-miss   -792, D-miss   +468)
+-- noise reference: the deck and the opening, levers on against off (same ELF):
+g36pc2:,.1     -> g36rcc2:,.1    ME turn  +0.39, main turn  +0.22, PAIR MEAN  +0.31 ms a step [C model]  (pair means: instr  +38758, I-miss   +207, D-miss   +278)
+g36pc1:,.1     -> g36rcc1:,.1    ME turn  +0.88, main turn  -0.13, PAIR MEAN  +0.38 ms a step [C model]  (pair means: instr  +43981, I-miss   +288, D-miss   +384)
+-- gl36 before the retrain (pre_cull/model, the first trained build) against the retrain, levers off:
+old_g36p:,.1   -> g36p:,.1       ME turn  +5.75, main turn  +3.05, PAIR MEAN  +4.40 ms a step [C model]  (pair means: instr  -29133, I-miss +11759, D-miss  +8292)
+old_g36p:.2,.3 -> g36p:.2,.3     ME turn  +4.48, main turn  +3.65, PAIR MEAN  +4.06 ms a step [C model]  (pair means: instr  +12851, I-miss  +8698, D-miss  +8609)
+old_g36pc2:,.1 -> g36pc2:,.1     ME turn  -2.44, main turn  -1.59, PAIR MEAN  -2.01 ms a step [C model]  (pair means: instr  +35891, I-miss  -4062, D-miss  -5273)
+old_g36pc1:,.1 -> g36pc1:,.1     ME turn  -2.63, main turn  -0.27, PAIR MEAN  -1.45 ms a step [C model]  (pair means: instr  -39424, I-miss  -5015, D-miss   -884)
+rt_b.sh: done 08:42:08

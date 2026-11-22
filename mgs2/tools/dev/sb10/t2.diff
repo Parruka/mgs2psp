@@ -1,0 +1,519 @@
+--- ge.t1/gelive.c	2026-11-02 02:05:52.120667572 +0000
++++ ge/gelive.c	2026-11-02 02:21:07.018793689 +0000
+@@ -101,7 +101,7 @@
+ {
+   gb_reset(&f->o); memset(f->hash, 0xff, sizeof f->hash); memset(&f->n, 0, sizeof f->n); f->memo.valid = 0; f->lit_ok = 0;
+   f->o.dropped = 0; xc_zr_begin(&f->zr); f->tlo = 3.0e38f; f->thi = -1; f->tz0 = f->tztop = 0;
+-  f->nheld = 0; f->held_cur = -1; f->held_gone = 0; f->pend = 0;   /* sb4 */
++  f->nheld = 0; f->held_cur = -1; f->held_gone = 0; f->pend = 0; xc_hold7_reset();   /* sb4 (sb10 T2: and the P07 calls' copies) */
+   f->ft_done = 0; f->h.nthin = 0;   /* task #114 */
+ }
+ /* zchk: what the frame's map leaves outside the GE's range (x86 checks; float, as the GE) */
+@@ -254,14 +254,15 @@
+   /* sb4, step c (renderer_notes 11.29): a call xc_hold_test takes is held when the frame has a record, its batch slots and data room
+      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
+   uint32_t bound; int npd;
+-  if (f->stepc && c->rec && xc_hold_test(c, &bound, &npd)) {
++  if (c->rec && (c->rec->lane == 4 ? f->stepc7 : f->stepc) && xc_hold_test(c, &bound, &npd)) {   /* (sb10 T2: lane 4 by its own switch) */
+     if (f->nheld >= f->hold_max) { f->hflush[2]++; gl_flush(f); }
++    if (c->rec->lane == 4 && !xc_hold7_room()) { f->hflush_log++; gl_flush(f); }   /* sb10 T2: the room for the call's copies */
+     uint32_t left = gb_left(&f->o), need = (bound + 63) & ~63u;
+     if (left >= f->pend && left - f->pend >= need && (!f->o.fixed || f->o.nb + 1 + npd <= f->o.cap_b)) {
+       XcHeld *r = &f->held[f->nheld];
+       xc_hold(c, &f->h, r);
+       r->slot = gb_slot(&f->o);
+-      f->pend += need; f->held_cur = f->nheld++; f->held_n++;
++      f->pend += need; f->held_cur = f->nheld++; f->held_n++; f->held7_n += c->rec->lane == 4;
+       f->n.conv++; f->n.lit_calls++;   /* (xc_hold_test: the call converts and has a strip) */
+       return;
+     }
+--- ge.t1/gelive.h	2026-11-02 02:05:52.119855180 +0000
++++ ge/gelive.h	2026-11-02 02:21:07.017353169 +0000
+@@ -71,6 +71,8 @@
+   int lit_ok; uint32_t lit_base;    /* the last call was a P06 call whose pass 1 is in the frame, its blob at lit_base of the data block */
+   /* sb4, step c (renderer_notes 11.29): lane 2's P06 calls held to the end of their transfer (gl_flush) */
+   int stepc;                        /* 1: on (OPT_XL_STEPC; the host sets it before gl_begin) */
++  int stepc7;                       /* sb10 T2: 1: lane 4's P07 calls held too (OPT2_C7; the host sets it before gl_begin) */
++  long held7_n, hflush_log;         /* sb10 T2: P07 calls held; flushes for the room of a P07 call's copies (xconv.c's log) */
+   XcHeld *held; int nheld, hold_max, held_cur, held_gone;   /* GL_HOLD records (gl_init), those in use, how many may be (1..GL_HOLD,
+                                        gl_init: GL_HOLD; the host may set fewer: MGS2_GL_HOLD); the last call's (-1: it was not held);
+                                        1: the last call was held and has run (gl_flush), so no pass of it may come */
+--- ge.t1/xconv.c	2026-11-02 02:05:52.120533532 +0000
++++ ge/xconv.c	2026-11-02 02:21:07.019764284 +0000
+@@ -397,6 +397,7 @@
+ static const XcHeld *Hr;   /* sb4: the held call xc_held_run converts (its c->vm its record's image or Sv), else 0 */
+ static uint8_t Sv[16384] __attribute__((aligned(64)));   /* the scratch VU memory: a held call's rebuilt memory, or its image when pass 3 is drawn */
+ static void sv_rebuild(const XcHeld *r);
++static void sv7_rebuild(const XcHeld *r);   /* sb10 T2: a held P07 call's vertices in Sv (vc_p07_rec -8) */
+ static int xc_lit(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size,
+                   uint32_t fogcol)
+ {
+@@ -411,14 +412,17 @@
+   VcLit L; int n; const XlRec *rr = 0;   /* sb2: a lane's streams, when the call's vertices come from them */
+   if (p7 && c->rec && c->rec->lane == 4) {   /* sb5 lane 4: the vertices from the slot's streams, else the VU memory decoded */
+     rr = c->rec;
+-    n = vc_p07_rec(c->vm, c->top, rr->p, rr->kind, rr->num, &L, blob + o1, v3, fl, 0, 64);
+-    if (n == -8) { rr = 0; xc_rec7_vm++; xl_vm_sync(); n = vc_p07(c->vm, c->top, &L, blob + o1, v3, fl, 0, 64); }
++    n = Hr && xc_held_force ? -8 : vc_p07_rec(c->vm, c->top, rr->p, rr->kind, rr->num, &L, blob + o1, v3, fl, 0, 64);
++    if (n == -8) {   /* sb10 T2: a held call's vertices are rebuilt in the scratch memory around its placed record (Sv at T 64) */
++      rr = 0; xc_rec7_vm++;
++      if (Hr) sv7_rebuild(Hr); else xl_vm_sync();
++      n = vc_p07(c->vm, c->top, &L, blob + o1, v3, fl, 0, 64); }
+     else {
+       xc_rec7_calls++;
+ #ifndef __psp__   /* (x86 only: no room taken on the PSP for the check's buffers) */
+       if (xc_rec_chk) {   /* the same call on the VU memory, decoded for it: every output the same */
+         static uint8_t e1[64 * 24], e2r[64 * 24], e2v[64 * 24], e3[64 * 24]; static uint16_t ef[64]; VcLit LE;
+-        xl_vm_sync();
++        if (Hr) sv7_rebuild(Hr); else xl_vm_sync();   /* (sb10 T2: a held call's VU memory is Sv, its vertices rebuilt) */
+         int ne = vc_p07(c->vm, c->top, &LE, e1, e3, ef, 0, 64); xc_rec7_n++;
+         int d = ne != n;
+         if (!d && n > 0) {
+@@ -467,7 +471,8 @@
+ #ifdef XC_P7CHK
+     if (L.fast) {   /* the call again in the exact form, compared byte for byte (as tools/dev/p07chk.c) */
+       static uint8_t e1[64 * 24], e3[64 * 24]; static uint16_t ef[64]; VcLit LE;
+-      if (rr) xl_vm_sync();   /* (sb5: a lane 4 call's vertices are still waiting in the VU memory model) */
++      if (rr) { if (Hr) sv7_rebuild(Hr); else xl_vm_sync(); }   /* (sb5: a lane 4 call's vertices are still waiting in the VU memory
++                                                                     model; sb10 T2: a held call's are rebuilt in Sv) */
+       vc_p06_exact = 1; int ne = vc_p07(c->vm, c->top, &LE, e1, e3, ef, 0, 64); vc_p06_exact = 0;
+       LE.fast = 1; St.face_chk++;
+       St.face_chkdiff += ne != n || memcmp(&LE, &L, sizeof L) || memcmp(e1, blob + o1, (size_t)vc_p06_size1(&L) * (size_t)n) ||
+@@ -600,10 +605,14 @@
+   hi_run(img, vm, top + 0x14, 24, 1, dir);
+ }
+ #define HI_T 6u   /* a held call converts at T 6: its VU memory is the image, img[a - 2] for address a (hi_vm), or Sv when pass 3 is drawn */
++#define HI_T7 64u   /* sb10 T2: a held P07 call converts in Sv at T 64: its slots at abs 0 .. 63, T + 0 .. 3 at 64 .. 67, T + 0xfe, 0xff at
++                       318, 319, the vertices (sv7_rebuild) from 320 on */
+ static const uint8_t *hi_vm(const XcHeld *r) { return (const uint8_t *)r + offsetof(XcHeld, img) - 32; }
++static int hold7_test(const XlCall *c, uint32_t *bound, int *npd);
+ int xc_hold_test(const XlCall *c, uint32_t *bound, int *npd)
+ {
+   const XlRec *r = c->rec;
++  if (r && r->lane == 4) return !c->cont && c->entry == VC_P07 && !vc_p06_exact && hold7_test(c, bound, npd);   /* sb10 T2 */
+   if (!r || r->lane != 2 || c->cont || !is_p06(c->entry) || vc_p06_exact) return 0;
+   const uint32_t *h = vq(c->vm, c->top + 0x14);   /* (call() decoded T + 0 .. 0x14 for lane 2) */
+   uint32_t n = h[0] & 0xffff, hy = h[1] & 0xffff;
+@@ -619,9 +628,20 @@
+   *bound = (uint32_t)(sizeof(GerXform) + (size_t)(1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0)) * sizeof(GerLit)) + n * (24 + 24 + 24 + 4);
+   return 1;
+ }
++static void hold7(const XlCall *c, XcHeld *r);
+ void xc_hold(const XlCall *c, const XcHost *h, XcHeld *r)
+ {
+   Lp.on = 0;   /* xc_call's work before xc_lit, in its order */
++  if (c->entry == VC_P07) {   /* sb10 T2 */
++    St.calls[4]++;
++    xc_gs(c->gr, &r->d);
++    memset(&r->t, 0, sizeof r->t); r->t.index = -1;
++    if (r->d.tme && h->tex && !h->tex(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
++    r->entry = c->entry; r->top = c->top; r->hy = vq(c->vm, c->top)[3] & 0xffff; r->fogcol = (uint32_t)(c->gr[0x3d] & 0xffffff);
++    r->rec = *c->rec; r->np = 0; r->slot = r->pslot[0] = r->pslot[1] = -1;
++    hold7(c, r);
++    return;
++  }
+   St.calls[3]++;
+   xc_gs(c->gr, &r->d);
+   memset(&r->t, 0, sizeof r->t); r->t.index = -1;
+@@ -633,13 +653,18 @@
+ }
+ int xc_hold_pass(const XlCall *c, int pass, const XcHost *h, XcHeld *r)
+ {
+-  if (!(pass == 2 ? (r->hy & 0x10) != 0 : pass == 3 ? hq_p3(r->hy) : 0) || r->np >= 2) return 0;   /* xc_pass's Lp.rec[pass] */
++  /* xc_pass's Lp.rec[pass]: P06 as hq_p3 says; sb10 T2, P07: passes 2 and 3 both drawn when the header's flags have 0x210 (hold7_test
++     takes no other P07 call that draws a pass 2 or 3: no UV2 z other than 1.0, no flag 0x100 or 0x400) */
++  if (!(r->entry == VC_P07 ? (pass == 2 || pass == 3) && (r->hy & 0x210) == 0x210 :
++        pass == 2 ? (r->hy & 0x10) != 0 : pass == 3 ? hq_p3(r->hy) : 0) || r->np >= 2) return 0;
+   xc_pass_look(c, h, &r->pd[r->np], &r->pt[r->np]); r->pk[r->np] = pass; r->np++;
+   return 1;
+ }
+ static uint8_t LpKeep[sizeof Lp];
+-void xc_held_begin(void) { memcpy(LpKeep, &Lp, sizeof Lp); }
+-void xc_held_end(void) { memcpy(&Lp, LpKeep, sizeof Lp); }
++static const uint8_t *C7Pl[XC_7S];   /* sb10 T2: the record data each P07 slot of Sv holds (0: not known) */
++static void c7_log_reset(void);
++void xc_held_begin(void) { memcpy(LpKeep, &Lp, sizeof Lp); memset(C7Pl, 0, sizeof C7Pl); }
++void xc_held_end(void) { memcpy(&Lp, LpKeep, sizeof Lp); c7_log_reset(); }   /* (sb10 T2: the held calls have run, so their copies go) */
+ /* the VU memory P06 reads, as the real one held it at the call (at its own T): the streams' vectors at T + 0x100 + s + 6 i as the
+    translator decodes them (A, B, F V4-16: four halfwords sign-extended; C, D V2-16 masked: x, y, ROW z, y), then the record's quadwords
+    over them (the real memory's last writes: the header's UNPACK comes after the streams) */
+@@ -658,10 +683,20 @@
+   }
+   hi_io((uint32_t (*)[4])r->img, Sv, r->top, r->entry, r->hy, 1);
+ }
++static void place7(const XcHeld *r);
+ int xc_held_run(const XcHeld *r, const XcHost *h, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   XlCall c; memset(&c, 0, sizeof c);
+   c.entry = r->entry; c.top = HI_T; c.rec = &r->rec; c.ad_qa = c.tag_qa = ~0u;   /* c.gr 0: xc_lit reads no GS register */
++  if (r->entry == VC_P07) {   /* sb10 T2: the record placed in Sv at T 64 */
++    place7(r); c.vm = Sv; c.top = HI_T7;
++    Hr = r; Lp.on = 0;
++    int k = xc_lit(&c, h, &r->d, r->t.index, &r->t, b, blob, cap, size, r->fogcol);
++    Hr = 0;
++    if (k < 0) St.bad[4]++; else if (!k) St.empty[4]++; else St.batches[4]++;
++    return k;
++  }
++  memset(C7Pl, 0, sizeof C7Pl);   /* (sb10 T2: a P06 call may write Sv) */
+   if (!hq_p3(r->hy)) c.vm = hi_vm(r);   /* the image is the VU memory at T 6 */
+   else {   /* pass 3 reads T + 0xfe, 0xff as well: the image in the scratch memory at T 6 */
+     if (xc_held_poison) memset(Sv, 0xa5, sizeof Sv);
+@@ -675,3 +710,110 @@
+   return k;
+ }
+ void xc_held_pass(const XcHeld *r, int k, GerBatch *b, uint8_t *blob) { xc_pass_do(&r->pd[k], &r->pt[k], r->pk[k], r->entry, b, blob); }
++
++/* ---- sb10, Stage C step 1 T2 (stagec_notes.md, step 1): lane 4's P07 calls held to the end of their transfer, as step c holds lane 2's
++   P06 calls.  A held call's record keeps where the 64 bytes of each slot of VU addresses 0 .. 63 that it reads were as the call saw them:
++   the game's data a straight copy last put in the slot (ge/xlate.h xl_vsrc: valid to the transfer's end), else a copy in the log below
++   (one copy for each slot and generation); and T + 0 .. 3, T + 0xfe, 0xff.  At the run the record is placed in Sv (a slot only when Sv
++   does not hold that data already) with T at 64, and xc_lit converts it there: the same quadwords, so the same results.  The streams are
++   the game's data, as for lane 2; vc_p07_rec's -8 rebuilds the vertices in Sv as the VU memory held them (sv7_rebuild).  hold7_test takes
++   only a call that makes a batch and whose every read lies in its record: the header's count 1 .. 64, 1 .. 4 bones, no flag 0x804 or
++   0x500 and passes 2 and 3 both or neither (0x210), T + 1 x zero (p07_any's -7 paths), the vertices at T + 0x100 .. on without a wrap
++   (vc_p07_rec's test at the call's T), the streams vc_p07_rec reads, every UV1 z 1.0 (p07_any's -6) and with passes 2 and 3 every UV2 z
++   (pass 2 drawn), every bone offset below 29 (each matrix in abs 32 .. 63, which p07_any then reads too), and a vertex from the third on
++   without ADC (a strip) ---- */
++int xc_c7_chk; long xc_c7_n, xc_c7_diff, xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb;   /* (xconv.h) */
++static const uint8_t S7S[XC_7S] = { 0, 1, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };   /* the slots, as XcHeld.p7.sp */
++#define C7_LOG 128   /* the log: 128 slot copies, 8 KB (xc_hold7_room) */
++static uint8_t C7Log[C7_LOG][64] __attribute__((aligned(64)));
++static int c7_n; static uint32_t c7_sok, c7_sgen[16]; static const uint8_t *c7_sptr[16];   /* copies made; slot s's last copy (bit s of
++                                                                                         c7_sok), of generation c7_sgen[s], at c7_sptr[s] */
++static void c7_log_reset(void) { c7_n = 0; c7_sok = 0; }
++int xc_hold7_room(void) { return C7_LOG - c7_n >= XC_7S; }
++void xc_hold7_reset(void) { c7_log_reset(); }
++typedef uint32_t __attribute__((may_alias)) xc_u32;
++static int hold7_test(const XlCall *c, uint32_t *bound, int *npd)
++{
++  const XlRec *r = c->rec;
++  const uint32_t *h = vq(c->vm, c->top);   /* (call() decoded T + 0 .. 3 for lane 4) */
++  const uint32_t n = h[0] & 0xffff, nb = h[2] & 0xffff, fl = h[3] & 0xffff, p23 = (fl & 0x210) == 0x210;
++  if (n < 1 || n > 64 || nb < 1 || nb > 4 || (fl & 0xd04) || ((fl & 0x210) && !p23) || (vq(c->vm, c->top + 1)[0] & 0xffff) ||
++      (c->top & 0x3ffu) + 0x100u + 7u * n > 1024u) return 0;
++#define HS(s, kd, m) (r->p[s] && r->kind[s] == (kd) && r->num[s] >= (m))   /* vc_p07_rec's P7S */
++  if (!HS(0, 2, n) || !HS(1, 2, n) || !HS(2, 2, n) || (p23 && !HS(3, 2, n)) || !HS(5, 5, 2 * n) || r->p[4]) return 0;
++#undef HS
++  const xc_h16 *A = (const xc_h16 *)r->p[0], *C = (const xc_h16 *)r->p[2], *D = (const xc_h16 *)r->p[3];
++  const xc_u32 *F = (const xc_u32 *)r->p[5];
++  const uint32_t bm = nb == 4 ? 0x80808080u : ((1u << (8 * nb)) - 1) & 0x80808080u;   /* bit 7 of the bones' bytes */
++  uint32_t bad = 0, strip = 0;
++  for (uint32_t i = 0; i < n; i++) {
++    const uint32_t w = F[2 * i + 1];   /* the bone offsets: byte b below 29 for b < nb (bit 7 of (byte & 0x7f) + 99 and of the byte clear) */
++    bad |= ((uint32_t)(uint16_t)C[4 * i + 2] ^ 0x1000u) | ((((w & 0x7f7f7f7fu) + 0x63636363u) | w) & bm);
++    if (p23) bad |= (uint32_t)(uint16_t)D[4 * i + 2] ^ 0x1000u;
++    if (i >= 2) strip |= ~(uint32_t)(uint16_t)A[4 * i + 3] & 0x8000u;   /* (stream A's w: the vertex's flags, bit 15 ADC) */
++  }
++  if (bad || !strip) return 0;
++  *npd = p23 ? 2 : 0;
++  *bound = (uint32_t)(sizeof(GerXform) + (size_t)(1 + 2 * p23) * sizeof(GerLit)) + n * (24 + 24 + 24 + 4);
++  return 1;
++}
++#ifndef __psp__
++static uint32_t c7_qa(int i, uint32_t top)   /* the x86 check's quadwords: abs 2 .. 11, 16 .. 19, 24 .. 63, T + 0 .. 3, T + 0xfe, 0xff */
++{
++  return i < 10 ? 2u + (uint32_t)i : i < 14 ? 6u + (uint32_t)i : i < 54 ? 10u + (uint32_t)i : i < 58 ? top + (uint32_t)(i - 54) : top + 0xfeu + (uint32_t)(i - 58);
++}
++#endif
++static void hold7(const XlCall *c, XcHeld *r)
++{
++  xc_c7_held++;
++  for (int k = 0; k < XC_7S; k++) {
++    const uint32_t s = S7S[k]; const uint8_t *p;
++    if (xl_vsrc_gen[s] == xl_vgen[s] && xl_vsrc[s]) p = (const uint8_t *)xl_vsrc[s];   /* the game's data, which the slot holds */
++    else if ((c7_sok >> s & 1) && c7_sgen[s] == xl_vgen[s]) p = c7_sptr[s];   /* the copy an earlier held call made of this generation */
++    else { uint8_t *q = C7Log[c7_n++]; memcpy(q, c->vm + (s << 6), 64); c7_sgen[s] = xl_vgen[s]; c7_sptr[s] = q; c7_sok |= 1u << s; p = q; xc_c7_snap++; }
++    r->p7.sp[k] = p;
++  }
++  for (uint32_t j = 0; j < 4; j++) memcpy(r->p7.t7[j], vq(c->vm, c->top + j), 16);
++  for (uint32_t j = 0; j < 2; j++) memcpy(r->p7.t7[4 + j], vq(c->vm, c->top + 0xfe + j), 16);
++#ifndef __psp__
++  if (xc_c7_chk) for (int i = 0; i < 60; i++) memcpy(r->chk7[i], vq(c->vm, c7_qa(i, c->top)), 16);
++#endif
++}
++static void place7(const XcHeld *r)
++{
++  if (xc_held_poison) { memset(Sv, 0xa5, sizeof Sv); memset(C7Pl, 0, sizeof C7Pl); }
++  for (int k = 0; k < XC_7S; k++) {
++    const uint8_t *p = r->p7.sp[k];
++    if (p != C7Pl[k]) { memcpy(Sv + ((uint32_t)S7S[k] << 6), p, 64); C7Pl[k] = p; xc_c7_put++; }
++  }
++  memcpy(Sv + (HI_T7 << 4), r->p7.t7[0], 4 * 16); memcpy(Sv + ((HI_T7 + 0xfe) << 4), r->p7.t7[4], 2 * 16);
++#ifndef __psp__
++  if (xc_c7_chk) {   /* the placed memory against the call's own, quadword for quadword */
++    int d = 0;
++    for (int i = 0; i < 60; i++) d |= memcmp(r->chk7[i], vq(Sv, c7_qa(i, HI_T7)), 16) != 0;
++    xc_c7_n++; xc_c7_diff += d;
++  }
++#endif
++}
++/* the vertices as the VU memory held them at the call (vc_p07 reads T + 0x100 + 7 i + j): streams A .. D (V4-16, each halfword
++   sign-extended; D with passes 2 and 3) at j 0 .. 3, F's two vectors (V4-8 unsigned, each byte a word: the weights, the bone offsets)
++   at j 5, 6; E is not sent (hold7_test) and not read */
++static void sv7_rebuild(const XcHeld *r)
++{
++  const XlRec *R = &r->rec; const uint32_t n = r->p7.t7[0][0] & 0xffff; uint32_t a = HI_T7 + 0x100, w[4];
++  if (xc_held_poison) memset(Sv + (a << 4), 0xa5, 7 * 64 * 16);
++  xc_c7_rb++;
++  for (uint32_t i = 0; i < n; i++, a += 7) {
++    for (uint32_t s = 0; s < 4; s++) {
++      if (s == 3 && !(r->hy & 0x10)) continue;
++      const xc_h16 *q = (const xc_h16 *)R->p[s] + 4 * i;
++      for (int j = 0; j < 4; j++) w[j] = (uint32_t)(int32_t)q[j];
++      memcpy(Sv + ((a + s) << 4), w, 16);
++    }
++    const uint8_t *f = (const uint8_t *)R->p[5] + 8 * i;
++    for (int j = 0; j < 4; j++) w[j] = f[j];
++    memcpy(Sv + ((a + 5) << 4), w, 16);
++    for (int j = 0; j < 4; j++) w[j] = f[4 + j];
++    memcpy(Sv + ((a + 6) << 4), w, 16);
++  }
++}
+--- ge.t1/xconv.h	2026-11-02 02:05:52.120571163 +0000
++++ ge/xconv.h	2026-11-02 02:21:07.019137300 +0000
+@@ -115,18 +115,37 @@
+ #define XC_HI 27   /* the record's image of the VU quadwords a held call reads besides the streams (xconv.c hi_io): abs 2 .. 5 in img[0 .. 3],
+                       T + k in img[4 + k] for k 0 .. 6, 8 .. 0xb, 0x14, the skinned entries' 0xc .. 0xf, pass 3's 0x10 .. 0x12 (when drawn), and
+                       pass 3's T + 0xfe, 0xff in img[25], img[26]: img[0 .. 24] is VU addresses 2 .. 0x1a, the memory of a call at T 6 */
++#define XC_7S 14   /* sb10 T2: the slots of VU addresses 0 .. 63 a held P07 call reads (ge/xlate.h xl_vgen): 0, 1, 2 (abs 2 .. 11), 4 (16 ..
++                      19), 6, 7 (24 .. 31), 8 .. 15 (the bones, 32 .. 63) */
+ typedef struct {
+-  uint32_t entry, top, hy, fogcol;   /* the call; header y (its pass flags); FOGCOL (xc_xform) */
++  uint32_t entry, top, hy, fogcol;   /* the call; header y (its pass flags; P07: T + 0 w); FOGCOL (xc_xform) */
+   int np, slot, pslot[2], pk[2];     /* drawn passes so far, the batch slots of the call and of those passes, their numbers */
+-  uint32_t img[XC_HI][4] __attribute__((aligned(64)));   /* (addresses 0, 1 of that memory are the record's 32 bytes before img,
++  union {
++    uint32_t img[XC_HI][4] __attribute__((aligned(64)));   /* P06 (addresses 0, 1 of that memory are the record's 32 bytes before img,
+                                                             pk and padding: P06 never reads them) */
++    struct { const uint8_t *sp[XC_7S]; uint32_t t7[6][4]; } p7;   /* sb10 T2, P07: where each slot's 64 bytes are as the call saw them
++                                                            (the game's data, or a copy in xconv.c's log; both kept to the transfer's
++                                                            end), and T + 0 .. 3, T + 0xfe, 0xff */
++  };
+   XcGs d; XcTex t;                   /* the call's GS state and texture */
+   XlRec rec;                         /* the call's streams (the game's data: valid to the transfer's end) */
+   XcGs pd[2]; XcTex pt[2];           /* the drawn passes' (the first np) */
++#ifndef __psp__
++  uint32_t chk7[60][4];              /* sb10 T2, x86 check (xc_c7_chk): the quadwords a P07 call reads as they were at the call */
++#endif
+ } XcHeld;
+-/* 1: c can be held (lane 2's P06 call; the header's count 1..64; the streams vc_p06_rec reads; ROW z 1.0; a strip to draw), with *bound
+-   the most data its blob takes (xc_lit's -5 test) and *npd its passes 2 and 3 that will be drawn; 0: it runs at the call */
++/* 1: c can be held (lane 2's P06 call; the header's count 1..64; the streams vc_p06_rec reads; ROW z 1.0; a strip to draw; sb10 T2:
++   lane 4's P07 call as xconv.c hold7_test says), with *bound the most data its blob takes (xc_lit's -5 test) and *npd its passes 2 and
++   3 that will be drawn; 0: it runs at the call */
+ int xc_hold_test(const XlCall *c, uint32_t *bound, int *npd);
++/* sb10 T2: 1 when xc_hold has room for a P07 call's copies (else the host runs the held calls first); xc_hold7_reset: no call is held
++   (gl_begin), so the copies go */
++int xc_hold7_room(void);
++void xc_hold7_reset(void);
++/* sb10 T2 x86 check: xc_c7_chk 1: each held P07 call's record also keeps the quadwords it reads (chk7), and at the transfer's end the
++   memory it is converted from is compared with them: xc_c7_n calls compared, xc_c7_diff not the same; xc_c7_held the P07 calls held,
++   xc_c7_snap the slots copied into the log, xc_c7_put the slots placed in the scratch memory, xc_c7_rb the calls rebuilt (vc_p07_rec -8) */
++extern int xc_c7_chk; extern long xc_c7_n, xc_c7_diff, xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb;
+ void xc_hold(const XlCall *c, const XcHost *h, XcHeld *r);   /* the call's work before the converter, and its record */
+ int xc_hold_pass(const XlCall *c, int pass, const XcHost *h, XcHeld *r);   /* a pass of the held call r: 1 drawn (its record kept), 0 not */
+ /* at the transfer's end, the held calls in their order: xc_held_run as xc_call (1: the batch in *b, its data blob[0..*size), which the
+--- ge.t1/xlate.c	2026-11-02 02:05:52.120627145 +0000
++++ ge/xlate.c	2026-11-02 02:25:40.904182765 +0000
+@@ -244,11 +244,41 @@
+   while (w < e) *w++ = v;
+   if (n & 1) *(uint16_t *)w = id;
+ }
++/* sb10 T2 (xlate.h): the generations and sources of VU addresses 0 .. 63, slot by slot */
++uint32_t xl_vgen[16], xl_vsrc_gen[16]; const void *xl_vsrc[16];
++static void lo_all(void) { for (int s = 0; s < 16; s++) xl_vgen[s]++; }
++/* quadwords a .. a + last (mod 1024) written, some or all of them: each slot of 0 .. 63 that range meets takes a new generation */
++static void lo_touch(uint32_t a, uint32_t last)
++{
++  a &= 1023;
++  if (last >= 1023) { lo_all(); return; }
++  uint32_t e = a + last;
++  if (a < 64) { uint32_t hi = e < 63 ? e : 63; for (uint32_t s = a >> 2; s <= hi >> 2; s++) xl_vgen[s]++; }
++  if (e >= 1024) { uint32_t hi = e - 1024 < 63 ? e - 1024 : 63; for (uint32_t s = 0; s <= hi >> 2; s++) xl_vgen[s]++; }
++}
++/* the highest quadword (from the first) that num vectors with CL / WL write: WL a cycle, the next cycle CL on (unpack()'s stepping; with
++   WL > CL a cycle may reach past the next one's start: then at most this); WL 0: everything.  (The forms every UNPACK of the captures
++   takes, CL = WL and WL 1 or 2, without a division) */
++static inline uint32_t up_last(uint32_t num, uint32_t cl, uint32_t wl)
++{
++  if (wl == cl) return wl ? num - 1 : 1023;
++  if (wl == 1) return (num - 1) * cl;
++  if (wl == 2) return ((num - 1) >> 1) * cl + (cl < 2 ? 1 : (num - 1) & 1);
++  return wl ? (num - 1) / wl * cl + (wl > cl ? wl - 1 : (num - 1) % wl) : 1023;
++}
++/* a straight copy (V4-32 in MODE 0 without a mask, CL = WL) of num quadwords from p to a .. a + num - 1, not wrapping, after lo_touch:
++   each whole slot of 0 .. 63 in it holds the 64 bytes at its place in p */
++static void lo_src(uint32_t a, uint32_t num, const uint32_t *p)
++{
++  for (uint32_t s = (a + 3) >> 2; s < 16 && 4 * s + 4 <= a + num; s++) { xl_vsrc[s] = p + 4 * (4 * s - a); xl_vsrc_gen[s] = xl_vgen[s]; }
++}
+ /* the UNPACK w, its nw data words at p: a descriptor, and the quadwords it writes owned by it */
+ static void ud_new(uint32_t w, const uint32_t *p, uint32_t nw)
+ {
+   int c = (w >> 24) & 0x7f, num = (w >> 16) & 0xff; if (!num) num = 256;
+   uint32_t imm = w & 0xffff, a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
++  { uint32_t last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl);   /* sb10 T2 */
++    if (a < 64 || a + last >= 1024) { lo_touch(a, last); if ((c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + (uint32_t)num <= 1024) lo_src(a, (uint32_t)num, p); } }
+   if (ud_n == UD_N) { XC(St.full_ud++); vm_all(); }
+   if (rc_dirty && rc_n == RC_N) { XC(St.full_rc++); vm_all(); }
+   if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
+@@ -283,6 +313,7 @@
+     const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
+     for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
+     own_fill_i(a, num, 0);
++    if (a < 64) { lo_touch(a, num - 1); lo_src(a, num, p); }   /* sb10 T2 (a + num <= 1024: no wrap) */
+     XC(St.eg_cmds++); XC(St.eg_vec += num); return;
+   }
+   ud_new(w, p, nw);
+@@ -308,6 +339,7 @@
+   int c = (w >> 24) & 0x7f, vn_ = (c >> 2) & 3, vl = c & 3, m = (c >> 4) & 1, num = (w >> 16) & 0xff; if (!num) num = 256;
+   uint32_t imm = w & 0xffff, addr = (imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0); int usn = imm >> 14 & 1;
+   int bits = 32 >> vl, ne = vn_ + 1; if (vn_ == 3 && vl == 3) { bits = 16; ne = 1; usn = 1; }
++  { uint32_t a0 = addr & 0x3ff, last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl); if (a0 < 64 || a0 + last >= 1024) lo_touch(a0, last); }   /* sb10 T2 */
+   uint64_t bitpos = 0; int cyc = 0; uint32_t a = addr; up_census(w);
+   for (int k = 0; k < num; k++) {
+     uint32_t e[4];
+@@ -433,7 +465,8 @@
+     if (!kick_vm(c.ad_qa)) St.ad_bad++;
+     c.ad = 1;
+   }
+-  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0; }
++  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0;
++    if (d < 64) lo_touch(d, 0); }   /* sb10 T2 */
+   int dctx = 3;   /* the contexts the call may draw in: the template's, else both */
+   if (r) {   /* the template's PRIM, as the geometry tag sets it (PRE) */
+     c.tag_qa = (r->tag + (r->tag_abs ? 0 : c.top)) & 0x3ff;
+@@ -714,7 +747,7 @@
+ void xl_need(int on) { vm_all(); need_on = on; }
+ static void (*flush_fn)(void *); static void *flush_ctx;   /* sb4: xl_on_flush */
+ void xl_on_flush(void (*fn)(void *ctx), void *ctx) { flush_fn = fn; flush_ctx = ctx; }
+-void xl_flush(void) { vm_all(); if (flush_fn) flush_fn(flush_ctx); }
++void xl_flush(void) { vm_all(); if (flush_fn) flush_fn(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
+ void xl_vm_sync(void) { vm_all(); }
+ const uint32_t *xl_vm_q(uint32_t qa) { return vmq(qa); }
+ void xl_vm_logical(uint8_t *out)
+@@ -726,6 +759,7 @@
+ {
+   memset(&St, 0, sizeof St); memset(gr, 0, sizeof gr); memset(G, 0, sizeof G); memset(VM, 0, sizeof VM); memset(VPsrc, 0, sizeof VPsrc);
+   memset(&V, 0, sizeof V); V.cl = V.wl = 1; vleft = vn = dqn = 0; last_entry = 0; last_cont = 0; usrc = 0; uvert = 0;
++  lo_all();   /* sb10 T2 */
+   memset(own, 0, sizeof own); ud_n = rc_n = 0; rc_dirty = 1; ud_vecs = 0; memset(EC, 0, sizeof EC);
+   gf_reset(&F, prim_fn, prim_ctx); F.up = up_map;
+ }
+--- ge.t1/xlate.h	2026-11-02 02:05:52.120595492 +0000
++++ ge/xlate.h	2026-11-02 02:07:32.662560967 +0000
+@@ -145,4 +145,11 @@
+    over them or the end of the transfer.  xl_need(1): flushes with many vectors pending scan own[], as with xl_lane(1) */
+ void xl_vm_need(const XlCall *c);
+ void xl_need(int on);
++/* sb10, Stage C step 1 T2 (stagec_notes.md 1.5): VU addresses 0 .. 63 (the constants every program reads and P07's bones) in 16 slots of
++   four quadwords.  xl_vgen[s] changes with every write to slot s (an UNPACK registered or done, a copy) and at each transfer's end;
++   when the last write was one straight copy of the whole slot from the game's data (V4-32 in MODE 0 without a mask, CL = WL, the slot's
++   four quadwords in one UNPACK), xl_vsrc[s] is that data and xl_vsrc_gen[s] the generation it set: while xl_vsrc_gen[s] == xl_vgen[s]
++   the slot holds the 64 bytes at xl_vsrc[s], which stay as they are until the transfer ends */
++extern uint32_t xl_vgen[16], xl_vsrc_gen[16];
++extern const void *xl_vsrc[16];
+ #endif
+--- boot.t1/xlive_chk.c	2026-11-02 02:05:52.122756794 +0000
++++ boot/xlive_chk.c	2026-11-02 02:21:07.024264050 +0000
+@@ -844,10 +844,13 @@
+       if (tc_n) fprintf(stderr, "xlive gb: thin check: %ld thinned calls converted again without thinning: differing %ld; kept strips' triangles %ld "
+                 "(the same classes), left-out strips' %ld (class 0), kept polygons %ld (the same); calls with nothing left to draw %ld\n", tc_n, tc_bad,
+                 tc_keep_tris, tc_drop_tris, tc_fans, tc_empty); }
+-    fprintf(stderr, "xlive gb: step c: %ld P06 calls held; flushes at a transfer's end %ld, for a call's room %ld, records full %ld, at a frame's "
+-            "end %ld; faults: held calls not placed %ld, passes after their call ran %ld%s%s\n", glf.held_n, glf.hflush[0], glf.hflush[1],
+-            glf.hflush[2], glf.hflush[3], glf.held_bad, glf.held_late, xc_held_force ? "; every held call through the rebuilt VU memory" : "",
+-            xc_held_poison ? "; the records' images and the scratch memory poisoned" : "");
++    fprintf(stderr, "xlive gb: step c: %ld calls held (%ld of them P07); flushes at a transfer's end %ld, for a call's room %ld, records full "
++            "%ld, P07 copies full %ld, at a frame's end %ld; faults: held calls not placed %ld, passes after their call ran %ld%s%s\n",
++            glf.held_n, glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late,
++            xc_held_force ? "; every held call through the rebuilt VU memory" : "", xc_held_poison ? "; the records' images and the scratch memory poisoned" : "");
++    fprintf(stderr, "xlive gb: P07 held (sb10 T2): %ld calls; slots copied at the hold %ld, placed at the run %ld; vertices rebuilt %ld; "
++            "placed memory checked %ld, differing %ld%s\n", xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb, xc_c7_n, xc_c7_diff,
++            xc_c7_chk ? " (MGS2_C7_CHK)" : "");
+     fprintf(stderr, "xlive gb: P06: calls %ld (+0 %ld, +358 %ld, +738 %ld, +ab0 %ld), batches %ld, empty %ld, bad %ld; vertices %ld, exact "
+               "form %ld; passes 2 and 3 drawn %ld / %ld (pass 2 with its own vertices %ld), not drawn %ld (a UV2 z not 1.0) / %ld (from "
+               "T+0x104); cull bit %ld; light ramps %ld\n", x->calls[3], x->lit_kind[0], x->lit_kind[1], x->lit_kind[2], x->lit_kind[3],
+@@ -961,6 +964,7 @@
+       fprintf(stderr, "xlive mode: the lanes follow g_opt's lane bits at each transfer (MGS2_SB_LANE_OPT), within mask %d\n", lane_base); }
+     xc_held_force = getenv("MGS2_SB_FORCE") && atoi(getenv("MGS2_SB_FORCE")); xc_held_poison = getenv("MGS2_SB_POISON") && atoi(getenv("MGS2_SB_POISON"));
+     vc_p06_exact = getenv("MGS2_SB_P6EXACT") && atoi(getenv("MGS2_SB_P6EXACT"));
++    xc_c7_chk = getenv("MGS2_C7_CHK") && atoi(getenv("MGS2_C7_CHK"));   /* sb10 T2: each held P07 call's placed memory against its own */
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
+       "the rebuilt VU memory (MGS2_SB_FORCE)" : "", xc_held_poison ? " the records' images and the scratch memory poisoned (MGS2_SB_POISON)" : "", vc_p06_exact ? " P06 in "
+       "the exact form (MGS2_SB_P6EXACT)" : "");
+@@ -987,7 +991,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.ram = M.mem; gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+--- psp.t1/main_psp.c	2026-11-02 02:05:52.125465946 +0000
++++ psp/main_psp.c	2026-11-02 02:21:18.297181191 +0000
+@@ -190,13 +190,14 @@
+ static Win w_cur, w_deck;
+ /* the configurations boot.c opt_window cycles through (its cfg[] order), plus anything else */
+ #ifdef MGS2_GL
+-#define NCFG 25
++#define NCFG 26
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+                                             "SPR bulk off", "native forms off", "reduced renderer off", "GS one-loop walk off", "native sort key off",
+                                             "stage table off", "translator off", "picture off", "GE overlap off", "VU sync by scan",
+                                             "block tex conv off", "area memo off", "flags-only test off", "palette memo off", "V4-8 decode off",
+-                                            "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off" };   /* 17-21:
+-                              codec_speed.md A-D (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4); 24: sb10's T1 (1.3) */
++                                            "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off", "face hold off" };
++                              /* 17-21: codec_speed.md A-D (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4); 24, 25:
++                                 sb10's T1, T2 (step 1) */
+ #else
+ #define NCFG 13
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+@@ -313,7 +314,7 @@
+   }
+   g_step_cfg = cfg_index(g_opt);        /* boot.c opt_window chose the configuration of the step that starts now */
+ #ifdef MGS2_GL
+-  if (g_step_cfg == 0 && g_opt2 != ~0u) g_step_cfg = g_opt2 == ~1u ? 22 : g_opt2 == ~2u ? 23 : g_opt2 == ~4u ? 24 : 4;   /* sb9, sb10: g_opt2's switches */
++  if (g_step_cfg == 0 && g_opt2 != ~0u) g_step_cfg = g_opt2 == ~1u ? 22 : g_opt2 == ~2u ? 23 : g_opt2 == ~4u ? 24 : g_opt2 == ~8u ? 25 : 4;   /* sb9, sb10: g_opt2's switches */
+ #endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+--- psp.t1/xl_psp.c	2026-11-02 02:05:52.125222954 +0000
++++ psp/xl_psp.c	2026-11-02 02:21:07.022327420 +0000
+@@ -231,6 +231,7 @@
+     if (gl_ok == 1) {                    /* (gl_sync's stop: no more frames) */
+       glf.h.cut = (g_opt & OPT_GL_CUT) != 0; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0;
+       glf.stepc = (g_opt & OPT_XL_STEPC) != 0;   /* sb4: step c (renderer_notes 11.29) */
++      glf.stepc7 = (g_opt2 & OPT2_C7) != 0;      /* sb10 T2: and lane 4's P07 calls */
+       gl_begin(&glf); gl_now = 1;
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -408,9 +409,11 @@
+             x->calls[2], x->batches[1], x->batches[2], x->calls[3], x->batches[3], x->lit_pass[2], x->lit_pass[3], x->calls[4], x->batches[4],
+             x->bad[4], x->face_unseen, x->face_exact, x->face_pass[2], x->face_pass[3]);
+     fprintf(f, "picture: effect vertices %ld, %ld of them through the clamps with the fast path on\n", x->clip[0], x->clip[1]);
+-    fprintf(f, "picture: step c: %ld P06 calls held; flushes at a transfer's end %ld, for a call's room %ld, records full %ld, at a frame's "
+-            "end %ld; faults: held calls not placed %ld, passes after their call ran %ld\n", glf.held_n, glf.hflush[0], glf.hflush[1],
+-            glf.hflush[2], glf.hflush[3], glf.held_bad, glf.held_late);
++    fprintf(f, "picture: step c: %ld calls held (%ld of them P07); flushes at a transfer's end %ld, for a call's room %ld, records full %ld, "
++            "P07 copies full %ld, at a frame's end %ld; faults: held calls not placed %ld, passes after their call ran %ld\n", glf.held_n,
++            glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late);
++    fprintf(f, "picture: P07 held (sb10 T2): %ld calls; slots copied at the hold %ld, placed at the run %ld; vertices rebuilt %ld\n",
++            xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb);
+     if (glf.ft) { const FxThin *t = glf.ft;   /* task #114 */
+       fprintf(f, "picture: thinned effects (sheets 1 in %d, splash 1 in %d): scans %ld, actors walked %ld, names read %ld, cache emptied %ld; "
+               "blocks found: sheets %ld, splash %ld; bad %ld, over %ld; calls thinned %ld, their strips %ld, left out %ld (%ld triangles)\n",
+--- runtime.t1/host_time.h	2026-11-02 02:05:52.127345420 +0000
++++ runtime/host_time.h	2026-11-02 02:21:07.016755545 +0000
+@@ -103,6 +103,9 @@
+ #define OPT2_TX_FRONT 4u                /* sb10, Stage C step 1 T1 (stagec_notes.md 1.3), MGS2_GL builds (ge/texcache.c tk_ufront): a look-up
+                                            the texture memo answered before, with no block of the map changed since, goes straight to its
+                                            entries; off: the memo's own path, as gl13.  The same entries, counters and stamps */
++#define OPT2_C7 8u                      /* sb10, Stage C step 1 T2 (stagec_notes.md, step 1), MGS2_GL builds (ge/gelive.c gl_call, ge/xconv.c
++                                           hold7): lane 4's P07 calls held to the end of their transfer (step c for the codec faces); off:
++                                           converted at the call, as gl13.  The same batches */
+ extern uint32_t g_opt2;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);

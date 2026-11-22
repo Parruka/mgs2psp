@@ -1,0 +1,23 @@
+second use build rc 0
+second relink rc 0
+second build (PGO=use into u2, relinked with ord/final into psp2) against the first:
+  same psp/EBOOT.PBP c3f3f7bd300319be2663513e962f9468
+  same psp/MGS2T.elf 47bf66d8338d29ceaf2c333d55c8009d
+  same psp/ovl_d00t.bin 6ea2f879192579703b9cb3bbc81891ef
+  same psp/ovl_d01t.bin 5e446542c268621c706032e9c4ba4a61
+  same psp/ovl_init.bin bfbf95047c054c432cf2050a38b7b60c
+  same psp/ovl_n_title.bin 2e0054f92d4665dcff949e7f57750f64
+  same psp/ovl_r_title.bin 45b8ea12a205f5a7583475bf7d9dc88f
+  same psp/ovl_r_tnk0.bin 288da015184cb36f7e579f4ed2ed9b32
+  same psp/ovl_w00a.bin 5b8e04a9f2b3563dab2e5ba89ca48c9e
+  same psp/ovl_w01a.bin 459cac1ead84947a448547a8b674bb2d
+  objects of the use build: 53, differing 0
+  deliver/EBOOT.PBP = psp/EBOOT.PBP
+  deliver/ovl_d00t.bin = psp/ovl_d00t.bin
+  deliver/ovl_d01t.bin = psp/ovl_d01t.bin
+  deliver/ovl_init.bin = psp/ovl_init.bin
+  deliver/ovl_n_title.bin = psp/ovl_n_title.bin
+  deliver/ovl_r_title.bin = psp/ovl_r_title.bin
+  deliver/ovl_r_tnk0.bin = psp/ovl_r_tnk0.bin
+  deliver/ovl_w00a.bin = psp/ovl_w00a.bin
+  deliver/ovl_w01a.bin = psp/ovl_w01a.bin

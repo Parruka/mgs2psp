@@ -1,0 +1,14 @@
+pgo.sh: t1 757 s
+-rw-r--r-- 1 root root 242475752 Nov 21 13:38 /home/claude/main/build_gl34/lay/t1.it
+/home/claude/main/build_gl34/lay/log_t1.txt: 117 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 117 reference lines (0 with vuh): 10 differ; 568 reference lines not in the log (first 100, last 37800)
+  vb 35000: ee edec9d46f01fc65d (ref bc9c9cf6009995c8)
+  vb 35100: ee 101e286938696211 (ref cba414236f4e8319)
+  vb 35200: ee 2255176cf4fbe7fa (ref 7a2176c623a429fc)
+  vb 35300: ee 1c5a79f47bb2a0bd (ref cd4c81e0808d44d3)
+  vb 35400: ee b26ae6b570796de6 (ref 0612aa7b92c985c0)
+  vb 35500: ee e76c3450a4be6b4b (ref 7d0ad69c7468bca6)
+  vb 36500: ee bff8959d4a23a420 (ref 434c29efbc42699e)
+  vb 36600: ee 237b7376eeb3ff57 (ref 81664e474b2cb7be)
+  vb 36700: ee 3fe9d7141cc355bf (ref 7e54e2fdf15493c2)
+  vb 36800: ee 2ac12aa8057acd78 (ref a4705a63521f2fdc)

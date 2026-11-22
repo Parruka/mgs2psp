@@ -1,0 +1,538 @@
+vb 24056  !reglist reg f                                                                   2
+vb 24056  afail-but-written prims state line gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As 46
+vb 24056  afail-but-written prims state linestrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs- 621
+vb 24056  afail-but-written prims state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+C 28
+vb 24056  afail-but-written prims state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+ 51
+vb 24056  afail-but-written prims state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+ 152
+vb 24056  afail-but-written prims state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As 348
+vb 24056  afail-but-written prims state sprite flat fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd 1239
+vb 24056  afail-but-written prims state trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+ 62
+vb 24056  afail-but-written prims state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)* 1
+vb 24056  afail-but-written prims state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)* 48
+vb 24056  afail-but-written prims state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd) 201
+vb 24056  afail-but-written prims state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs 5
+vb 24056  afail-but-written prims state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-C 155
+vb 24056  afail-but-written prims state tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*A 64
+vb 24056  afail-but-written prims state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0 3
+vb 24056  afail-but-written prims state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-C 114
+vb 24056  afail-but-written prims state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend ( 150
+vb 24056  afail-but-written prims state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0- 953
+vb 24056  afail-but-written prims state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs 1219
+vb 24056  afail-but-written px                                                             4736427
+vb 24056  clut load 4 cpsm 0 csm 0 cld 1                                                   1
+vb 24056  clut load 4 cpsm 2 csm 0 cld 1                                                   1
+vb 24056  clut load 8 cpsm 0 csm 0 cld 2                                                   14
+vb 24056  clut load 8 cpsm 0 csm 0 cld 2 (same as the previous load)                       5
+vb 24056  clut load 8 cpsm 0 csm 0 cld 4                                                   1780
+vb 24056  display 1 fbp 0 fbw 8 psm 0 at 0,0 size 512x512 (mag 5,1)                        1
+vb 24056  display 2 fbp 0 fbw 8 psm 0 at 0,0 size 512x512 (mag 5,1)                        1
+vb 24056  entry 194478 calls                                                               3
+vb 24056  entry 1944c0 calls                                                               3
+vb 24056  entry 1944c0 prims                                                               26
+vb 24056  entry 1944c0 px                                                                  0
+vb 24056  entry 1944c0 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  26
+vb 24056  entry 198b60 calls                                                               83
+vb 24056  entry 198b60 prims                                                               1197
+vb 24056  entry 198b60 px                                                                  79834
+vb 24056  entry 198b60 rejected atest                                                      35553
+vb 24056  entry 198b60 rejected depth                                                      20588
+vb 24056  entry 198b60 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+C 22
+vb 24056  entry 198b60 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  1175
+vb 24056  entry 198e58 calls                                                               21
+vb 24056  entry 198e58 prims                                                               172
+vb 24056  entry 198e58 px                                                                  351
+vb 24056  entry 198e58 rejected atest                                                      219
+vb 24056  entry 198e58 rejected depth                                                      90
+vb 24056  entry 198e58 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 12
+vb 24056  entry 198e58 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  160
+vb 24056  entry 1991d8 calls                                                               1462
+vb 24056  entry 1991d8 prims                                                               17422
+vb 24056  entry 1991d8 px                                                                  733584
+vb 24056  entry 1991d8 rejected atest                                                      103069
+vb 24056  entry 1991d8 rejected depth                                                      318700
+vb 24056  entry 1991d8 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd ate 4
+vb 24056  entry 1991d8 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 4
+vb 24056  entry 1991d8 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd 160
+vb 24056  entry 1991d8 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+C 8
+vb 24056  entry 1991d8 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a 137
+vb 24056  entry 1991d8 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  17109
+vb 24056  entry 199478 calls                                                               7
+vb 24056  entry 199478 prims                                                               22
+vb 24056  entry 199478 px                                                                  0
+vb 24056  entry 199478 rejected depth                                                      5669
+vb 24056  entry 199478 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 6
+vb 24056  entry 199478 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  16
+vb 24056  entry 19a9f0 calls                                                               151
+vb 24056  entry 19a9f0 prims                                                               808
+vb 24056  entry 19a9f0 px                                                                  2237363
+vb 24056  entry 19a9f0 rejected atest                                                      2732651
+vb 24056  entry 19a9f0 rejected depth                                                      519712
+vb 24056  entry 19a9f0 state trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/ 20
+vb 24056  entry 19a9f0 state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 64
+vb 24056  entry 19a9f0 state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 229
+vb 24056  entry 19a9f0 state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd ates 245
+vb 24056  entry 19a9f0 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd  6
+vb 24056  entry 19a9f0 state tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest  20
+vb 24056  entry 19a9f0 state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd ate 28
+vb 24056  entry 19a9f0 state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd ate 62
+vb 24056  entry 19a9f0 state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd at 130
+vb 24056  entry 19a9f0 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+C 4
+vb 24056  entry 19ac78 calls                                                               96
+vb 24056  entry 19af68 calls                                                               32
+vb 24056  entry 19af68 prims                                                               742
+vb 24056  entry 19af68 px                                                                  23957
+vb 24056  entry 19af68 rejected atest                                                      12051
+vb 24056  entry 19af68 rejected depth                                                      2604
+vb 24056  entry 19af68 rejected scissor                                                    3610
+vb 24056  entry 19af68 state line gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5 75
+vb 24056  entry 19af68 state linestrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd at 667
+vb 24056  entry 19bb50 calls                                                               172
+vb 24056  entry 19bb50 prims                                                               2260
+vb 24056  entry 19bb50 px                                                                  1707464
+vb 24056  entry 19bb50 rejected atest                                                      1509053
+vb 24056  entry 19bb50 rejected depth                                                      456884
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd 1
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*FIX+Cd fix40 1
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite              32
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/ 158
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/ 271
+vb 24056  entry 19bb50 state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5 442
+vb 24056  entry 19bb50 state sprite flat fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd ate 1355
+vb 24056  entry 19be50 calls                                                               40
+vb 24056  entry 19be50 prims                                                               96
+vb 24056  entry 19be50 px                                                                  76552
+vb 24056  entry 19be50 rejected atest                                                      124894
+vb 24056  entry 19be50 rejected depth                                                      48342
+vb 24056  entry 19be50 state trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/ 52
+vb 24056  entry 19be50 state tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest  44
+vb 24056  entry 19fe08 calls                                                               153
+vb 24056  entry 19fe08 prims                                                               5057
+vb 24056  entry 19fe08 px                                                                  10388
+vb 24056  entry 19fe08 rejected atest                                                      3972
+vb 24056  entry 19fe08 rejected depth                                                      4126
+vb 24056  entry 19fe08 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd ate 17
+vb 24056  entry 19fe08 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd ate 17
+vb 24056  entry 19fe08 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 23
+vb 24056  entry 19fe08 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a 1353
+vb 24056  entry 19fe08 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd a 1353
+vb 24056  entry 19fe08 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  2294
+vb 24056  entry 1a0160 calls                                                               58
+vb 24056  entry 1a0160 prims                                                               1782
+vb 24056  entry 1a0160 px                                                                  10678
+vb 24056  entry 1a0160 rejected atest                                                      6673
+vb 24056  entry 1a0160 rejected depth                                                      9712
+vb 24056  entry 1a0160 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 20
+vb 24056  entry 1a0160 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd a 527
+vb 24056  entry 1a0160 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd a 527
+vb 24056  entry 1a0160 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  708
+vb 24056  entry 1a8148 calls                                                               168
+vb 24056  entry 1a8148 prims                                                               2046
+vb 24056  entry 1a8148 px                                                                  0
+vb 24056  entry 1a8148 rejected atest                                                      66245
+vb 24056  entry 1a8148 rejected depth                                                      132490
+vb 24056  entry 1a8148 state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd at 486
+vb 24056  entry 1a8148 state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd  1560
+vb 24056  entry 201f78 calls                                                               1
+vb 24056  entry 201f78 prims                                                               1
+vb 24056  entry 201f78 px                                                                  0
+vb 24056  entry 201f78 rejected scissor                                                    9
+vb 24056  entry 201f78 state line flat ctx0 fb 0/80 z 31/180 gequal/write                  1
+vb 24056  entry 202008 calls                                                               415
+vb 24056  entry 202008 prims                                                               823
+vb 24056  entry 202008 px                                                                  1814
+vb 24056  entry 202008 rejected depth                                                      189
+vb 24056  entry 202008 rejected scissor                                                    5890
+vb 24056  entry 202008 state line flat ctx0 fb 0/80 z 31/180 gequal/write                  823
+vb 24056  entry 202170 calls                                                               1
+vb 24056  entry 202170 prims                                                               12
+vb 24056  entry 202170 px                                                                  0
+vb 24056  entry 202170 rejected scissor                                                    80
+vb 24056  entry 202170 state line flat ctx0 fb 0/80 z 31/180 gequal/write                  12
+vb 24056  entry 202390 calls                                                               1
+vb 24056  entry 202390 prims                                                               60
+vb 24056  entry 202390 px                                                                  716706
+vb 24056  entry 202390 rejected atest                                                      142047
+vb 24056  entry 202390 state linestrip flat ctx0 fb 0/80 z 31/180 always/write             8
+vb 24056  entry 202390 state sprite flat ctx0 fb 0/80 z 31/180 always/write                2
+vb 24056  entry 202390 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-0)*As+Cd 1
+vb 24056  entry 202390 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd 1
+vb 24056  entry 202390 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 0/4 10
+vb 24056  entry 202390 state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 5/4 34
+vb 24056  entry 202390 state tristrip gouraud ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd 4
+vb 24056  gif image                                                                        51
+vb 24056  gif packed                                                                       7473
+vb 24056  gif reglist                                                                      12
+vb 24056  pixels written                                                                   5598691
+vb 24056  prim line                                                                        911
+vb 24056  prim linestrip                                                                   675
+vb 24056  prim sprite                                                                      2308
+vb 24056  prim trifan                                                                      1205
+vb 24056  prim tristrip                                                                    27427
+vb 24056  px state line flat ctx0 fb 0/80 z 31/180 gequal/write                            1814
+vb 24056  px state line gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1  1179
+vb 24056  px state linestrip flat ctx0 fb 0/80 z 31/180 always/write                       486
+vb 24056  px state linestrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 f 22778
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write                          452096
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-0)*As+Cd       19040
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd      33681
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 0/40 fail1 134116
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 5/40 fail1 17176
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*FIX+Cd fix40 261121
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite                        684
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fail1 248
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 1367206
+vb 24056  px state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fail1 11305
+vb 24056  px state sprite flat fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fa 52259
+vb 24056  px state trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 5226
+vb 24056  px state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fail 2
+vb 24056  px state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail 855
+vb 24056  px state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fai 2197180
+vb 24056  px state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 0
+vb 24056  px state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd atest 5/40 fa 0
+vb 24056  px state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd atest 5/40 fa 0
+vb 24056  px state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd atest 5/40 f 54
+vb 24056  px state tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 71326
+vb 24056  px state tristrip gouraud ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd 74752
+vb 24056  px state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fa 0
+vb 24056  px state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fa 1
+vb 24056  px state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 f 39325
+vb 24056  px state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/4 45559
+vb 24056  px state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/ 0
+vb 24056  px state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd atest 5/40  37740
+vb 24056  px state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd atest 5/40  5944
+vb 24056  px state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd atest 5/40 745538
+vb 24056  reg 00                                                                           4447
+vb 24056  reg 01                                                                           67
+vb 24056  reg 03                                                                           350
+vb 24056  reg 04                                                                           70
+vb 24056  reg 05                                                                           106
+vb 24056  reg 06                                                                           2986
+vb 24056  reg 08                                                                           2978
+vb 24056  reg 0d                                                                           6
+vb 24056  reg 14                                                                           7
+vb 24056  reg 16                                                                           2993
+vb 24056  reg 18                                                                           10
+vb 24056  reg 1a                                                                           8
+vb 24056  reg 1b                                                                           4
+vb 24056  reg 22                                                                           1
+vb 24056  reg 3b                                                                           5
+vb 24056  reg 3d                                                                           1
+vb 24056  reg 3f                                                                           21
+vb 24056  reg 40                                                                           5
+vb 24056  reg 42                                                                           2989
+vb 24056  reg 44                                                                           4
+vb 24056  reg 45                                                                           4
+vb 24056  reg 46                                                                           8
+vb 24056  reg 47                                                                           29
+vb 24056  reg 49                                                                           8
+vb 24056  reg 4c                                                                           4
+vb 24056  reg 4e                                                                           7
+vb 24056  reg 50                                                                           51
+vb 24056  reg 51                                                                           51
+vb 24056  reg 52                                                                           51
+vb 24056  reg 53                                                                           51
+vb 24056  reg 61                                                                           1
+vb 24056  reg 7f                                                                           198
+vb 24056  region clamp u size 100 (not pow2) origin align 256                              183
+vb 24056  region clamp u size 100 (not pow2) origin align 4                                183
+vb 24056  region clamp u size 104 (not pow2) origin align 256                              36
+vb 24056  region clamp u size 108 (not pow2) origin align 128                              54
+vb 24056  region clamp u size 112 (not pow2) origin align 1024                             10
+vb 24056  region clamp u size 112 (not pow2) origin align 16                               10
+vb 24056  region clamp u size 112 (not pow2) origin align 8                                11
+vb 24056  region clamp u size 12 (not pow2) origin align 16                                8
+vb 24056  region clamp u size 12 (not pow2) origin align 4                                 747
+vb 24056  region clamp u size 12 (not pow2) origin align 8                                 54
+vb 24056  region clamp u size 128 origin align 1024                                        177
+vb 24056  region clamp u size 128 origin align 128                                         98
+vb 24056  region clamp u size 128 origin align 16                                          256
+vb 24056  region clamp u size 128 origin align 256                                         14
+vb 24056  region clamp u size 128 origin align 32                                          20
+vb 24056  region clamp u size 128 origin align 4                                           97
+vb 24056  region clamp u size 128 origin align 8                                           36
+vb 24056  region clamp u size 144 (not pow2) origin align 1024                             136
+vb 24056  region clamp u size 144 (not pow2) origin align 4                                240
+vb 24056  region clamp u size 144 (not pow2) origin align 512                              104
+vb 24056  region clamp u size 156 (not pow2) origin align 8                                14
+vb 24056  region clamp u size 16 origin align 1024                                         174
+vb 24056  region clamp u size 16 origin align 16                                           234
+vb 24056  region clamp u size 16 origin align 32                                           30
+vb 24056  region clamp u size 16 origin align 4                                            120
+vb 24056  region clamp u size 16 origin align 64                                           60
+vb 24056  region clamp u size 16 origin align 8                                            1020
+vb 24056  region clamp u size 160 (not pow2) origin align 8                                21
+vb 24056  region clamp u size 172 (not pow2) origin align 64                               56
+vb 24056  region clamp u size 180 (not pow2) origin align 1024                             86
+vb 24056  region clamp u size 184 (not pow2) origin align 1024                             8
+vb 24056  region clamp u size 192 (not pow2) origin align 1024                             744
+vb 24056  region clamp u size 192 (not pow2) origin align 16                               100
+vb 24056  region clamp u size 20 (not pow2) origin align 128                               2
+vb 24056  region clamp u size 20 (not pow2) origin align 4                                 38
+vb 24056  region clamp u size 20 (not pow2) origin align 8                                 30
+vb 24056  region clamp u size 200 (not pow2) origin align 4                                728
+vb 24056  region clamp u size 24 (not pow2) origin align 16                                166
+vb 24056  region clamp u size 24 (not pow2) origin align 32                                482
+vb 24056  region clamp u size 24 (not pow2) origin align 4                                 32
+vb 24056  region clamp u size 24 (not pow2) origin align 64                                48
+vb 24056  region clamp u size 24 (not pow2) origin align 8                                 854
+vb 24056  region clamp u size 244 (not pow2) origin align 32                               112
+vb 24056  region clamp u size 256 origin align 1024                                        10
+vb 24056  region clamp u size 28 (not pow2) origin align 1024                              40
+vb 24056  region clamp u size 28 (not pow2) origin align 16                                320
+vb 24056  region clamp u size 304 (not pow2) origin align 1024                             65
+vb 24056  region clamp u size 32 origin align 1024                                         8
+vb 24056  region clamp u size 32 origin align 128                                          314
+vb 24056  region clamp u size 32 origin align 16                                           1264
+vb 24056  region clamp u size 32 origin align 256                                          12
+vb 24056  region clamp u size 32 origin align 32                                           1845
+vb 24056  region clamp u size 32 origin align 4                                            1386
+vb 24056  region clamp u size 32 origin align 64                                           193
+vb 24056  region clamp u size 32 origin align 8                                            538
+vb 24056  region clamp u size 324 (not pow2) origin align 1024                             26
+vb 24056  region clamp u size 340 (not pow2) origin align 1024                             2
+vb 24056  region clamp u size 36 (not pow2) origin align 16                                84
+vb 24056  region clamp u size 36 (not pow2) origin align 4                                 40
+vb 24056  region clamp u size 36 (not pow2) origin align 64                                48
+vb 24056  region clamp u size 384 (not pow2) origin align 1024                             23
+vb 24056  region clamp u size 4 origin align 1024                                          25
+vb 24056  region clamp u size 4 origin align 4                                             264
+vb 24056  region clamp u size 4 origin align 8                                             4
+vb 24056  region clamp u size 40 (not pow2) origin align 128                               12
+vb 24056  region clamp u size 40 (not pow2) origin align 4                                 2
+vb 24056  region clamp u size 44 (not pow2) origin align 16                                4
+vb 24056  region clamp u size 48 (not pow2) origin align 1024                              108
+vb 24056  region clamp u size 48 (not pow2) origin align 128                               12
+vb 24056  region clamp u size 48 (not pow2) origin align 16                                448
+vb 24056  region clamp u size 48 (not pow2) origin align 256                               200
+vb 24056  region clamp u size 48 (not pow2) origin align 32                                552
+vb 24056  region clamp u size 48 (not pow2) origin align 4                                 290
+vb 24056  region clamp u size 48 (not pow2) origin align 512                               108
+vb 24056  region clamp u size 48 (not pow2) origin align 64                                400
+vb 24056  region clamp u size 48 (not pow2) origin align 8                                 185
+vb 24056  region clamp u size 488 (not pow2) origin align 1024                             1472
+vb 24056  region clamp u size 511 (not pow2) origin align 1                                32
+vb 24056  region clamp u size 512 origin align 1024                                        1
+vb 24056  region clamp u size 52 (not pow2) origin align 32                                143
+vb 24056  region clamp u size 56 (not pow2) origin align 32                                2
+vb 24056  region clamp u size 56 (not pow2) origin align 4                                 4
+vb 24056  region clamp u size 56 (not pow2) origin align 8                                 442
+vb 24056  region clamp u size 6 (not pow2) origin align 2                                  30
+vb 24056  region clamp u size 64 origin align 1024                                         1174
+vb 24056  region clamp u size 64 origin align 128                                          836
+vb 24056  region clamp u size 64 origin align 16                                           318
+vb 24056  region clamp u size 64 origin align 256                                          34
+vb 24056  region clamp u size 64 origin align 4                                            1366
+vb 24056  region clamp u size 64 origin align 512                                          78
+vb 24056  region clamp u size 64 origin align 64                                           1152
+vb 24056  region clamp u size 64 origin align 8                                            257
+vb 24056  region clamp u size 68 (not pow2) origin align 256                               40
+vb 24056  region clamp u size 72 (not pow2) origin align 16                                1
+vb 24056  region clamp u size 72 (not pow2) origin align 32                                24
+vb 24056  region clamp u size 72 (not pow2) origin align 4                                 255
+vb 24056  region clamp u size 76 (not pow2) origin align 1024                              328
+vb 24056  region clamp u size 76 (not pow2) origin align 16                                420
+vb 24056  region clamp u size 76 (not pow2) origin align 4                                 267
+vb 24056  region clamp u size 78 (not pow2) origin align 1024                              1
+vb 24056  region clamp u size 8 origin align 16                                            152
+vb 24056  region clamp u size 8 origin align 32                                            4
+vb 24056  region clamp u size 8 origin align 4                                             534
+vb 24056  region clamp u size 8 origin align 64                                            47
+vb 24056  region clamp u size 8 origin align 8                                             2283
+vb 24056  region clamp u size 80 (not pow2) origin align 1024                              115
+vb 24056  region clamp u size 80 (not pow2) origin align 128                               48
+vb 24056  region clamp u size 80 (not pow2) origin align 16                                16
+vb 24056  region clamp u size 84 (not pow2) origin align 4                                 4
+vb 24056  region clamp u size 88 (not pow2) origin align 1024                              32
+vb 24056  region clamp u size 88 (not pow2) origin align 4                                 28
+vb 24056  region clamp u size 88 (not pow2) origin align 8                                 8
+vb 24056  region clamp u size 96 (not pow2) origin align 1024                              192
+vb 24056  region clamp u size 96 (not pow2) origin align 128                               430
+vb 24056  region clamp u size 96 (not pow2) origin align 16                                176
+vb 24056  region clamp u size 96 (not pow2) origin align 32                                206
+vb 24056  region clamp u size 96 (not pow2) origin align 4                                 24
+vb 24056  region clamp u size 96 (not pow2) origin align 64                                50
+vb 24056  region clamp u size 96 (not pow2) origin align 8                                 127
+vb 24056  region clamp v size 10 (not pow2) origin align 1024                              30
+vb 24056  region clamp v size 100 (not pow2) origin align 1024                             12
+vb 24056  region clamp v size 100 (not pow2) origin align 4                                4
+vb 24056  region clamp v size 115 (not pow2) origin align 64                               8
+vb 24056  region clamp v size 116 (not pow2) origin align 64                               14
+vb 24056  region clamp v size 12 (not pow2) origin align 128                               80
+vb 24056  region clamp v size 12 (not pow2) origin align 16                                134
+vb 24056  region clamp v size 12 (not pow2) origin align 2                                 1
+vb 24056  region clamp v size 12 (not pow2) origin align 32                                4
+vb 24056  region clamp v size 120 (not pow2) origin align 1024                             255
+vb 24056  region clamp v size 128 origin align 1024                                        1295
+vb 24056  region clamp v size 128 origin align 256                                         34
+vb 24056  region clamp v size 128 origin align 32                                          141
+vb 24056  region clamp v size 128 origin align 64                                          393
+vb 24056  region clamp v size 128 origin align 8                                           1496
+vb 24056  region clamp v size 136 (not pow2) origin align 1024                             99
+vb 24056  region clamp v size 144 (not pow2) origin align 1024                             982
+vb 24056  region clamp v size 144 (not pow2) origin align 16                               164
+vb 24056  region clamp v size 156 (not pow2) origin align 1024                             36
+vb 24056  region clamp v size 16 origin align 1                                            16
+vb 24056  region clamp v size 16 origin align 1024                                         100
+vb 24056  region clamp v size 16 origin align 128                                          1332
+vb 24056  region clamp v size 16 origin align 16                                           82
+vb 24056  region clamp v size 16 origin align 2                                            18
+vb 24056  region clamp v size 16 origin align 32                                           1001
+vb 24056  region clamp v size 16 origin align 4                                            429
+vb 24056  region clamp v size 16 origin align 8                                            317
+vb 24056  region clamp v size 160 (not pow2) origin align 1024                             28
+vb 24056  region clamp v size 192 (not pow2) origin align 1024                             43
+vb 24056  region clamp v size 20 (not pow2) origin align 1                                 32
+vb 24056  region clamp v size 20 (not pow2) origin align 128                               118
+vb 24056  region clamp v size 20 (not pow2) origin align 32                                65
+vb 24056  region clamp v size 20 (not pow2) origin align 4                                 24
+vb 24056  region clamp v size 216 (not pow2) origin align 1024                             4
+vb 24056  region clamp v size 24 (not pow2) origin align 1                                 630
+vb 24056  region clamp v size 24 (not pow2) origin align 32                                70
+vb 24056  region clamp v size 24 (not pow2) origin align 4                                 64
+vb 24056  region clamp v size 24 (not pow2) origin align 512                               14
+vb 24056  region clamp v size 24 (not pow2) origin align 8                                 36
+vb 24056  region clamp v size 28 (not pow2) origin align 1                                 12
+vb 24056  region clamp v size 28 (not pow2) origin align 32                                8
+vb 24056  region clamp v size 28 (not pow2) origin align 4                                 88
+vb 24056  region clamp v size 30 (not pow2) origin align 32                                16
+vb 24056  region clamp v size 32 origin align 1                                            710
+vb 24056  region clamp v size 32 origin align 16                                           64
+vb 24056  region clamp v size 32 origin align 2                                            2431
+vb 24056  region clamp v size 32 origin align 32                                           626
+vb 24056  region clamp v size 32 origin align 4                                            90
+vb 24056  region clamp v size 32 origin align 512                                          805
+vb 24056  region clamp v size 32 origin align 64                                           18
+vb 24056  region clamp v size 32 origin align 8                                            142
+vb 24056  region clamp v size 36 (not pow2) origin align 4                                 24
+vb 24056  region clamp v size 36 (not pow2) origin align 8                                 143
+vb 24056  region clamp v size 4 origin align 1024                                          25
+vb 24056  region clamp v size 4 origin align 16                                            264
+vb 24056  region clamp v size 4 origin align 2                                             30
+vb 24056  region clamp v size 4 origin align 4                                             22
+vb 24056  region clamp v size 4 origin align 8                                             12
+vb 24056  region clamp v size 40 (not pow2) origin align 128                               48
+vb 24056  region clamp v size 42 (not pow2) origin align 2                                 2
+vb 24056  region clamp v size 44 (not pow2) origin align 32                                84
+vb 24056  region clamp v size 44 (not pow2) origin align 8                                 19
+vb 24056  region clamp v size 46 (not pow2) origin align 32                                1
+vb 24056  region clamp v size 48 (not pow2) origin align 1                                 1729
+vb 24056  region clamp v size 48 (not pow2) origin align 16                                73
+vb 24056  region clamp v size 48 (not pow2) origin align 32                                864
+vb 24056  region clamp v size 48 (not pow2) origin align 512                               8
+vb 24056  region clamp v size 48 (not pow2) origin align 64                                2
+vb 24056  region clamp v size 50 (not pow2) origin align 128                               4
+vb 24056  region clamp v size 510 (not pow2) origin align 1                                33
+vb 24056  region clamp v size 52 (not pow2) origin align 1024                              40
+vb 24056  region clamp v size 54 (not pow2) origin align 32                                4
+vb 24056  region clamp v size 56 (not pow2) origin align 1                                 20
+vb 24056  region clamp v size 56 (not pow2) origin align 1024                              254
+vb 24056  region clamp v size 56 (not pow2) origin align 32                                272
+vb 24056  region clamp v size 56 (not pow2) origin align 8                                 24
+vb 24056  region clamp v size 60 (not pow2) origin align 32                                56
+vb 24056  region clamp v size 62 (not pow2) origin align 32                                20
+vb 24056  region clamp v size 64 origin align 1                                            723
+vb 24056  region clamp v size 64 origin align 1024                                         652
+vb 24056  region clamp v size 64 origin align 128                                          2
+vb 24056  region clamp v size 64 origin align 2                                            2
+vb 24056  region clamp v size 64 origin align 32                                           424
+vb 24056  region clamp v size 64 origin align 512                                          399
+vb 24056  region clamp v size 64 origin align 64                                           1113
+vb 24056  region clamp v size 64 origin align 8                                            2096
+vb 24056  region clamp v size 68 (not pow2) origin align 64                                32
+vb 24056  region clamp v size 68 (not pow2) origin align 8                                 58
+vb 24056  region clamp v size 76 (not pow2) origin align 4                                 4
+vb 24056  region clamp v size 76 (not pow2) origin align 64                                20
+vb 24056  region clamp v size 8 origin align 1024                                          192
+vb 24056  region clamp v size 8 origin align 128                                           34
+vb 24056  region clamp v size 8 origin align 16                                            323
+vb 24056  region clamp v size 8 origin align 4                                             1997
+vb 24056  region clamp v size 8 origin align 8                                             52
+vb 24056  region clamp v size 80 (not pow2) origin align 16                                96
+vb 24056  region clamp v size 84 (not pow2) origin align 64                                48
+vb 24056  region clamp v size 88 (not pow2) origin align 1024                              4
+vb 24056  region clamp v size 90 (not pow2) origin align 1024                              24
+vb 24056  region clamp v size 90 (not pow2) origin align 64                                72
+vb 24056  region clamp v size 92 (not pow2) origin align 64                                148
+vb 24056  region clamp v size 96 (not pow2) origin align 1024                              441
+vb 24056  region clamp v size 96 (not pow2) origin align 32                                148
+vb 24056  region clamp v size 96 (not pow2) origin align 4                                 578
+vb 24056  region clamp v size 96 (not pow2) origin align 64                                878
+vb 24056  region clamp v size 96 (not pow2) origin align 8                                 366
+vb 24056  region repeat u mask 128 offset align 1024                                       2046
+vb 24056  region repeat v mask 128 offset align 1024                                       2046
+vb 24056  rejected: alpha test                                                             4736427
+vb 24056  rejected: depth                                                                  1519106
+vb 24056  rejected: dest alpha                                                             0
+vb 24056  rejected: scissor                                                                9589
+vb 24056  state line flat ctx0 fb 0/80 z 31/180 gequal/write                               836
+vb 24056  state line gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 aa1 75
+vb 24056  state linestrip flat ctx0 fb 0/80 z 31/180 always/write                          8
+vb 24056  state linestrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail 667
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write                             2
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-0)*As+Cd          1
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd         2
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 0/40 fail1 10
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd atest 5/40 fail1 34
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*FIX+Cd fix40  1
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite                           32
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fail1 158
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 271
+vb 24056  state sprite flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fail1 442
+vb 24056  state sprite flat fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fail1 1355
+vb 24056  state trifan flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 72
+vb 24056  state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fail1 64
+vb 24056  state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 229
+vb 24056  state trifan gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fail1 245
+vb 24056  state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fa 6
+vb 24056  state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd atest 5/40 fail1 21
+vb 24056  state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd atest 5/40 fail1 17
+vb 24056  state trifan gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd atest 5/40 fail 551
+vb 24056  state tristrip flat ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 64
+vb 24056  state tristrip gouraud ctx0 fb 0/80 z 31/180 always/write blend (Cs-Cd)*As+Cd    4
+vb 24056  state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (0-Cs)*As+Cd atest 5/40 fail1 28
+vb 24056  state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 fail1 62
+vb 24056  state tristrip gouraud ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40 fail 130
+vb 24056  state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-0)*As+Cd atest 5/40 f 160
+vb 24056  state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/nowrite blend (Cs-Cd)*As+Cd atest 5/40  34
+vb 24056  state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (0-Cs)*As+Cd atest 5/40 fai 2017
+vb 24056  state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-0)*Ad+Cd atest 5/40 fai 1880
+vb 24056  state tristrip gouraud fog ctx0 fb 0/80 z 31/180 gequal/write blend (Cs-Cd)*As+Cd atest 5/40 fa 23048
+vb 24056  target fbp 80 psm 0 fbw 8: 512x512                                               227313
+vb 24056  tex from target 80 (tbp 1000 psm 0)                                              32
+vb 24056  tex psm 0 cpsm 0 1024x1024 modulate tcc0 uv wrap 2/2 mag1 min1 mxl0 lcm1         33
+vb 24056  tex psm 13 cpsm 0 128x128 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1         48
+vb 24056  tex psm 13 cpsm 0 128x256 modulate tcc1 stq wrap 3/3 mag1 min1 mxl0 lcm1         1023
+vb 24056  tex psm 13 cpsm 0 256x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1        4429
+vb 24056  tex psm 13 cpsm 0 256x1024 modulate tcc1 uv wrap 2/2 mag1 min1 mxl0 lcm1         1
+vb 24056  tex psm 13 cpsm 0 512x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1        5767
+vb 24056  tex psm 14 cpsm 0 1024x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1       5426
+vb 24056  tex psm 14 cpsm 0 1024x1024 modulate tcc1 uv wrap 2/2 mag1 min1 mxl0 lcm1        2
+vb 24056  tex psm 14 cpsm 0 128x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1        152
+vb 24056  tex psm 14 cpsm 0 128x1024 modulate tcc1 uv wrap 2/2 mag1 min1 mxl0 lcm1         32
+vb 24056  tex psm 14 cpsm 0 128x128 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1         439
+vb 24056  tex psm 14 cpsm 0 128x256 modulate tcc1 stq wrap 3/3 mag1 min1 mxl0 lcm1         1023
+vb 24056  tex psm 14 cpsm 0 256x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1        399
+vb 24056  tex psm 14 cpsm 0 512x1024 modulate tcc1 stq wrap 2/2 mag1 min1 mxl0 lcm1        12890
+vb 24056  tex psm 24 cpsm 0 512x256 modulate tcc1 uv wrap 1/1 mag1 min1 mxl0 lcm1          5
+vb 24056  tex psm 2c cpsm 0 512x256 modulate tcc1 uv wrap 1/1 mag1 min1 mxl0 lcm1          5
+vb 24056  tri zero area (strip restarts)                                                   2599
+vb 24056  vif direct                                                                       149
+vb 24056  vif mpg                                                                          29
+vb 24056  vif unpack V2-16 mask mode0 cl3 wl1                                              1573
+vb 24056  vif unpack V2-16 mask mode0 cl6 wl1                                              333
+vb 24056  vif unpack V4-16 mode0 cl12 wl4                                                  40
+vb 24056  vif unpack V4-16 mode0 cl3 wl1                                                   3152
+vb 24056  vif unpack V4-16 mode0 cl3 wl2                                                   451
+vb 24056  vif unpack V4-16 mode0 cl6 wl1                                                   422
+vb 24056  vif unpack V4-16 mode1 cl1 wl1                                                   416
+vb 24056  vif unpack V4-32 mode0 cl1 wl1                                                   6750
+vb 24056  vif unpack V4-32 mode0 cl12 wl1                                                  40
+vb 24056  vif unpack V4-32 mode0 cl3 wl1                                                   279
+vb 24056  vif unpack V4-32 mode0 cl4 wl4                                                   2
+vb 24056  vif unpack V4-32 mode0 cl6 wl1                                                   172
+vb 24056  vu1 call                                                                         2867
+vb 24056  vu1 calls total                                                                  2867
+vb 24056  xfer host->local bytes                                                           3779092
+vb 24056  xfer host->local psm 0                                                           50
+vb 24056  xfer host->local psm 2c                                                          1
+vb 24056  xgkick                                                                           7353

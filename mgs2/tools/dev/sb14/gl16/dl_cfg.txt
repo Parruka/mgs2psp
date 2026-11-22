@@ -1,0 +1,32 @@
+# gl16: gl15 with Stage C step 3's exact trims for the rooms' meshes (stagec_notes.md "Step 3"). For each mesh call the PSP converts
+# the positions first, and the colours, texture coordinates and flags only for the calls the scissor cut keeps; it takes the depth
+# range from the positions' box when the box lies inside the range already kept; and it writes the vertices straight into the frame
+# instead of copying them there. Nothing in the game's state or the picture changes: every frame's GE list is the same with the
+# trims on or off, word for word, and the state hashes stay the PC's. C1 (the faces on the GE) stays on; C2 (the people on the GE)
+# stays off, as Ffm chose (2026-11-02 23:22).
+# Timing settings taking turns: from vblank 1000 to the end, 100 vblanks each, two in turn: everything on (the trims on), then the
+# trims off (gl15's way). So each trims-off turn sits between two everything-on turns. The log's windows and steps.csv's cfg column:
+# 0 everything on, 30 the trims off. The rain setting is the same in every window.
+MGS2_OPT_CYCLE=1000:100:ffffffff,ffffffff
+MGS2_OPT2_CYCLE=ffffffdf,fffffe1f
+# The lighter rain, as gl10 (Ffm's choice, 2026-10-31): of the big sheets of speckled drops close to the camera and of the splash
+# at Snake's feet, 1 strip in 2 is drawn (1 = all, as the PS2; up to 8). Picture only: the game runs exactly as before.
+MGS2_GL_RAIN=2
+MGS2_GL_SPLASH=2
+# Frame checks: the frames whose last vblank lies in 31561-31959 (indoors, Snake and the guards, with the trims on and off) get
+# their list and frame digests in log.txt, to compare with the PC's, which builds the same frames word for word (measurement only,
+# outside the step's time).
+MGS2_GL_DIG=31561:31959
+# Pictures: at these vblanks the frame on the screen is saved as shot_<vblank>.bmp next to the EBOOT (outside the step's time), to
+# compare with the emulator's and with gl15's: the same sixteen moments as gl15, where people are drawn.
+MGS2_GL_SHOT=8762,10518,15763,23265,24246,24786,29502,30502,31114,31665,32503,33615,34913,35029,35591,36943
+# The crash catcher: 3 = catcher 3b, as in gl6. At a crash the record goes on the screen (red text); then, when the crash came from
+# the game or the harness (not from the system), the stopped thread is handed back to the system asleep, the way the PSPLink debugger
+# does it, and the PSP's other threads run again: the record also goes to crash.txt and log.txt (green lines under the record say
+# so), and battery.txt goes on. HOME should then quit. At the start the screen offers the self-test: X makes a deliberate error that
+# must end with the SELF-TEST record and three green lines; O, or 15 s without an answer, starts the run.
+MGS2_EXC=3
+# The texture pool: 2688 KB, as gl6.
+MGS2_GL_TEXKB=2688
+# The deepest use of the main thread's stack, in the log's last lines: 1 = measured (outside the steps' time).
+MGS2_STACK_MARK=1

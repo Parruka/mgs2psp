@@ -1,0 +1,17 @@
+--- /mnt/project-files/mgs2/tools/dev/rain/g0/host_time.h	2026-11-03 21:57:55.652090000 +0000
++++ runtime/host_time.h	2026-11-03 23:53:52.590192356 +0000
+@@ -138,7 +138,13 @@
+                                            NOTE: gl16 / gl17 cycle words (fffff9df, ffffffdf) have this bit set */
+ #define OPT2_G0H 4096u                  /* sbg0, with OPT2_G0: those prims hidden from the draw pipeline (+164 |= 0x3000, as the game hides
+                                            them itself), so it builds no packets from their unplaced vertices */
+-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0 and G0H (sbg0: G0 until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++#define OPT2_H3 8192u                   /* sbg0, H3 (task #165, rain_study.md section 6 "Next"): body_sph's, charaspread's and rain_gas_pers's
++                                           prims hidden from the draw pipeline in their acts' show paths (the private wpl/gen_s_w00a.h, H3_WR);
++                                           their acts' work unchanged.  NOTE: gl16 / gl17 cycle words have this bit set too */
++#define OPT2_NBS 16384u                 /* sbg0, task #165 (rain_study.md section 8): body_sph's parts done natively (boot/native_w00a.c, the
++                                           private nat/ copy, nat_bs_part; the hook in the private wpl/gen_s_w00a.h): the same VU0 operations,
++                                           draws, memory, registers and time as the translation.  NOTE: gl16 / gl17 cycle words have this bit set */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3 and NBS (sbg0: G0, H3 and NBS until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+ extern uint32_t g_opt2;

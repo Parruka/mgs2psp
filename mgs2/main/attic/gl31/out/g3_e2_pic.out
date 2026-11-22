@@ -1,0 +1,22 @@
+../build_gl30/emu_g3/pic (reference) against emu_e2/pic: 52 names in both, only in the reference 403, only in the new 0 []
+  live  arm 0, in 29490-31400                                      against the reference's shot of the same frame 20
+  live  arm 0, in 29490-31400                                      byte-identical                   20
+  live  arm 0, in 29490-31400                                      pictures                         20
+  live  arm 3, in 29490-31400                                      against the reference's shot of the same frame 16
+  live  arm 3, in 29490-31400                                      byte-identical                   16
+  live  arm 3, in 29490-31400                                      pictures                         16
+  shot  arm 0, in 29490-31400                                      byte-identical                   5
+  shot  arm 0, in 29490-31400                                      pictures                         5
+  shot  arm 0, outside 29490-31400                                 byte-identical                   3
+  shot  arm 0, outside 29490-31400                                 differing                        1
+  shot  arm 0, outside 29490-31400                                 pictures                         4
+  shot  arm 3, in 29490-31400                                      byte-identical                   4
+  shot  arm 3, in 29490-31400                                      differing                        1
+  shot  arm 3, in 29490-31400                                      pictures                         5
+  shot  arm 3, outside 29490-31400                                 byte-identical                   1
+  shot  arm 3, outside 29490-31400                                 differing                        1
+  shot  arm 3, outside 29490-31400                                 pictures                         2
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_23263.bmp', 23263, 'arm 0, outside 29490-31400', 490, 0, 0, 0, 1)
+   ('shot_24784.bmp', 24784, 'arm 3, outside 29490-31400', 331, 5, 0, 0, 3)
+   ('shot_29500.bmp', 29500, 'arm 3, in 29490-31400', 110, 0, 0, 0, 1)

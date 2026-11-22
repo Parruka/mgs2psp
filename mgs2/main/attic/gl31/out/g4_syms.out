@@ -1,0 +1,156 @@
+== undefined symbols of every stage object, gl30n -> gl31:
+rc 0
+== gl30 -> gl31:
+7a8
+> boot_rt.o P1214a0_orig
+381a383
+> ge_xlme.o xl_p04_core
+392a395
+> ge_xme.o me_memcpy
+2532a2536,2540
+> xl_psp.o g_nat
+> xl_psp.o g_nat_bseq
+> xl_psp.o g_nat_c
+> xl_psp.o g_nat_cfg
+> xl_psp.o g_nat_sync
+2590a2599
+> xl_psp.o rt_nat_arm_at
+2674a2684
+> xl_psp.o xm_nat_room
+== ELF symbol names (type, name), gl30n -> gl31:
+4919a4920
+> t blend
+4996a4998
+> t dz_mv
+5001a5004
+> t dz_tin
+5467a5471
+> t xf_draw
+== ELF symbols in gl30's not in gl31's:
+b a.38
+b ad.27
+b b.10
+b cfg2.47
+b cfgh.43
+b ct_f.22
+b every.30
+b every2.34
+b from.19
+b from.36
+b init.16
+b init.42
+b last.39
+b last.49
+b n.24
+b n.40
+b n.46
+b n.54
+b next.15
+b nr.3
+b nr.41
+b nseen.57
+b nx.12
+b pre.31
+b re.6
+b rf.5
+b ru.4
+b rv.7
+b said.53
+b seen.58
+b seen.61
+b shown.62
+b st.20
+b sv.18
+b sv.51
+b sv.56
+b vb.28
+b vuh_split.2
+b warned.60
+b wd.26
+d a.11
+d cfg.44
+d ct_vb.23
+d every.37
+d from.32
+d from.48
+d from2.35
+d n.21
+d n.29
+d ncfg.45
+d on.50
+d on.59
+d pre.8
+d st.9
+d vs.33
+r CSWTCH.5511
+r N.64
+r N.66
+r P.4
+r S.63
+r S.65
+r bm.67
+r div.55
+r pb.17
+r z.52
+== xl_psp.o: gl30n -> gl31 (seccmp.py)
+function sections equal: 91; differing, new or gone: 9
+   .text.mq_service (510 -> 510 instructions, 6 differ in place)
+   .text.unlikely.dz_acc (79 -> 87 instructions, 75 differ in place)
+   .text.unlikely.dz_r.isra.0 (69 -> 72 instructions, 28 differ in place)
+   .text.unlikely.dz_report (131 -> 131 instructions, 23 differ in place)
+   .text.unlikely.dz_tick (40 -> 39 instructions, 25 differ in place)
+   .text.unlikely.dz_txt.constprop.0 (43 -> 45 instructions, 37 differ in place)
+   .text.unlikely.dz_wadd (39 -> 39 instructions, 12 differ in place)
+   .text.unlikely.dz_win (21 -> 21 instructions, 1 differ in place)
+   .text.unlikely.dz_wline (127 -> 131 instructions, 124 differ in place)
+== xl_psp.o: gl30 -> gl31 (seccmp.py)
+function sections equal: 60; differing, new or gone: 40
+   .text.gl_shot (434 -> 434 instructions, 81 differ in place)
+   .text.gl_sync (85 -> 85 instructions, 6 differ in place)
+   .text.hot.xlive_chk_end (942 -> 985 instructions, 932 differ in place)
+   .text.mp_fill_all.part.0 (526 -> 526 instructions, 9 differ in place)
+   .text.mp_late (135 -> 135 instructions, 1 differ in place)
+   .text.mq_fill (163 -> 165 instructions, 90 differ in place)
+   .text.mq_late (177 -> 177 instructions, 13 differ in place)
+   .text.mq_me_start (149 -> 149 instructions, 6 differ in place)
+   .text.mq_plan (39 -> 157 instructions, 39 differ in place)
+   .text.mq_post.part.0 (198 -> 190 instructions, 159 differ in place)
+   .text.mq_rec (78 -> 133 instructions, 73 differ in place)
+   .text.mq_service (493 -> 510 instructions, 274 differ in place)
+   .text.mq_setup (913 -> 1106 instructions, 729 differ in place)
+   .text.mq_start (472 -> 472 instructions, 88 differ in place)
+   .text.mq_takeback (809 -> 799 instructions, 659 differ in place)
+   .text.mq_takeback4 (299 -> 291 instructions, 262 differ in place)
+   .text.mq_tend (766 -> 773 instructions, 226 differ in place)
+   .text.mq_tstart (203 -> 212 instructions, 203 differ in place)
+   .text.nat_direct_post (new: 37 instructions)
+   .text.nat_direct_pre (new: 60 instructions)
+   .text.nat_pend (new: 40 instructions)
+   .text.nat_psp_sync (new: 45 instructions)
+   .text.nat_t0set (new: 90 instructions)
+   .text.nat_tline (new: 401 instructions)
+   .text.rs_end.part.0 (563 -> 563 instructions, 16 differ in place)
+   .text.unlikely.dz_anm (28 -> 28 instructions, 4 differ in place)
+   .text.unlikely.dz_report (131 -> 131 instructions, 12 differ in place)
+   .text.unlikely.dz_txt.constprop.0 (45 -> 45 instructions, 2 differ in place)
+   .text.unlikely.dz_wline (131 -> 131 instructions, 6 differ in place)
+   .text.unlikely.eye_poll (235 -> 235 instructions, 35 differ in place)
+   .text.unlikely.fb_chk (239 -> 239 instructions, 28 differ in place)
+   .text.unlikely.gl28d_cfg (108 -> 108 instructions, 20 differ in place)
+   .text.unlikely.gl29_cfg (266 -> 266 instructions, 35 differ in place)
+   .text.unlikely.gl_live (339 -> 339 instructions, 44 differ in place)
+   .text.unlikely.shot_wait (130 -> 130 instructions, 8 differ in place)
+   .text.xl_psp_frame (1326 -> 1326 instructions, 169 differ in place)
+   .text.xl_psp_gl_end (249 -> 249 instructions, 40 differ in place)
+   .text.xl_psp_gl_vblank (260 -> 260 instructions, 4 differ in place)
+   .text.xl_psp_report (2748 -> 2835 instructions, 2275 differ in place)
+   .text.xlive_chk_dma (2178 -> 2195 instructions, 2005 differ in place)
+== ge_xme.o: gl30n -> gl31 (seccmp.py)
+function sections equal: 8; differing, new or gone: 1
+   .text.xme_entry (1090 -> 1092 instructions, 736 differ in place)
+== ge_xme.o: gl30 -> gl31 (seccmp.py)
+function sections equal: 5; differing, new or gone: 4
+   .text.xme_entry (866 -> 1092 instructions, 835 differ in place)
+   .text.xme_rq (78 -> 78 instructions, 5 differ in place)
+   .text.xme_run (289 -> 279 instructions, 263 differ in place)
+   .text.xme_sum (57 -> 57 instructions, 24 differ in place)

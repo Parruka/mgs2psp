@@ -1,0 +1,198 @@
+--- a/runtime/ee_io.h
++++ b/runtime/ee_io.h
+@@ -357,11 +357,15 @@
+   while (wp < we) {
+     if (left) {
+       if (cmd != 0x50 && cmd != 0x51) { uint32_t k = (uint32_t)(we - wp); if (left < k) k = left; left -= k; wp += k; continue; }
+-      { GifPath *g = &gif_path[2]; uint32_t nw = (uint32_t)(we - wp);
+-        if (!v->qi && g->nloop && g->flg >= 2 && g->left_regs > 1 && left >= 8 && nw >= 8) {   /* DIRECT carrying IMAGE data */
++      if (!v->qi) { GifPath *g = &gif_path[2]; uint32_t nw = (uint32_t)(we - wp);
++        if (g->nloop && g->flg >= 2 && g->left_regs > 1 && left >= 8 && nw >= 8) {   /* DIRECT carrying IMAGE data */
+           uint32_t k = g->left_regs - 1; if (k > left / 4 - 1) k = left / 4 - 1; if (k > nw / 4) k = nw / 4;
+           g->left_regs -= k; left -= 4 * k; wp += 4 * k; continue;
+-        } }
++        }
++        if (left >= 4 && nw >= 4 && (g_opt & OPT_DIRECT_QW)) { gif_qw(2, (const uint8_t *)wp); wp += 4; left -= 4; continue; }   /* sb3: the
++                                                         call the next four words make below, from the data itself (qbuf is not read
++                                                         while qi is 0) */
++      }
+       memcpy(v->qbuf + 4 * v->qi, wp, 4); wp++; left--;
+       if (++v->qi == 4) { v->qi = 0; gif_qw(2, v->qbuf); }
+       continue;
+@@ -491,8 +495,15 @@
+     XL_TAG(t, tadr);
+ #ifdef MGS2_XLIVE
+     if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40) && t[2] == 0x01000101u) {   /* (both lanes' groups start with STCYCL 1 / 1) */
+-      uint32_t nx; int nt = (g_xl_lane & 1) ? lane_p04(t, tadr, &s, &nx) : 0;
+-      if (!nt && (g_xl_lane & 2)) nt = lane_p06(t, tadr, &s, &nx);
++      uint32_t nx; int nt = 0, l = g_xl_lane;
++      if (g_opt & OPT_LANE_MATCH) {   /* sb3: the TTE word of the tag after the group's first material (after the constant block's tag
++                                         when t[3] is its UNPACK) is STCYCL 3 / 1 in every group lane_p04 takes and 1 / 1 in every one
++                                         lane_p06 takes, and both need seven quadwords of room at least: so only that lane can take it */
++        uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : GUEST_SIZE - (tadr & (GUEST_SIZE - 1) & ~15u), u;
++        if (room < 112u) l = 0;
++        else { u = t[t[3] == 0x6c188000u ? 10 : 6]; l &= u == 0x01000103u ? 1 : u == 0x01000101u ? 2 : 0; } }
++      if (l & 1) nt = lane_p04(t, tadr, &s, &nx);
++      if (!nt && (l & 2)) nt = lane_p06(t, tadr, &s, &nx);
+       if (nt) { tadr = nx; guard += (uint32_t)nt; continue; } }
+ #endif
+     if (chcr & 0x40) { XL_ONE(t + 2, 2, tadr + 8); vif1_fast_words(t + 2, t + 4, &s); }   /* TTE: the tag's upper half */
+@@ -664,7 +675,11 @@
+       if ((g_opt & OPT_VIF0_FAST) && i + cnt * 2 <= n && b + cnt * 2 <= 1024) {       /* the game uploads the same program again most of the
+                                                                                          time: then VUPROG and its hash stay as they are */
+         const uint32_t *s = w + i; uint32_t *d = VUPROG + b, m = cnt * 2;
+-        for (k = 0; k < m; k += 2) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1])) break;
++        k = 0;
++        if (g_opt & OPT_MPG_CMP)   /* sb3: eight words at a time up to the eight that differ, then the pairs as below: the same k */
++          for (; k + 8 <= m; k += 8) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1]) | (s[k + 2] ^ d[k + 2]) | (s[k + 3] ^ d[k + 3]) |
++                                         (s[k + 4] ^ d[k + 4]) | (s[k + 5] ^ d[k + 5]) | (s[k + 6] ^ d[k + 6]) | (s[k + 7] ^ d[k + 7])) break;
++        for (; k < m; k += 2) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1])) break;
+         if (k < m) { memcpy(d + k, s + k, 4 * (m - k)); vu_prog_clean = 0; }
+         i += m; break;
+       }
+@@ -698,7 +713,8 @@
+                                                          io_dma_base is 0x8000 + 0x400 * i, else -1 */
+ static const char *const io_dma_name[10] = { "VIF0", "VIF1", "GIF", "fromIPU", "toIPU", "SIF0", "SIF1", "SIF2", "fromSPR", "toSPR" };
+ static int io_spr_chain_warned;
+-static void io_dma_start(int ch)
++static __attribute__((noinline)) void io_dma_start(int ch)   /* sb3: not inlined, so io_flush's other register writes do not save and
++                                                         restore the registers the walk needs (renderer_notes 11.28) */
+ {
+   uint32_t b = io_dma_base[ch], chcr = IO32(b), madr = IO32(b + 0x10), qwc = IO32(b + 0x20) & 0xffff, tadr = IO32(b + 0x30);
+   io_dma_count[ch]++;
+--- a/runtime/host_time.h
++++ b/runtime/host_time.h
+@@ -68,6 +68,16 @@
+ #define OPT_XL_LANE2 4194304u           /* sb2, MGS2_XL builds (runtime/ee_io.h lane_p06, ge/xlate.c xl_lane_p06): Stage B lane 2, the walk hands
+                                            a P12e8b8 group (P06) to the translator whole and P06 reads its vertices from the game's data; off:
+                                            word by word.  The same picture either way */
++/* sb3, the exact trims of renderer_notes 11.27 (task #111): each leaves the walk, the translator and the picture as they were.  (The
++   fourth, io_flush's DMA start in its own function, is not switchable: it changes only which function the code is in) */
++#define OPT_LANE_MATCH 8388608u         /* runtime/ee_io.h vif1_chain_fast: one look at the tag after a group's first material picks the one lane
++                                           that can take it (lane_p04 needs STCYCL 3 / 1 there, lane_p06 1 / 1); off: lane_p04, then lane_p06 */
++#define OPT_DIRECT_QW 16777216u         /* runtime/ee_io.h vif1_fast_words: DIRECT data goes to the GIF path a quadword at a time when one
++                                           starts at a quadword's first word; off: word by word */
++#define OPT_MPG_CMP 33554432u           /* runtime/ee_io.h vif0_run: an MPG's words compared with the program eight at a time; off: two */
++#define OPT_CLIP_FAST 67108864u         /* MGS2_XL builds (ge/vu1conv.c vc_clip_fast): the effects' clip positions without the VU float clamps
++                                           when every input is 0 or within 2^-20 .. 2^21 in size (then no product or sum can be denormal or
++                                           overflow, and the clamps change nothing); off: clamped */
+ extern uint32_t g_opt;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);
+--- a/ge/gelive.c
++++ b/ge/gelive.c
+@@ -86,6 +86,7 @@
+   if (!f->tdata || !f->tpal || !f->tkey || !f->tsize) return -1;
+   f->h.tex = xtex_cb; f->h.ctx = f; f->h.zk = f->o.zk; f->h.noidx = 1; f->h.zr = &f->zr;
+   f->h.cut = 1;   /* df0 calls wholly off the scissor are left out (ge/xconv.h XcHost.cut); the host may turn it off */
++  f->h.clipfast = 1;   /* sb3: the effects' clip positions without needless clamps (XcHost.clipfast); the host may turn it off */
+   if (f->zraw) { f->h.zlo = 1; f->h.zhi = 0; } else { f->h.zlo = 0; f->h.zhi = (float)(65535.0 / zk); }   /* raw: no window before a
+                                                  frame has a range (every crossing effect triangle as the PS2's polygon) */
+   f->map_lo = 1; f->map_hi = 0;
+--- a/ge/vu1conv.h
++++ b/ge/vu1conv.h
+@@ -4,6 +4,7 @@
+ #ifndef MGS2_VU1CONV_H
+ #define MGS2_VU1CONV_H
+ #include <stdint.h>
++#include <string.h>   /* (vc_clip_in) */
+ 
+ /* GU_TEXTURE_16BIT | GU_COLOR_8888 | GU_VERTEX_16BIT, 16 bytes.
+    u, v: the PS2's 4.12 UV, 0 to 8 (the GE reads u / 32768, so the texture scale carries x 8; the deck's df0 UVs are 0..4094: a negative
+@@ -60,6 +61,12 @@
+ /* clip = M (p, 1) as P04's loops compute it (MULAx, MADDAy, MADDAz, MADDw; re/vu1_programs.md 3.7): m = VcXform.m (columns), p the
+    position as the VU reads it.  For the float-position entries this is the clip position the micro program stores back in the input. */
+ void vc_vu_clip(const float *m, const float *p, float *c);
++/* sb3 (renderer_notes 11.28): vc_vu_clip without its clamps, the same bits when every input is 0 or within 2^-28 .. 2^60 in size
++   (vc_clip_in): then no product or sum can overflow or be denormal (each is 0 or at least 2^-125, as a sum of two floats is a whole
++   multiple of the finer one's last bit), so each clamp leaves its value as it is and the same IEEE single steps run in the same order */
++static inline int vc_clip_in(float f) { uint32_t u; memcpy(&u, &f, 4); return !(u & 0x7fffffffu) || (u >> 23 & 0xffu) - 99u <= 87u; }
++static inline void vc_vu_clip_nc(const float *m, const float *p, float *c)
++{ for (int k = 0; k < 4; k++) c[k] = ((m[k] * p[0] + m[4 + k] * p[1]) + m[8 + k] * p[2]) + m[12 + k]; }
+ 
+ /* The triangles a PS2 strip with these flags draws (vertex i >= 2 without ADC: triangle i-2, i-1, i) as GE strips:
+    runs[2k] = first vertex, runs[2k + 1] = vertex count of GE strip k.  Returns the number of strips (at most max). */
+--- a/ge/xconv.c
++++ b/ge/xconv.c
+@@ -232,8 +232,13 @@
+   VcXform x; int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
+   if (n < 0) return n;
+   /* the clip positions and flags as the micro program computes them; the flag words it stores back */
+-  int amin = 255;
+-  for (int i = 0; i < n; i++) { float p[3] = { v[i].x, v[i].y, v[i].z }; vc_vu_clip(x.m, p, cc[i]); cf[i] = (uint8_t)vc_cflags(cc[i]);
++  int amin = 255, fm = h->clipfast;   /* sb3: the clamps left out where no input needs them (XcHost.clipfast): the matrix once a call */
++  for (int k = 0; fm && k < 16; k++) fm = vc_clip_in(x.m[k]);
++  St.clip[0] += n;
++  for (int i = 0; i < n; i++) { float p[3] = { v[i].x, v[i].y, v[i].z };
++    if (fm && vc_clip_in(p[0]) && vc_clip_in(p[1]) && vc_clip_in(p[2])) vc_vu_clip_nc(x.m, p, cc[i]);
++    else { vc_vu_clip(x.m, p, cc[i]); St.clip[1] += h->clipfast; }
++    cf[i] = (uint8_t)vc_cflags(cc[i]);
+     int a = (int)(vq(c->vm, c->top + 0x101 + 3 * i)[3] & 0xff); if (a < amin) amin = a; }
+   XcTrace *tr = h->trace;
+   if (tr) { tr->n = n;
+--- a/ge/xconv.h
++++ b/ge/xconv.h
+@@ -45,6 +45,8 @@
+                               left out before its texture is asked for: nothing it holds can light a pixel (xconv.c xc_off; renderer_notes
+                               11.15).  Its vertices still go into zr as xc_df0 would put them (xc_df0_zr), so the frame's depth map is
+                               the same either way.  0 (older hosts): every call is converted */
++  int clipfast;            /* sb3: 1: the effects' clip positions without the VU float clamps when no input needs them (ge/vu1conv.h
++                              vc_vu_clip_nc); 0 (older hosts): every vertex through vc_vu_clip.  The same bits either way */
+ } XcHost;
+ /* counters since the start, for a report */
+ typedef struct {
+@@ -52,6 +54,7 @@
+                                                     P07: pass 1's); calls with nothing drawn */
+   long cut[4], cut_v[4];   /* calls left out by XcHost.cut (df0 so far; counted in empty too) and their vertices */
+   long tris[6];            /* effect triangles by class 0..4, and 2870's culled ones (counted in class 2 too) */
++  long clip[2];            /* sb3: the effects' vertices; those through vc_vu_clip's clamps while XcHost.clipfast was on */
+   long polys, poly_v, poly_empty, poly_culled, poly_full;   /* clipped polygons kept, their vertices; empty; back-face culled; no room */
+   long lit_kind[4], lit_v, lit_exact, lit_pass[4], lit_nopass[4], lit_cull, lit_ramp, lit_own2;   /* P06: calls by entry (+0, +358, +738,
+                                                     +ab0), their vertices, calls in the exact form; passes 2 and 3 drawn ([2], [3]) and not
+--- a/psp/xl_psp.c
++++ b/psp/xl_psp.c
+@@ -218,7 +218,7 @@
+   if (gl_ok == 1 && gl_full && state == 1 && (g_opt & (OPT_XL | OPT_GL)) == (OPT_XL | OPT_GL)) {
+     if (gl_ge) gl_wait();                /* the frame memory and the cache's last textures are the GE's until it has drawn */
+     if (gl_ok == 1) {                    /* (gl_sync's stop: no more frames) */
+-      glf.h.cut = (g_opt & OPT_GL_CUT) != 0;
++      glf.h.cut = (g_opt & OPT_GL_CUT) != 0; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0;
+       gl_begin(&glf); gl_now = 1;
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -376,6 +376,7 @@
+             "%ld / %ld; P06 calls %ld, batches %ld, passes 2 and 3 drawn %ld / %ld; P07 calls %ld, batches %ld, bad %ld (paths not seen %ld), "
+             "in the exact form %ld, passes 2 and 3 drawn %ld / %ld\n", x->calls[0], x->batches[0], x->cut[0], x->cut_v[0], x->calls[1],
+             x->calls[2], x->batches[1], x->batches[2], x->calls[3], x->batches[3], x->lit_pass[2], x->lit_pass[3], x->calls[4], x->batches[4],
+-            x->bad[4], x->face_unseen, x->face_exact, x->face_pass[2], x->face_pass[3]); }
++            x->bad[4], x->face_unseen, x->face_exact, x->face_pass[2], x->face_pass[3]);
++    fprintf(f, "picture: effect vertices %ld, %ld of them through the clamps with the fast path on\n", x->clip[0], x->clip[1]); }
+ #endif
+ }
+--- a/boot/xlive_chk.c
++++ b/boot/xlive_chk.c
+@@ -97,6 +97,7 @@
+ #include "../ge/texcache.h"
+ #include "../ge/gslayout.h"
+ #include "../ge/gelive.h"
++#include "../runtime/host_time.h"   /* sb3: g_opt's OPT_CLIP_FAST (boot.c MGS2_OPT, MGS2_OPT_CYCLE), as psp/xl_psp.c reads it */
+ #if defined(__has_include)
+ #if __has_include(<valgrind/callgrind.h>)
+ #include <valgrind/callgrind.h>
+@@ -685,6 +686,7 @@
+               x->calls[0], x->calls[1], x->calls[2], x->batches[0], x->batches[1], x->batches[2], x->empty[0], x->empty[1], x->empty[2],
+               x->bad[0], x->bad[1], x->bad[2], x->tris[0], x->tris[1], x->tris[2], x->tris[3], x->tris[4], x->tris[5], x->polys, x->poly_v,
+               x->poly_empty, x->poly_culled, x->poly_full, x->cut[0], x->cut_v[0]);
++    fprintf(stderr, "xlive gb: effect vertices %ld, %ld of them through the clamps with the fast path on\n", x->clip[0], x->clip[1]);
+     fprintf(stderr, "xlive gb: P06: calls %ld (+0 %ld, +358 %ld, +738 %ld, +ab0 %ld), batches %ld, empty %ld, bad %ld; vertices %ld, exact "
+               "form %ld; passes 2 and 3 drawn %ld / %ld (pass 2 with its own vertices %ld), not drawn %ld (a UV2 z not 1.0) / %ld (from "
+               "T+0x104); cull bit %ld; light ramps %ld\n", x->calls[3], x->lit_kind[0], x->lit_kind[1], x->lit_kind[2], x->lit_kind[3],
+@@ -801,7 +803,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);

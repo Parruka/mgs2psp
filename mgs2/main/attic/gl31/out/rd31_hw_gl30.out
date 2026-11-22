@@ -1,0 +1,223 @@
+== rd31: /home/claude/main/runs/gl30/log.txt (md5 68f04417, 3800 lines); window vb 29400..31500
+  gl28 battery recorder (MGS2_BAT_REC 1): every battery.txt line adds the battery thread's lateness and the picture loop's and the ME's state (reads only)
+  gl28 eye (MGS2_EYE 1): on: the R trigger peeked once a vblank hook, outside the step's time (sceCtrlPeekBufferPositive: the game plays pad.txt and never reads the pad; a peek takes nothing from the end screen's or the cr ...
+  gl28 live (MGS2_GL_LIVE 30500:31400:25:8): the buffer on the screen copied as it is (no drain, no wait for the GE) to live_<vb>.bmp next to the EBOOT, outside the step's time: at vb 30500 + k*25 + 12 up to 31400; at R pr ...
+  gl29 dz (MGS2_GL_DZ): the 0x42 shadow decals' depth arm by frame (its last vblank), O elsewhere: 1 entries: 29490-31400 X; 2 windows (a 'gl29 dz window' line each once the screen has left it)
+  gl28 me rest (MGS2_ME_REST 1): the ME rests in HALT (psp/xme_rest.S) through the main CPU's turns, woken by the main CPU's interrupt (0xBC100044) when its own turn begins; never inside its turns; a 'main turn vb A-B gl28 ...
+  gl28 fbchk (MGS2_GL_FBCHK 30500): on from vb 30500: at each list given to the GE, the display's answers (sceDisplayGetFrameBuf IMMEDIATE and NEXTFRAME) against the list's target buffer and the display vblanks since the f ...
+  gl28 shot flip wait (MGS2_GL_SHOT_FLIPWAIT 1): on: from MGS2_GL_FLIPWAIT_FROM on, a shot's drained path keeps the flip wait and gives the GE every list made (the last frame made saved; no list drawn into the buffer still ...
+  gl28 ge2 a/b (MGS2_ME_PIC_GE2_AB 30500): from vb 30500 GE2 only in every other ME turn: on when vb / (2 * MGS2_ME_PIC_TURN) is odd (it needs MGS2_ME_PIC_GE2 for the second frame memory); a 'gl28 ge2 a/b' line at each ME  ...
+  end: end of the run
+
+== hashes and digests
+  /home/claude/main/runs/gl30/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl30/deliver/hashref.txt: 685 lines
+  compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+  frames: 916 vblanks with digests, 916 equal to the twin; 916 distinct
+  vuh: 0 lines, 0 equal to the twin
+  digests in me turns (by the frame's vblank): 455, equal to the twin 455 (list, frame and the dz text)
+  digests in main turns (by the frame's vblank): 461, equal to the twin 461 (list, frame and the dz text)
+  by arm (frames with digests; ME turns; equal to the twin; 0x42 batches; other kinds; paired; gl30 subset pairs; fallbacks base/matrix/vertex set/triangles/uv-colour/room; biased; W; the largest copy in bytes):
+    X    frames  916 (ME  455), = twin  916; 0x42  12247, other 149236; paired  10306; subset   1941; fallbacks 0/0/0/0/0/0; biased 0; W 0; copy at most 2480
+
+== gl29 dz windows (frames by turn, counts, list build time, R held)
+   29490-31400 X   frames 916 (ME 455, main 461); 0x42 12247 paired 10306 subset  1941 fb 0,0,0,0,0,0; bias 0 W 0; copy   2480 B; list ms ME 21703.1 (avg 47.70, max 56.90), main 21797.9 (avg 47.28, max 57.49); R held  11 (ME 5, main 6), from the 10th vb 11
+   31401-end   O   frames   0 (ME   0, main   0); 0x42     0 paired     0 subset     0 fb 0,0,0,0,0,0; bias 0 W 0; copy      0 B; list ms ME     0.0 (avg 0.00, max 0.00), main     0.0 (avg 0.00, max 0.00); R held   0 (ME 0, main 0), from the 10th vb 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 5/6
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 29490-31400 X 11 (11) 31401-end O 0 (0)
+
+== gl29 shots (arm, last list = shot frame, depth files, VRAM read)
+  shot vb 29502 (SHOT, main turn): frame 29500 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 30502 (SHOT, main turn): frame 30500 arm X; last list = shot frame yes; colour 19.8 ms; no depth
+  shot vb 30548 (SHOT, main turn): frame 30546 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 30646 (SHOT, me turn): frame 30644 arm X; last list = shot frame yes; colour 18.6 ms; no depth
+  shot vb 30724 (SHOT, main turn): frame 30722 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 30826 (SHOT, me turn): frame 30824 arm X; last list = shot frame yes; colour 18.5 ms; no depth
+  shot vb 30926 (SHOT, main turn): frame 30924 arm X; last list = shot frame yes; colour 18.4 ms; no depth
+  shot vb 31048 (SHOT, me turn): frame 31046 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 31114 (SHOT, main turn): frame 31112 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 31264 (SHOT, me turn): frame 31262 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  gl29 shot lines 16; with a problem (not saved, last list not the shot frame, depth not saved) 0; GAVE UP lines 0
+
+== native step 1 (MGS2_NAT / MGS2_NAT_CYCLE)
+  no "native step 1:" start line
+  nat turn lines 0 (parsed 0)
+
+== gl28 me rest
+  main-turn rest lines 157: rests 157, woken in HALT 157, kicks 157, ME asleep 1064.1 s
+  ME-turn notes (a rest held over the switch) 0
+  gl28 me rest totals: MGS2_ME_REST 1; main turns with a rest line 157; rests 157 (woken in HALT 157, before HALT 0, no interrupt 0, given up 0); kicks 157 + rekicks 0 (135.7 us mean, 203.0 max, 0.021 s in all); stray wakes at least 0 (the handler's wakes 157; turns with more handler wakes than kicks 0, 0 wakes beyond: 1 in a turn can be a kick left pending from before it); ME asleep 1064.1 s (main  ...
+
+== GE2 per ME turn (window)
+  me turn 29400-29500: 9333 ms; GE2 1, lists 49, GE drawing 1327.9 ms, frames begun while the GE drew 50; TWO 1
+  me turn 29600-29700: 10758 ms; GE2 1, lists 49, GE drawing 1240.6 ms, frames begun while the GE drew 50; TWO 1
+  me turn 29800-29900: 10648 ms; GE2 1, lists 49, GE drawing 1201.3 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30000-30100: 10580 ms; GE2 1, lists 49, GE drawing 1180.8 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30200-30300: 10690 ms; GE2 1, lists 49, GE drawing 1228.2 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30400-30500: 10771 ms; GE2 1, lists 49, GE drawing 1209.5 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30600-30700: 12960 ms; GE2 1 (a/b line: on), lists 49, GE drawing 1296.6 ms, frames begun while the GE drew 49; TWO 1
+  me turn 30800-30900: 12297 ms; GE2 0 (a/b line: off), lists 49, GE drawing 1076.8 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31000-31100: 10637 ms; GE2 1 (a/b line: on), lists 49, GE drawing 1144.3 ms, frames begun while the GE drew 49; TWO 1
+  me turn 31200-31300: 11325 ms; GE2 0 (a/b line: off), lists 49, GE drawing 1035.3 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31400-31400: 35 ms; GE2 1 (a/b line: on), lists 0, GE drawing 0.0 ms, frames begun while the GE drew 0; TWO 1
+  ge2 a/b lines: 30600 on, 30800 off, 31000 on, 31200 off, 31400 on
+
+== display (gl27 lines with the gl28 fbchk counts), turns in the window
+  me   29400-29500 flip on: held 1 (1.2 ms), drawn into the shown buffer 0
+  main 29500-29600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29600-29700 flip off: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29700-29800 flip off: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29800-29900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29900-30000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30000-30100 flip off: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30100-30200 flip off: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30200-30300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30300-30400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30400-30500 flip off: held 0 (0.0 ms), drawn into the shown buffer 1
+  main 30500-30600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 39 vblanks after the show
+  me   30600-30700 flip on: held 2 (43.4 ms), drawn into the shown buffer 0; fbchk lists 49, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 36 vblanks after the show
+  main 30700-30800 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 51, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 34 vblanks after the show
+  me   30800-30900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 33 vblanks after the show
+  main 30900-31000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 30 vblanks after the show
+  me   31000-31100 flip on: held 2 (24.7 ms), drawn into the shown buffer 0; fbchk lists 49, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 32 vblanks after the show
+  main 31100-31200 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 51, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 32 vblanks after the show
+  me   31200-31300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 31 vblanks after the show
+  main 31300-31400 flip on: held 1 (18.7 ms), drawn into the shown buffer 0; fbchk lists 11, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 13 vblanks after the show
+  me   31400-31400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 0, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 0 vblanks after the show
+  end: MGS2_GL_FLIPWAIT 2 (from vb 30500): ME turns: lists held for the screen 221 (4.20 s), lists drawn into the shown buffer 247; main CPU turns: held 146 (1.21 s), drawn into the shown buffer 148; gl28 fbchk from vb 30500: ME turns: lists 199, into the buffer the display shows now (IMMEDIATE) 1, into the buffer it shows next (NEXTFRAME) 0, in the display vblank of the show 1, display vblanks since the show at most 36; main CPU turns: lists 213, IMMEDIATE 0, NEXTFRAME 0, in the vblank of the show 0, at most 39; answers refused 0; answers naming neither buffer 0
+  fbchk detail lines 1 (the first check, then lists into the buffer on the screen or shown next, and the first answer that names neither buffer; 50 at most)
+    vb 30500 (me turn): the list of frame vb 30498 into buffer 0; the display's answers: IMMEDIATE 44000000 (buffer 0, rc 0), NEXTFRAME 44088000 (buffer 1, rc 0); 0 display vblanks after the show of frame vb 30496: INTO THE BUFFER ON THE SCREEN
+  the first fbchk line's answers name buffer 0 (IMMEDIATE) and buffer 1 (NEXTFRAME): the counts can match
+  fbchk end: answers refused 0, answers naming neither buffer 0
+
+== eye (R trigger)
+  eye: t 0 at vb 1 (t: ms from this hook)
+  R down vb 29507 t 1782.6 s: main turn (TWO 0, GE2 0), flip on, shown frame 29504 in buffer 1, arm X
+  R up   vb 29513 t 1783.6 s: main turn (TWO 0, GE2 0), flip on, shown frame 29510 in buffer 0, arm X; held 1.0 s (vb 29507-29513)
+  R down vb 29627 t 1800.9 s: me turn (TWO 1, GE2 1), flip off, shown frame 29622 in buffer 0, arm X
+  R up   vb 29632 t 1801.4 s: me turn (TWO 1, GE2 1), flip off, shown frame 29626 in buffer 0, arm X; held 0.5 s (vb 29627-29632)
+  gl28 eye: R pressed 2 times, let go 2 times (from vb 1)
+  gl28 live: captures 36 periodic, 0 at R presses (of 8 at most); not saved 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 5/6
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 29490-31400 X 11 (11) 31401-end O 0 (0)
+
+== shots that kept the flip wait: 9
+  vb 30502 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30548 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30646 (me turn): the flip wait kept: 164.1 ms, 0 rounds of 200 us
+  vb 30724 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30826 (me turn): the flip wait kept: 145.8 ms, 0 rounds of 200 us
+  vb 30926 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31048 (me turn): the flip wait kept: 109.6 ms, 0 rounds of 200 us
+  vb 31114 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31264 (me turn): the flip wait kept: 111.2 ms, 0 rounds of 200 us
+
+== live captures
+  references (emulator frames by their vblank) in /home/claude/main/build_gl30/emu_g3/pic: 8760, 10516, 15761, 23263, 24244, 24784, 29500, 30498, 30500, 30502, 30504, 30506, 30508, 30510, 30512, 30514, 30516, 30518, 30520, 30522, 30524, 30526, 30528, 30530, 30532, 30534, 30536, 30538, 30540, 30542, 30544, 30546, 30548, 30550, 30552, 30554, 30556, 30558, 30560, 30562, 30564, 30566, 30568, 30570, 30572, 30574, 30576, 30578, 30580, 30582, 30584, 30586, 30588, 30590, 30592, 30594, 30596, 30598, 30600, 30602, 30604, 30606, 30608, 30610, 30612, 30614, 30616, 30618, 30620, 30622, 30624, 30626, 30628, 30630, 30632, 30634, 30636, 30638, 30640, 30642, 30644, 30646, 30648, 30650, 30652, 30654, 30656, 30658, 30660, 30662, 30664, 30666, 30668, 30670, 30672, 30674, 30676, 30678, 30680, 30682, 30684, 30686, 30688, 30690, 30692, 30694, 30696, 30698, 30700, 30702, 30704, 30706, 30708, 30710, 30712, 30714, 30716, 30718, 30720, 30722, 30724, 30726, 30728, 30730, 30732, 30734, 30736, 30738, 30740, 30742, 30744, 30746, 30748, 30750, 30752, 30754, 30756, 30758, 30760, 30762, 30764, 30766, 30768, 30770, 30772, 30774, 30776, 30778, 30780, 30782, 30784, 30786, 30788, 30790, 30792, 30794, 30796, 30798, 30800, 30802, 30804, 30806, 30808, 30810, 30812, 30814, 30816, 30818, 30820, 30822, 30824, 30826, 30828, 30830, 30832, 30834, 30836, 30838, 30840, 30842, 30844, 30846, 30848, 30850, 30852, 30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868, 30870, 30872, 30874, 30876, 30878, 30880, 30882, 30884, 30886, 30888, 30890, 30892, 30894, 30896, 30898, 30900, 30902, 30904, 30906, 30908, 30910, 30912, 30914, 30916, 30918, 30920, 30922, 30924, 30926, 30928, 30930, 30932, 30934, 30936, 30938, 30940, 30942, 30944, 30946, 30948, 30950, 30952, 30954, 30956, 30958, 30960, 30962, 30964, 30966, 30968, 30970, 30972, 30974, 30976, 30978, 30980, 30982, 30984, 30986, 30988, 30990, 30992, 30994, 30996, 30998, 31000, 31002, 31004, 31006, 31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022, 31024, 31026, 31028, 31030, 31032, 31034, 31036, 31038, 31040, 31042, 31044, 31046, 31048, 31050, 31052, 31054, 31056, 31058, 31060, 31062, 31064, 31066, 31068, 31070, 31072, 31074, 31076, 31078, 31080, 31082, 31084, 31086, 31088, 31090, 31092, 31094, 31096, 31098, 31100, 31102, 31104, 31106, 31108, 31110, 31112, 31114, 31116, 31118, 31120, 31122, 31124, 31126, 31128, 31130, 31132, 31134, 31136, 31138, 31140, 31142, 31144, 31146, 31148, 31150, 31152, 31154, 31156, 31158, 31160, 31162, 31164, 31166, 31168, 31170, 31172, 31174, 31176, 31178, 31180, 31182, 31184, 31186, 31188, 31190, 31192, 31194, 31196, 31198, 31200, 31202, 31204, 31206, 31208, 31210, 31212, 31214, 31216, 31218, 31220, 31222, 31224, 31226, 31228, 31230, 31232, 31234, 31236, 31238, 31240, 31242, 31244, 31246, 31248, 31250, 31252, 31254, 31256, 31258, 31260, 31262, 31264, 31266, 31268, 31270, 31272, 31274, 31276, 31278, 31280, 31282, 31284, 31286, 31288, 31290, 31292, 31294, 31296, 31298, 31300, 31302, 31304, 31306, 31308, 31310, 31312, 31314, 31316, 31318, 31320
+  live 30512 (periodic, main turn): buffer 1 frame vb 30508 arm X (20 vblanks after its show; display scans 1; other buffer frame 30506; GE draws 30510 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 279.1 ms
+    black px 1427; outside the HUD boxes 132: 0 clusters (0 of 12 px or more); and 1 one-pixel lines on the screen's edge (132 px); mean level 30.3
+    against the emulator's frame 30508 (shot_30508.bmp): pixels differing 93894, by more than 32 15, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 523
+  live 30537 (periodic, main turn): buffer 0 frame vb 30534 arm X (13 vblanks after its show; display scans 0; other buffer frame 30532; GE idle; lists waiting 0); VRAM 18.4 ms, all 281.5 ms
+    black px 1448; outside the HUD boxes 148: 0 clusters (0 of 12 px or more); and 1 one-pixel lines on the screen's edge (148 px); mean level 30.0
+    against the emulator's frame 30534 (shot_30534.bmp): pixels differing 94631, by more than 32 245, black here and not there (outside the HUD) 1; PSP lighter by 6 or more in luma (outside the HUD) 479
+  live 30562 (periodic, main turn): buffer 0 frame vb 30558 arm X (20 vblanks after its show; display scans 0; other buffer frame 30556; GE draws 30560 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 277.9 ms
+    black px 1309; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.7
+    against the emulator's frame 30558 (shot_30558.bmp): pixels differing 101605, by more than 32 267, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 591
+  live 30587 (periodic, main turn): buffer 1 frame vb 30584 arm X (12 vblanks after its show; display scans 1; other buffer frame 30582; GE idle; lists waiting 0); VRAM 18.3 ms, all 283.8 ms
+    black px 1276; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.5
+    against the emulator's frame 30584 (shot_30584.bmp): pixels differing 101251, by more than 32 41, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 639
+  live 30612 (periodic, me turn): buffer 0 frame vb 30606 arm X (13 vblanks after its show; display scans 0; other buffer frame 30604; GE draws 30608 into the other buffer; lists waiting 1); VRAM 18.5 ms, all 280.6 ms
+    black px 1273; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.0
+    against the emulator's frame 30606 (shot_30606.bmp): pixels differing 101269, by more than 32 295, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 680
+  live 30637 (periodic, me turn): buffer 1 frame vb 30632 arm X (6 vblanks after its show; display scans 1; other buffer frame 30630; GE idle; lists waiting 1); VRAM 18.4 ms, all 278.7 ms
+    black px 1290; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.3
+    against the emulator's frame 30632 (shot_30632.bmp): pixels differing 99540, by more than 32 25, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 648
+  live 30662 (periodic, me turn): buffer 1 frame vb 30656 arm X (14 vblanks after its show; display scans 1; other buffer frame 30654; GE draws 30658 into the other buffer; lists waiting 1); VRAM 18.4 ms, all 291.5 ms
+    black px 1291; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.9
+    against the emulator's frame 30656 (shot_30656.bmp): pixels differing 99612, by more than 32 31, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 563
+  live 30687 (periodic, me turn): buffer 0 frame vb 30682 arm X (6 vblanks after its show; display scans 0; other buffer frame 30680; GE idle; lists waiting 1); VRAM 18.4 ms, all 288.0 ms
+    black px 1307; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.4
+    against the emulator's frame 30682 (shot_30682.bmp): pixels differing 93532, by more than 32 254, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 572
+  live 30712 (periodic, main turn): buffer 1 frame vb 30708 arm X (21 vblanks after its show; display scans 1; other buffer frame 30706; GE draws 30710 into the other buffer; lists waiting 0); VRAM 18.4 ms, all 275.1 ms
+    black px 1310; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.2
+    against the emulator's frame 30708 (shot_30708.bmp): pixels differing 91795, by more than 32 62, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 597
+  live 30737 (periodic, main turn): buffer 0 frame vb 30734 arm X (14 vblanks after its show; display scans 0; other buffer frame 30732; GE idle; lists waiting 0); VRAM 18.4 ms, all 273.6 ms
+    black px 1342; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 33.8
+    against the emulator's frame 30734 (shot_30734.bmp): pixels differing 94921, by more than 32 276, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 626
+  live 30762 (periodic, main turn): buffer 0 frame vb 30758 arm X (22 vblanks after its show; display scans 0; other buffer frame 30756; GE draws 30760 into the other buffer; lists waiting 0); VRAM 18.4 ms, all 283.8 ms
+    black px 1281; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 33.7
+    against the emulator's frame 30758 (shot_30758.bmp): pixels differing 92890, by more than 32 295, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 517
+  live 30787 (periodic, main turn): buffer 1 frame vb 30784 arm X (14 vblanks after its show; display scans 1; other buffer frame 30782; GE idle; lists waiting 0); VRAM 18.3 ms, all 270.4 ms
+    black px 1317; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 34.6
+    against the emulator's frame 30784 (shot_30784.bmp): pixels differing 94287, by more than 32 110, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 674
+  live 30812 (periodic, me turn): buffer 1 frame vb 30808 arm X (5 vblanks after its show; display scans 1; other buffer frame 30806; GE idle; lists waiting 1); VRAM 18.4 ms, all 277.6 ms
+    black px 1288; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 36.7
+    against the emulator's frame 30808 (shot_30808.bmp): pixels differing 95855, by more than 32 143, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 734
+  live 30837 (periodic, me turn): buffer 1 frame vb 30832 arm X (11 vblanks after its show; display scans 1; other buffer frame 30830; GE idle; lists waiting 1); VRAM 18.3 ms, all 276.3 ms
+    black px 1291; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 38.8
+    against the emulator's frame 30832 (shot_30832.bmp): pixels differing 96273, by more than 32 135, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 774
+  live 30862 (periodic, me turn): buffer 0 frame vb 30858 arm X (5 vblanks after its show; display scans 0; other buffer frame 30856; GE idle; lists waiting 1); VRAM 18.3 ms, all 278.5 ms
+    black px 1227; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 44.8
+    against the emulator's frame 30858 (shot_30858.bmp): pixels differing 98913, by more than 32 475, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 948
+  live 30887 (periodic, me turn): buffer 0 frame vb 30882 arm X (10 vblanks after its show; display scans 0; other buffer frame 30880; GE idle; lists waiting 1); VRAM 18.5 ms, all 278.4 ms
+    black px 1263; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 41.1
+    against the emulator's frame 30882 (shot_30882.bmp): pixels differing 96800, by more than 32 515, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1001
+  live 30912 (periodic, main turn): buffer 1 frame vb 30908 arm X (17 vblanks after its show; display scans 1; other buffer frame 30906; GE draws 30910 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 283.7 ms
+    black px 1292; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.4
+    against the emulator's frame 30908 (shot_30908.bmp): pixels differing 82351, by more than 32 141, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 680
+  live 30937 (periodic, main turn): buffer 0 frame vb 30934 arm X (10 vblanks after its show; display scans 0; other buffer frame 30932; GE idle; lists waiting 0); VRAM 18.2 ms, all 281.5 ms
+    black px 1301; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.7
+    against the emulator's frame 30934 (shot_30934.bmp): pixels differing 81895, by more than 32 306, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 598
+  live 30962 (periodic, main turn): buffer 0 frame vb 30958 arm X (16 vblanks after its show; display scans 0; other buffer frame 30956; GE draws 30960 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 280.1 ms
+    black px 1263; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.6
+    against the emulator's frame 30958 (shot_30958.bmp): pixels differing 80147, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 556
+  live 30987 (periodic, main turn): buffer 1 frame vb 30984 arm X (10 vblanks after its show; display scans 1; other buffer frame 30982; GE idle; lists waiting 0); VRAM 18.5 ms, all 281.4 ms
+    black px 1298; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.1
+    against the emulator's frame 30984 (shot_30984.bmp): pixels differing 85025, by more than 32 96, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 519
+  live 31012 (periodic, me turn): buffer 0 frame vb 31006 arm X (10 vblanks after its show; display scans 0; other buffer frame 31004; GE draws 31008 into the other buffer; lists waiting 1); VRAM 18.3 ms, all 285.7 ms
+    black px 1360; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 29.0 (a fade: dark picture)
+    against the emulator's frame 31006 (shot_31006.bmp): pixels differing 75565, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 418
+  live 31037 (periodic, me turn): buffer 1 frame vb 31032 arm X (5 vblanks after its show; display scans 1; other buffer frame 31030; GE idle; lists waiting 1); VRAM 18.5 ms, all 284.3 ms
+    black px 1339; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 35.8
+    against the emulator's frame 31032 (shot_31032.bmp): pixels differing 85571, by more than 32 268, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 690
+  live 31062 (periodic, me turn): buffer 1 frame vb 31056 arm X (12 vblanks after its show; display scans 1; other buffer frame 31054; GE draws 31058 into the other buffer; lists waiting 1); VRAM 18.3 ms, all 287.7 ms
+    black px 1270; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 44.0
+    against the emulator's frame 31056 (shot_31056.bmp): pixels differing 93209, by more than 32 94, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1376
+  live 31087 (periodic, me turn): buffer 0 frame vb 31082 arm X (6 vblanks after its show; display scans 0; other buffer frame 31080; GE idle; lists waiting 1); VRAM 18.5 ms, all 283.3 ms
+    black px 1030; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 54.9
+    against the emulator's frame 31082 (shot_31082.bmp): pixels differing 106985, by more than 32 452, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 873
+  live 31112 (periodic, main turn): buffer 1 frame vb 31108 arm X (18 vblanks after its show; display scans 1; other buffer frame 31106; GE draws 31110 into the other buffer; lists waiting 0); VRAM 18.2 ms, all 282.7 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 75.1
+    against the emulator's frame 31108 (shot_31108.bmp): pixels differing 115666, by more than 32 401, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1052
+  live 31137 (periodic, main turn): buffer 0 frame vb 31134 arm X (12 vblanks after its show; display scans 0; other buffer frame 31132; GE idle; lists waiting 0); VRAM 18.3 ms, all 289.7 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.3
+    against the emulator's frame 31134 (shot_31134.bmp): pixels differing 115254, by more than 32 623, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1067
+  live 31162 (periodic, main turn): buffer 0 frame vb 31158 arm X (18 vblanks after its show; display scans 0; other buffer frame 31156; GE draws 31160 into the other buffer; lists waiting 0); VRAM 18.2 ms, all 284.0 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.5
+    against the emulator's frame 31158 (shot_31158.bmp): pixels differing 115798, by more than 32 640, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 982
+  live 31187 (periodic, main turn): buffer 1 frame vb 31184 arm X (11 vblanks after its show; display scans 1; other buffer frame 31182; GE idle; lists waiting 0); VRAM 18.3 ms, all 283.6 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 75.0
+    against the emulator's frame 31184 (shot_31184.bmp): pixels differing 116086, by more than 32 403, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1059
+  live 31212 (periodic, me turn): buffer 1 frame vb 31208 arm X (5 vblanks after its show; display scans 1; other buffer frame 31206; GE idle; lists waiting 1); VRAM 18.4 ms, all 289.9 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.9
+    against the emulator's frame 31208 (shot_31208.bmp): pixels differing 115397, by more than 32 384, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1119
+  live 31237 (periodic, me turn): buffer 1 frame vb 31232 arm X (11 vblanks after its show; display scans 1; other buffer frame 31230; GE idle; lists waiting 1); VRAM 18.4 ms, all 291.8 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 71.9
+    against the emulator's frame 31232 (shot_31232.bmp): pixels differing 118432, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1054
+  live 31262 (periodic, me turn): buffer 0 frame vb 31258 arm X (5 vblanks after its show; display scans 0; other buffer frame 31256; GE idle; lists waiting 1); VRAM 18.4 ms, all 284.3 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 56.1
+    against the emulator's frame 31258 (shot_31258.bmp): pixels differing 110989, by more than 32 574, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1037
+  live 31287 (periodic, me turn): buffer 0 frame vb 31282 arm X (10 vblanks after its show; display scans 0; other buffer frame 31280; GE idle; lists waiting 1); VRAM 21.6 ms, all 317.1 ms
+    black px 882; outside the HUD boxes 882: 20 clusters (5 of 12 px or more): largest (n, x0, y0, x1, y1) [(355, 230, 60, 268, 79), (348, 232, 39, 270, 56), (73, 258, 31, 272, 40), (49, 277, 27, 282, 41)]; mean level 50.9
+    against the emulator's frame 31282 (shot_31282.bmp): pixels differing 110113, by more than 32 174, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 774
+  live 31312 (periodic, main turn): buffer 1 frame vb 31308 arm X (17 vblanks after its show; display scans 1; other buffer frame 31306; GE draws 31310 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 285.9 ms
+    black px 30180; outside the HUD boxes 30140: 166 clusters (54 of 12 px or more): largest (n, x0, y0, x1, y1) [(5289, 185, 138, 364, 270), (5096, 0, 139, 179, 233), (4361, 184, 19, 298, 102), (3741, 0, 186, 119, 243)]; mean level 10.7 (a fade: dark picture)
+    against the emulator's frame 31308 (shot_31308.bmp): pixels differing 54259, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 53
+  live 31337 (periodic, main turn): buffer 1 frame vb 31320 arm X (18 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 21.9 ms, all 441.6 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0
+  live 31362 (periodic, main turn): buffer 1 frame vb 31320 arm X (76 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 18.2 ms, all 292.3 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0
+  live 31387 (periodic, main turn): buffer 1 frame vb 31320 arm X (123 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 18.3 ms, all 289.5 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0

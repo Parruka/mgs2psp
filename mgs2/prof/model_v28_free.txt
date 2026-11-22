@@ -1,0 +1,39 @@
+MGS2T_v28, PspProf cost model of free play (2026-10-25; psp_harness.md "Build v28", recomp/lean_plan.md steps 1-2)
+ms per step = (1.4 x instructions + 70 x (I-misses + D-misses)) / 333,000, per step, as since v16. v25f's four windows of 100 steps,
+everything on, MGS2_HASH_EVERY=500, PPSSPP_VFPU_RN=1; the harness's state hash at vb 33000 taken off the crawl window as in v25f.
+Dumps: container /home/claude/v28/model/mf, mf.1-3 (model.sh, cfg_mf.txt, log_mf.txt; build d, without the ME layer, as v26's model
+ran on v26's d); link map /home/claude/v28/me/base/MGS2T.map (d's own link, redone by psp/v28me.sh). v26's figures:
+prof/model_v26_free.txt. Tool: tools/dev/prof_regions.py <map> 08b64000 460000 0 mf mf.1 mf.2 mf.3 --ex-hash mf.
+
+1. Windows (v26 in brackets)
+  window                 steps         instr              I-miss          D-miss          ms
+  free: walk the deck    31501-31600   11.451 M (12.082)  63.9 k (75.4)   68.7 k (69.9)   76.01 (81.34)   -5.33
+  free: crawl            32901-33000   11.847 M (12.416)  69.1 k (80.8)   68.8 k (69.9)   78.82 (83.87)   -5.05
+  free: first person     33801-33900   11.051 M (11.763)  65.8 k (77.2)   64.6 k (67.4)   73.87 (79.84)   -5.97
+  free: alert            35501-35600   11.719 M (12.474)  68.3 k (80.4)   68.9 k (71.9)   78.11 (84.45)   -6.34
+  mean                                                                                    76.70 (82.38)   -5.68 (-6.9%)
+  Instructions -4.6 to -6.1% in every window, I-misses -14.5 to -15.3%, D-misses -1.6 to -4.2%.
+  PSP, with v26's PSP times for the same steps (87.53 / 89.43 / 83.71 / 88.51) and these ratios: 81.8 / 84.0 / 77.5 / 81.9 ms [I].
+  The whole timed run: v26me4's 88.97 x 76.70 / 82.38 = about 82.8 ms per step [I] (told to Ffm as "about 83").
+
+2. Exactness of the windows. Against prof/hashes_x86_free_v28.txt: ee 63 / 71, iop 71 / 71, vfb 71 / 71; first ee difference at vb
+  32000 (2e6cf9d34ff455fb, reference 50ebc7e6f02db911), as in v26's model run (ee 63 / 71 from vb 32000; v26 also iop from 33500).
+  The walk window starts from the exact state (vb 31500 equal) and the JIT runs are exact on every hash (prof/emu_v28): the walk
+  window is the clean comparison (-5.33 ms, -6.6%); the other three run on a state the interpreted windows changed.
+
+3. By code region, walk window (ms per step)
+  region                       v28                                  v26
+  game ELF code (gen.o)        4.449 M  28.1 k I  30.4 k D  31.01   4.784 M  32.1 k I  30.8 k D  33.33
+  runtime (boot_rt.o)          3.943 M  10.9 k I  17.1 k D  22.46   3.937 M  14.1 k I  17.6 k D  23.21
+  stage w00a (reduced part)    2.192 M  20.6 k I  13.3 k D  16.35   2.493 M  24.6 k I  13.5 k D  18.49
+  dispatch (gen_dispatch.o)    0.388 M   0.9 k I   2.3 k D   2.30   0.389 M   1.1 k I   2.4 k D   2.37
+  IOP + sound                  0.242 M   2.2 k I   2.5 k D   2.01   0.242 M   2.2 k I   2.5 k D   2.01
+  libraries                    0.222 M   0.7 k I   2.8 k D   1.68   0.222 M   0.8 k I   2.8 k D   1.70
+  harness                      0.015 M   0.4 k I   0.3 k D   0.21   0.015 M   0.5 k I   0.2 k D   0.23
+  The generated code (gen.o + stage): 6.641 M instructions, 48.7 k I-misses, 43.7 k D-misses = 47.36 ms (v26 7.277 M, 56.7 k,
+  44.3 k = 51.82 ms): -4.46 ms, instructions -8.7%, I-misses -14.1%. The runtime's code is the same; its I-misses fell 23% with the
+  new order (-0.75 ms).
+  The other windows: game ELF code 28.66-31.38, runtime 23.63-25.11 (v26 24.9-26.4), stage 15.30-15.79 ms (v26 17.5-17.7).
+
+4. Code size (bytes): EBOOT text 3,515,036 (v26 3,985,076, -11.8%); overlays w00a 3,246,112 (v26me4 3,814,624, -14.9%), w01a
+  2,060,384 (2,427,024, -15.1%), d00t 2,595,744 (3,006,160, -13.7%), d01t 2,677,888 (3,089,648, -13.3%).

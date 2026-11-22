@@ -1,0 +1,14 @@
+pgo.sh: t1 777 s
+-rw-r--r-- 1 root root 240981904 Nov 21 19:00 /home/claude/main/build_gl35/lay/t1.it
+/home/claude/main/build_gl35/lay/log_t1.txt: 117 hash lines, 0 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 117 reference lines (0 with vuh): 19 differ; 568 reference lines not in the log (first 100, last 37800)
+  vb 32000: ee 8261363320f0c005 (ref c4bb64c9e7e0a0b5)
+  vb 32100: ee 88f49736cecd4d44 (ref 4482f3a7dfd41ae1)
+  vb 32200: ee b8bde49a5164851b (ref 3f45304e2cac0b06)
+  vb 32300: ee cabf872c1e4349ab (ref 74dfc04ab6a99467)
+  vb 32400: ee 89d326c275470945 (ref c1f485b9474d095a)
+  vb 34200: ee 982c832637a9b2d9 (ref 472bc7e98b35b11a)
+  vb 34300: ee 0260c929e8ae3e9c (ref 868f344ac88e81f1)
+  vb 34400: ee 4ff6c8c75b193efa (ref 03182ee17dab129a)
+  vb 34500: ee 743859d280629116 (ref bca0eb564dc60224)
+  vb 34600: ee 3ea2ab4a2418af2a (ref 9e8c4d42ffa866b1)

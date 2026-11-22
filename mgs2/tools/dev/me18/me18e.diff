@@ -1,0 +1,1506 @@
+diff -ruN me18d/ge/me_rt.c me18e/ge/me_rt.c
+--- me18d/ge/me_rt.c	2026-11-08 12:25:21.678161482 +0000
++++ me18e/ge/me_rt.c	2026-11-08 15:43:11.751927028 +0000
+@@ -193,6 +193,7 @@
+ }
+ static volatile uint32_t me_beat_own;            /* task #180 step 4c: me_rt.h ME_BEAT */
+ volatile uint32_t *me_beat_p = &me_beat_own;
++uint32_t me_beat_n = 0;                         /* step 4d-4: the beats; every 64th moves *me_beat_p (me_rt.h ME_BEAT) */
+ void me_heap_grow(void *(*more)(size_t want, size_t *got), void (*less)(void *region)) { H.more = more; H.less = less; }
+ void me_heap_resize(void *(*resize)(void *region, size_t want)) { H.resize = resize; }
+ /* a free block of need bytes or more (a good fit), or 0 */
+diff -ruN me18d/ge/me_rt.h me18e/ge/me_rt.h
+--- me18d/ge/me_rt.h	2026-11-08 12:25:21.677679789 +0000
++++ me18e/ge/me_rt.h	2026-11-08 15:43:11.751534420 +0000
+@@ -26,8 +26,8 @@
+ int me_heap_init(void *base, size_t n);   /* the region (any alignment; at least 4 KB): 0, or -1 */
+ int me_heap_add(void *base, size_t n);    /* one more region (a pool of its own, kept; up to 32 pools in all): 0, or -1 */
+ /* the host's hooks: more, when no free block fits a request, gives a region of *got bytes, at least want, or 0; less takes back
+-   a region more gave, once no block in it is in use.  Only the main CPU may set them (they call the C library's malloc and free);
+-   on the ME they stay 0: a request that does not fit is refused. */
++   a region more gave, once no block in it is in use.  Only the main CPU may set them; on the main CPU they call the C library's
++   malloc and free, on the ME (task #180 step 4d-2: ge/xme.c xme_heap_ask) they ask the main CPU through the loop's ctx and wait. */
+ void me_heap_grow(void *(*more)(size_t want, size_t *got), void (*less)(void *region));
+ /* a third hook, the main CPU's too: resize, for a realloc whose block cannot grow where it is and is the only block in use in a region
+    the hook gave (a free block may follow it):
+@@ -64,11 +64,12 @@
+ 
+ /* task #180 step 4c: the ME's heartbeat inside long work (the chain walks' tags, the translator's VIF commands and GIF tags, a local
+    copy's rows), so that a long walk is not taken for a hang: me_beat_p is the loop's heartbeat word (xme.h XmeCtx.heart), set by the
+-   host; a word of its own until then.  (4d: on the real ME the word is shared through the uncached alias, and the cost of a beat there
+-   decides how often it is written.) */
++   host; a word of its own until then.  Step 4d-4: the word is shared through the uncached alias (xme.h XS), so a beat counts in a cached
++   word of the unit's (me_beat_n, turn-owned like the rest of its memory) and moves the shared word every 64th time. */
+ #ifdef MGS2_ME_SAFE
+ extern volatile uint32_t *me_beat_p;
+-#define ME_BEAT() ((void)(*me_beat_p)++)
++extern uint32_t me_beat_n;
++#define ME_BEAT() ((void)((++me_beat_n & 63u) || ((*me_beat_p)++, 0)))
+ #else
+ #define ME_BEAT() ((void)0)
+ #endif
+diff -ruN me18d/ge/xlme.c me18e/ge/xlme.c
+--- me18d/ge/xlme.c	2026-11-08 12:25:21.678978282 +0000
++++ me18e/ge/xlme.c	2026-11-08 14:33:17.697321300 +0000
+@@ -130,12 +130,12 @@
+ }
+ static void xc_add(XmCopy *c, int b, uint32_t k0, uint32_t k1)
+ {
+-  XcR *r = b ? c->rb : c->ra; int *n = b ? &c->nb : &c->na;
++  XcR *r = b ? c->rb : c->ra; int *n = b ? &c->nb : &c->na, cap = b ? c->cap : XC_CAPS(c);   /* (step 4d-3: ra's room) */
+   if (*n && k0 <= r[*n - 1].k1 && k1 >= r[*n - 1].k0) {   /* meets the last: joined (the walk goes on mostly in order) */
+     if (k0 < r[*n - 1].k0) r[*n - 1].k0 = k0;
+     if (k1 > r[*n - 1].k1) r[*n - 1].k1 = k1;
+     return; }
+-  if (*n == c->cap) { *n = xc_merge(r, *n, c->tmp); if (*n == c->cap) { c->over = 1; return; } }
++  if (*n == cap) { *n = xc_merge(r, *n, c->tmp); if (*n == cap) { c->over = 1; return; } }
+   r[*n].k0 = k0; r[*n].k1 = k1; (*n)++;
+ }
+ static void xc_run(XmCopy *c, int b, uint32_t a, uint32_t n)   /* n quadwords from guest address a, in ge/xlive.c run()'s pieces */
+@@ -199,10 +199,10 @@
+       uint32_t s = c->mk[i].k0, e = c->mk[i].k1;
+       for (j = 0; j < 2 && s < e; j++) {
+         if (xc_keep[j][1] <= s || xc_keep[j][0] >= e) continue;
+-        if (xc_keep[j][0] > s) { if (nk == c->cap) break; c->tmp[nk].k0 = s; c->tmp[nk].k1 = xc_keep[j][0]; nk++; }
++        if (xc_keep[j][0] > s) { if (nk == XC_CAPS(c)) break; c->tmp[nk].k0 = s; c->tmp[nk].k1 = xc_keep[j][0]; nk++; }   /* (4d-3: mk's room) */
+         s = xc_keep[j][1];
+       }
+-      if (s < e && nk < c->cap) { c->tmp[nk].k0 = s; c->tmp[nk].k1 = e; nk++; }
++      if (s < e && nk < XC_CAPS(c)) { c->tmp[nk].k0 = s; c->tmp[nk].k1 = e; nk++; }
+     }
+     memcpy(c->mk, c->tmp, (size_t)nk * sizeof *c->mk);
+   }
+@@ -322,8 +322,10 @@
+   p = xv_at(v, k, &lim, XV_RAM);
+   if (lim >= n) return p;
+   v->part[XV_RAM]++; b = v->tmp_i = (v->tmp_i + 1) & 3;
+-  if (v->tmp_n[b] < n) { uint8_t *q = (uint8_t *)realloc(v->tmp[b], n); if (!q) return 0; v->tmp[b] = q; v->tmp_n[b] = n; }
+-  d = v->tmp[b];
++  if (n <= v->fix_n) { d = v->fix[b]; v->n_fix++; }   /* step 4d-2 */
++  else {
++    if (v->tmp_n[b] < n) { uint8_t *q = (uint8_t *)realloc(v->tmp[b], n); if (!q) return 0; v->tmp[b] = q; v->tmp_n[b] = n; }
++    d = v->tmp[b]; v->n_tmp++; }
+   while (done < n) { uint32_t l = n - done; const uint8_t *s = xv_at(v, k + done, &l, XV_RAM); memcpy(d + done, s, l); done += l; }
+   return d;
+ }
+diff -ruN me18d/ge/xlme.h me18e/ge/xlme.h
+--- me18d/ge/xlme.h	2026-11-08 11:37:39.522929134 +0000
++++ me18e/ge/xlme.h	2026-11-08 14:33:17.693407101 +0000
+@@ -85,11 +85,13 @@
+    reads RAM and the scratchpad and writes only the arena and its own arrays. ---- */
+ #define XC_MARGIN 416u
+ typedef struct { uint32_t k0, k1; } XcR;   /* keys [k0, k1) (xlview.h) */
++#define XC_CAPS(c) ((c)->cap_s ? (c)->cap_s : (c)->cap)   /* step 4d-3: ra's and mk's room */
+ typedef struct XmCopy {
+   /* the host's */
+   const uint8_t *mem, *spr; uint32_t mem_size;
+   XcR *ra, *rb, *mk, *tmp; int cap;    /* cap entries each: tags and the data after them; the data the tags point to; the image marks
+                                           (the host fills mk and nmk as the runtime's walk goes, mk_full when they did not fit); a scratch */
++  int cap_s;                           /* task #180 step 4d-3: ra's and mk's entries when they are fewer (XC_CAPS; 0: cap) */
+   int nmk, mk_full;
+   int rd_only;   /* step 4b-2's check (xl_psp.c): 1 = the tags without the margin after them, so the extents are the bytes the
+                     transfer itself reads (with nmk 0: its image data too) */
+diff -ruN me18d/ge/xlview.h me18e/ge/xlview.h
+--- me18d/ge/xlview.h	2026-11-08 07:51:52.381355559 +0000
++++ me18e/ge/xlview.h	2026-11-08 13:57:40.977360735 +0000
+@@ -18,6 +18,9 @@
+   int last;                        /* the extent the last look-up found (a hint: the walk reads in order) */
+   long in[XV_NK], out[XV_NK], part[XV_NK];   /* reads from the copy, from RAM, partly from each */
+   uint8_t *tmp[4]; uint32_t tmp_n[4]; int tmp_i;   /* the map's reads partly in the copy, put together (xm_ram) */
++  uint8_t *fix[4]; uint32_t fix_n;   /* task #180 step 4d-2: four fixed buffers of fix_n bytes each for those reads (the ME's own memory, the
++                                        eDRAM, in 4d-4), a longer read in tmp (the picture heap); fix_n 0: tmp only */
++  long n_fix, n_tmp;                 /* the reads put together in the fixed buffers, in tmp */
+ } XmView;
+ 
+ /* the extent holding key k (>= 0), or -(j + 1) with j the first extent above k (n: none) */
+diff -ruN me18d/ge/xme.c me18e/ge/xme.c
+--- me18d/ge/xme.c	2026-11-08 12:33:19.478890573 +0000
++++ me18e/ge/xme.c	2026-11-08 15:57:26.332643764 +0000
+@@ -1,6 +1,6 @@
+ /* xme.c: the ME's loop (task #180 step 4c; xme.h).  The records' copies and walks are psp/xl_psp.c's 4b-2 (mp_fill_all, mp_late), the
+    frame's end, list and start its xl_psp_frame and gl_list without the GE and the display, moved here so that one loop serves the ME
+-   (4d), its thread on the emulator (4c) and the main CPU's own turns. */
++   (4d), its thread on the emulator (4c) and the main CPU's own turns.  Step 4d: the cache steps through the host's hook (xme.h). */
+ #include <string.h>
+ #include "xme.h"
+ #include "me_rt.h"                      /* -DMGS2_ME_SAFE: ME_CALLP */
+@@ -11,6 +11,23 @@
+   x->t_qw += q - x->l_qw; x->l_qw = q; x->t_words += w - x->l_words; x->l_words = w;
+   x->t_calls += c - x->l_calls; x->l_calls = c; x->t_ad += a - x->l_ad; x->l_ad = a;
+ }
++static void xme_cache(XmeCtx *x, int op, const void *p, uint32_t n)   /* step 4d (4d-4: counted) */
++{
++  if (!x->cache) return;
++  if (op == XME_C_ALL) x->n_call++; else { x->n_cinv++; x->n_cinv_b += n; }
++  ME_CALLP(x->cache)(x, op, p, n);
++}
++static void xme_rec_inv(XmeCtx *x, const XmeRec *r)    /* step 4d: before the copy, the record's extents (the main CPU's plan wrote
++                                                          them) and their bytes in RAM and the scratchpad (xm_fill's sources) out of the
++                                                          ME's cache, by range, or the whole cache at XME_C_BIG or more */
++{
++  const XvExt *e = x->fc.ext + r->x0; uint32_t n = (uint32_t)r->nx * (uint32_t)sizeof *e; int i;
++  for (i = 0; i < r->nx && n < XME_C_BIG; i++) n += e[i].a1 - e[i].a0;
++  if (n >= XME_C_BIG) { xme_cache(x, XME_C_ALL, 0, 0); return; }
++  xme_cache(x, XME_C_INV, e, (uint32_t)r->nx * (uint32_t)sizeof *e);
++  for (i = 0; i < r->nx; i++)
++    xme_cache(x, XME_C_INV, e[i].a0 >= XV_SPR ? x->fc.spr + (e[i].a0 - XV_SPR) : x->fc.mem + e[i].a0, e[i].a1 - e[i].a0);
++}
+ static void xme_rec(XmeCtx *x, const XmeRec *e)
+ {
+   XmeRec *r;
+@@ -18,34 +35,59 @@
+   if (x->nrec == XME_NREC) { x->n_over++; return; }   /* (the main CPU walks at 64: not expected) */
+   r = &x->rec[x->nrec++]; *r = *e;
+   if (r->nx < 0) { x->n_ram++; return; }               /* walked from RAM */
++  if (x->cache) xme_rec_inv(x, r);
+   xm_fill(&x->fc, r->x0, r->nx, 0, 0, 0);              /* the copy from RAM as it is now (the log comes at the FILL) */
+   if (r->now) x->n_now++; else x->n_early++;
+ }
+ static void xme_fill(XmeCtx *x, int nlog)              /* the log over the early copies since the last FILL: they hold the bytes as their
+                                                           transfers started */
+ {
++  if (nlog > 0) xme_cache(x, XME_C_INV, x->log, (uint32_t)nlog * (uint32_t)sizeof *x->log);   /* step 4d: the main CPU's log entries */
+   for (int i = 0; i < x->nrec; i++) {
+     XmeRec *r = &x->rec[i];
+     if (r->nx < 0 || r->now) continue;
+-    x->at = XME_AT_LAY + (uint32_t)i; xm_lay(&x->fc, r->x0, r->nx, r->t, x->log, nlog); r->now = 1; x->n_lay++;
++    XS(x)->at = XME_AT_LAY + (uint32_t)i; xm_lay(&x->fc, r->x0, r->nx, r->t, x->log, nlog); r->now = 1; x->n_lay++;
+   }
+   x->n_fill++;
+ }
+ static void xme_walk(XmeCtx *x)                        /* psp/xl_psp.c 4b-2 mp_late's walks */
+ {
+   XmPic *p = x->p; XlvMem *m = x->m; XmView *v = x->v;
++  xme_cache(x, XME_C_ALL, 0, 0);                       /* step 4d: the walk reads image data left in RAM and records walked from RAM */
+   for (int i = 0; i < x->nrec; i++) {
+     const XmeRec *r = &x->rec[i];
+-    x->at = XME_AT_WALK + (uint32_t)i;
++    XS(x)->at = XME_AT_WALK + (uint32_t)i;
+     if (r->restart) { xme_sum(x); gu_zero_empty(p->map, 0); xl_reset(); x->l_words = x->l_calls = x->l_ad = 0; x->n_restart++; }
+     xm_switch(p, r->opt, r->opt2);
+     if (r->nx >= 0) { v->x = x->fc.ext + r->x0; v->n = r->nx; v->last = 0; m->view = v; }
+     xm_walk(p, r->ch, r->chcr, r->madr, r->qwc, r->tadr, r->lanes, r->opt);
+-    m->view = 0; xme_sum(x); x->heart++; x->n_walked++;
++    m->view = 0; xme_sum(x); XS(x)->heart++; x->n_walked++;
+   }
+   x->nrec = 0; x->n_walk++;
+ }
+-static uint32_t xme_released(const XmeCtx *x) { return x->ge_done; }
++static uint32_t xme_released(const XmeCtx *x) { return XS(x)->ge_done; }
++/* step 4d-2: the picture heap's hooks on the ME (me_rt.c mh_grow, mh_give_back, mh_resize call them when nothing fits): the request goes
++   to the main CPU through the ctx and the ME waits for the answer (the host's wait, why 3; the heartbeat moves; the place word stays the
++   entry's), served at the main CPU's waits, transfers and hooks (psp/xl_psp.c mq_heap_serve).  The ME's cache is written back and
++   dropped first: a resize may copy the region's bytes, a give-back frees it. */
++static XmeCtx *xme_x; static XmeWait xme_w;   /* the loop's, set by the host before the loop starts (xme_bind; step 4d-4: the ME writes
++                                                  none of its turn-owned memory outside its turns) */
++void xme_bind(XmeCtx *x, XmeWait w) { xme_x = x; xme_w = w; }
++static uintptr_t xme_rq(int op, void *p, uint32_t n, uint32_t *got)
++{
++  XmeCtx *x = xme_x; volatile XmeSh *s = XS(x); uint32_t q;
++  xme_cache(x, XME_C_ALL, 0, 0);
++  s->rq_op = op; s->rq_p = p; s->rq_n = n; s->rq_got = 0; s->rq_r = 0;
++  XME_BARRIER(); q = s->rq_seq + 1; s->rq_seq = q; x->n_rq++;
++  while (s->rq_done != q) { s->heart++; ME_CALLP(xme_w)(x, 3); }
++  XME_BARRIER();
++  if (got) *got = s->rq_got;
++  return (uintptr_t)s->rq_r;
++}
++static void *xme_more(size_t want, size_t *got) { uint32_t g = 0; void *r = (void *)xme_rq(XME_RQ_MORE, 0, (uint32_t)want, &g); *got = g; return r; }
++static void xme_less(void *r) { (void)xme_rq(XME_RQ_LESS, r, 0, 0); }
++static void *xme_resize(void *r, size_t want) { return (void *)xme_rq(XME_RQ_RESIZE, r, (uint32_t)want, 0); }
++void xme_heap_ask(int resize) { me_heap_grow(xme_more, xme_less); me_heap_resize(resize ? xme_resize : 0); }
+ static void xme_hook(XmeCtx *x, const XmeHook *h, XmeWait w)
+ {
+   XmPic *p = x->p;
+@@ -53,42 +95,54 @@
+   if (h->stop) { p->now = 0; return; }                 /* the GE stopped: no more frames */
+   if (h->end) {
+     XmeRes *s; int r;
+-    while ((int32_t)(x->listed - xme_released(x)) >= (int32_t)XME_NRES) { x->n_resfull++; x->heart++; x->at = XME_AT_RESFULL; ME_CALLP(w)(x, 1); }
+-    x->at = XME_AT_END; xm_end(p); x->at = XME_AT_LIST; r = xm_list(p, h->d, h->dig);
+-    s = &x->res[x->listed % XME_NRES];
++    while ((int32_t)(XS(x)->listed - xme_released(x)) >= (int32_t)XME_NRES) { x->n_resfull++; XS(x)->heart++; XS(x)->at = XME_AT_RESFULL; ME_CALLP(w)(x, 1); }
++    XS(x)->at = XME_AT_END; xm_end(p); XS(x)->at = XME_AT_LIST; r = xm_list(p, h->d, h->dig);
++    s = &x->res[XS(x)->listed % XME_NRES];
+     s->fvb = h->vb - 1; s->d = h->d; s->r = r; s->nt = (int)p->glf->o.nt; s->dig = h->dig; s->list = p->gxl->w;
+     s->dig_list = p->gxl->dig; s->dig_frame = h->dig ? p->dig_frame : 0; s->c = p->gxl->c;
+-    XME_BARRIER(); x->listed++; x->n_list++;
++    xme_cache(x, XME_C_ALL, 0, 0);                     /* step 4d: the GE reads the list, the frame memory and the textures from RAM */
++    XME_BARRIER(); XS(x)->listed++; x->n_list++;
+   }
+   if (h->begin) {   /* the GE must have finished every list before: the frame's arena, the list buffer, the cache's last textures */
+-    while ((int32_t)(x->listed - xme_released(x)) > 0) { x->n_gewait++; x->heart++; x->at = XME_AT_GEWAIT; ME_CALLP(w)(x, 1); }
+-    x->at = XME_AT_BEGIN; xm_begin(p, h->opt, h->opt2); x->n_begin++;
++    while ((int32_t)(XS(x)->listed - xme_released(x)) > 0) { x->n_gewait++; XS(x)->heart++; XS(x)->at = XME_AT_GEWAIT; ME_CALLP(w)(x, 1); }
++    XS(x)->at = XME_AT_BEGIN; xm_begin(p, h->opt, h->opt2); x->n_begin++;
+   }
+-  x->at = XME_AT_TKFRAME; tk_frame(p->tk);
++  XS(x)->at = XME_AT_TKFRAME; tk_frame(p->tk);
+ }
+ int xme_entry(XmeCtx *x, const XmeE *e, XmeWait w)
+ {
+   int k = e->kind, ret = 0;   /* (no switch: -fno-jump-tables keeps it a chain anyway) */
+-  x->at = (uint32_t)k;
++  XS(x)->at = (uint32_t)k;
+   if (k == XE_REC) xme_rec(x, &e->r);
+   else if (k == XE_FILL) xme_fill(x, e->nlog);
+   else if (k == XE_WALK) xme_walk(x);
+   else if (k == XE_HOOK) xme_hook(x, &e->h, w);
+-  else if (k == XE_THIN) { gl_thin(x->p->glf, x->thin_r, x->thin_n, x->thin_keep3, x->thin_d, x->thin_nd); x->n_thin++; }
+-  else if (k == XE_STOP) ret = 1;
++  else if (k == XE_THIN) {   /* step 4d-3: the slot as the main CPU wrote it (it writes it back before the post) */
++    xme_cache(x, XME_C_INV, x->thin_r, (uint32_t)((const char *)(x->thin_d + 512) - (const char *)x->thin_r));
++    gl_thin(x->p->glf, x->thin_r, x->thin_n, x->thin_keep3, x->thin_d, x->thin_nd); x->n_thin++; }
++  else if (k == XE_SYNC) { xme_cache(x, XME_C_ALL, 0, 0); x->n_sync++; }   /* step 4d: the main CPU makes the picture next */
++  else if (k == XE_STOP) { xme_cache(x, XME_C_ALL, 0, 0); ret = 1; }
+   return ret;   /* (the place word goes back to 0 in xme_run, after the tail: a take-back that sees 0 sees every entry before whole) */
+ }
+ void xme_run(XmeCtx *x, XmeWait w)
+ {
++  volatile XmeSh *s = XS(x);   /* step 4d-4: the shared words through the uncached alias (xme_bind set the heap's requests' ctx and wait) */
+   for (;;) {
+-    uint32_t t = x->tail; const XmeE *e;
+-    if (t == x->head) {   /* empty: idle until the main CPU posts (it signals when it sees idle; the wait has a time limit too) */
+-      x->heart++; x->idle = 1; x->at = XME_AT_IDLE;
+-      if (x->tail == x->head) ME_CALLP(w)(x, 0);
+-      x->at = 0; x->idle = 0; continue; }
++    uint32_t t = s->tail; const XmeE *e;
++    if (t == s->head) {   /* empty: idle until the main CPU posts (the thread: it signals when it sees idle, and the wait has a time limit;
++                             the ME: its wait looks at head every 5 us); only the shared words are written while idle */
++      s->heart++; s->idle = 1; s->at = XME_AT_IDLE;
++      if (s->tail == s->head) ME_CALLP(w)(x, 0);
++      s->at = 0; s->idle = 0; continue; }
+     XME_BARRIER(); e = &x->e[t & (XME_N - 1)];
+-    if (e->kind == XE_HOOK && x->hang_vb >= 0 && e->h.vb >= x->hang_vb) { x->hung = 1; x->at = XME_AT_HANG; for (;;) ME_CALLP(w)(x, 2); }   /* the hang test */
+-    if (xme_entry(x, e, w)) { XME_BARRIER(); x->tail = t + 1; XME_BARRIER(); x->at = 0; x->stopped = 1; return; }
+-    XME_BARRIER(); x->tail = t + 1; XME_BARRIER(); x->at = 0; x->heart++;
++    xme_cache(x, XME_C_INV, e, sizeof *e);   /* step 4d-3: the entry as the main CPU wrote it (written back before head moved) */
++    if (e->kind == XE_HOOK && x->hang_vb >= 0 && e->h.vb >= x->hang_vb) {   /* the hang test: between entries (warm), or inside the next
++                                                                               walk (hang_in: cold) */
++      if (x->hang_in) { x->hang_vb = -1; x->hang_arm = 1; }
++      else { xme_cache(x, XME_C_ALL, 0, 0); s->hung = 1; s->at = XME_AT_HANG; for (;;) ME_CALLP(w)(x, 2); } }
++    if (e->kind == XE_WALK && x->hang_arm && x->nrec > 0) {   /* hang_in's stop: at the walk's first record, its cache not written back */
++      x->hang_arm = 0; s->hung = 1; s->at = XME_AT_WALK; for (;;) ME_CALLP(w)(x, 2); }
++    if (xme_entry(x, e, w)) { XME_BARRIER(); s->tail = t + 1; XME_BARRIER(); s->at = 0; s->stopped = 1; return; }
++    XME_BARRIER(); s->tail = t + 1; XME_BARRIER(); s->at = 0; s->heart++;
+   }
+ }
+diff -ruN me18d/ge/xme.h me18e/ge/xme.h
+--- me18d/ge/xme.h	2026-11-08 12:33:30.454778193 +0000
++++ me18e/ge/xme.h	2026-11-08 15:57:26.332334783 +0000
+@@ -19,8 +19,13 @@
+      the GE has finished every list before: the frame's arena, the one list buffer and the texture cache's last textures are the GE's
+      until then), the texture cache's frame (tk_frame); stop 1: the GE stopped, the frame dropped.
+    - XE_STOP: the run's end.
+-   Shared words (head, tail, heart, listed, ge_done) are the host's and the ME's; on the real ME (4d) they go through the uncached
+-   alias, and the main CPU writes back its cache before raising head. */
++   - XE_SYNC (step 4d, mode 4): the ME writes back and drops its whole data cache, then its tail moves: the main CPU, which then makes
++     the picture itself, finds in RAM everything the ME wrote (a turn's change, after a hook's FILL, WALK and HOOK: no copy waits).
++   Shared words (XmeSh: head, tail, heart, listed, ge_done, the heap's request, the place word) are the host's and the ME's; both cores
++   reach them only through XS, the uncached alias on the PSP (step 4d-4), and the results through XR; the main CPU writes back its cache
++   (the entry, and what it has the ME read) before raising head.  Step 4d: the ME's cache steps go through the host's hook cache
++   (0: none): REC the record's extents and their bytes invalidated before the copy, FILL the log's entries, WALK and HOOK the whole
++   cache written back (and invalidated) first and before the list is posted, SYNC, STOP and the hang test too. */
+ #ifndef MGS2_XME_H
+ #define MGS2_XME_H
+ #include <stdint.h>
+@@ -32,18 +37,52 @@
+ #define XME_NREC 64         /* records between two walks (psp/xl_psp.c MP_NREC) */
+ #define XME_NRES 4          /* lists made and not yet taken by the main CPU (one at a time: a frame starts only once the GE has
+                                finished every list before) */
+-#define XME_BARRIER() __asm__ __volatile__("" ::: "memory")   /* the compiler keeps the entry's or result's stores before the shared word's
+-                                                                (4d adds the caches: the main CPU's writeback, the uncached alias) */
+-enum { XE_REC = 1, XE_THIN = 2, XE_FILL = 3, XE_WALK = 4, XE_HOOK = 5, XE_STOP = 6 };
++#define XME_LINE __attribute__((aligned(64)))   /* step 4d-3: a part of the ctx one core writes starts on a 64-byte line of its own */
++#if defined(__psp__)   /* step 4d-4: the stores before a shared word's reach memory first (sync), on both cores; the shared words and the
++                          results through main RAM's uncached alias, the same address on both cores (0x40000000 | address: hle_me.h) */
++#define XME_BARRIER() __asm__ __volatile__("sync" ::: "memory")
++#define XME_UNC 0x40000000u
++#else
++#define XME_BARRIER() __asm__ __volatile__("" ::: "memory")   /* the compiler keeps the entry's or result's stores before the shared word's */
++#define XME_UNC 0u
++#endif
++enum { XE_REC = 1, XE_THIN = 2, XE_FILL = 3, XE_WALK = 4, XE_HOOK = 5, XE_STOP = 6, XE_SYNC = 7 };
++enum { XME_C_ALL = 0, XME_C_INV = 1 };   /* step 4d: the cache hook's ops: the whole data cache written back and invalidated; a range
++                                            invalidated (its lines are never the ME's to write: dirty ones are not kept) */
++enum { XME_RQ_MORE = 1, XME_RQ_LESS = 2, XME_RQ_RESIZE = 3 };   /* step 4d-2: the ME's heap requests (me_rt.h me_heap_grow's hooks) */
++#define XME_C_BIG 16384u                 /* a record's or log's bytes from which one XME_C_ALL is cheaper than the ranges (the ME's data
++                                            cache is 16 KB) */
+ enum { XME_AT_WALK = 0x100, XME_AT_LAY = 0x200, XME_AT_RESFULL = 0x300, XME_AT_GEWAIT = 0x301, XME_AT_END = 0x310, XME_AT_LIST = 0x311,
+        XME_AT_BEGIN = 0x312, XME_AT_TKFRAME = 0x313, XME_AT_IDLE = 0x500, XME_AT_HANG = 0x600 };
+ typedef struct { int ch, lanes, restart, x0, nx, t, now; uint32_t chcr, madr, qwc, tadr, opt, opt2; } XmeRec;
+ typedef struct { int32_t vb; int end, d, dig, begin, stop; uint32_t opt, opt2; } XmeHook;
+ typedef struct { int kind, why, nlog; XmeRec r; XmeHook h; } XmeE;
+ typedef struct { int32_t fvb; int d, r, nt, dig; uint32_t *list; uint64_t dig_list, dig_frame; GxCount c; } XmeRes;
++typedef struct XmeSh {      /* step 4d-4: the words both cores write, in XmeCtx.sh; reached only through XS(x): on the PSP the uncached alias
++                               (a cached copy on either core would be stale: the ME's and the main CPU's caches do not see each other's
++                               writes), on x86 the words themselves */
++  uint32_t head, tail;        /* entries posted by the main CPU, done by the ME */
++  uint32_t heart;             /* the ME's heartbeat: the loop's entries, records and waits, and every 64th of the picture code's beats
++                                 (me_rt.h ME_BEAT) */
++  uint32_t listed;            /* lists the ME made (results posted) */
++  uint32_t ge_done;           /* lists the GE has finished or the main CPU let go (the main CPU's) */
++  uint32_t idle, stopped, hung;
++  uint32_t rq_seq, rq_done;   /* step 4d-2: the ME's heap requests posted (the ME's), answered (the main CPU's) */
++  int rq_op; void *rq_p; uint32_t rq_n, rq_got; void *rq_r;   /* the request (XME_RQ_*, the region, the bytes) and its answer */
++  uint32_t at;                /* where the loop is (a take-back reads it): 0 between entries (set after the tail moves, so a 0 means every
++                                   entry before the tail is whole: the main CPU may go on from there, a warm take-back), the entry's kind
++                                   in one, XME_AT_* in its parts: a walk's record (+ its index), a fill's laying (+ the record's index), a
++                                   hook's parts, the waits, the idle wait and the hang test (both between entries) */
++  uint32_t me_ctl;            /* step 4d-4: the real ME's control block (psp/xme_me.h XmeMeCtl, its uncached address: its waits move
++                                 hle_me_start's heartbeat too and see an exit request); 0: the loop is the emulator's thread */
++} XmeSh;
++#define XS(x) ((volatile XmeSh *)((uintptr_t)&(x)->sh | XME_UNC))   /* step 4d-4: the shared words */
++#define XR(x) ((const XmeRes *)((uintptr_t)(x)->res | XME_UNC))       /* step 4d-4: the results as the main CPU reads them (the ME
++                                                                         writes them back before listed moves) */
+ struct XmeCtx;
+ typedef void (*XmeWait)(struct XmeCtx *x, int why);   /* the host's wait: why 0 the queue empty (the loop's idle), 1 the GE (a frame's
+-                                                          start), 2 the hang test (never returns) */
++                                                          start), 2 the hang test (never returns), 3 the heap's answer (step 4d-2) */
++typedef void (*XmeCache)(struct XmeCtx *x, int op, const void *p, uint32_t n);   /* step 4d: XME_C_ALL, or XME_C_INV of [p, p + n) */
+ typedef struct XmeCtx {
+   /* the host's, before the loop starts */
+   XmPic *p; XlvMem *m; XmView *v;
+@@ -52,25 +91,32 @@
+   const XmLogE *log;          /* the main CPU's log: a FILL lays its first nlog entries */
+   int32_t hang_vb;            /* the hang test (MGS2_ME_PIC_HANG; the thread's loop only): at the first HOOK with vb >= hang_vb the loop
+                                  stops with its heartbeat stopped; -1: none */
+-  /* shared words */
+-  volatile uint32_t head, tail; /* entries posted by the main CPU, done by the ME */
+-  volatile uint32_t heart;      /* the ME's heartbeat */
+-  volatile uint32_t listed;     /* lists the ME made (results posted) */
+-  volatile uint32_t ge_done;    /* lists the GE has finished or the main CPU let go (the main CPU's) */
+-  volatile uint32_t idle, stopped, hung;
+-  volatile uint32_t at;          /* where the loop is (a take-back reads it): 0 between entries (set after the tail moves, so a 0 means every
+-                                   entry before the tail is whole: the main CPU may go on from there, a warm take-back), the entry's kind
+-                                   in one, XME_AT_* in its parts: a walk's record (+ its index), a fill's laying (+ the record's index), a
+-                                   hook's parts, the waits, the idle wait and the hang test (both between entries) */
+-  XmeE e[XME_N];
+-  XmeRes res[XME_NRES];
+-  XcThin thin_r[16]; int thin_n, thin_keep3, thin_nd; struct { uint32_t lo, hi; } thin_d[512];   /* the thinning's slot (gl_thin's) */
+-  /* the ME's own */
+-  XmeRec rec[XME_NREC]; int nrec;
++  int hang_in;                /* step 4d: the hang test inside a walk instead (MGS2_ME_PIC_HANG_IN=1): at the first WALK after hang_vb the
++                                 loop stops in its first record (a cold take-back) */
++  XmeCache cache;             /* step 4d: the ME's cache steps (the host sets it only while the ME makes the picture); 0: none */
++  /* shared words, on lines of their own (step 4d-3: no line holds bytes one core writes through its cache and bytes the other writes;
++     XME_LINE, and the ctx is 64-aligned); step 4d-4: reached only through XS (the uncached alias on the PSP, on both cores) */
++  XmeSh sh XME_LINE;
++  XmeE e[XME_N] XME_LINE;     /* the main CPU's (the ME drops an entry's lines from its cache before it reads it) */
++  XmeRes res[XME_NRES] XME_LINE;   /* the ME's (written back at the hook before listed moves) */
++  XcThin thin_r[16] XME_LINE; int thin_n, thin_keep3, thin_nd; struct { uint32_t lo, hi; } thin_d[512];   /* the thinning's slot (gl_thin's;
++                                                                                                          the main CPU's) */
++  /* the ME's own (the main CPU's only in its own turns and after a take-back, each after a hand-over of the caches) */
++  XmeRec rec[XME_NREC] XME_LINE; int nrec;
++  int hang_arm;               /* step 4d: hang_in's test armed (the hook at hang_vb run): the loop stops at the next WALK with records,
++                                 its place word at the walk's first record (the main CPU's own runs of entries never stop) */
+   uint64_t t_qw, t_words, t_calls, t_ad; uint32_t l_qw, l_words, l_calls, l_ad;   /* psp/xl_psp.c sum()'s, for the ME's walks */
+   long n_rec, n_now, n_early, n_ram, n_lay, n_fill, n_walk, n_walked, n_hook, n_thin, n_list, n_begin, n_gewait, n_restart, n_over, n_resfull;
++  long n_sync, n_rq;          /* step 4d: hand-overs; heap requests */
++  long n_call, n_cinv; uint64_t n_cinv_b;   /* step 4d-4: the loop's cache steps through the host's hook (the whole cache; ranges, their
++                                               bytes) */
+ } XmeCtx;
+ 
+ int xme_entry(XmeCtx *x, const XmeE *e, XmeWait w);   /* one entry (w: the wait for the GE): 1 at XE_STOP */
+ void xme_run(XmeCtx *x, XmeWait w);                   /* the loop: the entries in order until XE_STOP; heartbeat; idle and GE waits through w */
++void xme_bind(XmeCtx *x, XmeWait w);                  /* step 4d-4: the loop's ctx and wait for the heap's requests, set by the host before the
++                                                         loop starts (the thread's or the ME's wait, as w in xme_run) */
++void xme_heap_ask(int resize);   /* step 4d-2 (the host calls it when the ME makes the picture next): the picture heap's hooks ask the
++                                    main CPU through the loop's ctx (resize: the region resize hook too); the host's own hooks back with
++                                    me_heap_grow and me_heap_resize when the main CPU makes the picture itself */
+ #endif
+diff -ruN me18d/psp/me_sec.ld me18e/psp/me_sec.ld
+--- me18d/psp/me_sec.ld	1970-01-01 00:00:00.000000000 +0000
++++ me18e/psp/me_sec.ld	2026-11-08 14:19:03.193588810 +0000
+@@ -0,0 +1,13 @@
++/* me_sec.ld (task #180 step 4d-3, me_step4_notes.md 4d): the memory the ME writes on 64-byte lines of its own.  Passed to the link with
++   -Wl,-T (INSERT: it adds to the default script, it does not replace it).  The ME-safe objects' .data and .bss are renamed .me_data and
++   .me_bss after they are compiled (psp-objcopy --rename-section), and psp/xl_psp.c puts the objects of its own the ME writes in
++   .bss.me, renamed .me_bss the same way; here both output sections start and end on a 64-byte line, so no line holds a byte the ME
++   writes and a byte only the main CPU writes (the ME's data cache and the main CPU's do not see each other's writes: a write-back of a
++   shared line from one core would put back the other's old bytes).  The symbols give psp/xl_psp.c and the checker
++   (tools/dev/me18/mesec_chk.py) the bounds. */
++SECTIONS {
++  .me_data : ALIGN(64) { __me_data_start = .; *(.me_data) . = ALIGN(64); __me_data_end = .; }
++} INSERT AFTER .data;
++SECTIONS {
++  .me_bss (NOLOAD) : ALIGN(64) { __me_bss_start = .; *(.me_bss) . = ALIGN(64); __me_bss_end = .; }
++} INSERT AFTER .bss;
+diff -ruN me18d/psp/xl_psp.c me18e/psp/xl_psp.c
+--- me18d/psp/xl_psp.c	2026-11-08 12:37:07.113442298 +0000
++++ me18e/psp/xl_psp.c	2026-11-08 15:57:26.334230086 +0000
+@@ -31,6 +31,7 @@
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <stdlib.h>
++#include <stddef.h>       /* offsetof (task #180 step 4d-3's line check) */
+ #include "host_time.h"
+ #include "../ge/xlive.h"
+ #include "../ge/xlate.h"
+@@ -50,6 +51,7 @@
+                                        at its highest in me14p8, vb 23,674) */
+ #endif
+ static uint8_t *me_hb; static size_t me_hn;   /* its first region */
++static int me_rs_on;                          /* task #180 step 4d-2: the resize hook is on (MGS2_ME_HEAP_RESIZE) */
+ /* the picture heap's hook (the main CPU only): a region from newlib's heap when no free block fits a request */
+ static size_t me_grow = (size_t)ME_HEAP_GROW_KB << 10;   /* MGS2_ME_HEAP_GROW_KB in mgs2.cfg (0: each region the request's own size) */
+ static long me_vb;   /* the step the picture is in (xl_psp_frame), for the hooks' events */
+@@ -62,10 +64,13 @@
+   me_ev[me_nev].vb = me_vb; me_ev[me_nev].op = op; me_ev[me_nev].at = (uint32_t)(uintptr_t)at; me_ev[me_nev].from = (uint32_t)(uintptr_t)from;
+   me_ev[me_nev].n = (uint32_t)n; me_ev[me_nev].w = (uint32_t)w; me_ev[me_nev].brk = (uint32_t)(uintptr_t)sbrk(0); me_nev++;
+ }
++/* step 4d-3: every region the hooks give is on whole 64-byte lines (memalign(64), its size rounded up to 64): newlib's chunk headers
++   lie on the lines before and after it, so no line holds a byte the ME writes in the region and a byte newlib writes for another block */
++static long me_misal, me_realn;   /* regions newlib's realloc moved off a line start: left there (no memory for a copy), copied to one */
+ static void *me_more(size_t want, size_t *got)
+ {
+-  size_t n = want < me_grow ? me_grow : (want + 63) & ~(size_t)63;
+-  void *p = malloc(n); if (p) *got = n; me_ev_add(p ? '+' : '!', p, 0, p ? n : want, want); return p;
++  size_t n = want < me_grow ? (me_grow + 63) & ~(size_t)63 : (want + 63) & ~(size_t)63;
++  void *p = memalign(64, n); if (p) *got = n; me_ev_add(p ? '+' : '!', p, 0, p ? n : want, want); return p;
+ }
+ /* the other hook: a region the hook gave goes back to newlib's heap once no block in it is in use */
+ static void me_less(void *r) { free(r); me_ev_add('-', r, 0, 0, 0); }
+@@ -78,12 +83,15 @@
+    while the top was short, the free top is given back at once (malloc_trim): the break then stands where a growth in place would have
+    left it.  me_trim counts the times memory went back. */
+ static long me_trim;
+-static void *me_resize(void *r, size_t want)
++static void *me_resize(void *r, size_t want)   /* (step 4d-3: the size rounded up to whole lines; a region newlib's realloc moved off a
++                                                  line start is copied to a line-aligned one) */
+ {
+-  struct mallinfo mi = mallinfo(); size_t have = malloc_usable_size(r);
+-  int top = want > have && (uint8_t *)r + have - 4 + mi.keepcost == (uint8_t *)sbrk(0) && mi.keepcost < want - have + 64;
+-  void *p = realloc(r, want);
++  struct mallinfo mi; size_t have = malloc_usable_size(r); int top; void *p;
++  want = (want + 63) & ~(size_t)63; mi = mallinfo();
++  top = want > have && (uint8_t *)r + have - 4 + mi.keepcost == (uint8_t *)sbrk(0) && mi.keepcost < want - have + 64;
++  p = realloc(r, want);
+   if (top && p) me_trim += malloc_trim(0);
++  if (p && ((uintptr_t)p & 63)) { void *q = memalign(64, want); if (q) { memcpy(q, p, want); free(p); p = q; me_realn++; } else me_misal++; }
+   me_ev_add(!p ? '?' : p == r ? '=' : '>', p ? p : r, r, want, want); return p;
+ }
+ #ifdef MGS2_GL
+@@ -100,11 +108,26 @@
+ #include "../ge/xlme.h"     /* task #180: the split (step 4b) */
+ #include <pspfpu.h>         /* task #180 step 4c: the loop's thread takes the main thread's FPU rule */
+ #include "../ge/xme.h"      /* task #180 step 4c: the ME's loop and its queue */
++#ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
++#include <pspiofilemgr.h>
++#include "hle_me.h"
++#include "hle_me_mgs2.h"
++#include "ps2rc_exc.h"
++#include "xme_me.h"
++volatile Ps2rcMeBlock ps2rc_me_block;   /* hle_me_mgs2.c's record of the ME's last exception (its handler writes it; the main CPU reads it
++                                           through hle_me_exception) */
++#endif
+ #endif
+ 
+ #define XL_GSZ (32u << 20)                /* guest RAM (runtime GUEST_SIZE) */
+-static XlvMem M; static GuMap *map;
+-static int state;                        /* 0: not started, 1: on, 2: off since it was on, -1: no memory for the map */
++/* task #180 step 4d-3 (me_step4_notes.md 4d): the objects of this file the ME writes while it makes the picture (the translator's memory
++   M, the frame glf, the list gxl and its host gxh, the walk's XmPic xmp and its view mp_view) go in .bss.me, renamed .me_bss after the
++   compile (mkpsp18e.sh) and placed by psp/me_sec.ld with the ME-safe objects' .bss: 64-byte lines that hold no byte only the main CPU
++   writes (the two cores' data caches do not see each other's writes) */
++#define ME_LN __attribute__((section(".bss.me"), aligned(64)))
++static XlvMem M ME_LN; static GuMap *map;
++static int state;                        /* 0: not started, 1: on, 2: off since it was on, -1: no memory for the map, -2: stopped with the
++                                            picture (task #180 step 4d: mode 4's cold take-back) */
+ static long ncall, nprim, nrestart, ntransfer, none;
+ extern int g_xl_one;                     /* runtime/ee_io.h: the exact walk feeds the translator */
+ extern int g_xl_lane;                    /* sb1, sb2 runtime/ee_io.h: Stage B lanes 1 (OPT_XL_LANE) and 2 (OPT_XL_LANE2); sb5 lane 4 (OPT_XL_LANE4); sb6 lane 3 (OPT_XL_LANE3) */
+@@ -112,8 +135,17 @@
+ static int one_mode = 1, skip_mode = 1, cfg_read;   /* MGS2_XL_ONE, MGS2_XL_SKIP */
+ #ifdef MGS2_GL
+ static int mp_want;                                 /* task #180: MGS2_ME_PIC */
++#ifdef MGS2_ME_REAL
++static int mq_me_try, mq_edram;                     /* task #180 step 4d-4: the loop on the ME asked for; the arena in its eDRAM */
++#define MQ_ED() mq_edram
++#define MQ_EDRAM 0x80000000u                        /* the ME's eDRAM (kseg0; probe 2: 4 MB, reliable) */
++#define MQ_EDRAM_KB 4096u
++static int mq_emu(void) { int out = 0; return sceIoDevctl("kemulator:", 0x00000003, NULL, 0, &out, sizeof out) >= 0; }   /* hle_me's test */
++#else
++#define MQ_ED() 0
++#endif
+ static void mp_hook(long vb), mp_end(void);
+-static int mq_on;                                   /* task #180 step 4c: MGS2_ME_PIC=3, the ME's loop (below) */
++static int mq_on;                                   /* task #180 step 4c: MGS2_ME_PIC=3, the ME's loop (below); 4 (step 4d) its real ME's way */
+ static void mq_frame(long vb), mq_drain(void), mq_service(void), mq_ge_finish(void), mq_late(int why, int wait), mq_chk_end(void), mq_end(void);
+ static int mq_fill(int why);
+ #endif
+@@ -126,7 +158,8 @@
+   if ((e = mgs2_getenv("MGS2_XL_ONE"))) one_mode = atoi(e) != 0;     /* mgs2.cfg, through main_psp.c */
+   if ((e = mgs2_getenv("MGS2_XL_SKIP"))) skip_mode = atoi(e) != 0;
+ #ifdef MGS2_GL
+-  if ((e = mgs2_getenv("MGS2_ME_PIC"))) { mp_want = atoi(e); if (mp_want < 0 || mp_want > 3) mp_want = 1; }   /* task #180: 1 4b-1, 2 4b-2, 3 4c */
++  if ((e = mgs2_getenv("MGS2_ME_PIC"))) { mp_want = atoi(e); if (mp_want < 0 || mp_want > 4) mp_want = 1; }   /* task #180: 1 4b-1, 2 4b-2, 3 4c,
++                                                                                                                 4 4d (the real ME's way) */
+ #endif
+ }
+ #ifdef MGS2_GL
+@@ -138,7 +171,7 @@
+ #define GL_TXT 0x154000u
+ void *host_vol_tail(size_t n);           /* main_psp.c: n bytes from the end of the volatile block, or 0 */
+ const char *host_dir(void);              /* main_psp.c: the EBOOT's folder */
+-static TkCache *tk; static GlFrame glf; static GxList gxl; static GxHost gxh; static GxFrame gxf;
++static TkCache *tk; static GlFrame glf ME_LN; static GxList gxl ME_LN; static GxHost gxh ME_LN; static GxFrame gxf;   /* (ME_LN: step 4d-3) */
+ static FxThin gl_ft;   /* task #114: the rain's drop sheets and the foot splash drawn thinner (cfg MGS2_GL_RAIN, MGS2_GL_SPLASH) */
+ static uint32_t gl_dl[256] __attribute__((aligned(64)));   /* the direct list (sceGuStart writes it through the uncached view) */
+ static int gl_ok;                        /* 1: on; -1: no memory or no set-up, so no picture; 2: ended (xl_psp_gl_end); 3: stopped, the
+@@ -419,7 +452,7 @@
+    the copy made again; still none (or a chain that does not end, or too many ranges): the record walked at once from RAM, which still
+    holds the bytes as sent.  MGS2_ME_PIC_KB: the arena (KB, default 3072); MGS2_ME_PIC_RNG: entries in each of its work arrays (16384). */
+ static int mp_on;
+-static XmPic xmp; static XmCopy xmc; static XmView mp_view;
++static XmPic xmp ME_LN; static XmCopy xmc; static XmView mp_view ME_LN;   /* (ME_LN: step 4d-3) */
+ #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
+ typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2; } MpRec;   /* (4b-2: t, filled,
+                                             and the check's line hashes h0 .. h0 + nh - 1) */
+@@ -555,23 +588,70 @@
+ static long mp_queued, mp_late_runs, mp_drain_full, mp_drain_room, mp_direct, mp_hooks, mp_hist[9]; static uint32_t mp_step_max; static long mp_step_max_vb;
+ static long mp_img_runs, mp_img_spr, mp_img_small, mp_img_full;
+ static void sum(void);
++static SceUID mp_sys = -1; static uint32_t mp_sys_n, mp_sys_free[4];   /* step 4d-3: the system's block for the plan's rb, tmp and extents */
+ static void mp_setup(void)
+ {
+-  const char *e; uint32_t kb; int cap;
++  const char *e; uint32_t kb, vk; int cap, caps, xcap, sys;
+   if (!mp_want) return;
+   kb = (e = mgs2_getenv("MGS2_ME_PIC_KB")) && atoi(e) >= 256 ? (uint32_t)atoi(e) : 3072;
+   cap = (e = mgs2_getenv("MGS2_ME_PIC_RNG")) && atoi(e) >= 1024 ? atoi(e) : 16384;
++  /* step 4d-3, mode 4 (your PSP's): ra and mk sized to their use (at most 541 and 16 entries in 4c's runs: 2,048 each, MGS2_ME_PIC_RNGS),
++     the extents to a walk's (at most 2,353 in 4d-1's runs: 4,096, MGS2_ME_PIC_EXT), rb and tmp as before (at most 10,513 used: 16,384,
++     MGS2_ME_PIC_RNG); rb, tmp and the extents in a block of the system's memory outside newlib's heap (MGS2_ME_PIC_SYS=0: newlib's heap).
++     An array that fills is exact: xm_plan's fail, the record walked from RAM (an image mark left out: its bytes copied) */
++  caps = mp_want == 4 ? 2048 : 0; xcap = mp_want == 4 ? 4096 : cap; sys = mp_want == 4;
++  if ((e = mgs2_getenv("MGS2_ME_PIC_RNGS"))) caps = atoi(e) >= 64 ? atoi(e) : 0;
++  if (caps >= cap) caps = 0;
++  if ((e = mgs2_getenv("MGS2_ME_PIC_EXT")) && atoi(e) >= 256) xcap = atoi(e);
++  if ((e = mgs2_getenv("MGS2_ME_PIC_SYS"))) sys = atoi(e) != 0;
+   memset(&xmc, 0, sizeof xmc);
+-  xmc.mem = M.mem; xmc.spr = M.spr; xmc.mem_size = XL_GSZ; xmc.cap = cap; xmc.ext_cap = cap; xmc.arena_n = kb << 10;
+-  xmc.ra = malloc((size_t)cap * sizeof(XcR)); xmc.rb = malloc((size_t)cap * sizeof(XcR)); xmc.mk = malloc((size_t)cap * sizeof(XcR));
+-  xmc.tmp = malloc((size_t)cap * sizeof(XcR)); xmc.ext = malloc((size_t)cap * sizeof(XvExt)); xmc.arena = memalign(64, xmc.arena_n);
++  xmc.mem = M.mem; xmc.spr = M.spr; xmc.mem_size = XL_GSZ; xmc.cap = cap; xmc.cap_s = caps; xmc.ext_cap = xcap; xmc.arena_n = kb << 10;
++  if (sys) {
++    uint32_t nb = ((uint32_t)cap * 2u * (uint32_t)sizeof(XcR) + (uint32_t)xcap * (uint32_t)sizeof(XvExt) + 63u) & ~63u;
++    mp_sys_free[0] = (uint32_t)sceKernelMaxFreeMemSize(); mp_sys_free[1] = (uint32_t)sceKernelTotalFreeMemSize();
++    mp_sys = sceKernelAllocPartitionMemory(2, "me_pic_plan", PSP_SMEM_Low, nb, 0);
++    mp_sys_free[2] = (uint32_t)sceKernelMaxFreeMemSize(); mp_sys_free[3] = (uint32_t)sceKernelTotalFreeMemSize();
++    if (mp_sys >= 0) {
++      uint8_t *bl = (uint8_t *)sceKernelGetBlockHeadAddr(mp_sys); mp_sys_n = nb;
++      xmc.rb = (XcR *)bl; xmc.tmp = (XcR *)(bl + (size_t)cap * sizeof(XcR)); xmc.ext = (XvExt *)(bl + (size_t)cap * 2 * sizeof(XcR)); }
++    else fprintf(stderr, "me picture split (step 4d-3): no block of %u KB of the system's memory for the plan's arrays (%08x): in newlib's "
++                 "heap\n", (unsigned)(nb >> 10), (unsigned)mp_sys); }
++  xmc.ra = malloc((size_t)XC_CAPS(&xmc) * sizeof(XcR)); xmc.mk = malloc((size_t)XC_CAPS(&xmc) * sizeof(XcR));
++  if (mp_sys < 0) { xmc.rb = malloc((size_t)cap * sizeof(XcR)); xmc.tmp = malloc((size_t)cap * sizeof(XcR)); xmc.ext = malloc((size_t)xcap * sizeof(XvExt)); }
++  vk = mp_want == 4 ? ((e = mgs2_getenv("MGS2_ME_PIC_VIEW_KB")) ? (uint32_t)atoi(e) : 128) : 0;   /* step 4d-2: the view's buffers (below) */
++#ifdef MGS2_ME_REAL
++  if (mp_want == 4) {   /* step 4d-4: the loop on the ME (MGS2_ME_PIC_ME, default 1; never on the emulator), its arena and the view's
++                           buffers in its eDRAM when they fit (MGS2_ME_PIC_EDRAM, default 1) */
++    mq_me_try = !((e = mgs2_getenv("MGS2_ME_PIC_ME")) && !atoi(e)) && !mq_emu();
++    mq_edram = mq_me_try && !((e = mgs2_getenv("MGS2_ME_PIC_EDRAM")) && !atoi(e)) && kb + 4u * vk <= MQ_EDRAM_KB; }
++  xmc.arena = mq_edram ? (uint8_t *)(uintptr_t)MQ_EDRAM : memalign(64, xmc.arena_n);
++#else
++  xmc.arena = memalign(64, xmc.arena_n);
++#endif
+   if (!xmc.ra || !xmc.rb || !xmc.mk || !xmc.tmp || !xmc.ext || !xmc.arena) {
+     fprintf(stderr, "me picture split: no memory for the arena (%u KB) and its arrays (%d entries): off, today's walk\n", (unsigned)kb, cap);
+-    free(xmc.ra); free(xmc.rb); free(xmc.mk); free(xmc.tmp); free(xmc.ext); free(xmc.arena); mp_want = 0; return; }
++    free(xmc.ra); free(xmc.mk); if (!MQ_ED()) free(xmc.arena);
++    if (mp_sys >= 0) { sceKernelFreePartitionMemory(mp_sys); mp_sys = -1; } else { free(xmc.rb); free(xmc.tmp); free(xmc.ext); }
++#ifdef MGS2_ME_REAL
++    mq_me_try = mq_edram = 0;
++#endif
++    mp_want = 0; return; }
+   memset(&xmp, 0, sizeof xmp);
+   xmp.m = &M; xmp.map = map; xmp.tk = tk; xmp.glf = &glf; xmp.gxl = &gxl; xmp.gxh = &gxh; xmp.follow = XM_F_ALL; xmp.lanes = 15; xmp.lw_on = 1;
+   xm_init(&xmp);
+   memset(&mp_view, 0, sizeof mp_view); mp_view.arena = xmc.arena; mp_view.mem = M.mem; mp_view.spr = M.spr; mp_view.mem_size = XL_GSZ;
++  if (mp_want == 4) {   /* task #180 step 4d-2: the view's four fixed buffers for the map's reads partly in a copy (the eDRAM after the
++                           arena with the loop on the ME, step 4d-4; else main RAM), MGS2_ME_PIC_VIEW_KB each (default 128: the longest
++                           such read in 4c's runs, 131,072 bytes; 0: none) */
++    int i = 0;
++    if (vk && MQ_ED()) {
++      for (i = 0; i < 4; i++) mp_view.fix[i] = (uint8_t *)(uintptr_t)(0x80000000u + ((kb + (uint32_t)i * vk) << 10));
++      mp_view.fix_n = vk << 10; }
++    else if (vk) {
++      while (i < 4 && (mp_view.fix[i] = memalign(64, (size_t)vk << 10))) i++;
++      if (i < 4) { while (i--) { free(mp_view.fix[i]); mp_view.fix[i] = 0; }
++        fprintf(stderr, "me picture split: no memory for the view's fixed buffers (4 x %u KB): the picture heap's\n", (unsigned)vk); }
++      else mp_view.fix_n = vk << 10; } }
+   mp_on = 1; mp_mode = 1;
+   if (mp_want >= 2) {   /* step 4b-2 (and 4c: the check and its diagnostics only in 4b-2) */
+     if ((e = mgs2_getenv("MGS2_ME_PIC_DL"))) mp_dl = atol(e);
+@@ -616,7 +696,21 @@
+   fprintf(stderr, "me picture split (task #180, step 4b-1): on: each transfer queued with its copy (arena %u KB at %08x, %d entries a work "
+           "array), walked at the next vblank hook through its view, the lanes in that walk (MGS2_ME_PIC, MGS2_ME_PIC_KB, MGS2_ME_PIC_RNG)\n",
+           (unsigned)kb, (unsigned)(uintptr_t)xmc.arena, cap);
+-  if (mp_want == 3) { void mq_setup(void); mq_setup(); }   /* step 4c */
++  if (caps || xcap != cap || mp_sys >= 0)
++    fprintf(stderr, "me picture split (step 4d-3): the plan's arrays: ra and mk %d entries each, rb and tmp %d each, the extents %d "
++            "(MGS2_ME_PIC_RNGS, MGS2_ME_PIC_RNG, MGS2_ME_PIC_EXT): %u KB in all; rb, tmp and the extents %s%08x (%u KB; MGS2_ME_PIC_SYS); the "
++            "system's memory outside newlib's heap before it: largest block %u KB, total %u KB; after: %u KB, %u KB\n", XC_CAPS(&xmc), cap, xcap,
++            (unsigned)((((size_t)XC_CAPS(&xmc) + (size_t)cap) * 2 * sizeof(XcR) + (size_t)xcap * sizeof(XvExt)) >> 10),
++            mp_sys >= 0 ? "in a block of the system's memory at " : "in newlib's heap at ", (unsigned)(uintptr_t)xmc.rb,
++            (unsigned)((mp_sys >= 0 ? mp_sys_n : (uint32_t)(((size_t)cap * 2 * sizeof(XcR) + (size_t)xcap * sizeof(XvExt)))) >> 10),
++            (unsigned)(mp_sys_free[0] >> 10), (unsigned)(mp_sys_free[1] >> 10), (unsigned)(mp_sys_free[2] >> 10), (unsigned)(mp_sys_free[3] >> 10));
++#ifdef MGS2_ME_REAL
++  if (mp_want == 4)
++    fprintf(stderr, "me picture split (step 4d-4): the loop on the ME %s; the arena (%u KB) and the view's 4 buffers (%u KB each) %s\n",
++            mq_me_try ? "asked for (MGS2_ME_PIC_ME)" : mq_emu() ? "not asked for: the emulator has no ME" : "not asked for (MGS2_ME_PIC_ME=0)",
++            (unsigned)kb, (unsigned)vk, mq_edram ? "in its eDRAM at 80000000 (MGS2_ME_PIC_EDRAM; the main CPU cannot reach them)" : "in main RAM");
++#endif
++  if (mp_want >= 3) { void mq_setup(void); mq_setup(); }   /* step 4c (4d: mode 4) */
+ }
+ /* step 4b-2: the filter's bits of lines l0 .. l1 set (v) or cleared */
+ static void mp_bm_range(uint32_t l0, uint32_t l1, int v)
+@@ -794,7 +888,7 @@
+   a0 = (a0 + 15) & ~15u; a1 &= ~15u;
+   if (a1 <= a0) { mp_img_small++; return; }
+   if (xmc.nmk && xmc.mk[xmc.nmk - 1].k1 == a0) { xmc.mk[xmc.nmk - 1].k1 = a1; return; }
+-  if (xmc.nmk == xmc.cap) { if (!xmc.mk_full) mp_img_full++; xmc.mk_full = 1; return; }
++  if (xmc.nmk == XC_CAPS(&xmc)) { if (!xmc.mk_full) mp_img_full++; xmc.mk_full = 1; return; }   /* (step 4d-3: mk's room) */
+   xmc.mk[xmc.nmk].k0 = a0; xmc.mk[xmc.nmk].k1 = a1; xmc.nmk++;
+ }
+ /* runtime/ee_io.h io_dma_start, after the exact walk of the queued record's transfer: its copy */
+@@ -851,14 +945,92 @@
+ static uint32_t mq_cons, mq_subm; static uint64_t mq_ge_t0;   /* results taken from the ME, lists given to the GE; the last one's time */
+ static long mq_tbk_n, mq_tbk_cold, mq_tbk_warm, mq_tbk_vb = -1, mq_tbk_rec, mq_tbk_left; static uint32_t mq_tbk_at; static int mq_tbk_why = -1, mq_tbk_hung; static uint32_t mq_tbk_us = 1000000;
+ static long mq_posted, mq_signals, mq_selfrun, mq_turns, mq_dropped;
+-enum { MW_NOW, MW_FILL, MW_ARENA, MW_RAM, MW_RING, MW_THIN, MW_DRAIN, MW_PROBE, MW_N };
++enum { MW_NOW, MW_FILL, MW_ARENA, MW_RAM, MW_RING, MW_THIN, MW_DRAIN, MW_PROBE, MW_SYNC, MW_N };
+ static const char *const mq_wname[MW_N] = { "a copy as the transfer ended", "a fill", "the arena (a walk)", "a walk from RAM", "room in the queue",
+-                                            "the thinning's slot", "the queue emptied (turns, shots, the end)",
+-                                            "a heartbeat (a hook: entries waiting, none since the hook before)" };
++                                            "the thinning's slot", "the queue emptied (turns, shots, the hang test, the end)",
++                                            "a heartbeat (a hook: entries waiting, none since the hook before)", "a hand-over to the main CPU (SYNC)" };
++/* ---- step 4d (me_step4_notes.md 4d), MGS2_ME_PIC=4: the real ME's way; on the emulator (no ME) the loop is 4c's thread.  The main CPU
++   cannot reach the ME's memory (the eDRAM: the arena, in 4d-4), so in its own turns and after a take-back it makes the picture with no
++   copy: each transfer walked from RAM as it ends (no plan, no image marks, no guards: nothing writes the game's RAM between xlive_chk_dma
++   and xlive_chk_end).  The turns change after a hook's FILL, WALK and HOOK (no record waits then): to the main CPU through SYNC (the ME
++   writes back and drops its whole data cache, then the main CPU drops its own), back to the ME with no entry (the main CPU writes back
++   its cache before every post).  The ME's cache steps go through mq->cache (here a counting stand-in; the ME's own in 4d-4).  A take-back
++   is warm only at the hang test's stop (between entries, the ME's cache written back, no record, fill or walk waiting: the main CPU runs
++   the entries left and makes the picture itself from then on); any other is cold, and in mode 4 cold stops the picture for the rest of
++   the run (on the PSP the ME's unwritten cache lines are lost with it, so what it was writing may be torn), the GE stop's way: the text
++   on the screen, the run goes on for the hashes.  MGS2_ME_PIC_HANG=vb: the main CPU empties the queue right after the HOOK of that
++   vblank (the ME's stop found before any record is posted after it); MGS2_ME_PIC_HANG_IN=1: the loop stops inside the next walk instead
++   (the cold path's test). ---- */
++static int mq_m4, mq_dead; static long mq_dead_vb = -1;
++/* step 4d-4 (me_step4_notes.md 4d): the loop on the PSP's Media Engine (-DMGS2_ME_REAL, MGS2_ME_PIC_ME=1, the default; never on the
++   emulator, where hle_me_start refuses).  The ME runs psp/xme_me.c's entry with a 16 KB region of main RAM as its stack (mecheck's
++   deepest chain 5,120 bytes) and a 128-byte control block both cores reach uncached; the arena and the view's four buffers go in its
++   eDRAM (0x80000000, which the main CPU cannot reach) when they fit its 4 MB (MGS2_ME_PIC_EDRAM=1, the default).  If the ME does not
++   start with the arena there, the main CPU makes the picture itself for the whole run (each transfer walked from RAM as it ends); with
++   the arena in main RAM, 4c's thread runs the loop.  A take-back holds the ME in reset first (hle_me_park: its unwritten cache lines
++   are lost), so it is cold unless the ME stopped at the hang test with its cache written back; an exception of the ME's (its handler
++   records Cause, EPC and BadVAddr and halts) is a take-back at once, found at each round of the main CPU's waits. */
++static int mq_me;                      /* 1 the loop on the ME, -1 the ME held after a take-back or the run's end, 0 not started */
++static void mq_noed(void)              /* the split off with the arena in the eDRAM: nothing points there any more */
++{
++#ifdef MGS2_ME_REAL
++  if (mq_edram) { xmc.arena = 0; for (int i = 0; i < 4; i++) mp_view.fix[i] = 0; mp_view.fix_n = 0; mp_view.arena = 0; }
++  mq_me_try = mq_edram = 0;
++#endif
++}
++#define MQ_LOOP() (mq_th >= 0 || mq_me > 0)   /* the loop runs apart from the main CPU (4c's thread or the ME) */
++#ifdef MGS2_ME_REAL
++#define MQ_EXC() mq_me_tbk_exc
++#else
++#define MQ_EXC() 0
++#endif
++#ifdef MGS2_ME_REAL
++#define MQ_ME_REG (16u << 10)
++static int mq_me_ack = -1, mq_me_exc, mq_me_tbk_exc;   /* hle_me_stop's answer; an exception seen; a take-back for it */
++static XmeMeCtl *mq_mc; static volatile XmeMeCtl *mq_mcu; static uint8_t *mq_mreg;   /* the control block (cached, uncached), the region */
++static uint32_t mq_mx[3]; static long mq_mx_vb = -1;   /* the ME's exception: Cause, EPC, BadVAddr; the vblank it was seen */
++static char mq_me_why[200];
++static int mq_me_x(void)   /* the ME's exception record (hle_me_exception), once: 1 when it took one */
++{
++  uint32_t c, e, b;
++  if (mq_me <= 0 || mq_me_exc) return mq_me_exc;
++  if (hle_me_exception(&c, &e, &b)) { mq_me_exc = 1; mq_mx[0] = c; mq_mx[1] = e; mq_mx[2] = b; mq_mx_vb = me_vb; }
++  return mq_me_exc;
++}
++#endif
++static long mq_own, mq_syncs, mq_c_wb, mq_c_wbinv;   /* records walked from RAM by the main CPU itself; hand-overs; its cache steps */
++static int mq_ext_max = -1; static long mq_ext_max_vb = -1; static uint32_t mq_arena_max; static long mq_arena_max_vb = -1;   /* a walk's extents
++                                                                                       and arena bytes at most (4d-3 sizes them) */
++static volatile long mq_mc_all, mq_mc_inv; static volatile uint64_t mq_mc_inv_b;   /* the stand-in's counts of the ME's cache steps */
++static void mq_cache_thr(XmeCtx *x, int op, const void *p, uint32_t n)   /* the thread's stand-in for the ME's cache steps (one memory here) */
++{
++  (void)x; (void)p;
++  if (op == XME_C_ALL) mq_mc_all++; else { mq_mc_inv++; mq_mc_inv_b += n; }
++}
++static void mq_cpu_wb(void) { mq_c_wb++; sceKernelDcacheWritebackAll(); }                /* what the ME reads, in RAM before it reads it */
++static void mq_cpu_wbinv(void) { mq_c_wbinv++; sceKernelDcacheWritebackInvalidateAll(); }   /* before the main CPU reads what the ME wrote */
++/* step 4d-2: the ME's heap request (ge/xme.c xme_rq), served at the main CPU's waits, transfers and hooks (mq_service) by the host's
++   own hooks; a region given or moved is written back and dropped from the main CPU's cache before the ME has it (no old line of the
++   main CPU's can land on what the ME writes there) */
++static long mq_rq_n[4], mq_rq_fail;
++static void mq_heap_serve(void)
++{
++  uint32_t s = XS(mq)->rq_seq; int op; void *r = 0; size_t got = 0;
++  if (s == XS(mq)->rq_done) return;
++  XME_BARRIER(); op = XS(mq)->rq_op;
++  if (op == XME_RQ_MORE) { r = me_more(XS(mq)->rq_n, &got); if (r) sceKernelDcacheWritebackInvalidateRange(r, got); }
++  else if (op == XME_RQ_LESS) me_less(XS(mq)->rq_p);
++  else if (op == XME_RQ_RESIZE) { r = me_resize(XS(mq)->rq_p, XS(mq)->rq_n); if (r) sceKernelDcacheWritebackInvalidateRange(r, (XS(mq)->rq_n + 63) & ~63u); }
++  if (op != XME_RQ_LESS && !r) mq_rq_fail++;
++  mq_rq_n[op >= 1 && op <= 3 ? op : 0]++;
++  XS(mq)->rq_r = r; XS(mq)->rq_got = (uint32_t)got;
++  XME_BARRIER(); XS(mq)->rq_done = s;
++}
++static void mq_heap_own(void) { me_heap_grow(me_more, me_less); me_heap_resize(me_rs_on ? me_resize : 0); }   /* the main CPU's hooks */
+ static long mq_wn[MW_N]; static uint64_t mq_wus[MW_N];
+ static void mq_takeback(int why);
+ static uint64_t mq_now(void) { return (uint64_t)sceKernelGetSystemTimeWide(); }
+-static int mq_done(uint32_t seq) { return (int32_t)(mq->tail - seq) > 0; }
++static int mq_done(uint32_t seq) { return (int32_t)(XS(mq)->tail - seq) > 0; }
+ /* the main CPU waits until the loop has done the entry at seq, serving the GE meanwhile; a heartbeat that does not move for
+    MGS2_ME_PIC_TBK_MS: the take-back */
+ static long mq_w_rounds, mq_w_r0, mq_dly_bad; static int mq_dly_e; static uint64_t mq_w_t0, mq_w_hb_t; static uint32_t mq_w_words0;   /* a take-back's facts */
+@@ -868,15 +1040,18 @@
+   uint64_t t0, t1, t; uint32_t hb;
+   if (mq_self || mq_done(seq)) return;
+   HOST_ENTER(HOST_GW);
+-  uint32_t at = mq->at;
+-  t0 = t1 = mq_now(); hb = mq->heart; mq_wn[why]++;
++  uint32_t at = XS(mq)->at;
++  t0 = t1 = mq_now(); hb = XS(mq)->heart; mq_wn[why]++;
+   mq_w_t0 = t0; mq_w_r0 = mq_w_rounds; mq_w_words0 = (uint32_t)xl_stats()->words;
+   while (!mq_self && !mq_done(seq)) {
+     mq_service();
+     t = mq_now();
+-    if (mq->heart != hb) { hb = mq->heart; if (t - t1 > mq_gap_max) { mq_gap_max = t - t1; mq_gap_vb = me_vb; mq_gap_at = at; } t1 = t; }
++#ifdef MGS2_ME_REAL
++    if (mq_me > 0 && mq_me_x()) { mq_w_hb_t = t1; mq_me_tbk_exc = 1; mq_takeback(why); break; }   /* step 4d-4: an exception of the ME's */
++#endif
++    if (XS(mq)->heart != hb) { hb = XS(mq)->heart; if (t - t1 > mq_gap_max) { mq_gap_max = t - t1; mq_gap_vb = me_vb; mq_gap_at = at; } t1 = t; }
+     else if (t - t1 >= mq_tbk_us) { mq_w_hb_t = t1; mq_takeback(why); break; }
+-    at = mq->at;
++    at = XS(mq)->at;
+     { int dr = sceKernelDelayThread(50); if (dr < 0 && !mq_dly_bad++) mq_dly_e = dr; }
+     mq_w_rounds++;
+   }
+@@ -890,38 +1065,50 @@
+ static uint32_t mq_hk_hb;
+ static void mq_probe(void)
+ {
+-  uint64_t t0, t; uint32_t hb = mq->heart;
+-  if (mq_self || mq->tail == mq->head || hb != mq_hk_hb) { mq_hk_hb = hb; return; }
++  uint64_t t0, t; uint32_t hb = XS(mq)->heart;
++#ifdef MGS2_ME_REAL
++  if (!mq_self && mq_me > 0 && mq_me_x()) { mq_w_t0 = mq_w_hb_t = mq_now(); mq_w_r0 = mq_w_rounds; mq_w_words0 = (uint32_t)xl_stats()->words;
++    mq_me_tbk_exc = 1; mq_takeback(MW_PROBE); mq_hk_hb = 0; return; }   /* step 4d-4: an exception of the ME's, found at a hook */
++#endif
++  if (mq_self || XS(mq)->tail == XS(mq)->head || hb != mq_hk_hb) { mq_hk_hb = hb; return; }
+   HOST_ENTER(HOST_GW);
+   t0 = mq_now(); mq_wn[MW_PROBE]++;
+   mq_w_t0 = t0; mq_w_r0 = mq_w_rounds; mq_w_words0 = (uint32_t)xl_stats()->words;
+-  while (!mq_self && mq->heart == hb && mq->tail != mq->head) {
++  while (!mq_self && XS(mq)->heart == hb && XS(mq)->tail != XS(mq)->head) {
+     mq_service();
+     t = mq_now();
++#ifdef MGS2_ME_REAL
++    if (mq_me > 0 && mq_me_x()) { mq_w_hb_t = t0; mq_me_tbk_exc = 1; mq_takeback(MW_PROBE); break; }   /* step 4d-4 */
++#endif
+     if (t - t0 >= mq_tbk_us) { mq_w_hb_t = t0; mq_takeback(MW_PROBE); break; }
+     { int dr = sceKernelDelayThread(50); if (dr < 0 && !mq_dly_bad++) mq_dly_e = dr; }
+     mq_w_rounds++;
+   }
+   mq_wus[MW_PROBE] += mq_now() - t0;
+   HOST_LEAVE(HOST_GW);
+-  mq_hk_hb = mq ? mq->heart : 0;
++  mq_hk_hb = mq ? XS(mq)->heart : 0;
+ }
+ static void mq_wait_self(XmeCtx *x, int why);
+ /* an entry to the loop: into the queue (its place returned), or, when the main CPU runs the loop itself, run now */
+ static uint32_t mq_post(const XmeE *e)
+ {
+-  if (!mq_self && mq->head - mq->tail >= XME_N) {
+-    long tb = mq_tbk_cold; mq_wait(mq->head - XME_N, MW_RING);
+-    if (mq_tbk_cold != tb && (e->kind == XE_REC || e->kind == XE_FILL || e->kind == XE_WALK)) { mq_dropped++; return mq->head - 1; } }
+-  if (mq_self) { xme_entry(mq, e, mq_wait_self); mq_selfrun++; return mq->head - 1; }
+-  mq->e[mq->head & (XME_N - 1)] = *e;
+-  XME_BARRIER(); mq->head++; mq_posted++;
+-  if (mq->idle) { sceKernelSignalSema(mq_sem, 1); mq_signals++; }
+-  return mq->head - 1;
++  if (mq_dead) { mq_dropped++; return XS(mq)->head - 1; }   /* step 4d: the picture stopped */
++  if (!mq_self && XS(mq)->head - XS(mq)->tail >= XME_N) {
++    long tb = mq_tbk_cold; mq_wait(XS(mq)->head - XME_N, MW_RING);
++    if (mq_dead) { mq_dropped++; return XS(mq)->head - 1; }
++    if (mq_tbk_cold != tb && (e->kind == XE_REC || e->kind == XE_FILL || e->kind == XE_WALK)) { mq_dropped++; return XS(mq)->head - 1; } }
++  if (mq_self) { xme_entry(mq, e, mq_wait_self); mq_selfrun++; return XS(mq)->head - 1; }
++  mq->e[XS(mq)->head & (XME_N - 1)] = *e;
++  if (mq_m4) mq_cpu_wb();   /* step 4d: the entry and the bytes it has the ME read (the records' RAM, the extents, the log) in RAM
++                               before head moves (4d-4: the entry after its write, not before) */
++  XME_BARRIER(); XS(mq)->head++; mq_posted++;
++  if (mq_th >= 0 && XS(mq)->idle) { sceKernelSignalSema(mq_sem, 1); mq_signals++; }   /* the thread's wait (4c); the real ME looks
++                                                                                         at head itself (psp/xme_me.c) */
++  return XS(mq)->head - 1;
+ }
+ static void mq_released_all(void)   /* the GE stopped (gl_ok 3): the ME no longer waits for it; no more frames */
+ {
+-  mq->ge_done = mq->listed + (1u << 30); mq_stop_due = 1;
++  XS(mq)->ge_done = XS(mq)->listed + (1u << 30); mq_stop_due = 1;
+ }
+ /* gl_list's part after gx_frame, for a result of the ME's: the counts, the "did not fit" and digest lines, the list to the GE */
+ static void mq_submit(const XmeRes *r)
+@@ -951,9 +1138,10 @@
+ static void mq_service(void)
+ {
+   if (!mq) return;
++  if (mq_m4) mq_heap_serve();   /* step 4d-2 */
+   if (gl_ge) {
+     int r = sceGeDrawSync(1);
+-    if (!r) { gl_show(); mq->ge_done = mq_subm; }
++    if (!r) { gl_show(); XS(mq)->ge_done = mq_subm; }
+     else if (mq_now() - mq_ge_t0 >= GL_GE_LIMIT) {
+       gl_stop_vb = gl_ge_vb; gl_stop_r = r; gl_ok = 3; gl_now = gl_ge = 0;
+       sceDisplaySetFrameBuf((void *)(0x44000000u + GL_TXT), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
+@@ -961,7 +1149,11 @@
+               "frames, the run goes on\n", gl_stop_vb, GL_GE_LIMIT / 1000, (unsigned)r);
+       mq_released_all(); }
+   }
+-  if (!gl_ge && gl_ok == 1 && mq_cons != mq->listed) { XME_BARRIER(); mq_submit(&mq->res[mq_cons++ % XME_NRES]); }
++  if (!gl_ge && gl_ok == 1 && mq_cons != XS(mq)->listed) {   /* step 4d-4: the result read through the uncached alias (the ME wrote it
++                                                                 back before listed moved; a result of the main CPU's own turn is
++                                                                 written back from its cache first) */
++    uint32_t k = mq_cons++ % XME_NRES;
++    XME_BARRIER(); sceKernelDcacheWritebackRange(&mq->res[k], sizeof mq->res[k]); XME_BARRIER(); mq_submit(&XR(mq)[k]); }
+ }
+ static void mq_ge_finish(void)   /* the main CPU waits for the GE's list (gl_sync, its limit), shows it and tells the ME */
+ {
+@@ -969,15 +1161,16 @@
+   if (!mq || !gl_ge) return;
+   HOST_ENTER(HOST_GW); r = gl_sync(); HOST_LEAVE(HOST_GW);
+   if (r) { mq_released_all(); return; }   /* (gl_sync's stop: gl_ok 3, the text on the screen) */
+-  gl_show(); mq->ge_done = mq_subm;
++  gl_show(); XS(mq)->ge_done = mq_subm;
+ }
+ /* the loop's waits when the main CPU runs its entries itself: the GE (why 1) waited for here */
+ static void mq_wait_self(XmeCtx *x, int why)
+ {
+   (void)x;
++  if (why == 3) { mq_heap_serve(); return; }   /* step 4d-2 (the main CPU's own turns use its own hooks: not expected) */
+   if (why != 1) return;
+   mq_service(); mq_ge_finish();
+-  if (gl_ok != 1) mq_released_all(); else mq->ge_done = mq_subm;
++  if (gl_ok != 1) mq_released_all(); else XS(mq)->ge_done = mq_subm;
+ }
+ /* the thread's waits: the queue empty (the main CPU signals when it posts and sees idle; 2 ms at most, for the heartbeat), the GE, the
+    hang test (for ever) */
+@@ -986,6 +1179,7 @@
+   (void)x;
+   if (why == 0) { SceUInt us = 2000; sceKernelWaitSema(mq_sem, 1, &us); }
+   else if (why == 1) sceKernelDelayThread(500);
++  else if (why == 3) sceKernelDelayThread(100);   /* step 4d-2: the heap's answer */
+   else for (;;) sceKernelSleepThread();
+ }
+ static int mq_thread(SceSize n, void *a)
+@@ -995,28 +1189,119 @@
+   xme_run(mq, mq_wait_thr);
+   return 0;
+ }
++/* step 4d-3: the line check at set-up (tools/dev/me18/mesec_chk.py checks the ELF the same way): the ME-safe objects' .data and .bss and
++   this file's objects the ME writes (ME_LN) in psp/me_sec.ld's .me_data and .me_bss, each section on whole 64-byte lines; the memory the
++   ME writes outside them (the queue's ctx and its parts, the arena, the frame memory, the texture pool, the picture heap's first region,
++   the view's buffers) on whole lines too.  The symbols are weak: 0 when the link had no psp/me_sec.ld */
++extern char __me_data_start[] __attribute__((weak)), __me_data_end[] __attribute__((weak));
++extern char __me_bss_start[] __attribute__((weak)), __me_bss_end[] __attribute__((weak));
++static int mq_ln_bad;
++static int ln_ok(const void *p, size_t n) { return p && !((uintptr_t)p & 63) && !(n & 63); }
++static const char *ln_yn(int ok) { if (!ok) mq_ln_bad++; return ok ? "yes" : "NO"; }
++static void mq_lines(void)
++{
++  const struct { const char *nm; const void *p; size_t n; } o[] = { { "M", &M, sizeof M }, { "glf", &glf, sizeof glf },
++    { "gxl", &gxl, sizeof gxl }, { "gxh", &gxh, sizeof gxh }, { "xmp", &xmp, sizeof xmp }, { "mp_view", &mp_view, sizeof mp_view } };
++  const char *b0 = __me_bss_start, *b1 = __me_bss_end, *d0 = __me_data_start, *d1 = __me_data_end; int k, in = 0, fx = 1;
++  mq_ln_bad = 0;
++  fprintf(stderr, "me picture lines (task #180 step 4d-3): .me_data %08x-%08x, .me_bss %08x-%08x (%u KB); on whole lines: %s, %s; this file's "
++          "objects the ME writes inside .me_bss:", (unsigned)(uintptr_t)d0, (unsigned)(uintptr_t)d1, (unsigned)(uintptr_t)b0,
++          (unsigned)(uintptr_t)b1, (unsigned)((b1 - b0) >> 10), ln_yn(d0 && d1 >= d0 && !((uintptr_t)d0 & 63) && !((uintptr_t)d1 & 63)),
++          ln_yn(b0 && b1 > b0 && !((uintptr_t)b0 & 63) && !((uintptr_t)b1 & 63)));
++  for (k = 0; k < (int)(sizeof o / sizeof o[0]); k++) {
++    int ok = b0 && (const char *)o[k].p >= b0 && (const char *)o[k].p + o[k].n <= b1; in += ok;
++    fprintf(stderr, " %s %08x %s", o[k].nm, (unsigned)(uintptr_t)o[k].p, ln_yn(ok)); }
++  for (k = 0; k < 4; k++) if (mp_view.fix[k] && !ln_ok(mp_view.fix[k], mp_view.fix_n)) fx = 0;
++  fprintf(stderr, "; on whole lines: the queue's ctx %08x (%u bytes) %s, its parts at +%u (shared words) +%u (entries) +%u (results) +%u "
++          "(thinning slot) +%u (the ME's own) %s; the arena %s, the frame memory %s, the texture pool %s, the picture heap's first region %s, "
++          "the view's %d fixed buffers %s; problems %d\n", (unsigned)(uintptr_t)mq, (unsigned)sizeof *mq, ln_yn(ln_ok(mq, sizeof *mq)),
++          (unsigned)offsetof(XmeCtx, sh), (unsigned)offsetof(XmeCtx, e), (unsigned)offsetof(XmeCtx, res), (unsigned)offsetof(XmeCtx, thin_r),
++          (unsigned)offsetof(XmeCtx, rec), ln_yn(!((offsetof(XmeCtx, sh) | offsetof(XmeCtx, e) | offsetof(XmeCtx, res) | offsetof(XmeCtx, thin_r)
++          | offsetof(XmeCtx, rec)) & 63)), ln_yn(ln_ok(xmc.arena, xmc.arena_n)), ln_yn(ln_ok(gl_vol, (gl_vol_n + 63) & ~63u)),
++          ln_yn(ln_ok(gl_pool, (size_t)gl_texkb << 10)), ln_yn(ln_ok(me_hb, me_hn)), mp_view.fix_n ? 4 : 0, ln_yn(fx), mq_ln_bad);
++  (void)in;
++}
+ void mq_setup(void)   /* mp_setup in mode 3, after 4b-2's set-up */
+ {
+   const char *e;
++  if (MQ_ED() && (mp_mode != 2 || !(mq = memalign(64, sizeof *mq)))) {   /* step 4d-4: the main CPU cannot copy into the eDRAM */
++    fprintf(stderr, "me picture loop: %s with the arena in the ME's eDRAM, which the main CPU cannot reach: the split off, today's walk\n",
++            mp_mode != 2 ? "4b-2's set-up failed" : "no memory for its queue");
++    mp_on = 0; mp_want = 0; mq_noed(); return; }
+   if (mp_mode != 2) { fprintf(stderr, "me picture loop: 4b-2's set-up failed: 4b-1 on the main CPU\n"); return; }
+-  if (!(mq = memalign(64, sizeof *mq))) { fprintf(stderr, "me picture loop: no memory for its queue (%u KB): 4b-2 on the main CPU\n",
++  if (!mq && !(mq = memalign(64, sizeof *mq))) { fprintf(stderr, "me picture loop: no memory for its queue (%u KB): 4b-2 on the main CPU\n",
+                                                   (unsigned)(sizeof *mq >> 10)); return; }
+   memset(mq, 0, sizeof *mq);
++  sceKernelDcacheWritebackInvalidateRange(mq, sizeof *mq);   /* step 4d-4: the zeros in RAM before the shared words are reached uncached
++                                                                (no dirty line of the memset's left to land on them later) */
+   mq->p = &xmp; mq->m = &M; mq->v = &mp_view; mq->log = mp_log; mq->hang_vb = -1;
+-  me_beat_p = &mq->heart;   /* the heartbeat inside long walks (me_rt.h ME_BEAT) */
++  me_beat_p = &XS(mq)->heart;   /* the heartbeat inside long walks (me_rt.h ME_BEAT; step 4d-4: its uncached alias) */
+   mq->fc.mem = M.mem; mq->fc.spr = M.spr; mq->fc.mem_size = XL_GSZ; mq->fc.ext = xmc.ext; mq->fc.ext_cap = xmc.ext_cap;
+   mq->fc.arena = xmc.arena; mq->fc.arena_n = xmc.arena_n;
+   mq_hi = (e = mgs2_getenv("MGS2_ME_PIC_PRI")) && atoi(e);
+   mq_turn = (e = mgs2_getenv("MGS2_ME_PIC_TURN")) && atoi(e) > 0 ? atoi(e) : 0;
+   if ((e = mgs2_getenv("MGS2_ME_PIC_TBK_MS")) && atoi(e) > 0) mq_tbk_us = (uint32_t)atoi(e) * 1000u;
+   if ((e = mgs2_getenv("MGS2_ME_PIC_HANG"))) mq->hang_vb = (int32_t)atol(e);
++  mq_m4 = mp_want == 4;   /* step 4d */
++  mq->hang_in = mq_m4 && (e = mgs2_getenv("MGS2_ME_PIC_HANG_IN")) && atoi(e);
+   mq_ft_on = glf.ft_on;
+   xm_install(&xmp);   /* the translator's callbacks are the loop's (ge/xlme.c xm_on_*: its frame, xmp.now), no longer on_call's */
+   mq_on = 1; mq_self = 1;   /* (the thread starts after the translator's reset: mq_start) */
++  if (mq_m4) mq_lines();   /* step 4d-3 */
++}
++#ifdef MGS2_ME_REAL
++/* step 4d-4: the loop on the ME: the control block and the region, the loop's ctx and wait for the heap's requests bound, every cache
++   line the ME will read written back (the control block reached uncached from then on), then hle_me_start (Sony's boot steps, then
++   psp/xme_me.c's entry at its kseg0 alias; it waits up to 100 ms for the ME's heartbeat and holds the ME in reset when it does not
++   come).  1: running */
++static int mq_me_start(void)
++{
++  char pg[400], sl[600]; int r, pw;
++  mq_mc = memalign(64, sizeof *mq_mc); mq_mreg = memalign(64, MQ_ME_REG);
++  if (!mq_mc || !mq_mreg) {
++    snprintf(mq_me_why, sizeof mq_me_why, "no memory for its control block and its region (%u KB)", (unsigned)(MQ_ME_REG >> 10));
++    free(mq_mc); free(mq_mreg); mq_mc = 0; mq_mreg = 0; return 0; }
++  memset(mq_mc, 0, sizeof *mq_mc);
++  xme_bind(mq, xme_me_wait);
++  sceKernelDcacheWritebackInvalidateAll();
++  mq_mcu = (volatile XmeMeCtl *)((uintptr_t)mq_mc | 0x40000000u);
++  mq_mcu->x = mq; XS(mq)->me_ctl = (uint32_t)(uintptr_t)mq_mcu;
++  pw = hle_me_power_init();
++  r = hle_me_start(xme_me_main, &mq_mcu->h, mq_mreg, MQ_ME_REG, MQ_ME_REG, mq_me_why, sizeof mq_me_why);
++  hle_me_progress(pg, sizeof pg); hle_me_sony_line(sl, sizeof sl);
++  fprintf(stderr, "me picture loop (step 4d-4): the ME's start: %s; %s; power callback %d, scePowerLock %d; control block %08x, region "
++          "%08x (%u KB)\n", pg, sl, pw, hle_me_power_lock_rc(), (unsigned)(uintptr_t)mq_mc, (unsigned)(uintptr_t)mq_mreg, (unsigned)(MQ_ME_REG >> 10));
++  if (!r) { XS(mq)->me_ctl = 0; mq_mcu = 0; free(mq_mreg); free(mq_mc); mq_mreg = 0; mq_mc = 0; return 0; }
++  return 1;
+ }
+-void mq_start(void)   /* xlive_chk_dma's start, after xl_reset: the loop's thread */
++#endif
++void mq_start(void)   /* xlive_chk_dma's start, after xl_reset: the loop's thread (step 4d-4: or the ME) */
+ {
+   int pri = mq_hi ? 0x18 : 0x30;   /* the main thread's is 0x20 (a lower number runs first) */
++#ifdef MGS2_ME_REAL
++  if (mq_me_try) {
++    if (mq_me_start()) {
++      mq_me = 1;
++      if (mq_turn) { mq_turn_k = (int)((me_vb / mq_turn) & 1); mq_self = mq_turn_k; } else mq_self = 0;
++      mq->cache = mq_self ? 0 : xme_me_cache; if (!mq_self) xme_heap_ask(me_rs_on);
++      fprintf(stderr, "me picture loop (task #180 step 4d-4): on: the loop on the PSP's Media Engine, queue of %u entries, %d results, at "
++              "%08x (%u KB); the arena and the view's buffers %s; %s; take-back after %u ms without a heartbeat while the main CPU waits, or "
++              "at once on an exception of the ME's (MGS2_ME_PIC_TBK_MS)%s\n", XME_N, XME_NRES, (unsigned)(uintptr_t)mq, (unsigned)(sizeof *mq >> 10),
++              mq_edram ? "in its eDRAM" : "in main RAM", mq_turn ? "turns: every other block of MGS2_ME_PIC_TURN vblanks the main CPU makes "
++              "the picture itself" : "no turns", (unsigned)(mq_tbk_us / 1000), mq->hang_vb >= 0 ? (mq->hang_in ? "; the hang test inside the "
++              "walk after the hook at or after MGS2_ME_PIC_HANG (MGS2_ME_PIC_HANG_IN: a cold take-back)" : "; the hang test: the loop stops at "
++              "the first frame hook at or after MGS2_ME_PIC_HANG, its cache written back (a warm take-back)") : "");
++      if (mq_turn) fprintf(stderr, "me picture loop: turns of %d vblanks, the first %s\n", mq_turn, mq_self ? "on the main CPU" : "the ME's");
++      return; }
++    fprintf(stderr, "me picture loop (step 4d-4): the ME did not start: %s\n", mq_me_why);
++    if (mq_edram) {   /* the main CPU cannot reach the arena: no copies, each transfer walked from RAM as it ends */
++      mq_self = 1; mq->cache = 0; xme_bind(mq, mq_wait_self);
++      fprintf(stderr, "me picture loop (step 4d-4): the arena is in the ME's eDRAM, which the main CPU cannot reach: the main CPU makes the "
++              "picture itself for the whole run (each transfer walked from RAM as it ends)\n");
++      return; }
++    fprintf(stderr, "me picture loop (step 4d-4): the arena is in main RAM: the loop runs as 4c's thread\n"); }
++#endif
++  xme_bind(mq, mq_wait_thr);   /* step 4d-4: the heap's requests' ctx and wait (the thread's) */
+   mq_sem = sceKernelCreateSema("me_pic", 0, 0, 1, 0);
+   mq_th = mq_sem >= 0 ? sceKernelCreateThread("me_pic", mq_thread, pri, 64 << 10, PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, 0) : -1;
+   if (mq_th < 0 || sceKernelStartThread(mq_th, 0, 0) < 0) {
+@@ -1025,6 +1310,8 @@
+     if (mq_th >= 0) sceKernelDeleteThread(mq_th);
+     mq_th = -1; return; }
+   if (mq_turn) { mq_turn_k = (int)((me_vb / mq_turn) & 1); mq_self = mq_turn_k; } else mq_self = 0;
++  if (mq_m4) { mq->cache = mq_self ? 0 : mq_cache_thr; if (!mq_self) xme_heap_ask(me_rs_on); }   /* step 4d: the ME's cache steps and
++                                                                                                   heap requests while it makes the picture */
+   fprintf(stderr, "me picture loop (task #180 step 4c): on: the ME's loop (ge/xme.c) as a thread of the main CPU, priority %#x (%s the main "
+           "thread's; MGS2_ME_PIC_PRI), queue of %u entries, %d results, at %08x (%u KB); %s; take-back after %u ms without a heartbeat while "
+           "the main CPU waits (MGS2_ME_PIC_TBK_MS)%s\n", pri, mq_hi ? "above" : "below", XME_N, XME_NRES, (unsigned)(uintptr_t)mq,
+@@ -1032,12 +1319,19 @@
+           : "no turns", (unsigned)(mq_tbk_us / 1000), mq->hang_vb >= 0 ? "; the hang test on (MGS2_ME_PIC_HANG)" : "");
+   if (mq_turn) fprintf(stderr, "me picture loop: turns of %d vblanks, the first %s\n", mq_turn, mq_self ? "on the main CPU" : "the thread's");
+   if (mq->hang_vb >= 0) fprintf(stderr, "me picture loop: the hang test: the thread's loop stops at the first frame hook at or after vb %ld\n", (long)mq->hang_vb);
++  if (mq_m4) fprintf(stderr, "me picture loop (task #180 step 4d-1): mode 4, the real ME's way on the thread: the main CPU's own turns walk "
++                     "each transfer from RAM as it ends; the turns change after a hook's walk and list (SYNC); the caches handed over (the "
++                     "main CPU's write-backs, the ME's steps counted by a stand-in); a cold take-back stops the picture%s\n",
++                     mq->hang_vb >= 0 ? (mq->hang_in ? "; the hang test inside the walk after the hook (MGS2_ME_PIC_HANG_IN: a cold "
++                     "take-back)" : "; the hang test's stop found right after the hook (a warm take-back)") : "");
+ }
+-static void mq_drain(void) { if (mq && !mq_self) mq_wait(mq->head - 1, MW_DRAIN); }
++static void mq_drain(void) { if (mq && !mq_self) mq_wait(XS(mq)->head - 1, MW_DRAIN); }
+ static void mq_arena_wait(void)   /* the walks posted last are done: the arena and its extents are the main CPU's again */
+ {
+   if (!mq_walk_due) return;
+   mq_wait(mq_walk_seq, MW_ARENA);
++  if (xmc.next > mq_ext_max) { mq_ext_max = xmc.next; mq_ext_max_vb = me_vb; }   /* step 4d: for 4d-3's sizes */
++  if (xmc.used > mq_arena_max) { mq_arena_max = xmc.used; mq_arena_max_vb = me_vb; }
+   mq_walk_due = 0; xmc.next = 0; xmc.used = 0;
+ }
+ static void mq_sum(void)   /* ge/xme.c xme_sum on the main CPU (the take-back) */
+@@ -1051,6 +1345,7 @@
+   if (!a) return "between entries";
+   if (a == XE_REC) return "a record's copy"; if (a == XE_THIN) return "the thinning"; if (a == XE_FILL) return "a fill";
+   if (a == XE_WALK) return "a walk"; if (a == XE_HOOK) return "a hook"; if (a == XE_STOP) return "the end";
++  if (a == XE_SYNC) return "a hand-over to the main CPU";
+   if (a >= XME_AT_WALK && a < XME_AT_WALK + XME_NREC) return "a walk's record";
+   if (a >= XME_AT_LAY && a < XME_AT_LAY + XME_NREC) return "a fill's laying";
+   if (a == XME_AT_RESFULL) return "a hook, waiting for room for its list"; if (a == XME_AT_GEWAIT) return "a hook, waiting for the GE";
+@@ -1059,46 +1354,110 @@
+   if (a == XME_AT_IDLE) return "idle (the queue empty)"; if (a == XME_AT_HANG) return "the hang test";
+   return "unknown";
+ }
++/* step 4d: mode 4's cold take-back: the picture stops for the rest of the run (gl_ok 4), as when the GE stops: the GE's list drawn (a
++   whole one: the ME posts a list only after its cache is written back), the harness's text on the screen, the translator and the split
++   off (state -2), the run goes on for the hashes */
++static void mq_stop_pic(int why, uint32_t left, int busy)
++{
++  mq_dead = 1; mq_dead_vb = me_vb; XS(mq)->tail = XS(mq)->head;
++  if (gl_ge && gl_ok == 1) { HOST_ENTER(HOST_GW); (void)gl_sync(); HOST_LEAVE(HOST_GW); }
++  if (gl_ok == 1) {
++    gl_ok = 4; gl_now = gl_ge = 0;
++    sceDisplaySetFrameBuf((void *)(0x44000000u + GL_TXT), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME); }
++  mq_on = 0; mp_on = 0; state = -2;
++  g_g0_on = 0; g_xl_img = g_xl_end = 0; mp_nrec = 0; mp_unfilled = 0; mp_nlog = 0; mq_walk_due = 0; mq_thin_due = 0; thin_due = 0;
++  char lead[160];
++  snprintf(lead, sizeof lead, "the heartbeat did not move for %u ms", (unsigned)(mq_tbk_us / 1000));
++#ifdef MGS2_ME_REAL
++  if (mq_me_tbk_exc) snprintf(lead, sizeof lead, "the ME took an exception (Cause %08x, EPC %08x, BadVAddr %08x)", (unsigned)mq_mx[0],
++                              (unsigned)mq_mx[1], (unsigned)mq_mx[2]);
++#endif
++  fprintf(stderr, "me picture loop: TAKE-BACK at vb %ld (cold, mode 4): %s while the main CPU waited for %s "
++          "(the loop %s, at %#x: %s; %u entries not done, %d of them records, fills or walks): the picture STOPPED for the rest of the run "
++          "(what the ME was writing may be torn: on the PSP its cache's unwritten lines are lost with it); the run goes on\n", me_vb,
++          lead, mq_wname[why], mq_tbk_hung ? "stopped by the hang test" : "not in the hang test",
++          (unsigned)mq_tbk_at, mq_at_name(mq_tbk_at), (unsigned)left, busy);
++}
++static void mq_takeback4(int why, uint32_t left)   /* step 4d: mode 4's take-back, after the ME is held (4d-4) or the thread ended */
++{
++  int busy = 0; uint32_t n = 0;
++  for (uint32_t s = XS(mq)->tail; s != XS(mq)->head; s++) { int k = mq->e[s & (XME_N - 1)].kind; if (k == XE_REC || k == XE_FILL || k == XE_WALK) busy++; }
++  mq_cpu_wbinv(); mq->cache = 0; mq_heap_own();   /* the main CPU reads what the ME wrote back (its cache dropped first, step 4d-3: the
++                                                     lines it writes next are read fresh); its own heap hooks */
++  if (mq_tbk_at != XME_AT_HANG || busy || mq->nrec || MQ_EXC()) { mq_tbk_cold++; mq_tbk_rec = mp_nrec; mq_stop_pic(why, left, busy); return; }
++  /* warm: the hang test's stop (between entries, the ME's cache written back before it, no record waiting for a copy) */
++  mq_tbk_warm++; mq_tbk_rec = 0;
++  while (XS(mq)->tail != XS(mq)->head) { uint32_t t = XS(mq)->tail; xme_entry(mq, &mq->e[t & (XME_N - 1)], mq_wait_self); XS(mq)->tail = t + 1; mq_selfrun++; n++; }
++  fprintf(stderr, "me picture loop: TAKE-BACK at vb %ld (warm, mode 4): the heartbeat did not move for %u ms while the main CPU waited for %s; "
++          "the loop had stopped at the hang test, its cache written back, no record waiting: %s, the main CPU ran the %u entries "
++          "left and makes the picture itself from now on (each transfer walked from RAM as it ends); nothing dropped\n", me_vb,
++          (unsigned)(mq_tbk_us / 1000), mq_wname[why], mq_me ? "the ME held in reset" : "the thread ended", (unsigned)n);
++}
+ static void mq_takeback(int why)
+ {
+-  uint32_t left = mq->head - mq->tail;
+-  mq_tbk_hung = (int)mq->hung;
++  uint32_t left = XS(mq)->head - XS(mq)->tail;
++  mq_tbk_hung = (int)XS(mq)->hung;
++#ifdef MGS2_ME_REAL
++  if (mq_me > 0) {   /* step 4d-4: the ME held in reset first (the lines its cache had not written back are lost with it), then the facts */
++    uint32_t at, ca, ep, bv; uint64_t t = mq_now(); int ex;
++    hle_me_park(); mq_me = -1;
++    at = XS(mq)->at;
++    ex = hle_me_exception(&ca, &ep, &bv);
++    if (ex && !mq_me_exc) { mq_me_exc = 1; mq_mx[0] = ca; mq_mx[1] = ep; mq_mx[2] = bv; mq_mx_vb = me_vb; }
++    mq_cpu_wbinv();   /* (what the ME wrote back, read fresh) */
++    fprintf(stderr, "me picture loop: the take-back's facts (the ME, held in reset): its control block: state %u, heartbeat %u, Count at its "
++            "last wait %08x, boots %u, exit request %u; the loop at %#x (%s), heartbeat %u, idle %u, %d records held (as last written back); "
++            "this wait %ld rounds in %llu us (the heartbeat last moved %llu us before), %ld delays failed in all (the first %08x); the "
++            "translator's words %+ld in this wait; the ME's exception: ", (unsigned)mq_mcu->h.state, (unsigned)mq_mcu->h.heartbeat,
++            (unsigned)mq_mcu->h.count, (unsigned)mq_mcu->h.boots, (unsigned)mq_mcu->h.exit_req, (unsigned)at, mq_at_name(at),
++            (unsigned)XS(mq)->heart, (unsigned)XS(mq)->idle, mq->nrec, mq_w_rounds - mq_w_r0, (unsigned long long)(t - mq_w_t0),
++            (unsigned long long)(t - mq_w_hb_t), mq_dly_bad, (unsigned)mq_dly_e, (long)(int32_t)((uint32_t)xl_stats()->words - mq_w_words0));
++    if (mq_me_exc) fprintf(stderr, "Cause %08x (code %u), EPC %08x, BadVAddr %08x (seen at vb %ld)", (unsigned)mq_mx[0],
++                           (unsigned)((mq_mx[0] >> 2) & 31), (unsigned)mq_mx[1], (unsigned)mq_mx[2], mq_mx_vb);
++    else fprintf(stderr, "none");
++    fprintf(stderr, "; the entries not done (kinds):");
++    for (uint32_t q = XS(mq)->tail; q != XS(mq)->head; q++) fprintf(stderr, " %d", mq->e[q & (XME_N - 1)].kind);
++    fputc('\n', stderr);
++    mq_tbk_at = at; mq_self = 1; mq_tbk_n++; mq_tbk_vb = me_vb; mq_tbk_why = why; mq_tbk_left = (long)left;
++    mq_takeback4(why, left); return; }
++#endif
+   {   /* the facts, before the thread ends: its state, where the loop is, the main CPU's waiting */
+-    SceKernelThreadInfo ti; int rr; uint32_t at = mq->at; uint64_t t = mq_now();
++    SceKernelThreadInfo ti; int rr; uint32_t at = XS(mq)->at; uint64_t t = mq_now();
+     memset(&ti, 0, sizeof ti); ti.size = sizeof ti; rr = sceKernelReferThreadStatus(mq_th, &ti);
+     fprintf(stderr, "me picture loop: the take-back's facts: the thread (refer %08x) status %#x, wait type %d (id %08x), priority %#x, the main "
+             "thread's %#x; the loop at %#x (%s), heartbeat %u, idle %u, %d records held; this wait %ld rounds in %llu us (the heartbeat last moved "
+             "%llu us before), %ld delays failed in all (the first %08x); the translator's words %+ld in this wait; the entries not done (kinds):",
+             (unsigned)rr, (unsigned)ti.status, ti.waitType, (unsigned)ti.waitId, (unsigned)ti.currentPriority,
+-            (unsigned)sceKernelGetThreadCurrentPriority(), (unsigned)at, mq_at_name(at), (unsigned)mq->heart, (unsigned)mq->idle, mq->nrec,
++            (unsigned)sceKernelGetThreadCurrentPriority(), (unsigned)at, mq_at_name(at), (unsigned)XS(mq)->heart, (unsigned)XS(mq)->idle, mq->nrec,
+             mq_w_rounds - mq_w_r0, (unsigned long long)(t - mq_w_t0), (unsigned long long)(t - mq_w_hb_t), mq_dly_bad, (unsigned)mq_dly_e,
+             (long)(int32_t)((uint32_t)xl_stats()->words - mq_w_words0));
+-    for (uint32_t s = mq->tail; s != mq->head; s++) fprintf(stderr, " %d", mq->e[s & (XME_N - 1)].kind);
++    for (uint32_t s = XS(mq)->tail; s != XS(mq)->head; s++) fprintf(stderr, " %d", mq->e[s & (XME_N - 1)].kind);
+     if (at >= XME_AT_WALK && at < XME_AT_WALK + XME_NREC) {
+       const XmeRec *r = &mq->rec[at - XME_AT_WALK];
+       fprintf(stderr, "; the record walked: channel %d, chcr %08x madr %08x qwc %u tadr %08x, %d extents, restart %d, now %d", r->ch,
+               (unsigned)r->chcr, (unsigned)r->madr, (unsigned)r->qwc, (unsigned)r->tadr, r->nx, r->restart, r->now); }
+     fputc('\n', stderr);
+   }
+-  mq_tbk_at = mq->at;   /* (the thread does not run while the main CPU does, here: the word holds) */
++  mq_tbk_at = XS(mq)->at;   /* (the thread does not run while the main CPU does, here: the word holds) */
+   sceKernelTerminateDeleteThread(mq_th); mq_th = -1;
+   mq_self = 1; mq_tbk_n++; mq_tbk_vb = me_vb; mq_tbk_why = why; mq_tbk_left = (long)left;
++  if (mq_m4) { mq_takeback4(why, left); return; }   /* step 4d */
+   if (mq_tbk_at == 0 || mq_tbk_at == XME_AT_IDLE || mq_tbk_at == XME_AT_HANG) {
+     /* warm: the loop stopped between entries (its tail moves before its place word goes to 0, ge/xme.c), so everything it did is whole:
+        the main CPU runs the entries left, in order, and goes on with the picture as it is (nothing dropped) */
+     uint32_t n = 0;
+     mq_tbk_warm++; mq_tbk_rec = 0;
+-    while (mq->tail != mq->head) { uint32_t t = mq->tail; xme_entry(mq, &mq->e[t & (XME_N - 1)], mq_wait_self); mq->tail = t + 1; mq_selfrun++; n++; }
++    while (XS(mq)->tail != XS(mq)->head) { uint32_t t = XS(mq)->tail; xme_entry(mq, &mq->e[t & (XME_N - 1)], mq_wait_self); XS(mq)->tail = t + 1; mq_selfrun++; n++; }
+     fprintf(stderr, "me picture loop: TAKE-BACK at vb %ld (warm): the heartbeat did not move for %u ms while the main CPU waited for %s; the "
+             "loop had stopped between entries (%s): the thread ended, the main CPU ran the %u entries left and runs the loop's entries itself "
+             "from now on; nothing dropped\n", me_vb, (unsigned)(mq_tbk_us / 1000), mq_wname[why], mq_at_name(mq_tbk_at), (unsigned)n);
+     return;
+   }
+   mq_tbk_cold++; mq_tbk_rec = mp_nrec;
+-  mq->tail = mq->head;
++  XS(mq)->tail = XS(mq)->head;
+   if (gl_ge) mq_ge_finish();                       /* the GE's list drawn and shown; the ME's lists not taken dropped */
+-  mq_cons = mq->listed;
+-  if (gl_ok == 1) mq->ge_done = mq->listed; else mq_released_all();
++  mq_cons = XS(mq)->listed;
++  if (gl_ok == 1) XS(mq)->ge_done = XS(mq)->listed; else mq_released_all();
+   /* the picture cold, as at a start again (xlive_chk_dma), with a new texture cache (the ME may have stopped inside it) */
+   mq_sum(); gu_zero_empty(map, 0); xl_reset(); mq->l_words = mq->l_calls = mq->l_ad = 0;
+   tk_free(tk);
+@@ -1111,8 +1470,9 @@
+   mp_nrec = 0; mp_nlog = 0; mp_unfilled = 0; if (!++mp_hgen) { memset(mp_h, 0, (size_t)mp_hn * sizeof *mp_h); mp_hgen = 1; }
+   xmc.next = 0; xmc.used = 0; mq_walk_due = 0; mq_thin_due = 0; g_g0_on = 0;
+   fprintf(stderr, "me picture loop: TAKE-BACK at vb %ld (cold): the heartbeat did not move for %u ms while the main CPU waited for %s (the loop %s; %u "
+-          "entries not done, %ld records dropped; the loop in an entry: %s): the thread ended, the picture made cold (the textures the game "
+-          "uploaded before are not known again until it uploads them again), the main CPU runs the loop's entries itself from now on\n", me_vb,
++          "entries not done, %ld records dropped; the loop in an entry: %s): the thread ended, the picture made cold (the frame and the "
++          "dropped records' uploads into the GS memory are missing until the game uploads them again; the GS memory picture and the texture "
++          "map stay, the texture cache starts empty), the main CPU runs the loop's entries itself from now on\n", me_vb,
+           (unsigned)(mq_tbk_us / 1000), mq_wname[why], mq_tbk_hung ? "stopped by the hang test" : "not in the hang test", (unsigned)left,
+           mq_tbk_rec, mq_at_name(mq_tbk_at));
+ }
+@@ -1158,6 +1518,9 @@
+ static void mq_chk_end(void)   /* xlive_chk_end in mode 3 */
+ {
+   MpRec *e; int r, x0 = 0, nx = 0; long tb = mq_tbk_cold;
++  if (mq_m4 && mq_self) {   /* step 4d: the main CPU makes the picture itself and cannot reach the ME's arena: walked from RAM now */
++    if (!mp_nrec) return;
++    e = &mp_rec[mp_nrec - 1]; e->nx = -1; mq_own++; mq_rec(e, 0); mq_late(3, 1); return; }
+   mq_arena_wait();                       /* (no plan while the ME walks the records before) */
+   if (mq_tbk_cold != tb || !mp_nrec) return;   /* (a take-back: the record dropped) */
+   e = &mp_rec[mp_nrec - 1];
+@@ -1188,6 +1551,36 @@
+   memset(&e, 0, sizeof e); e.kind = XE_THIN;
+   mq_thin_seq = mq_post(&e); mq_thin_due = 1;
+ }
++/* step 4d: to the main CPU: the ME's cache written back and dropped (SYNC), the queue emptied, then the main CPU's cache dropped */
++static void mq_sync(void)
++{
++  XmeE e;
++  memset(&e, 0, sizeof e); e.kind = XE_SYNC;
++  mq_wait(mq_post(&e), MW_SYNC); mq_syncs++;
++  if (!mq_dead) mq_cpu_wbinv();
++}
++/* step 4d, mode 4, after the hook's FILL, WALK and HOOK (no record waits): the hang test's stop found, the turns changed */
++static void mq_turn_hook(long vb)
++{
++  int k;
++  if (mq_dead) return;
++  if (!mq_self && mq->hang_vb >= 0 && !mq->hang_in && vb >= mq->hang_vb) mq_drain();
++  if (!mq_turn || !MQ_LOOP()) return;
++  k = (int)((vb / mq_turn) & 1);
++  if (k == mq_turn_k) return;
++  if (k) {   /* to the main CPU */
++    mq_sync(); if (!MQ_LOOP()) return;   /* (a take-back meanwhile: the main CPU's from now on, or the picture stopped) */
++    mq_arena_wait(); if (!MQ_LOOP()) return;
++    mq->cache = 0; mq_heap_own(); mq_self = 1; }
++  else {   /* to the ME (the main CPU writes back its cache before each post) */
++#ifdef MGS2_ME_REAL
++    mq->cache = mq_me > 0 ? xme_me_cache : mq_cache_thr;
++#else
++    mq->cache = mq_cache_thr;
++#endif
++    xme_heap_ask(me_rs_on); mq_self = 0; }
++  mq_turn_k = k; mq_turns++; mq_thin_due = 0; mq_walk_due = 0;
++}
+ /* xl_psp_frame in mode 3: the walks posted at the last hook done by now (at the latest), the turns, the step's records laid and walked
+    (FILL, WALK), then the hook (HOOK: the frame's end and list, a frame's start, the texture cache's frame) */
+ static void mq_frame(long vb)
+@@ -1195,7 +1588,7 @@
+   uint32_t kb; XmeE e;
+   mq_probe();
+   mq_arena_wait();
+-  if (mq_turn && mq_th >= 0) { int k = (int)((vb / mq_turn) & 1);
++  if (!mq_m4 && mq_turn && mq_th >= 0) { int k = (int)((vb / mq_turn) & 1);
+     if (k != mq_turn_k) { mq_drain(); if (mq_th >= 0) { mq_turn_k = k; mq_self = k; mq_turns++; mq_thin_due = 0; mq_walk_due = 0; } } }
+   mp_hooks++; kb = (uint32_t)((xmc.bytes - mp_bytes_hook) >> 10); mp_bytes_hook = xmc.bytes;   /* (mp_hook's counts) */
+   if (kb > mp_step_max) { mp_step_max = kb; mp_step_max_vb = vb; }
+@@ -1213,14 +1606,23 @@
+   mq_post(&e);
+   mq_service();
+   HOST_LEAVE(HOST_GL);
++  if (mq_m4) mq_turn_hook(vb);   /* step 4d */
+ }
+ static void mq_end(void)   /* xl_psp_gl_end (the run's end): the last step's records walked, the loop stopped, its thread ended */
+ {
+   XmeE e;
+   if (mp_nrec) mq_late(0, 0);
+-  if (mq_th >= 0) {   /* (in a turn of the main CPU's the thread idles, the queue empty) */
++  if (MQ_LOOP()) {   /* (in a turn of the main CPU's the thread or the ME idles, the queue empty) */
+     uint32_t s; memset(&e, 0, sizeof e); e.kind = XE_STOP;
+     mq_self = 0; s = mq_post(&e); mq_wait(s, MW_DRAIN);
++    if (mq_m4 && !mq_dead) { mq_cpu_wbinv(); mq->cache = 0; mq_heap_own(); }   /* step 4d: the ME's counts read (4d-3: the INV first) */
++#ifdef MGS2_ME_REAL
++    if (mq_me > 0) {   /* step 4d-4: the ME left the loop at the STOP (its cache written back, state 2): held in reset */
++      mq_me_ack = hle_me_stop(50); mq_me = -1;
++      fprintf(stderr, "me picture loop (step 4d-4): the ME stopped: %s (state %u, heartbeat %u, boots %u)\n", mq_me_ack ? "it answered the "
++              "exit request" : "NO ANSWER in 50 ms: held in reset", (unsigned)mq_mcu->h.state, (unsigned)mq_mcu->h.heartbeat,
++              (unsigned)mq_mcu->h.boots); }
++#endif
+     if (mq_th >= 0) { SceUInt us = 1000000; int r = sceKernelWaitThreadEnd(mq_th, &us);
+       if (r < 0) fprintf(stderr, "me picture loop: its thread did not end (%08x)\n", (unsigned)r);
+       sceKernelDeleteThread(mq_th); mq_th = -1; } }
+@@ -1230,11 +1632,12 @@
+ }
+ static void mq_report(FILE *f)
+ {
+-  fprintf(f, "me picture loop (task #180 step 4c): the thread's priority %s the main thread's; entries posted %ld (the thread woken %ld "
++  fprintf(f, "me picture loop (task #180 step 4c): %s; entries posted %ld (the thread woken %ld "
+           "times), run by the main CPU itself %ld, dropped %ld; turns %ld (of %d vblanks); the loop: records %ld (copies as the transfer ended "
+           "%ld, early %ld, walked from RAM %ld, over %ld), fills %ld (copies laid %ld), walks %ld (%ld records, started again %ld), thinning "
+           "%ld, hooks %ld (lists %ld, frames begun %ld; waits for the GE %ld, results full %ld); lists to the GE %u; take-backs %ld",
+-          mq_hi ? "above" : "below", mq_posted, mq_signals, mq_selfrun, mq_dropped, mq_turns, mq_turn, mq->n_rec, mq->n_now, mq->n_early,
++          mq_me ? "the loop on the ME (step 4d-4)" : mq_hi ? "the thread's priority above the main thread's" : "the thread's priority below the "
++          "main thread's", mq_posted, mq_signals, mq_selfrun, mq_dropped, mq_turns, mq_turn, mq->n_rec, mq->n_now, mq->n_early,
+           mq->n_ram, mq->n_over, mq->n_fill, mq->n_lay, mq->n_walk, mq->n_walked, mq->n_restart, mq->n_thin, mq->n_hook, mq->n_list,
+           mq->n_begin, mq->n_gewait, mq->n_resfull, (unsigned)mq_subm, mq_tbk_n);
+   if (mq_tbk_n) fprintf(f, " (%ld warm, %ld cold; the last at vb %ld, waiting for %s; the loop %s, at %#x: %s; %ld entries not done, %ld records "
+@@ -1245,6 +1648,33 @@
+   fprintf(f, "\nme picture loop: the longest stretch without a heartbeat while the main CPU waited: %llu us (vb %ld, the loop at %#x: %s); "
+           "the main CPU's rounds %ld, delays failed %ld (the first %08x)\n", (unsigned long long)mq_gap_max, mq_gap_vb, (unsigned)mq_gap_at,
+           mq_at_name(mq_gap_at), mq_w_rounds, mq_dly_bad, (unsigned)mq_dly_e);
++  if (mq_m4)   /* step 4d */
++    fprintf(f, "me picture loop (step 4d, mode 4): records walked from RAM by the main CPU itself %ld; hand-overs to the main CPU (SYNC) %ld "
++            "(the loop's %ld); the ME's cache steps (the stand-in's counts): the whole cache %ld, ranges %ld (%llu KB); the main CPU's: "
++            "write-backs %ld, write-backs with the cache dropped %ld; a walk's extents at most %d (vb %ld, of %d), its arena bytes at most %u KB "
++            "(vb %ld, of %u KB); the picture %s; the ME's heap requests (step 4d-2): more %ld, give back %ld, resize %ld (refused %ld; the "
++            "loop's count %ld); the lines (step 4d-3): problems at set-up %d, the heap's regions moved by realloc and copied to a line start "
++            "%ld, left off one %ld\n", mq_own, mq_syncs, mq->n_sync, mq_mc_all, mq_mc_inv,
++            (unsigned long long)(mq_mc_inv_b >> 10), mq_c_wb, mq_c_wbinv, mq_ext_max, mq_ext_max_vb, xmc.ext_cap, (unsigned)(mq_arena_max >> 10),
++            mq_arena_max_vb, (unsigned)(xmc.arena_n >> 10), mq_dead ? "stopped (a cold take-back)" : "made to the end", mq_rq_n[1], mq_rq_n[2],
++            mq_rq_n[3], mq_rq_fail, mq->n_rq, mq_ln_bad, me_realn, me_misal);
++  if (mq_m4)
++    fprintf(f, "me picture loop (step 4d-4): the loop's cache steps through the hook: the whole cache %ld, ranges %ld (%llu KB)\n", mq->n_call,
++            mq->n_cinv, (unsigned long long)(mq->n_cinv_b >> 10));
++#ifdef MGS2_ME_REAL
++  if (mq_m4) {
++    fprintf(f, "me picture loop (step 4d-4): the loop on the ME %s", !mq_me_try ? (mq_emu() ? "not asked for (the emulator)" : "not asked "
++            "for (MGS2_ME_PIC_ME=0)") : mq_mc ? "started" : "NOT started");
++    if (mq_mc) fprintf(f, " (control block %08x, region %08x; its heartbeat %u, state %u, boots %u)", (unsigned)(uintptr_t)mq_mc,
++                       (unsigned)(uintptr_t)mq_mreg, (unsigned)mq_mcu->h.heartbeat, (unsigned)mq_mcu->h.state, (unsigned)mq_mcu->h.boots);
++    else if (mq_me_try) fprintf(f, " (%s)", mq_me_why);
++    fprintf(f, "; the arena and the view's buffers %s; the ME's exception: ", mq_edram ? "in its eDRAM" : "in main RAM");
++    if (mq_me_exc) fprintf(f, "Cause %08x (code %u), EPC %08x, BadVAddr %08x (seen at vb %ld)%s", (unsigned)mq_mx[0], (unsigned)((mq_mx[0] >> 2) & 31),
++                           (unsigned)mq_mx[1], (unsigned)mq_mx[2], mq_mx_vb, mq_me_tbk_exc ? ": the take-back's cause" : "");
++    else fprintf(f, "none");
++    fprintf(f, "; its stop: %s\n", mq_me_ack < 0 ? "none (a take-back held it, or it never started)" : mq_me_ack ? "it answered the exit "
++            "request" : "no answer in 50 ms, held in reset"); }
++#endif
+ }
+ #endif
+ #ifndef MGS2_GL   /* task #180 step 4b-2: the guarded game units' and runtime's calls, idle without the picture */
+@@ -1289,11 +1719,11 @@
+     if (!state) {
+       M.mem = mem; M.mem_size = XL_GSZ; M.spr = spr; M.seen = 0; M.fast = 1;
+       { const char *e = mgs2_getenv("MGS2_ME_HEAP_KB"); me_hn = (size_t)(e && atoi(e) >= 64 ? atoi(e) : ME_HEAP_KB) << 10;   /* task #149 */
+-        if (!(me_hb = malloc(me_hn)) || me_heap_init(me_hb, me_hn)) {
++        if (!(me_hb = memalign(64, me_hn)) || me_heap_init(me_hb, me_hn)) {   /* (step 4d-3: on whole lines; me_hn is whole KB) */
+           state = -1; fprintf(stderr, "translator: no memory for the picture heap (%u KB), off\n", (unsigned)(me_hn >> 10)); return; }
+         { const char *g = mgs2_getenv("MGS2_ME_HEAP_GROW_KB"); if (g) me_grow = (size_t)atoi(g) << 10; }
+         me_heap_grow(me_more, me_less);
+-        { const char *z = mgs2_getenv("MGS2_ME_HEAP_RESIZE"); if (!z || atoi(z)) me_heap_resize(me_resize); }
++        { const char *z = mgs2_getenv("MGS2_ME_HEAP_RESIZE"); if (!z || atoi(z)) { me_heap_resize(me_resize); me_rs_on = 1; } }
+         fprintf(stderr, "translator: the picture code built ME-safe (task #149): its heap a region of %u KB at %08x (MGS2_ME_HEAP_KB), more "
+                 "from newlib's heap when nothing fits (regions of at least %u KB: MGS2_ME_HEAP_GROW_KB), given back when empty, %s\n",
+                 (unsigned)(me_hn >> 10), (unsigned)(uintptr_t)me_hb, (unsigned)(me_grow >> 10),
+@@ -1301,7 +1731,7 @@
+                 : "resized by realloc when one block fills it"); }
+ #ifdef MGS2_GL
+       xmp.m = &M;   /* task #180 step 4c: in mode 3 the map reads through the ME's records' views (ge/xlme.c xm_ram, as ram()) */
+-      if (!(map = mp_want == 3 ? gu_new(xm_ram, &xmp) : gu_new(ram, 0))) { state = -1; fprintf(stderr, "translator: no memory for the texture map, off\n"); return; }
++      if (!(map = mp_want >= 3 ? gu_new(xm_ram, &xmp) : gu_new(ram, 0))) { state = -1; fprintf(stderr, "translator: no memory for the texture map, off\n"); return; }
+ #else
+       if (!(map = gu_new(ram, 0))) { state = -1; fprintf(stderr, "translator: no memory for the texture map, off\n"); return; }
+ #endif
+@@ -1339,17 +1769,19 @@
+     if (mq_on) mq_thin();   /* step 4c: the ranges to the ME through the slot */
+     else { const int n = fx_thin_scan(glf.ft, glf.ram, glf.h.c4); gl_thin(&glf, glf.ft->r, n, glf.ft->keep[3], glf.ft->d, glf.ft->nd); }
+     HOST_LEAVE(HOST_GL); }
++  if (state < 0) return;   /* task #180 step 4d: the picture stopped in a wait above (mode 4's cold take-back) */
+ #endif
+ #ifdef MGS2_GL
+   if (mp_on) {   /* task #180: queued; its copy as it ends (xlive_chk_end) */
+-    MpRec *r;
+-    if (mp_nrec == MP_NREC) { mp_drain_full++; mp_late(2); }
++    MpRec *r; int own;
++    if (mp_nrec == MP_NREC) { mp_drain_full++; mp_late(2); if (!mp_on) return; }
+     r = &mp_rec[mp_nrec++]; r->ch = ch; r->chcr = chcr; r->madr = madr; r->qwc = qwc; r->tadr = tadr; r->opt = g_opt; r->opt2 = g_opt2;
+     r->lanes = one_mode && one ? ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) | ((g_opt & OPT_XL_LANE4) ? 8 : 0) : 0;
+     r->restart = mp_restart_due; mp_restart_due = 0; r->x0 = 0; r->nx = -1;
+     r->t = ++mp_seg; r->filled = 0; r->h0 = 0; r->nh = -1;   /* step 4b-2 */
+-    xmc.nmk = 0; xmc.mk_full = 0; g_xl_img = g_xl_end = 1; mp_queued++;
+-    if (mp_mode == 2) g_g0_on = 1;   /* 4b-2: a guarded write in the walk is counted (none is expected) */
++    own = mq_m4 && mq_self;   /* step 4d: walked from RAM as it ends (mq_chk_end): no image marks, no guards */
++    xmc.nmk = 0; xmc.mk_full = 0; g_xl_img = !own; g_xl_end = 1; mp_queued++;
++    if (mp_mode == 2 && !own) g_g0_on = 1;   /* 4b-2: a guarded write in the walk is counted (none is expected) */
+     return; }
+ #endif
+   if (one_mode && one) { none++; g_xl_one = 1; return; }   /* the exact walk feeds it, then xlive_one_end */
+@@ -1380,7 +1812,11 @@
+       if (me_ev[k].op == '>') fprintf(f, " from %08x", me_ev[k].from);
+       fprintf(f, " (%08x)", me_ev[k].brk); }
+     fprintf(f, "\n"); }
+-  if (state < 0) { fprintf(f, "translator: no memory for the texture map, it did not run\n"); return; }
++  if (state == -1) { fprintf(f, "translator: no memory for the texture map, it did not run\n"); return; }
++#ifdef MGS2_GL
++  if (state == -2) fprintf(f, "translator: stopped at vb %ld with the picture (task #180 step 4d: mode 4's cold take-back); the counts below "
++                           "are up to there\n", mq_dead_vb);
++#endif
+ #ifdef MGS2_GL
+   if (mq) {   /* task #180 step 4c: the ME's loop summed its walks, its callbacks counted, its copies were laid */
+     t_qw += mq->t_qw; t_words += mq->t_words; t_calls += mq->t_calls; t_ad += mq->t_ad; ncall += xmp.calls; nprim += xmp.prims;
+@@ -1397,7 +1833,7 @@
+           U->xfers, U->xfer_unmod, U->xfer_split, U->loads, U->image_orphan, U->dropped, nrestart, S->calls_noentry, S->ad_bad,
+           S->gif_tags[1], S->gif_tags[2], S->gif_tags[3], S->unk, F->zero_area);
+ #ifdef MGS2_GL
+-  if (mp_on) {   /* task #180 */
++  if (mp_on || mq_dead) {   /* task #180 (4d-2: after mode 4's cold stop too, its counts up to there) */
+     fprintf(f, "me picture split: %ld records queued, walked in %ld runs at %ld hooks; runs early: the queue full %ld, no room %ld; walked at once "
+             "from RAM %ld; copies %ld (not made: ranges %ld, extents %ld, arena %ld, chains %ld), %ld extents (at most %d a copy), %llu KB copied, "
+             "%llu KB of image data left in RAM (%ld pieces); a step's copy at most %u KB (vb %ld); steps by its KB: <512 %ld, <1024 %ld, <1536 %ld, "
+@@ -1407,9 +1843,10 @@
+             (unsigned long long)(xmc.marked >> 10), xmc.rb_cut, (unsigned)mp_step_max, mp_step_max_vb, mp_hist[0], mp_hist[1], mp_hist[2], mp_hist[3],
+             mp_hist[4], mp_hist[5], mp_hist[6], mp_hist[7], mp_hist[8], xmc.na_max, xmc.nb_max, xmc.nmk_max, mp_img_runs, mp_img_spr, mp_img_small, mp_img_full);
+     fprintf(f, "me picture split: reads through the view (from the copy / from RAM / split or refused): tags %ld %ld %ld, runs %ld %ld %ld, "
+-            "the lanes' data %ld %ld %ld, the map's %ld %ld %ld\n", mp_view.in[XV_TAG], mp_view.out[XV_TAG], mp_view.part[XV_TAG], mp_view.in[XV_SPAN],
++            "the lanes' data %ld %ld %ld, the map's %ld %ld %ld (put together in the fixed buffers %ld (%u KB each), in the picture heap %ld)\n",
++            mp_view.in[XV_TAG], mp_view.out[XV_TAG], mp_view.part[XV_TAG], mp_view.in[XV_SPAN],
+             mp_view.out[XV_SPAN], mp_view.part[XV_SPAN], mp_view.in[XV_LANE], mp_view.out[XV_LANE], mp_view.part[XV_LANE], mp_view.in[XV_RAM],
+-            mp_view.out[XV_RAM], mp_view.part[XV_RAM]);
++            mp_view.out[XV_RAM], mp_view.part[XV_RAM], mp_view.n_fix, (unsigned)(mp_view.fix_n >> 10), mp_view.n_tmp);
+     if (mp_mode == 2) {   /* step 4b-2 */
+       long st = 0, sk = 0, du = 0, lg = 0, wk = 0;
+       for (int k = 1; k <= 12; k++) { st += mg_st[k]; sk += mg_skip[k]; du += mg_dup[k]; lg += mg_log[k]; wk += mg_walk[k]; }
+@@ -1447,6 +1884,8 @@
+     if (mq) mq_report(f); }   /* step 4c */
+   if (gl_ok < 0) { fprintf(f, "picture: none (no memory or no set-up)\n"); return; }
+   if (!gl_ok) { fprintf(f, "picture: never set up\n"); return; }
++  if (gl_ok == 4) fprintf(f, "picture: STOPPED at vb %ld: the ME's picture taken back cold (task #180 step 4d, mode 4); the totals are up "
++                          "to there\n", mq_dead_vb);
+   if (gl_ok == 3)
+     fprintf(f, "picture: STOPPED: the GE did not finish %s%ld in %u ms (sceGeDrawSync(1) %08x); the totals are up to there\n",
+             gl_stop_vb < 0 ? "its set-up list" : "the list of the frame of vb ", gl_stop_vb < 0 ? 0 : gl_stop_vb, GL_GE_LIMIT / 1000, (unsigned)gl_stop_r);
+diff -ruN me18d/psp/xme_me.c me18e/psp/xme_me.c
+--- me18d/psp/xme_me.c	1970-01-01 00:00:00.000000000 +0000
++++ me18e/psp/xme_me.c	2026-11-08 15:44:05.093892082 +0000
+@@ -0,0 +1,56 @@
++/* xme_me.c (task #180 step 4d-4, me_step4_notes.md 4d): the Media Engine's side of the picture loop (ge/xme.c): its entry, its waits and
++   its cache steps.  Built with the ME-safe picture objects (-fno-jump-tables -DMGS2_ME_SAFE; its .data and .bss, none, renamed) and run
++   only on the ME, at the kseg0 alias of its addresses.  It holds the instructions the picture code may not (tools/dev/me14/mecheck.py
++   rule 4), as hle_me.h's ME-side helpers do: Count reads, cache operations, sync, HALT, the FPU rule (ctc1) and $gp's top bit; its
++   own check is in the build script (mkpsp18f.sh).  Here the ME writes nothing cached outside its stack: its entry and waits touch the
++   control block and the loop's shared words through the uncached alias only (a wait comes between entries, or inside one while the
++   ME holds its turn), so none of its writes lands in memory the main CPU owns at the time. */
++#include <stdint.h>
++#include "xme_me.h"
++
++#define XME_ME_5US 1657u    /* 5 us of the ME's Count (331.310 MHz, probe 2 [C]) */
++
++static inline void me_spin(uint32_t ticks) { uint32_t t0 = hle_me_count(); while (hle_me_count() - t0 < ticks) ; }
++
++static void __attribute__((noreturn)) me_leave(volatile XmeMeCtl *c)   /* out of the loop: the whole data cache written back and dropped,
++                                                                           state 2 (hle_me_stop waits for it), halted for good */
++{
++  hle_me_dwbinv_all();
++  c->h.state = 2; hle_me_sync();
++  hle_me_halt();
++}
++
++void xme_me_wait(XmeCtx *x, int why)
++{
++  volatile XmeSh *s = XS(x);
++  volatile XmeMeCtl *c = (volatile XmeMeCtl *)(uintptr_t)s->me_ctl;
++  if (why == 2) hle_me_halt();   /* the hang test: halted for good, its cache written back first (ge/xme.c); the main CPU's take-back
++                                    holds it in reset */
++  if (c->h.exit_req) me_leave(c);
++  if (why == 0) {                /* the queue empty: until the main CPU posts (its head every 5 us), at most 0.5 ms */
++    uint32_t t = s->tail;
++    for (int k = 0; k < 100 && s->head == t; k++) me_spin(XME_ME_5US);
++  } else me_spin(why == 1 ? 4u * XME_ME_5US : XME_ME_5US);   /* the GE (a frame's start): 20 us; the heap's answer: 5 us */
++  c->h.count = hle_me_count(); c->h.heartbeat++;
++}
++
++void xme_me_cache(XmeCtx *x, int op, const void *p, uint32_t n)
++{
++  (void)x;
++  if (op == XME_C_ALL) hle_me_dwbinv_all();
++  else if (n) { hle_me_dinval(p, n); hle_me_sync(); }
++}
++
++void xme_me_main(volatile HleMeHdr *h)
++{
++  volatile XmeMeCtl *c = (volatile XmeMeCtl *)h;
++  XmeCtx *x;
++  /* ME_CALLP (ge/me_rt.h): a call through a pointer goes to the kseg0 alias when $gp's top bit is set; the stub loads $gp = _gp */
++  __asm__ volatile(".set push\n\t.set noat\n\tlui $1, 0x8000\n\tor $28, $28, $1\n\t.set pop" ::: "memory");
++  { uint32_t f = 0x01000001u; __asm__ volatile("ctc1 %0, $31\n\tnop\n\tnop" : : "r"(f)); }   /* the main thread's FPU rule (flush to
++                                                                                               zero, toward zero: main_psp.c, A9) */
++  x = c->x;
++  c->h.boots++; c->h.state = 1; hle_me_sync();
++  xme_run(x, xme_me_wait);       /* until XE_STOP (its cache written back and dropped there) */
++  me_leave(c);
++}
+diff -ruN me18d/psp/xme_me.h me18e/psp/xme_me.h
+--- me18d/psp/xme_me.h	1970-01-01 00:00:00.000000000 +0000
++++ me18e/psp/xme_me.h	2026-11-08 15:43:33.025890176 +0000
+@@ -0,0 +1,24 @@
++/* xme_me.h (task #180 step 4d-4, me_step4_notes.md 4d): the picture loop (ge/xme.c) on the PSP's Media Engine: the control block that
++   hle_me_start hands the ME, and the ME's side of the loop (psp/xme_me.c: its entry, its waits, its cache steps), which the main CPU
++   installs (psp/xl_psp.c mq_me_start).  The emulator has no ME: there hle_me_start refuses and the loop runs as 4c's thread. */
++#ifndef MGS2_XME_ME_H
++#define MGS2_XME_ME_H
++#include <stdint.h>
++#include "hle_me.h"
++#include "../ge/xme.h"
++
++typedef struct XmeMeCtl {   /* 128 bytes, 64-aligned; both cores reach it only through the uncached alias */
++  HleMeHdr h;               /* hle_me.h's head: magic, heartbeat (the ME's waits move it), state (1 running, 2 left the loop: its cache
++                               written back, halting), exit_req, count (the ME's Count at its last wait), boots */
++  XmeCtx *x;                /* the loop's ctx (cached; the ME reaches its shared words through XS, xme.h) */
++  uint32_t pad[15];
++} XmeMeCtl;
++
++void xme_me_main(volatile HleMeHdr *h);   /* the ME's entry (hle_me_start's work, at its kseg0 alias): $gp's top bit (ME_CALLP), the main
++                                             thread's FPU rule, then the loop until XE_STOP; its cache written back, state 2, halt */
++void xme_me_wait(XmeCtx *x, int why);     /* the loop's waits on the ME (xme.h XmeWait): 0 the queue empty (until the main CPU posts, its
++                                             head looked at every 5 us, at most 0.5 ms), 1 the GE (20 us), 2 the hang test (halted for
++                                             good), 3 the heap's answer (5 us); an exit request leaves the loop (hle_me_stop) */
++void xme_me_cache(XmeCtx *x, int op, const void *p, uint32_t n);   /* the ME's cache steps (xme.h XmeCache): XME_C_ALL its whole data
++                                                                       cache written back and invalidated, XME_C_INV a range invalidated */
++#endif

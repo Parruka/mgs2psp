@@ -1,0 +1,57 @@
+gen.o rc 0 144 s
+gen_s_w01a.o rc 0 171 s
+gen_s_w00a.o rc 0 340 s
+ge_xlive.o rc 0 1 s
+ge_xlate.o rc 0 1 s
+ge_gsfront.o rc 0 1 s
+ge_texconv.o rc 0 0 s
+ge_texcache.o rc 0 1 s
+ge_gelive.o rc 0 1 s
+ge_gebatch.o rc 0 0 s
+ge_xconv.o rc 0 3 s
+ge_vu1conv.o rc 0 7 s
+ge_gelist.o rc 0 1 s
+ge_gsup2.o rc 0 3 s
+ge_xlme.o rc 0 3 s
+ge_xme.o rc 0 0 s
+ge_me_rt.o rc 0 1 s
+ge_xme_me.o rc 0 0 s
+xme_rest.o rc 0 0 s
+xme_rest_chk: PASS
+hle_me.o rc 0 1 s
+ge_fxthin.o rc 0 0 s
+xl_psp.o rc 0 4 s
+gl1_glue.o rc 0 1 s
+v26me_bat.o rc 0 0 s
+exc3b.o rc 0 1 s
+exc3b_s.o rc 0 0 s
+ps2rc_kcall.o rc 0 0 s
+boot_rt.o rc 0 82 s
+main_psp.o rc 0 0 s
+gen_s_d00t.o rc 0 118 s
+gen_s_d01t.o rc 0 120 s
+psp.sh: objects 460 s
+psp.sh: gen.o: P1214a0 in .text.P1214a0 at 0x00000000; references 2 R_MIPS_26 1 R_MIPS_32 ; now: 00000000 W P1214a0;00000000 T P1214a0_orig;
+make rc 0
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS
+undefined memcpy/memset/memcmp/malloc family left in the ME-safe objects:
+4346860	   7436	47034236	51388532	3102074	MGS2T.elf
+2377808 ovl_d00t.bin
+2460096 ovl_d01t.bin
+61216 ovl_init.bin
+465008 ovl_n_title.bin
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+10579552 ovl_w00a.bin
+3352112 ovl_w01a.bin
+a29d2d471db5206b3288880da0880dc5  EBOOT.PBP
+2d34657324e142a363d1ba848893d0cd  ovl_d00t.bin
+0866c16bbcdb40d4bf65b95c79c10939  ovl_d01t.bin
+018a4fae9159bc34f96aa3337760b9c8  ovl_init.bin
+afc0ca1b0c0dfdb385c53cd14ff988ea  ovl_n_title.bin
+d713e672ae7a05bd996318728cf0a652  ovl_r_title.bin
+686800629870cd3a072c5f3008cb9be3  ovl_r_tnk0.bin
+24bf5967667da68885951bac29311765  ovl_w00a.bin
+b1f10ede63ffd0a60f8ad3a8436cd91d  ovl_w01a.bin
+psp.sh: done 488 s

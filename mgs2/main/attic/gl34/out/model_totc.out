@@ -1,0 +1,18 @@
+== the steady deck in d01t (no native groups there): gl33 in place (g33ic2) | gl34 plain (g34pc2) | gl34 fast (g34fc2)
+steady deck (d01t), ME turn 27,410-27,490
+   g33ic2   17676595 instr   88963 I-miss (fully associative   84389)  134615 D-miss =  140.52 ms a picture; against g33ic2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g34pc2   17707008 instr   93576 I-miss (fully associative   86355)  134235 D-miss =  141.51 ms a picture; against g33ic2   +0.99 ms (instr   +30413, I-miss  +4613, D-miss   -380)
+   g34fc2   17714893 instr   93628 I-miss (fully associative   86363)  134270 D-miss =  141.57 ms a picture; against g33ic2   +1.05 ms (instr   +38298, I-miss  +4664, D-miss   -344)
+steady deck (d01t), main turn 27,510-27,590
+   g33ic2   15613030 instr   82096 I-miss (fully associative   75835)  100943 D-miss =  120.20 ms a picture; against g33ic2   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g34pc2   15649894 instr   88390 I-miss (fully associative   79268)  105065 D-miss =  122.73 ms a picture; against g33ic2   +2.53 ms (instr   +36864, I-miss  +6294, D-miss  +4122)
+   g34fc2   15638221 instr   88311 I-miss (fully associative   79205)  104965 D-miss =  122.63 ms a picture; against g33ic2   +2.43 ms (instr   +25190, I-miss  +6215, D-miss  +4022)
+== the opening (before the native turns): gl33 (g33pc1) | gl34 plain (g34pc1) | gl34 fast (g34fc1)
+opening, ME turn 16,010-16,090
+   g33pc1   17074586 instr   89253 I-miss (fully associative   84481)  127476 D-miss =  135.75 ms a picture; against g33pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g34pc1   17126093 instr   93934 I-miss (fully associative   86482)  125706 D-miss =  136.51 ms a picture; against g33pc1   +0.75 ms (instr   +51507, I-miss  +4682, D-miss  -1770)
+   g34fc1   17136845 instr   94051 I-miss (fully associative   86648)  125802 D-miss =  136.61 ms a picture; against g33pc1   +0.86 ms (instr   +62259, I-miss  +4798, D-miss  -1674)
+opening, main turn 16,110-16,190
+   g33pc1   15286067 instr   83173 I-miss (fully associative   76917)  101192 D-miss =  118.86 ms a picture; against g33pc1   +0.00 ms (instr       +0, I-miss     +0, D-miss     +0)
+   g34pc1   15334912 instr   89189 I-miss (fully associative   80410)  102700 D-miss =  120.72 ms a picture; against g33pc1   +1.86 ms (instr   +48845, I-miss  +6015, D-miss  +1508)
+   g34fc1   15363789 instr   89321 I-miss (fully associative   80521)  102869 D-miss =  120.93 ms a picture; against g33pc1   +2.07 ms (instr   +77722, I-miss  +6147, D-miss  +1677)

@@ -1,0 +1,52 @@
+MGS2 GE replay v2b
+clock 333/166: set (cpu 333 MHz, bus 166 MHz)
+ms0:/PSP/GAME/MGS2GE_v2b/deck_ge.bin: vb 24056, 12250 batches, 59312 vertices, 322 textures, 1675392 data bytes
+other          12162 batches,  4837541 GE pixels
+mist               1 batches,   930237 GE pixels
+small sprites     85 batches,   117042 GE pixels
+depth blur         1 batches,   261120 GE pixels
+motion trail       1 batches,   130050 GE pixels
+textures in VRAM: 175 of them, 688 KB, 99.0% of the palette-textured GE pixels
+  (round 1) full                       GE   75.08  min   74.98   build  16.35
+  (round 1) no textures                GE   27.10  min   27.04   build  14.08
+  (round 1) without the mist           GE   71.80  min   71.71   build  16.65
+  (round 1) without the depth blur     GE   47.86  min   47.78   build  16.65
+  (round 1) without the motion trail   GE   67.60  min   67.56   build  16.65
+  (round 1) without small sprites      GE   74.15  min   74.07   build  16.52
+  (round 1) depth blur from a copy     GE   76.51  min   76.41   build  16.94
+  (round 1) motion trail in slices     GE   69.08  min   68.99   build  16.75
+  (round 1) textures in VRAM           GE   69.40  min   69.31   build  16.46
+  (round 1) 16-bit frame buffer        GE   57.35  min   57.28   build  16.33
+  (round 2) full                       GE   74.53  min   73.91   build  16.34
+  (round 2) no textures                GE   26.91  min   26.65   build  14.07
+  (round 2) without the mist           GE   71.28  min   70.69   build  16.64
+  (round 2) without the depth blur     GE   47.53  min   47.12   build  16.64
+  (round 2) without the motion trail   GE   67.12  min   66.60   build  16.64
+  (round 2) without small sprites      GE   73.62  min   73.00   build  16.51
+  (round 2) depth blur from a copy     GE   75.96  min   75.33   build  16.93
+  (round 2) motion trail in slices     GE   68.59  min   68.05   build  16.73
+  (round 2) textures in VRAM           GE   68.90  min   68.32   build  16.45
+  (round 2) 16-bit frame buffer        GE   57.35  min   57.27   build  16.33
+  (round 3) full                       GE   74.35  min   73.90   build  16.34
+  (round 3) no textures                GE   26.84  min   26.65   build  14.07
+  (round 3) without the mist           GE   71.11  min   70.68   build  16.63
+  (round 3) without the depth blur     GE   47.42  min   47.12   build  16.64
+  (round 3) without the motion trail   GE   66.96  min   66.59   build  16.64
+  (round 3) without small sprites      GE   73.44  min   73.00   build  16.51
+  (round 3) depth blur from a copy     GE   75.78  min   75.32   build  16.93
+  (round 3) motion trail in slices     GE   68.43  min   68.04   build  16.73
+  (round 3) textures in VRAM           GE   68.73  min   68.32   build  16.44
+  (round 3) 16-bit frame buffer        GE   57.34  min   57.26   build  16.33
+GE time per frame (ms; mean, min) and CPU time to build its list (ms), 39 frames x 3 rounds per mode:
+  full                       GE   74.35  min   73.90   build  16.34
+  no textures                GE   26.84  min   26.65   build  14.07
+  without the mist           GE   71.11  min   70.68   build  16.63
+  without the depth blur     GE   47.42  min   47.12   build  16.64
+  without the motion trail   GE   66.96  min   66.59   build  16.64
+  without small sprites      GE   73.44  min   73.00   build  16.51
+  depth blur from a copy     GE   75.78  min   75.32   build  16.93
+  motion trail in slices     GE   68.43  min   68.04   build  16.73
+  textures in VRAM           GE   68.73  min   68.32   build  16.44
+  16-bit frame buffer        GE   57.34  min   57.26   build  16.33
+largest list 332 KB (of 4096); blends with no GE mapping: 0
+Press X (or HOME) to exit.

@@ -1,0 +1,1343 @@
+# gl28.diff (2026-11-19 UTC, review fixes 2026-11-20 UTC, the gl28d diagnostics 2026-11-20 UTC and their review fixes, gl28d2): t27 -> t28 (psp/), then main's scripts/tools/cfg changes (against their .gl27bak copies; new files against /dev/null), then the cfg against gl27's, then the dig cfg
+--- t27/psp/xme_me.h	2026-11-19 15:15:23.980768969 +0000
++++ t28/psp/xme_me.h	2026-11-19 22:57:26.126513659 +0000
+@@ -11,8 +11,25 @@
+   HleMeHdr h;               /* hle_me.h's head: magic, heartbeat (the ME's waits move it), state (1 running, 2 left the loop: its cache
+                                written back, halting), exit_req, count (the ME's Count at its last wait), boots */
+   XmeCtx *x;                /* the loop's ctx (cached; the ME reaches its shared words through XS, xme.h) */
+-  uint32_t pad[15];
++  /* gl28 (MGS2_ME_REST, power_design.md section 5 "R1"; gl27: pad[15], zeros): the ME rests in HALT through the main CPU's turns
++     (psp/xme_rest.S, v30me5's psp/me_rest.S renamed; the handshake is v30me5's psp/me_mix_me.c me_rest_once).  All zero with
++     MGS2_ME_REST=0: the ME never sets up the rest and never rests (gl27) */
++  uint32_t rest;            /* main: XME_REST_CFG (before the start: the ME sets up xme_rest's vector and interrupt), XME_REST_OK (the
++                               ME may rest now: set when a main-CPU turn begins, cleared before the ME's turn begins) */
++  uint32_t asleep;          /* ME: 1 from just before its last look at the queue's head until it is awake again */
++  uint32_t sleeps;          /* ME: rests begun (written before asleep) */
++  uint32_t halted, pending, nowake;   /* ME: rests ended by the interrupt in the HALT / by one taken before the HALT / with no interrupt */
++  uint32_t late;            /* ME: rests given up: an entry, the end of the rest or the exit request came after asleep was written */
++  uint32_t wakes;           /* ME: the handler's wakes (boot word [13]) after its last rest */
++  uint32_t flags_or;        /* ME: every flag bit of 0xBC300000 its handler has found (boot word [14]) */
++  uint32_t t_rest;          /* ME: its Count ticks inside xme_rest, summed (wraps at 2^32, about 13 s: the main CPU reads differences
++                               a turn apart); 0 for a rest means Count stops in HALT */
++  uint32_t rpc[5];          /* ME: Sony's ME request words at its last wake (reads only; uOFW me_wrapper): 0xBFC00600, 608, 700, 710,
++                               714 */
+ } XmeMeCtl;
++#define XME_REST_OK 1u      /* gl28: XmeMeCtl.rest's bits */
++#define XME_REST_CFG 2u
++_Static_assert(sizeof(XmeMeCtl) == 128, "XmeMeCtl stays 128 bytes (gl28: the rest's words in gl27's pad)");
+ 
+ void xme_me_main(volatile HleMeHdr *h);   /* the ME's entry (hle_me_start's work, at its kseg0 alias): $gp's top bit (ME_CALLP), the main
+                                              thread's FPU rule, then the loop until XE_STOP; its cache written back, state 2, halt */
+@@ -20,6 +37,9 @@
+                                              head looked at every 5 us, at most 0.5 ms), 1 the GE (20 us), 2 the hang test (halted for
+                                              good), 3 the heap's answer (5 us); an exit request leaves the loop (hle_me_stop) */
+ uint32_t xme_me_clk(void);                /* gl20: the ME's Count (331.31 MHz [C, probe 2]), the loop's clock (xme.h XmeCtx.clk) on the ME */
++void xme_rest_init(void);                 /* gl28: psp/xme_rest.S (the ME only): its vector in CP0 $25, the main CPU's interrupt enabled */
++void xme_rest(void);                      /* gl28: psp/xme_rest.S (the ME only): IE + IM2, HALT until an interrupt, IE off again */
++extern char xme_rest_halt[];              /* gl28: the HALT's address in xme_rest (a wake's EPC there: woken in the HALT) */
+ void xme_me_cache(XmeCtx *x, int op, const void *p, uint32_t n);   /* the ME's cache steps (xme.h XmeCache): XME_C_ALL its whole data
+                                                                        cache written back and invalidated, XME_C_INV a range invalidated */
+ #endif
+--- t27/psp/xme_me.c	2026-11-19 15:15:23.980761626 +0000
++++ t28/psp/xme_me.c	2026-11-20 04:28:15.474461519 +0000
+@@ -4,7 +4,10 @@
+    rule 4), as hle_me.h's ME-side helpers do: Count reads, cache operations, sync, HALT, the FPU rule (ctc1) and $gp's top bit; its
+    own check is in the build script (mkpsp18f.sh).  Here the ME writes nothing cached outside its stack: its entry and waits touch the
+    control block and the loop's shared words through the uncached alias only (a wait comes between entries, or inside one while the
+-   ME holds its turn), so none of its writes lands in memory the main CPU owns at the time. */
++   ME holds its turn), so none of its writes lands in memory the main CPU owns at the time.  gl28 (MGS2_ME_REST): the rest's CP0 moves,
++   eret and HALT with interrupts live in psp/xme_rest.S (its own object, checked by tools/xme_rest_chk.py); this object only calls it
++   (psp.sh: ge_xme_me.o names xme_rest, xme_rest_halt, xme_rest_init and xme_run) and reads the ME's boot words 0xBFC00434-0x43C and
++   Sony's request words 0xBFC00600-0x714 (reads only). */
+ #include <stdint.h>
+ #include "xme_me.h"
+ 
+@@ -26,6 +29,40 @@
+   hle_me_halt();
+ }
+ 
++/* gl28 (MGS2_ME_REST=1; power_design.md section 5 "R1", power_critique.md section B): in the main CPU's turns the queue stays empty
++   and the ME rests in HALT (psp/xme_rest.S) until the main CPU's interrupt (hle_me_kick, 0xBC100044) at the switch to the ME's turn.
++   v30me5's handshake (psp/me_mix_me.c me_rest_once, 76,548 rests and 0 lost wakes on Ffm's PSP): the ME counts the rest (sleeps),
++   writes asleep, syncs, then looks at the head, the rest bit and the exit request once more and halts only if nothing changed (else the
++   rest is given up); the main CPU clears the rest bit or raises the head, syncs, then reads asleep and interrupts the ME once per rest
++   (by sleeps).  Each side syncs between its write and its read, so at least one sees the other's: the ME never halts through an ME
++   turn.  After a wake the words xme_rest.S's handler left in the ME's boot memory ([13] wakes, [14] flags seen, [15] the wake's EPC)
++   and Sony's ME request words (reads only) go to the control block.  Count around the rest gives its ticks (0 when Count stops in
++   HALT); every wait is uncached words only, as before.  The last flag word ([12]) has no room in the control block: a flag that never
++   clears (the handler gives up after 4,096 reads) shows as "before HALT" about equal to the rests in a turn. */
++#define XMW(i) (((volatile uint32_t *)0xBFC00400u)[i])     /* xme_rest.S's words ([12..15]) */
++#define XRPC(o) (*(volatile uint32_t *)(0xBFC00000u + (o)))   /* Sony's ME request words (uOFW me_wrapper) */
++static void xme_rest_once(volatile XmeMeCtl *c, volatile XmeSh *s, uint32_t t)
++{
++  uint32_t w0 = XMW(13);
++  c->sleeps = c->sleeps + 1;
++  hle_me_sync();
++  c->asleep = 1;
++  hle_me_sync();
++  if (s->head == t && (c->rest & XME_REST_OK) && !c->h.exit_req) {
++    uint32_t c0 = hle_me_count(), w;
++    xme_rest();
++    c->t_rest = c->t_rest + (hle_me_count() - c0);
++    if ((w = XMW(13)) != w0) {        /* the handler ran */
++      uint32_t e = XMW(15), hl = (uint32_t)(uintptr_t)xme_rest_halt & 0x7FFFFFFFu;
++      if (e == hl || e == hl + 4u) c->halted = c->halted + 1; else c->pending = c->pending + 1;
++      c->wakes = w; c->flags_or = XMW(14);
++      c->rpc[0] = XRPC(0x600); c->rpc[1] = XRPC(0x608); c->rpc[2] = XRPC(0x700); c->rpc[3] = XRPC(0x710); c->rpc[4] = XRPC(0x714);
++    } else c->nowake = c->nowake + 1;   /* the HALT returned with no interrupt taken */
++  } else c->late = c->late + 1;
++  c->asleep = 0;
++  hle_me_sync();
++}
++
+ void xme_me_wait(XmeCtx *x, int why)
+ {
+   volatile XmeSh *s = XS(x);
+@@ -35,7 +72,18 @@
+   if (c->h.exit_req) me_leave(c);
+   if (why == 0) {                /* the queue empty: until the main CPU posts (its head every 5 us), at most 0.5 ms */
+     uint32_t t = s->tail;
+-    for (int k = 0; k < 100 && s->head == t; k++) me_spin(XME_ME_5US);
++    if (!(c->rest & XME_REST_CFG)) for (int k = 0; k < 100 && s->head == t; k++) me_spin(XME_ME_5US);   /* gl27's wait */
++    else {                       /* gl28: the same, ended early once the main CPU's turn allows the rest; then the rest */
++      for (int k = 0; k < 100 && s->head == t && !(c->rest & XME_REST_OK); k++) me_spin(XME_ME_5US);
++      if ((c->rest & XME_REST_OK) && s->head == t) {
++        xme_rest_once(c, s, t);
++        /* v30me5's spacing between rests (me_mix_me.c ME_REST_AFTER: 4 empty polls, about 300 us): after any rest, gl27's wait while
++           the rest is still allowed (its head every 5 us, at most 0.5 ms), so a wake inside the main CPU's turn (a stray, a rekick, a
++           rest ended before the HALT or with no interrupt, a rest given up) never makes rest after rest at full speed.  The kick at the
++           switch comes after the rest bit is cleared: this wait then ends at once */
++        for (int k = 0; k < 100 && s->head == t && (c->rest & XME_REST_OK); k++) me_spin(XME_ME_5US);
++      }
++    }
+   } else me_spin(why == 1 ? 4u * XME_ME_5US : XME_ME_5US);   /* the GE (a frame's start): 20 us; the heap's answer: 5 us */
+   c->h.count = hle_me_count(); c->h.heartbeat++;
+ }
+@@ -60,6 +108,8 @@
+   __asm__ volatile("mtc0 $zero, $9\n\tsync" ::: "memory");   /* gl19: Count starts.  It reads a constant until the ME writes it
+                                                                  (me_probe_notes.md 3; probes 1-2 write it so, gl18me did not) */
+   x = c->x;
++  if (c->rest & XME_REST_CFG) xme_rest_init();   /* gl28 (MGS2_ME_REST=1): xme_rest's vector in CP0 $25 and the main CPU's interrupt
++                                                    enabled at the ME's controller, once; IE stays off but inside xme_rest */
+   c->h.boots++; c->h.state = 1; hle_me_sync();
+   xme_run(x, xme_me_wait);       /* until XE_STOP (its cache written back and dropped there) */
+   me_leave(c);
+--- t27/psp/xl_psp.c	2026-11-19 21:02:40.165140126 +0000
++++ t28/psp/xl_psp.c	2026-11-20 06:41:46.725588070 +0000
+@@ -99,6 +99,7 @@
+ #include <malloc.h>
+ #include <pspkernel.h>
+ #include <pspdisplay.h>
++#include <pspctrl.h>         /* gl28d: MGS2_EYE peeks the R trigger (sceCtrlPeekBufferPositive: reads only) */
+ #include <pspge.h>
+ #include <pspgu.h>
+ #include "../ge/texcache.h"
+@@ -186,6 +187,36 @@
+ static long gl_stop_vb = -2; static int gl_stop_r;        /* gl_sync's stop: the last list's frame (-1: the set-up list), the GE's state */
+ static long dig_from = -1, dig_to = -1, dig_n; static uint64_t dig_all = 0xcbf29ce484222325ull;
+ static long shot_vb[16]; static int shot_n;
++/* gl28d (2026-11-20, the black marks on the deck that only the PSP shows): five diagnostics, each its own mgs2.cfg switch, each off
++   when its key is absent (then nothing here runs and nothing is printed: gl28 as it was).  They read the pad, the display and VRAM and
++   write files next to the EBOOT as the shots do; nothing writes game RAM, nothing changes what is drawn (MGS2_ME_PIC_GE2_AB changes
++   only the overlap of the ME's next frame with the GE's drawing, as GE2=2 did in gl23).
++   MGS2_EYE=1: the owner's marker: the R trigger peeked once a vblank hook (xl_psp_gl_vblank, outside the step's time); an 'eye: R
++     down|up' line at each press and release (the game never reads the real pad: it plays pad.txt; the pad's readers, the end screen
++     and the crash catcher, use sceCtrlReadBufferPositive, which a peek does not consume).
++   MGS2_GL_LIVE=from:to:every[:max_r]: what the screen shows, copied as it is (no drain, no GE wait: the buffer on the display is
++     complete, the GE draws only into the other one) to live_<vb>.bmp, at vb = from + k*every + every/2 up to to, and (with MGS2_EYE=1)
++     at an R press inside from..to (gl28d2: a press outside the window writes only its 'eye' line), at most max_r (default 8) presses
++     30 vblanks apart or more.
++   MGS2_GL_FBCHK=vb: from vb, at each list given to the GE, the display's own answer (sceDisplayGetFrameBuf, IMMEDIATE and NEXTFRAME)
++     compared with the list's target buffer, and the display vblanks since the frame before was shown, by turn; answers that name
++     neither buffer counted apart (gl28d2).
++   MGS2_ME_PIC_GE2_AB=vb: from vb, GE2 only in every other ME turn (on when (vb / (2 * TURN)) is odd); mode 4's turns only.
++   MGS2_GL_SHOT_FLIPWAIT=1: from MGS2_GL_FLIPWAIT_FROM on, the shots' drained path keeps the flip wait and gives the GE every list
++     made (the screen not torn by a list drawn into the buffer still on it; the frame saved is the last one made, gl27's own when at
++     most one list was waiting after the drain). */
++static long gl_buf_vb[2] = { -1, -1 }, gl_buf_n[2];   /* the frame each buffer holds since gl_show: its last vblank, its number shown */
++static int eye_on, eye_r; static long eye_vb0 = -1, eye_n[2]; static uint64_t eye_t0;   /* MGS2_EYE: on; R now; the first hook; presses */
++static long live_from = -1, live_to = -1, live_every, live_rmax = 8, live_rlast = -1000000, live_np, live_nr, live_bad;   /* MGS2_GL_LIVE */
++static long fbc_from = -1, fbc_n[2], fbc_imm[2], fbc_next[2], fbc_same[2], fbc_err, fbc_lines;   /* MGS2_GL_FBCHK, by turn (0 ME, 1 main) */
++static long fbc_oth;   /* gl28d2: answers (rc >= 0) that name neither buffer 0 nor buffer 1 (not in the VRAM view fb_off knows, or the text) */
++static uint32_t fbc_dvc[2], fbc_dvc_t[2]; static long fbc_n0[2], fbc_i0[2], fbc_x0[2], fbc_s0[2];   /* the largest vblanks since the show:
++                                                                                                      the run's, the turn's; at its start */
++static long ge2_ab = -1; static int shot_fw;   /* MGS2_ME_PIC_GE2_AB, MGS2_GL_SHOT_FLIPWAIT */
++#define GL28D_COLD __attribute__((noinline, cold))   /* the diagnostics kept out of the hot paths they hang off (mq_service, the hook) */
++static GL28D_COLD void eye_poll(long vb);
++static GL28D_COLD void gl_live(long vb, int r);
++static GL28D_COLD int shot_wait(long vb);
+ static uint32_t gl_texkb = GL_PSP_TEXKB, gl_vol_n; static uint8_t *gl_vol, *gl_vol2; static void *gl_pool; static int gl_hold;   /* gl23: gl_vol2 */
+ static long gx_words_max, gx_aux_max, gx_both_max, gx_drop; static uint64_t gx_words_sum;
+ static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
+@@ -223,6 +254,25 @@
+     }
+   return 0;
+ }
++/* gl28d: MGS2_EYE and MGS2_GL_LIVE read at the picture's set-up (out of line: gl_setup is inlined into the hot xlive_chk_dma) */
++static GL28D_COLD void gl28d_cfg(void)
++{
++  const char *e;
++  if ((e = mgs2_getenv("MGS2_EYE"))) {   /* gl28d: the owner's marker (only 1 turns it on) */
++    eye_on = atoi(e) == 1;
++    fprintf(stderr, "gl28 eye (MGS2_EYE %.16s): %s\n", e, eye_on ? "on: the R trigger peeked once a vblank hook, outside the step's time "
++            "(sceCtrlPeekBufferPositive: the game plays pad.txt and never reads the pad; a peek takes nothing from the end screen's or the "
++            "crash catcher's reads); an 'eye: R down|up' line at each press and release, t in ms from the first hook" : "not 1, so off"); }
++  if ((e = mgs2_getenv("MGS2_GL_LIVE"))) {   /* gl28d: live captures of the buffer on the screen */
++    long a = -1, b = -1, ev = 0, mr = 8; int n = sscanf(e, "%ld:%ld:%ld:%ld", &a, &b, &ev, &mr);
++    if (n >= 3 && a >= 0 && b >= a && ev > 0) { live_from = a; live_to = b; live_every = ev; live_rmax = n == 4 && mr >= 0 ? mr : 8; }
++    if (live_from >= 0) fprintf(stderr, "gl28 live (MGS2_GL_LIVE %.40s): the buffer on the screen copied as it is (no drain, no wait for the "
++                                "GE) to live_<vb>.bmp next to the EBOOT, outside the step's time: at vb %ld + k*%ld + %ld up to %ld; at R presses "
++                                "(MGS2_EYE): %s %ld inside vb %ld-%ld (a press outside: its 'eye' line only), 30 vblanks apart or more; a "
++                                "'picture: gl28 live' line each\n", e, live_from, live_every, live_every / 2, live_to, eye_on ? "the first" :
++                                "none (MGS2_EYE off), else the first", live_rmax, live_from, live_to);
++    else fprintf(stderr, "gl28 live (MGS2_GL_LIVE %.40s): not from:to:every[:max_r] with every > 0, so off\n", e); }
++}
+ /* with the translator's start (its first transfer): the texture pool, the frame memory, the GE */
+ static void gl_setup(void)
+ {
+@@ -237,6 +287,7 @@
+     if ((e = mgs2_getenv("MGS2_GL_STREAK_CALLS"))) fx_thin_calls(&gl_ft, atoi(e));   /* task #158: their calls 1 in N, by block */
+     if ((e = mgs2_getenv("MGS2_GL_RAIN_SPRITES"))) fx_thin_rainspr(&gl_ft, atoi(e)); }   /* task #161: 0: the rain's sprites left out */
+   for (e = mgs2_getenv("MGS2_GL_SHOT"); e && *e && shot_n < 16; ) { shot_vb[shot_n++] = strtol(e, (char **)&e, 10); if (*e == ',') e++; else break; }
++  gl28d_cfg();   /* gl28d: MGS2_EYE, MGS2_GL_LIVE */
+   gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST;
+   gl_vol = host_vol_tail(gl_vol_n); gl_pool = memalign(64, gl_texkb << 10);
+   if (!gl_vol || !gl_pool) { fprintf(stderr, "picture: no memory (frame memory %s, texture pool %s): no picture\n", gl_vol ? "ok" : "none",
+@@ -298,6 +349,7 @@
+   sceDisplaySetFrameBuf((void *)(0x44000000u + (gl_ge_buf ? GL_FB1 : GL_FB0)), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
+   gl_show_vc = sceDisplayGetVcount();   /* gl27 */
+   gl_ge = 0; gl_shown++; gl_shown_buf = gl_ge_buf; gl_shown_vb = gl_ge_vb;
++  gl_buf_vb[gl_ge_buf & 1] = gl_ge_vb; gl_buf_n[gl_ge_buf & 1] = gl_shown;   /* gl28d: what each buffer holds (MGS2_GL_LIVE, MGS2_EYE) */
+ }
+ static void gl_wait(void) { int r; HOST_ENTER(HOST_GW); r = gl_sync(); HOST_LEAVE(HOST_GW); if (!r) gl_show(); }
+ /* the frame that ended (its last vblank fvb) -> its GE list, drawn into the buffer that is not on the screen */
+@@ -331,24 +383,37 @@
+   gl_ge = 1; gl_ge_buf = d; gl_ge_vb = fvb;
+   if (!(g_opt & OPT_GL_ASYNC)) gl_wait();
+ }
+-/* the last frame shown, as a 24-bit BMP next to the EBOOT */
+-static void gl_shot(void)
++/* a frame buffer as a 24-bit BMP next to the EBOOT, through the uncached view, 16 rows at a time (gl28d: the shots' writer, shared with
++   MGS2_GL_LIVE): 1 saved, 0 a write failed, -1 not opened; *rd: the microseconds spent reading VRAM */
++static uint8_t gl_rows[16 * 1440];
++static __attribute__((noinline)) int gl_bmp(const char *p, int buf, uint32_t *rd)
+ {
+-  static uint8_t rows[16 * 1440]; uint8_t h[54]; uint32_t sz = 54 + 480 * 272 * 3, isz = 480 * 272 * 3; int32_t w = 480, ht = 272;
+-  char p[256]; SceUID fd; int ok;
++  uint8_t h[54]; uint32_t sz = 54 + 480 * 272 * 3, isz = 480 * 272 * 3, t0 = 0; int32_t w = 480, ht = 272;
++  SceUID fd; int ok;
+   memset(h, 0, sizeof h); h[0] = 'B'; h[1] = 'M'; memcpy(h + 2, &sz, 4); h[10] = 54; h[14] = 40; memcpy(h + 18, &w, 4); memcpy(h + 22, &ht, 4);
+   h[26] = 1; h[28] = 24; memcpy(h + 34, &isz, 4);
+-  snprintf(p, sizeof p, "%sshot_%ld.bmp", host_dir(), gl_shown_vb);
+-  if ((fd = sceIoOpen(p, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777)) < 0) { fprintf(stderr, "picture: cannot write %s\n", p); return; }
++  if (rd) *rd = 0;
++  if ((fd = sceIoOpen(p, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777)) < 0) return -1;
+   ok = sceIoWrite(fd, h, 54) == 54;
+-  const volatile uint32_t *src = (const volatile uint32_t *)(0x44000000u + (gl_shown_buf ? GL_FB1 : GL_FB0));
++  const volatile uint32_t *src = (const volatile uint32_t *)(0x44000000u + (buf ? GL_FB1 : GL_FB0));
+   for (int y0 = 271; y0 >= 0 && ok; y0 -= 16) {   /* bottom-up rows of B, G, R; the GE's 8888 has R in the low byte */
+     int n = 0;
++    if (rd) t0 = sceKernelGetSystemTimeLow();   /* (the shots: no timer) */
+     for (int y = y0; y > y0 - 16 && y >= 0; y--, n++)
+-      for (int x = 0; x < 480; x++) { uint32_t c = src[y * 512 + x]; uint8_t *o = rows + n * 1440 + 3 * x; o[0] = (uint8_t)(c >> 16); o[1] = (uint8_t)(c >> 8); o[2] = (uint8_t)c; }
+-    ok = sceIoWrite(fd, rows, n * 1440) == n * 1440;
++      for (int x = 0; x < 480; x++) { uint32_t c = src[y * 512 + x]; uint8_t *o = gl_rows + n * 1440 + 3 * x; o[0] = (uint8_t)(c >> 16); o[1] = (uint8_t)(c >> 8); o[2] = (uint8_t)c; }
++    if (rd) *rd += sceKernelGetSystemTimeLow() - t0;
++    ok = sceIoWrite(fd, gl_rows, n * 1440) == n * 1440;
+   }
+-  sceIoClose(fd); gl_shots += ok;
++  sceIoClose(fd);
++  return ok;
++}
++/* the last frame shown, as a 24-bit BMP next to the EBOOT (gl28d: kept out of line, as before) */
++static __attribute__((noinline)) void gl_shot(void)
++{
++  char p[256]; int ok;
++  snprintf(p, sizeof p, "%sshot_%ld.bmp", host_dir(), gl_shown_vb);
++  if ((ok = gl_bmp(p, gl_shown_buf, 0)) < 0) { fprintf(stderr, "picture: cannot write %s\n", p); return; }
++  gl_shots += ok;
+   fprintf(stderr, "picture: the frame of vb %ld %s %s\n", gl_shown_vb, ok ? "saved as" : "NOT saved:", p);
+ }
+ /* psp/main_psp.c host_vb_end, after the next step's timer started: the picture's work at the hook that starts step vb counts in step vb */
+@@ -405,14 +470,18 @@
+ /* psp/main_psp.c host_vb_end, outside the step's time: MGS2_GL_SHOT's saves at the hook that starts step vb */
+ void xl_psp_gl_vblank(long vb)
+ {
++  int r = 0;
++  if (eye_on) { long n = eye_n[1]; eye_poll(vb); r = eye_n[1] != n; }   /* gl28d: MGS2_EYE (r: R went down at this hook) */
+   if (gl_ok != 1) return;
+   for (int k = 0; k < shot_n; k++) if (shot_vb[k] == vb) {
+-    if (mq_on) { flip_force = 1; mq_drain(); mq_service(); mq_ge_finish(); flip_force = 0; if (gl_ok != 1) return; }   /* gl27: no flip
++    if (mq_on && shot_fw && flip_on && flip_from >= 0 && vb >= flip_from) { if (shot_wait(vb)) return; }   /* gl28d: MGS2_GL_SHOT_FLIPWAIT */
++    else if (mq_on) { flip_force = 1; mq_drain(); mq_service(); mq_ge_finish(); flip_force = 0; if (gl_ok != 1) return; }   /* gl27: no flip
+                                                                                                                         wait here */   /* task #180 step 4c: the loop's entries done, its
+                                                                                        last list drawn and shown */
+     else if (gl_ge) { if (gl_sync()) return; gl_show(); }
+     if (gl_shown_buf >= 0) gl_shot(); else fprintf(stderr, "picture: no frame shown yet at vb %ld\n", vb);
+   }
++  if (live_from >= 0) gl_live(vb, r);   /* gl28d: MGS2_GL_LIVE */
+ }
+ /* psp/v26me4_exc.c built with -DMGS2_GL_EXC (psp/gl1.sh), in the exception: the frame buffer on the display, through the uncached view
+    (the crash record goes over the game's picture there), or 0 while the harness's text is on it */
+@@ -1075,6 +1144,121 @@
+ static void mq_takeback(int why);
+ static uint64_t mq_now(void) { return (uint64_t)sceKernelGetSystemTimeWide(); }
+ static int mq_done(uint32_t seq) { return (int32_t)(XS(mq)->tail - seq) > 0; }
++#ifdef MGS2_ME_REAL
++/* gl28 (MGS2_ME_REST=1; power_design.md section 5 "R1" with power_critique.md section B; v30me5's psp/me_mix.c me_kick_check and
++   wait_rd's rekick): the ME rests in HALT (psp/xme_rest.S; psp/xme_me.c xme_rest_once) through the main CPU's turns, never in its own.
++   A main turn begins: the rest bit set (rs_allow, after the hand-over).  An ME turn begins (rs_end, first in the switch): the rest bit
++   cleared, sync, asleep read; a rest not kicked yet gets one kick (hle_me_kick: 0xBC100044 = 1 in kernel mode, about 137 us of the main
++   CPU's in v30me5), then the main CPU waits (at most 2 ms, a rekick every 200 us) until the ME's idle wait that held the rest is
++   accounted (XmeSh t_idle_q), so the ME turn's own times on its Count never hold the main turn's rest; then the turn's line.  After each
++   post, and while the main CPU waits for the ME (mq_wait, mq_probe: 200 us without a heartbeat and asleep), the same check (expected
++   never: rekicks 0).  The 1-s take-back stays the safety net.  Times that span a rest are the main CPU's clock; the ME's Count ticks in
++   its rests are shown against them (Count may stop in HALT): Count's test is the turns with one rest woken in HALT (any other turn's
++   span from the rest bit to the kick holds awake time too).  Stray wakes (the handler's wakes beyond every kick) are a low bound: a
++   kick to an awake ME stays pending and wakes the next rest at once (kicks while one is pending make one wake), so the per-turn line
++   shows the handler's wakes beside the kicks.  A rest given up just as the rest bit is cleared (asleep seen, then the ME saw the bit
++   off) gets the switch's kick while awake: that turn shows "given up 1", the next "rests 2, before HALT 1" (benign).  When the switch
++   gives up its wait (2 ms) or finds the ME awake after a rest, that rest's Count ticks fall in the next ME turn's idle: a line after
++   that "me turn" line says so.  MGS2_ME_REST=0 (the default): the rest bit is never set, nothing here runs, the ME never sets the rest
++   up (gl27). */
++static int rs_cfg;                          /* MGS2_ME_REST: 1 on */
++static int rs_on;                           /* the rest bit is set (a main CPU turn) */
++static uint32_t rs_kicked = 0xFFFFFFFFu;    /* the ME's sleeps at the last kick */
++static uint64_t rs_kicks, rs_rekicks, rs_kick_us, rs_kick_max, rs_kick_tmax, rs_lk;   /* kicks (a switch, a post), kicks in waits, their
++                                                                                         main-clock us, the longest (run, turn), the last's end */
++static uint64_t rs_t_ok, rs_asleep_us, rs_ticks, rs_sw_us; static long rs_vb0 = -1, rs_turns, rs_slow, rs_awake_sw;
++static long rs_cl_n, rs_xs_n; static uint64_t rs_cl_us, rs_cl_ticks, rs_xs;   /* turns with one rest woken in HALT (Count's test): their
++                                                                                  main us and ticks; turns with more handler wakes than
++                                                                                  kicks, the wakes beyond */
++static int rs_tnote;                        /* the ME turn now begun may count the main turn's last rest in its idle: 1 the ME awake at
++                                               the switch after a rest, 2 the switch's wait given up (mq_tend's note) */
++typedef struct { uint32_t sl, ha, pe, nw, la, tr, w; uint64_t k, rk, kus; } RsSnap;
++static RsSnap rs_s0, rs_s1;                 /* at the main turn's start (rest bit set); at its end (the ME turn's start) */
++static uint64_t rs_me_sl, rs_me_k; static uint32_t rs_me_sl_t; static uint64_t rs_me_k_t;   /* in the ME turns: rests begun, kicks (all;
++                                                                                               the turn before this main turn) */
++static void rs_snap(RsSnap *s)
++{
++  volatile XmeMeCtl *c = mq_mcu;
++  s->sl = c->sleeps; s->ha = c->halted; s->pe = c->pending; s->nw = c->nowake; s->la = c->late; s->tr = c->t_rest; s->w = c->wakes;
++  s->k = rs_kicks; s->rk = rs_rekicks; s->kus = rs_kick_us;
++}
++static uint32_t rs_stray(void)              /* the handler's wakes over every kick since the start (critique B: a wake by anyone else; a
++                                               low bound: kicks to an awake ME, coalesced or never answered, hide later strays) */
++{
++  uint64_t w = mq_mcu->wakes, k = rs_kicks + rs_rekicks;
++  return w > k ? (uint32_t)(w - k) : 0u;
++}
++static void rs_kick(int re)                 /* one interrupt to the ME, timed on the main clock */
++{
++  uint64_t t0 = mq_now(), d;
++  hle_me_kick();
++  rs_lk = mq_now(); d = rs_lk - t0; rs_kick_us += d;
++  if (d > rs_kick_max) rs_kick_max = d;
++  if (d > rs_kick_tmax) rs_kick_tmax = d;
++  if (re) rs_rekicks++; else rs_kicks++;
++}
++static int rs_kick_check(void)              /* v30me5's me_kick_check: the ME asleep in a rest not kicked yet gets one kick; 1: asleep */
++{
++  uint32_t s;
++  if (!mq_mcu->asleep) return 0;
++  s = mq_mcu->sleeps;                       /* (the ME writes sleeps before asleep, a sync between) */
++  if (s != rs_kicked) { rs_kicked = s; rs_kick(0); }
++  return 1;
++}
++static void rs_rekick(uint64_t t, uint64_t prog)   /* in a wait for the ME: asleep, no progress for 200 us and no kick for 200 us */
++{
++  if (mq_mcu->asleep && t - prog > 200u && t - rs_lk > 200u) rs_kick(1);
++}
++static void rs_allow(long vb)               /* a main CPU turn begins (the hand-over done): the ME may rest */
++{
++  if (!rs_cfg || mq_me <= 0 || rs_on) return;
++  rs_me_sl_t = 0; rs_me_k_t = 0;
++  if (rs_vb0 >= 0) { rs_me_sl_t = mq_mcu->sleeps - rs_s1.sl; rs_me_k_t = (rs_kicks + rs_rekicks) - (rs_s1.k + rs_s1.rk);
++    rs_me_sl += rs_me_sl_t; rs_me_k += rs_me_k_t; }
++  rs_snap(&rs_s0); rs_kick_tmax = 0; rs_vb0 = vb;
++  XME_BARRIER(); mq_mcu->rest = XME_REST_CFG | XME_REST_OK; XME_BARRIER();
++  rs_t_ok = mq_now(); rs_on = 1;
++}
++static void rs_end(long vb)                 /* an ME turn begins (or the run ends in a main turn): no more rests; the ME woken; the line */
++{
++  uint64_t t, tw, a = 0, k, rk; uint32_t q0, qe, sl, tr, dw; int asl, ok = 1, cl; double r;
++  if (!rs_on) return;
++  rs_on = 0;
++  if (mq_me <= 0) return;   /* (held after a take-back: nothing to wake) */
++  mq_mcu->rest = XME_REST_CFG; XME_BARRIER();   /* the rest bit off, in memory before asleep is read (xme_me.c's handshake) */
++  q0 = XS(mq)->t_idle_q; XME_BARRIER();
++  asl = rs_kick_check(); t = mq_now();
++  if (!asl) rs_awake_sw++;
++  else {   /* the ME's idle wait that held the rest ends and is accounted (t_idle_q even and two past q0's even value) */
++    qe = (q0 + 1u) & ~1u;
++    for (;;) { uint32_t q = XS(mq)->t_idle_q; uint64_t n;
++      if (!(q & 1u) && (int32_t)(q - (qe + 2u)) >= 0) break;
++      n = mq_now();
++      if (n - t > 2000u) { ok = 0; rs_slow++; break; }
++      rs_rekick(n, t); } }
++  tw = mq_now() - t; rs_sw_us += tw;
++  rs_snap(&rs_s1);
++  sl = rs_s1.sl - rs_s0.sl; tr = rs_s1.tr - rs_s0.tr; k = rs_s1.k - rs_s0.k; rk = rs_s1.rk - rs_s0.rk; dw = rs_s1.w - rs_s0.w;
++  if (sl) a = t - rs_t_ok;   /* the ME asleep from (within 5 us of) the rest bit to the kick, on the main clock */
++  rs_asleep_us += a; rs_ticks += tr; rs_turns++;
++  cl = sl == 1 && rs_s1.ha - rs_s0.ha == 1;   /* one rest, woken in HALT: the span is that rest (Count's test) */
++  if (cl) { rs_cl_n++; rs_cl_us += a; rs_cl_ticks += tr; }
++  if (dw > k + rk) { rs_xs_n++; rs_xs += dw - (k + rk); }
++  rs_tnote = !ok ? 2 : !asl && sl ? 1 : 0;
++  r = a ? (double)tr / (331.31 * (double)a) : 0.0;
++  fprintf(stderr, "main turn vb %ld-%ld gl28 me rest: rests %u (woken in HALT %u, before HALT %u, no interrupt %u, given up %u), kicks %llu + "
++          "rekicks %llu (%.1f us mean, %.1f max), handler wakes %u, stray wakes so far at least %u; ME asleep %.1f ms (main clock: rest allowed "
++          "to kick%s), Count ticks in rests %u = %.4f of 331.31 x main us%s%s; flags seen %08x; Sony words %08x %08x %08x %08x %08x; switch "
++          "wait %.0f us%s; the ME turn before: rests begun %u, kicks %llu\n", rs_vb0, vb, (unsigned)sl, (unsigned)(rs_s1.ha - rs_s0.ha),
++          (unsigned)(rs_s1.pe - rs_s0.pe), (unsigned)(rs_s1.nw - rs_s0.nw), (unsigned)(rs_s1.la - rs_s0.la), (unsigned long long)k,
++          (unsigned long long)rk, k + rk ? (double)(rs_s1.kus - rs_s0.kus) / (double)(k + rk) : 0.0, (double)rs_kick_tmax, (unsigned)dw,
++          (unsigned)rs_stray(), (double)a / 1000.0, asl ? "" : "; the ME was awake at the switch", (unsigned)tr, r,
++          cl ? " (one rest woken in HALT: Count's test)" : sl ? " (not one rest woken in HALT: the span holds awake time, not Count's test)" : "",
++          a > 12963000u ? " (over 12.96 s: the tick sum may have wrapped)" : "", (unsigned)mq_mcu->flags_or, (unsigned)mq_mcu->rpc[0],
++          (unsigned)mq_mcu->rpc[1], (unsigned)mq_mcu->rpc[2], (unsigned)mq_mcu->rpc[3], (unsigned)mq_mcu->rpc[4], (double)tw,
++          ok ? "" : " (GIVEN UP after 2 ms: the ME's idle wait not yet accounted)", (unsigned)rs_me_sl_t, (unsigned long long)rs_me_k_t);
++}
++#endif
+ /* the main CPU waits until the loop has done the entry at seq, serving the GE meanwhile; a heartbeat that does not move for
+    MGS2_ME_PIC_TBK_MS: the take-back */
+ static long mq_w_rounds, mq_w_r0, mq_dly_bad; static int mq_dly_e; static uint64_t mq_w_t0, mq_w_hb_t; static uint32_t mq_w_words0;   /* a take-back's facts */
+@@ -1147,10 +1331,18 @@
+ {
+   if (flip_w == 1 + b) { uint32_t n = sceKernelGetSystemTimeLow(); flip_us[b] += n - flip_t0; flip_t0 = n; }   /* gl27b: a hold still on:
+                                                                                                                its time so far */
++  if (fbc_from < 0 || vb <= fbc_from)   /* gl28d: the suffix only for turns that end after MGS2_GL_FBCHK's vb */
+   fprintf(stderr, "%s vb %ld-%ld gl27 display: flip wait %s; lists held for the screen %ld (%.1f ms); lists drawn into the shown buffer %ld\n",
+           who, vb0, vb, flip_on ? "on" : "off", flip_hold[b] - flip_h0[b], (double)(flip_us[b] - flip_u0[b]) / 1000.0, flip_race[b] - flip_r0[b]);
++  else   /* gl28d: MGS2_GL_FBCHK's counts of the turn */
++  fprintf(stderr, "%s vb %ld-%ld gl27 display: flip wait %s; lists held for the screen %ld (%.1f ms); lists drawn into the shown buffer %ld; "
++          "gl28 fbchk: lists %ld, into the buffer the display shows now (IMMEDIATE) %ld, into the buffer it shows next (NEXTFRAME) %ld, in "
++          "the display vblank of the show %ld, display vblanks since the show at most %u\n", who, vb0, vb, flip_on ? "on" : "off",
++          flip_hold[b] - flip_h0[b], (double)(flip_us[b] - flip_u0[b]) / 1000.0, flip_race[b] - flip_r0[b], fbc_n[b] - fbc_n0[b],
++          fbc_imm[b] - fbc_i0[b], fbc_next[b] - fbc_x0[b], fbc_same[b] - fbc_s0[b], (unsigned)fbc_dvc_t[b]);
+ }
+-static void flip_t0set(int b) { flip_h0[b] = flip_hold[b]; flip_r0[b] = flip_race[b]; flip_u0[b] = flip_us[b]; }
++static void flip_t0set(int b) { flip_h0[b] = flip_hold[b]; flip_r0[b] = flip_race[b]; flip_u0[b] = flip_us[b];
++  fbc_n0[b] = fbc_n[b]; fbc_i0[b] = fbc_imm[b]; fbc_x0[b] = fbc_next[b]; fbc_s0[b] = fbc_same[b]; fbc_dvc_t[b] = 0; }   /* gl28d */
+ static void mq_tstart(long vb)   /* an ME turn begins (the main CPU's cache holds the counts as they are) */
+ {
+   if (flip_mvb0 >= 0) flip_line("main turn", flip_mvb0, vb, 1);   /* gl27: the main CPU's turn before */
+@@ -1199,6 +1391,12 @@
+           tt - (all - ms[XME_T_IDLE]), ge2, ge_n[ge2 ? 1 : 0] - ge_tn0, (double)(ge_draw[ge2 ? 1 : 0] - ge_td0) / 1000.0,
+           (double)(ge_note[ge2 ? 1 : 0] - ge_tq0) / 1000.0, mq->n_ge2 - ge2_tn0, two, two_steps - two_t0[0], two_spills - two_t0[1],
+           two_nohalf - two_t0[2], w[MW_HOOK], two_nowait - two_t1[0], two_older - two_t1[1], two_move - two_t1[2]);
++#ifdef MGS2_ME_REAL
++  if (rs_tnote) fprintf(stderr, "me turn vb %ld-%ld gl28 me rest: this turn's idle may hold the main turn's last rest before it (%s): that "
++                        "rest's Count ticks were not yet counted when the turn began\n", mq_tvb0, vb, rs_tnote == 2 ? "the switch's wait was "
++                        "given up after 2 ms" : "the ME was awake at the switch after a rest");
++  rs_tnote = 0;
++#endif
+   flip_line("me turn", mq_tvb0, vb, 0); flip_t0set(1); flip_mvb0 = vb;   /* gl27 */
+   if (mq->ws_on) { double s[XM_TS_N], in = 0; long n[XM_TS_N];   /* gl26: the walk's split (gl27: only with MGS2_ME_SPLIT) */
+     for (int k = 0; k < XM_TS_N; k++) { uint64_t d = mq->t_ws[k] - mq_ts0[k]; mq_tsall[k] += d; s[k] = (double)d / mq_tdiv; in += s[k];
+@@ -1226,6 +1424,9 @@
+ #endif
+     if (XS(mq)->heart != hb) { hb = XS(mq)->heart; if (t - t1 > mq_gap_max) { mq_gap_max = t - t1; mq_gap_vb = me_vb; mq_gap_at = at; } t1 = t; }
+     else if (t - t1 >= mq_tbk_us) { mq_w_hb_t = t1; mq_takeback(why); break; }
++#ifdef MGS2_ME_REAL
++    else if (rs_cfg && mq_me > 0) rs_rekick(t, t1);   /* gl28: a lost wake (not expected) */
++#endif
+     at = XS(mq)->at;
+     { int dr = sceKernelDelayThread(50); if (dr < 0 && !mq_dly_bad++) mq_dly_e = dr; }
+     mq_w_rounds++;
+@@ -1256,6 +1457,9 @@
+     if (mq_me > 0 && mq_me_x()) { mq_w_hb_t = t0; mq_me_tbk_exc = 1; mq_takeback(MW_PROBE); break; }   /* step 4d-4 */
+ #endif
+     if (t - t0 >= mq_tbk_us) { mq_w_hb_t = t0; mq_takeback(MW_PROBE); break; }
++#ifdef MGS2_ME_REAL
++    if (rs_cfg && mq_me > 0) rs_rekick(t, t0);   /* gl28: a lost wake (not expected) */
++#endif
+     { int dr = sceKernelDelayThread(50); if (dr < 0 && !mq_dly_bad++) mq_dly_e = dr; }
+     mq_w_rounds++;
+   }
+@@ -1277,6 +1481,10 @@
+   if (mq_m4) mq_cpu_wb();   /* step 4d: the entry and the bytes it has the ME read (the records' RAM, the extents, the log) in RAM
+                                before head moves (4d-4: the entry after its write, not before) */
+   XME_BARRIER(); XS(mq)->head++; mq_posted++;
++#ifdef MGS2_ME_REAL
++  if (rs_cfg && mq_me > 0) { XME_BARRIER(); rs_kick_check(); }   /* gl28: head in memory before asleep is read (xme_me.c's handshake;
++                                                                     the ME rests only in main turns, so expected never asleep here) */
++#endif
+   if (mq_th >= 0 && XS(mq)->idle) { sceKernelSignalSema(mq_sem, 1); mq_signals++; }   /* the thread's wait (4c); the real ME looks
+                                                                                          at head itself (psp/xme_me.c) */
+   return XS(mq)->head - 1;
+@@ -1285,6 +1493,36 @@
+ {
+   XS(mq)->ge_done = XS(mq)->listed + (1u << 30); mq_stop_due = 1;
+ }
++/* gl28d: MGS2_GL_FBCHK.  A display address -> its VRAM offset (0xffffffff: not in VRAM); the buffer's name */
++static uint32_t fb_off(const void *a) { uint32_t u = (uint32_t)(uintptr_t)a; return (u & 0x0fe00000u) == 0x04000000u ? u & 0x001fffffu : 0xffffffffu; }
++static const char *fb_nm(uint32_t o) { return o == GL_FB0 ? "0" : o == GL_FB1 ? "1" : o == GL_TXT ? "text" : "other"; }
++/* in mq_submit, before the list goes to the GE: the display's own answers (sceDisplayGetFrameBuf: IMMEDIATE, the buffer it scans now;
++   NEXTFRAME, the one it shows from its next vblank) against the list's target buffer, and the display vblanks since the frame before
++   was shown (gl_show), by turn.  A line for the first check, for each list into either buffer and for the first answer that names
++   neither buffer (50 lines at most) */
++static GL28D_COLD void fb_chk(const XmeRes *r)
++{
++  void *a0 = 0, *a1 = 0; int w0 = 0, w1 = 0, f0 = 0, f1 = 0, r0, r1, b = mq_self ? 1 : 0, imm, nxt, oth;
++  uint32_t t = r->d ? GL_FB1 : GL_FB0, o0, o1, dv;
++  r0 = sceDisplayGetFrameBuf(&a0, &w0, &f0, PSP_DISPLAY_SETBUF_IMMEDIATE);
++  r1 = sceDisplayGetFrameBuf(&a1, &w1, &f1, PSP_DISPLAY_SETBUF_NEXTFRAME);
++  dv = sceDisplayGetVcount() - gl_show_vc;
++  o0 = r0 < 0 ? 0xffffffffu : fb_off(a0); o1 = r1 < 0 ? 0xffffffffu : fb_off(a1);
++  imm = o0 == t; nxt = o1 == t;
++  oth = (r0 >= 0 && o0 != GL_FB0 && o0 != GL_FB1) + (r1 >= 0 && o1 != GL_FB0 && o1 != GL_FB1);   /* gl28d2: neither buffer named */
++  fbc_n[b]++; fbc_imm[b] += imm; fbc_next[b] += nxt; if (r0 < 0 || r1 < 0) fbc_err++;
++  if (gl_shown) { if (!dv) fbc_same[b]++; if (dv > fbc_dvc[b]) fbc_dvc[b] = dv; if (dv > fbc_dvc_t[b]) fbc_dvc_t[b] = dv; }
++  if ((imm || nxt || r0 < 0 || r1 < 0 || !fbc_lines || (oth && !fbc_oth)) && fbc_lines < 50) {   /* gl28d2: and the first answer naming
++                                                                                                     neither buffer */
++    fbc_lines++;
++    fprintf(stderr, "picture: gl28 fbchk vb %ld (%s turn): the list of frame vb %ld into buffer %d; the display's answers: IMMEDIATE %08x "
++            "(buffer %s, rc %d), NEXTFRAME %08x (buffer %s, rc %d); %u display vblanks after the show of frame vb %ld%s%s\n", me_vb,
++            b ? "main" : "me", (long)r->fvb, r->d, (unsigned)(uintptr_t)a0, fb_nm(o0), r0, (unsigned)(uintptr_t)a1, fb_nm(o1), r1,
++            (unsigned)dv, gl_shown_vb, imm ? ": INTO THE BUFFER ON THE SCREEN" : nxt ? ": INTO THE BUFFER SHOWN NEXT" : "",
++            oth ? "; AN ANSWER NAMES NEITHER BUFFER (the counts above cannot match it)" : "");
++  }
++  fbc_oth += oth;
++}
+ /* gl_list's part after gx_frame, for a result of the ME's: the counts, the "did not fit" and digest lines, the list to the GE */
+ static void mq_submit(const XmeRes *r)
+ {
+@@ -1305,6 +1543,7 @@
+             r->nt, c->dropped);
+   }
+   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
++  if (fbc_from >= 0 && me_vb >= fbc_from) fb_chk(r);   /* gl28d: MGS2_GL_FBCHK */
+   ge_fin_n0 = ge_fin_n; ge_sub_t = sceKernelGetSystemTimeLow();   /* gl22 */
+   sceGuStart(GU_DIRECT, gl_dl); sceGuCallList(r->list); sceGuFinish();
+   gl_ge = 1; gl_ge_buf = r->d; gl_ge_vb = r->fvb; mq_subm++; mq_ge_t0 = mq_now();
+@@ -1344,6 +1583,72 @@
+   if (r) { mq_released_all(); return; }   /* (gl_sync's stop: gl_ok 3, the text on the screen) */
+   ge_noted(); gl_show(); XS(mq)->ge_done = mq_subm;
+ }
++/* gl28d: MGS2_GL_SHOT_FLIPWAIT, a shot's drained path from MGS2_GL_FLIPWAIT_FROM on: the loop's entries done (mq_drain) with the flip wait
++   kept, then every list made given to the GE, drawn and shown, a list held while the frame before is not on the screen yet (200 us
++   rounds).  The loop gives up when it finds 2 s passed since the drain began, checked after each round's mq_ge_finish, which can
++   itself wait up to gl_sync's limit (GL_GE_LIMIT; beyond it the picture stops): at worst the drain's own wait + 2 s + GL_GE_LIMIT.
++   The frame saved is the last one the loop made; gl27's forced path drew and showed at most one list after the drain, so it saved
++   the same frame when at most one list was waiting then (always on the emulator, whose GE is done at once) and an earlier one when
++   more were (GE2 on the PSP).  Only the GE no longer draws into the buffer still on the screen.  0: shown; -1: the picture stopped */
++static GL28D_COLD int shot_wait(long vb)
++{
++  uint64_t t0 = mq_now(); long n = 0; int late = 0;
++  flip_force = 0; mq_drain();
++  while (gl_ok == 1 && mq && (gl_ge || mq_cons != XS(mq)->listed)) {
++    mq_service(); mq_ge_finish();
++    if (gl_ok != 1 || (!gl_ge && mq_cons == XS(mq)->listed)) break;
++    if (mq_now() - t0 > 2000000u) { late = 1; break; }
++    sceKernelDelayThread(200); n++;
++  }
++  fprintf(stderr, "picture: gl28 shot vb %ld (%s turn): the flip wait kept: %.1f ms, %ld rounds of 200 us%s\n", vb, mq_self ? "main" : "me",
++          (double)(mq_now() - t0) / 1000.0, n, late ? "; GAVE UP after 2 s with a list not shown (the shot shows the frame before)" : "");
++  return gl_ok == 1 ? 0 : -1;
++}
++/* gl28d: MGS2_EYE, at each vblank hook (xl_psp_gl_vblank, outside the step's time): the R trigger peeked (the latest sample; nothing
++   consumed), a line at each press and release with the turn and what the screen holds */
++static GL28D_COLD void eye_poll(long vb)
++{
++  SceCtrlData c; int r; uint64_t t = mq_now(); void *a = 0; int w = 0, f = 0, rc; char g[64];
++  if (eye_vb0 < 0) { eye_vb0 = vb; eye_t0 = t; fprintf(stderr, "eye: t 0 at vb %ld (t: ms from this hook)\n", vb); }
++  if (sceCtrlPeekBufferPositive(&c, 1) < 1) return;
++  r = (c.Buttons & PSP_CTRL_RTRIGGER) != 0;
++  if (r == eye_r) return;
++  eye_r = r; eye_n[r]++;
++  rc = sceDisplayGetFrameBuf(&a, &w, &f, PSP_DISPLAY_SETBUF_IMMEDIATE);
++  if (gl_ge) snprintf(g, sizeof g, "draws frame vb %ld into %s", gl_ge_vb, gl_ge_buf == gl_shown_buf ? "THE SHOWN BUFFER" : "the other buffer");
++  else snprintf(g, sizeof g, "idle");
++  fprintf(stderr, "eye: R %s vb %ld t %llu turn %s two %d ge2 %d flip %s shown frame %ld buffer %d (shown #%ld, %u display vblanks ago); "
++          "the display scans buffer %s; the GE %s\n", r ? "down" : "up", vb, (unsigned long long)((t - eye_t0) / 1000),
++          mq_on && !mq_self ? "me" : "main", mq_on && !mq_self ? two : 0, mq_on && !mq_self ? ge2 : 0, flip_on ? "on" : "off", gl_shown_vb,
++          gl_shown_buf, gl_shown, (unsigned)(sceDisplayGetVcount() - gl_show_vc), rc < 0 ? "?" : fb_nm(fb_off(a)), g);
++}
++/* gl28d: MGS2_GL_LIVE, at each vblank hook after the shots (outside the step's time): the buffer handed to the display (gl_shown_buf;
++   on the screen, or from the next display vblank, before which the flip wait gives the GE nothing) copied as it is through the uncached
++   view, as gl_shot reads it, with gl_shot's writer and its 23 KB buffer (no heap): no drain, no GE wait, nothing given to the GE, so
++   the GE's flow is the same; the GE may draw the next frame into the other buffer meanwhile.  r: R went down at this hook.  Both kinds
++   only inside from..to (gl28d2: an R press outside the window is only the 'eye' line: no capture, nothing taken from max_r) */
++static GL28D_COLD void gl_live(long vb, int r)
++{
++  int in = vb >= live_from && vb <= live_to, per = in && (vb - live_from) % live_every == live_every / 2, rp = 0, b = gl_shown_buf, ok, rc;
++  uint64_t t0; uint32_t rd = 0, dv; void *a = 0; int w = 0, f = 0; char p[256], g[64];
++  if (in && r && eye_on && live_nr < live_rmax && vb - live_rlast >= 30) rp = 1;
++  if (!per && !rp) return;
++  if (b < 0) { fprintf(stderr, "picture: gl28 live vb %ld: no frame shown yet\n", vb); return; }
++  if (rp) { live_nr++; live_rlast = vb; }
++  if (per) live_np++;
++  t0 = mq_now(); dv = sceDisplayGetVcount() - gl_show_vc;
++  rc = sceDisplayGetFrameBuf(&a, &w, &f, PSP_DISPLAY_SETBUF_IMMEDIATE);
++  snprintf(p, sizeof p, "%slive_%ld.bmp", host_dir(), vb);
++  if (gl_ge) snprintf(g, sizeof g, "draws frame vb %ld into %s", gl_ge_vb, gl_ge_buf == b ? "THIS BUFFER" : "the other buffer");
++  else snprintf(g, sizeof g, "idle");
++  ok = gl_bmp(p, b, &rd); if (ok != 1) live_bad++;
++  fprintf(stderr, "picture: gl28 live vb %ld (%s%s) turn %s: buffer %d frame vb %ld (shown #%ld, %u display vblanks ago); the display scans "
++          "buffer %s; the other buffer frame vb %ld; the GE %s; lists waiting %u; VRAM read %.1f ms, all %.1f ms: %s %s\n", vb,
++          per ? "periodic" : "", rp ? (per ? ", R" : "R") : "", mq_on && !mq_self ? "me" : "main", b, gl_buf_vb[b & 1], gl_buf_n[b & 1],
++          (unsigned)dv, rc < 0 ? "?" : fb_nm(fb_off(a)), gl_buf_vb[(b & 1) ^ 1], g, mq ? (unsigned)(XS(mq)->listed - mq_cons) : 0u,
++          rd / 1000.0, (double)(mq_now() - t0) / 1000.0, ok == 1 ? "saved as" : ok == 0 ? "NOT saved (a write failed):" : "NOT saved (not opened):",
++          p);
++}
+ /* the loop's waits when the main CPU runs its entries itself: the GE (why 1) waited for here */
+ static void mq_wait_self(XmeCtx *x, int why)
+ {
+@@ -1405,6 +1710,14 @@
+ void mq_setup(void)   /* mp_setup in mode 3, after 4b-2's set-up */
+ {
+   const char *e;
++#ifdef MGS2_ME_REAL
++  rs_cfg = (e = mgs2_getenv("MGS2_ME_REST")) && atoi(e) == 1;   /* gl28: before the ME starts, and before this set-up can give up (the
++                                                                   switch's value always in the log, as the cfg gave it) */
++  fprintf(stderr, "gl28 me rest (MGS2_ME_REST %.16s): %s\n", e ? e : "not set", rs_cfg ? "the ME rests in HALT (psp/xme_rest.S) through the "
++          "main CPU's turns, woken by the main CPU's interrupt (0xBC100044) when its own turn begins; never inside its turns; a 'main turn "
++          "vb A-B gl28 me rest' line per main turn, 'gl28 me rest totals' at the end (the emulator has no ME: no rests there)" : e && atoi(e)
++          ? "not 1, so off (only 1 turns it on): the ME spins when idle (gl27)" : "off: the ME spins when idle (gl27)");
++#endif
+   if (MQ_ED() && (mp_mode != 2 || !(mq = memalign(64, sizeof *mq)))) {   /* step 4d-4: the main CPU cannot copy into the eDRAM */
+     fprintf(stderr, "me picture loop: %s with the arena in the ME's eDRAM, which the main CPU cannot reach: the split off, today's walk\n",
+             mp_mode != 2 ? "4b-2's set-up failed" : "no memory for its queue");
+@@ -1422,6 +1735,18 @@
+           "in every other ME turn and the main CPU turn after it (on in odd pairs, as GE2=2)" : flip_cfg == 1 ? "always" : "never (counted)");
+   if (flip_cfg == 2 && flip_from >= 0) fprintf(stderr, ", always from vb %ld", flip_from);
+   fprintf(stderr, "\n");
++  if ((e = mgs2_getenv("MGS2_GL_FBCHK"))) {   /* gl28d */
++    fbc_from = atol(e) >= 0 ? atol(e) : -1;
++    fprintf(stderr, "gl28 fbchk (MGS2_GL_FBCHK %.16s): %s", e, fbc_from >= 0 ? "on from vb " : "off (not a vblank)\n");
++    if (fbc_from >= 0) fprintf(stderr, "%ld: at each list given to the GE, the display's answers (sceDisplayGetFrameBuf IMMEDIATE and "
++                               "NEXTFRAME) against the list's target buffer and the display vblanks since the frame before was shown, "
++                               "by turn on the 'gl27 display' lines and at the end\n", fbc_from); }
++  if ((e = mgs2_getenv("MGS2_GL_SHOT_FLIPWAIT"))) {   /* gl28d */
++    shot_fw = atoi(e) == 1;
++    fprintf(stderr, "gl28 shot flip wait (MGS2_GL_SHOT_FLIPWAIT %.16s): %s\n", e, !shot_fw ? "not 1, so off (the shots force the flip, "
++            "as gl27)" : flip_from >= 0 && flip_cfg ? "on: from MGS2_GL_FLIPWAIT_FROM on, a shot's drained path keeps the flip wait and "
++            "gives the GE every list made (the last frame made saved; no list drawn into the buffer still on the screen)" : "on, but "
++            "MGS2_GL_FLIPWAIT or MGS2_GL_FLIPWAIT_FROM is not set: no shot waits"); }
+ #ifdef MGS2_ME_REAL
+   mq->clk_me = xme_me_clk; mq->w_me = xme_me_wait;   /* gl21: set once, before the ME starts (xme.c XME_CLK) */
+ #endif
+@@ -1450,6 +1775,14 @@
+   if ((e = mgs2_getenv("MGS2_ME_PIC_HANG"))) mq->hang_vb = (int32_t)atol(e);
+   mq_m4 = mp_want == 4;   /* step 4d */
+   mq->hang_in = mq_m4 && (e = mgs2_getenv("MGS2_ME_PIC_HANG_IN")) && atoi(e);
++  if ((e = mgs2_getenv("MGS2_ME_PIC_GE2_AB"))) {   /* gl28d (gl28d2: read once mq_m4 and mq_turn are known: it acts in mq_turn_hook,
++                                                      mode 4's ME turns only) */
++    ge2_ab = atol(e) >= 0 && mq_m4 && mq_turn ? atol(e) : -1;
++    fprintf(stderr, "gl28 ge2 a/b (MGS2_ME_PIC_GE2_AB %.16s): %s", e, atol(e) < 0 ? "off (not a vblank)\n" : ge2_ab < 0 ? "off: it acts "
++            "only at the ME turns of mode 4 (MGS2_ME_PIC=4 with MGS2_ME_PIC_TURN), which this run does not have\n" : "from vb ");
++    if (ge2_ab >= 0) fprintf(stderr, "%ld GE2 only in every other ME turn: on when vb / (2 * MGS2_ME_PIC_TURN) is odd (it needs "
++                             "MGS2_ME_PIC_GE2 for the second frame memory); a 'gl28 ge2 a/b' line at each ME turn's start from then on\n",
++                             ge2_ab); }
+   mq_ft_on = glf.ft_on;
+   xm_install(&xmp);   /* the translator's callbacks are the loop's (ge/xlme.c xm_on_*: its frame, xmp.now), no longer on_call's */
+   mq_on = 1; mq_self = 1;   /* (the thread starts after the translator's reset: mq_start) */
+@@ -1472,6 +1805,7 @@
+   sceKernelDcacheWritebackInvalidateAll();
+   mq_mcu = (volatile XmeMeCtl *)((uintptr_t)mq_mc | 0x40000000u);
+   mq_mcu->x = mq; XS(mq)->me_ctl = (uint32_t)(uintptr_t)mq_mcu;
++  if (rs_cfg) mq_mcu->rest = XME_REST_CFG;   /* gl28: the ME sets its rest up at its start (psp/xme_me.c xme_me_main) */
+   pw = hle_me_power_init();
+   r = hle_me_start(xme_me_main, &mq_mcu->h, mq_mreg, MQ_ME_REG, MQ_ME_REG, mq_me_why, sizeof mq_me_why);
+   hle_me_progress(pg, sizeof pg); hle_me_sony_line(sl, sizeof sl);
+@@ -1497,6 +1831,7 @@
+       flip_on = flip_sel(me_vb);   /* gl27b: the first turn's */
+       mq->cache = mq_self ? 0 : xme_me_cache;   /* gl21: the clocks are set once (xme.c XME_CLK) */
+       if (!mq_self) { xme_heap_ask(me_rs_on); mq_tstart(me_vb); two_start(two_on(me_vb)); }
++      else rs_allow(me_vb);   /* gl28: a first turn of the main CPU's rests too (MGS2_ME_REST=1) */
+       fprintf(stderr, "me picture loop (task #180 step 4d-4): on: the loop on the PSP's Media Engine, queue of %u entries, %d results, at "
+               "%08x (%u KB); the arena and the view's buffers %s; %s; take-back after %u ms without a heartbeat while the main CPU waits, or "
+               "at once on an exception of the ME's (MGS2_ME_PIC_TBK_MS)%s\n", XME_N, XME_NRES, (unsigned)(uintptr_t)mq, (unsigned)(sizeof *mq >> 10),
+@@ -1804,6 +2139,13 @@
+ {
+   return flip_cfg == 1 || (flip_cfg == 2 && ((flip_from >= 0 && vb >= flip_from) || !mq_turn || ((vb / (2 * mq_turn)) & 1)));
+ }
++/* gl28d: MGS2_ME_PIC_GE2_AB at an ME turn's start from its vblank: GE2 on when vb / (2 * TURN) is odd (after the cfg's own choice) */
++static GL28D_COLD void ge2_ab_turn(long vb)
++{
++  ge2 = gl_vol2 && ((vb / (2 * mq_turn)) & 1);
++  fprintf(stderr, "me turn vb %ld gl28 ge2 a/b: GE2 %s (MGS2_ME_PIC_GE2 %d, the second frame memory %s)\n", vb, ge2 ? "on" : "off",
++          ge2_cfg, gl_vol2 ? "made" : "NOT made");
++}
+ /* step 4d, mode 4, after the hook's FILL, WALK and HOOK (no record waits): the hang test's stop found, the turns changed */
+ static void mq_turn_hook(long vb)
+ {
+@@ -1817,15 +2159,21 @@
+     mq_sync(); if (!MQ_LOOP()) return;   /* (a take-back meanwhile: the main CPU's from now on, or the picture stopped) */
+     mq_arena_wait(); if (!MQ_LOOP()) return;
+     XS(mq)->ge2 = 0;   /* gl23: the main CPU's turns: one frame on the GE side (the ME has handed over: it reads nothing until the next turn) */
+-    mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_self = 1; mq_tend(vb); two_start(0); flip_on = flip_sel(vb); }
++    mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_self = 1; mq_tend(vb); two_start(0); flip_on = flip_sel(vb);
++#ifdef MGS2_ME_REAL
++    rs_allow(vb);   /* gl28: the ME may rest (MGS2_ME_REST=1) */
++#endif
++  }
+   else {   /* to the ME (the main CPU writes back its cache before each post) */
+ #ifdef MGS2_ME_REAL
++    rs_end(vb);     /* gl28: the rest ends first: the ME woken (MGS2_ME_REST=1) */
+     mq->cache = mq_me > 0 ? xme_me_cache : mq_cache_thr;   /* gl21: the clocks are set once (xme.c XME_CLK) */
+ #else
+     mq->cache = mq_cache_thr;
+ #endif
+     if (ge_fast_cfg == 2) ge_fast = (int)((vb / (2 * mq_turn)) & 1);   /* gl22: off, on, off, ... by ME turn */
+     ge2 = gl_vol2 && (ge2_cfg == 1 || (ge2_cfg == 2 && ((vb / (2 * mq_turn)) & 1)));   /* gl23: off, on, off, ... by ME turn */
++    if (ge2_ab >= 0 && vb >= ge2_ab) ge2_ab_turn(vb);   /* gl28d: MGS2_ME_PIC_GE2_AB: on, off, ... by ME turn from that vblank */
+     XS(mq)->ge2 = (uint32_t)ge2;
+     xme_heap_ask(me_rs_on); mq_self = 0; mq_tstart(vb); two_start(two_on(vb)); flip_on = flip_sel(vb); }   /* gl24: two areas or one, by ME
+                                                                                                              turn; gl27: the flip wait */
+@@ -1870,6 +2218,9 @@
+   if (mp_nrec) mq_late(0, 0);
+   if (MQ_LOOP()) {   /* (in a turn of the main CPU's the thread or the ME idles, the queue empty) */
+     uint32_t s; memset(&e, 0, sizeof e); e.kind = XE_STOP;
++#ifdef MGS2_ME_REAL
++    rs_end(me_vb);   /* gl28: a main turn's rest ends (its line) before the STOP */
++#endif
+     mq_self = 0; s = mq_post(&e); mq_wait(s, MW_DRAIN);
+     if (mq_m4 && !mq_dead) { mq_cpu_wbinv(); mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_tend(me_vb); }   /* step 4d: the ME's counts read (4d-3: the INV first) */
+ #ifdef MGS2_ME_REAL
+@@ -1889,8 +2240,14 @@
+ static void mq_report(FILE *f)
+ {
+   fprintf(f, "picture display (gl27): flip wait MGS2_GL_FLIPWAIT %d (from vb %ld): ME turns: lists held for the screen %ld (%.2f s), lists drawn "
+-          "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld\n", flip_cfg, flip_from, flip_hold[0],
+-          flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1]);
++          "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld%s", flip_cfg, flip_from, flip_hold[0],
++          flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1], fbc_from < 0 ? "\n" : "");
++  if (fbc_from >= 0)   /* gl28d: MGS2_GL_FBCHK's totals, on the same line */
++    fprintf(f, "; gl28 fbchk from vb %ld: ME turns: lists %ld, into the buffer the display shows now (IMMEDIATE) %ld, into the buffer it "
++            "shows next (NEXTFRAME) %ld, in the display vblank of the show %ld, display vblanks since the show at most %u; main CPU turns: "
++            "lists %ld, IMMEDIATE %ld, NEXTFRAME %ld, in the vblank of the show %ld, at most %u; answers refused %ld; answers naming neither "
++            "buffer %ld\n", fbc_from, fbc_n[0], fbc_imm[0], fbc_next[0], fbc_same[0], (unsigned)fbc_dvc[0], fbc_n[1], fbc_imm[1], fbc_next[1],
++            fbc_same[1], (unsigned)fbc_dvc[1], fbc_err, fbc_oth);   /* gl28d2: fbc_oth */
+   if (mq_tn && mq->ws_on) { double s[XM_TS_N], in = 0, wk = (double)mq_tkall[XE_WALK] / (mq_tdiv ? mq_tdiv : 1);   /* gl26: the walk's split over the ME's
+                                                                                                    turns (gl26b: only when there were some) */
+     for (int k = 0; k < XM_TS_N; k++) { s[k] = (double)mq_tsall[k] / (mq_tdiv ? mq_tdiv : 1) / 1000.0; in += s[k]; }
+@@ -1960,9 +2317,53 @@
+                            (unsigned)mq_mx[1], (unsigned)mq_mx[2], mq_mx_vb, mq_me_tbk_exc ? ": the take-back's cause" : "");
+     else fprintf(f, "none");
+     fprintf(f, "; its stop: %s\n", mq_me_ack < 0 ? "none (a take-back held it, or it never started)" : mq_me_ack ? "it answered the exit "
+-            "request" : "no answer in 50 ms, held in reset"); }
++            "request" : "no answer in 50 ms, held in reset");
++    /* gl28: the rest's totals (MGS2_ME_REST): the ME's counts since its start, the main CPU's kicks and clocks */
++    if (!rs_cfg) ;   /* (MGS2_ME_REST=0: no line, as gl27) */
++    else if (!mq_mcu) fprintf(f, "gl28 me rest totals: MGS2_ME_REST %d: the ME did not run, no rests\n", rs_cfg);
++    else { volatile XmeMeCtl *c = mq_mcu; uint64_t kk = rs_kicks + rs_rekicks;
++      fprintf(f, "gl28 me rest totals: MGS2_ME_REST %d; main turns with a rest line %ld; rests %u (woken in HALT %u, before HALT %u, no "
++              "interrupt %u, given up %u); kicks %llu + rekicks %llu (%.1f us mean, %.1f max, %.3f s in all); stray wakes at least %u (the "
++              "handler's wakes %u; turns with more handler wakes than kicks %ld, %llu wakes beyond: 1 in a turn can be a kick left pending "
++              "from before it); ME asleep %.1f s (main clock), Count ticks in those rests %llu = %.4f of 331.31 x main us; Count's test (the "
++              "%ld turns with one rest woken in HALT): %.1f s, ticks %llu = %.4f; switch waits %.1f ms in all, given up %ld, the ME awake at "
++              "%ld switches; in the ME turns: rests begun %llu, kicks %llu; flags seen %08x; Sony words %08x %08x %08x %08x %08x\n", rs_cfg,
++              rs_turns, (unsigned)c->sleeps, (unsigned)c->halted, (unsigned)c->pending,
++              (unsigned)c->nowake, (unsigned)c->late, (unsigned long long)rs_kicks, (unsigned long long)rs_rekicks,
++              kk ? (double)rs_kick_us / (double)kk : 0.0, (double)rs_kick_max, rs_kick_us / 1e6, (unsigned)rs_stray(), (unsigned)c->wakes,
++              rs_xs_n, (unsigned long long)rs_xs,
++              rs_asleep_us / 1e6, (unsigned long long)rs_ticks, rs_asleep_us ? (double)rs_ticks / (331.31 * (double)rs_asleep_us) : 0.0,
++              rs_cl_n, rs_cl_us / 1e6, (unsigned long long)rs_cl_ticks, rs_cl_us ? (double)rs_cl_ticks / (331.31 * (double)rs_cl_us) : 0.0,
++              rs_sw_us / 1000.0, rs_slow, rs_awake_sw, (unsigned long long)rs_me_sl, (unsigned long long)rs_me_k, (unsigned)c->flags_or,
++              (unsigned)c->rpc[0], (unsigned)c->rpc[1], (unsigned)c->rpc[2], (unsigned)c->rpc[3], (unsigned)c->rpc[4]); } }
++#endif
++}
++/* gl28 (MGS2_BAT_REC=1): the picture loop's state for psp/v26me_bat.c's 5-s line, read by the battery thread (user mode, priority 0x11,
++   above the main thread's 0x20): plain reads of this file's counters and uncached reads of the words the ME and the main CPU share; no
++   lock, no call, nothing written.  v[0] bits: 1 the loop is set up, 2 it runs on the ME, 4 the ME held after a take-back, 64 the ME
++   stopped at the run's end, 8 the main CPU makes the picture now (its turn), 16 the picture stopped (a cold take-back), 32 the ME may
++   rest now (gl28); v[1] head,
++   v[2] tail, v[3] the loop's heartbeat, v[4] its place word, v[5] the ME's own heartbeat (its waits), v[6] asleep, v[7] rests begun,
++   v[8] the rest word, v[9] the ME's state, v[10] lists given to the GE, v[11] the GE's finishes (callback), v[12] lists held for the
++   screen (gl27), v[13] lists the loop made, v[14] turns, v[15] kicks (gl28, rekicks included) */
++void xl_psp_rec(uint32_t v[16])
++{
++  XmeCtx *q = mq; int i;
++  for (i = 0; i < 16; i++) v[i] = 0;
++  if (!q) return;
++  { volatile XmeSh *s = XS(q);
++    v[0] = 1u | (mq_self ? 8u : 0u) | (mq_dead ? 16u : 0u);
++    v[1] = s->head; v[2] = s->tail; v[3] = s->heart; v[4] = s->at; v[13] = s->listed; }
++  v[10] = mq_subm; v[11] = ge_fin_n; v[12] = (uint32_t)(flip_hold[0] + flip_hold[1]); v[14] = (uint32_t)mq_turns;
++#ifdef MGS2_ME_REAL
++  { volatile XmeMeCtl *c = mq_mcu;
++    v[0] |= (mq_me > 0 ? 2u : 0u) | (mq_me < 0 ? (mq_tbk_n ? 4u : 64u) : 0u) | (rs_on ? 32u : 0u);
++    if (c) { v[5] = c->h.heartbeat; v[6] = c->asleep; v[7] = c->sleeps; v[8] = c->rest; v[9] = c->h.state; }
++    v[15] = (uint32_t)(rs_kicks + rs_rekicks); }
+ #endif
+ }
++#else
++void xl_psp_rec(uint32_t v[16]) { for (int i = 0; i < 16; i++) v[i] = 0; }   /* gl28: no picture loop in this build */
+ #endif
+ #ifndef MGS2_GL   /* task #180 step 4b-2: the guarded game units' and runtime's calls, idle without the picture */
+ int g_g0_on;
+@@ -2184,6 +2585,9 @@
+           (unsigned long long)dig_all);
+   if (!mq) fprintf(f, "picture display (gl27): lists drawn into the shown buffer (the main CPU's own picture, no loop; counted only) %ld\n",
+                    flip_race_dir);
++  if (eye_on) fprintf(f, "gl28 eye: R pressed %ld times, let go %ld times (from vb %ld)\n", eye_n[1], eye_n[0], eye_vb0);   /* gl28d */
++  if (live_from >= 0) fprintf(f, "gl28 live: captures %ld periodic, %ld at R presses (of %ld at most); not saved %ld\n", live_np, live_nr,
++                              live_rmax, live_bad);
+   gl_line(f, &glf.all, glf.all_dbytes, glf.all_tbytes, "picture: the frames:"); fprintf(f, "; memo answers that differed %ld\n", glf.memo_bad);
+   gl_line(f, &glf.max, glf.max.dbytes, glf.max.tbytes, "picture: the largest of each in one frame:"); fputc('\n', f);
+   { const TkStats *k = tk_stats(tk);
+--- t27/psp/v26me_bat.c	2026-11-19 15:15:23.980696642 +0000
++++ t28/psp/v26me_bat.c	2026-11-20 04:29:36.034294429 +0000
+@@ -62,6 +62,46 @@
+ static char *unum(char *p, unsigned long u) { char t[16]; int n = 0; do t[n++] = '0' + u % 10; while (u /= 10); while (n) *p++ = t[--n]; return p; }
+ static char *num(char *p, long v) { if (v < 0) *p++ = '-'; return unum(p, v < 0 ? -(unsigned long)v : (unsigned long)v); }
+ 
++/* gl28 (MGS2_BAT_REC=1; power_critique.md E2, reduced to the battery line: no new file, no new write pattern): every line also gives
++   the battery thread's own lateness (its 5-s wait as asked and as it came: interrupts off or a busy kernel show here), and the picture
++   loop's and the ME's state as psp/xl_psp.c xl_psp_rec reads it (plain and uncached reads, no lock: the queue's head and tail, the
++   loop's and the ME's heartbeats, asleep and the rests, whose turn it is, the GE's lists and finishes, the lists held for the screen).
++   MGS2_BAT_REC=0 (the default): the lines are gl27's and the thread takes no extra time. */
++char *mgs2_getenv(const char *k) __attribute__((weak));   /* psp/main_psp.c: mgs2.cfg's settings (read before mgs2_main) */
++void xl_psp_rec(uint32_t v[16]) __attribute__((weak));   /* psp/xl_psp.c (gl28) */
++#define BR_ASK 5000000u                 /* the battery thread's wait, us */
++static int bat_rec;                     /* MGS2_BAT_REC */
++static volatile uint32_t br_wait, br_late, br_max, br_run, br_n;   /* the last wait as it came; its lateness; the most since the last 5-s
++                                                                      line and in the run; waits timed */
++static void br_timed(uint64_t dt)       /* one wait of BR_ASK, timed */
++{
++  uint32_t w = dt > 0xffffffffu ? 0xffffffffu : (uint32_t)dt, l = w > BR_ASK ? w - BR_ASK : 0;
++  br_wait = w; br_late = l; br_n++;
++  if (l > br_max) br_max = l;
++  if (l > br_run) br_run = l;
++}
++static char *br_part(char *p, int reset)   /* the line's part (reset: the 5-s lines) */
++{
++  uint32_t v[16];
++  p = put(p, "; gl28 rec: battery thread waited "); p = unum(p, br_wait); p = put(p, " us of "); p = unum(p, BR_ASK);
++  p = put(p, " (late "); p = unum(p, br_late); p = put(p, " us, most since the last line "); p = unum(p, br_max);
++  p = put(p, ", in the run "); p = unum(p, br_run); p = put(p, ", waits "); p = unum(p, br_n); p = put(p, ")");
++  if (reset) br_max = 0;
++  if (!xl_psp_rec) return put(p, "; no picture loop in this build");
++  xl_psp_rec(v);
++  if (!(v[0] & 1u)) return put(p, "; picture loop not set up");
++  p = put(p, "; picture: "); p = put(p, v[0] & 16u ? "STOPPED" : v[0] & 8u ? "main CPU's turn" : "the ME's turn");
++  p = put(p, v[0] & 2u ? " (loop on the ME" : v[0] & 4u ? " (the ME held after a take-back" : v[0] & 64u ? " (the ME stopped at the end"
++           : " (loop not on the ME");
++  p = put(p, v[0] & 32u ? ", may rest)" : ")"); p = put(p, ", queue head "); p = unum(p, v[1]); p = put(p, " tail "); p = unum(p, v[2]);
++  p = put(p, ", loop heart "); p = unum(p, v[3]); p = put(p, " at "); p = unum(p, v[4]); p = put(p, ", ME heart "); p = unum(p, v[5]);
++  p = put(p, " state "); p = unum(p, v[9]); p = put(p, ", asleep "); p = unum(p, v[6]); p = put(p, ", rests "); p = unum(p, v[7]);
++  p = put(p, ", rest word "); p = unum(p, v[8]); p = put(p, ", kicks "); p = unum(p, v[15]); p = put(p, ", turns "); p = unum(p, v[14]);
++  p = put(p, "; GE lists "); p = unum(p, v[10]); p = put(p, ", finishes "); p = unum(p, v[11]); p = put(p, ", loop lists ");
++  p = unum(p, v[13]); p = put(p, ", held for the screen "); p = unum(p, v[12]);
++  return p;
++}
++
+ #ifdef SYS_DIAG
+ /* gl2d (2026-10-27, task #62; me_switchoff_plan.md "The codec call"): what the PSP's own threads get while the game runs, and the
+    system's power events the moment they come.  Reads only, user mode; no game state, no timing of the game thread.
+@@ -186,6 +226,7 @@
+ #else
+   (void)reset;
+ #endif
++  if (bat_rec) p = br_part(p, reset);   /* gl28 */
+   *p++ = '\n';
+   if (bat_sema >= 0) sceKernelWaitSema(bat_sema, 1, 0);
+   if ((f = sceIoOpen(bat_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777)) >= 0) { sceIoWrite(f, l, p - l); sceIoClose(f); }
+@@ -274,7 +315,9 @@
+ #endif
+   for (;;) {                                      /* checks every 5 s (reads only), writes every 60 s (v26me3: 5 s) or on a change */
+     for (i = 0; i < BAT_EVERY; i++) {
+-      int k; sceKernelDelayThread(5000000);
++      int k; uint64_t t0 = bat_rec ? (uint64_t)sceKernelGetSystemTimeWide() : 0;   /* gl28 */
++      sceKernelDelayThread(BR_ASK);
++      if (bat_rec) br_timed((uint64_t)sceKernelGetSystemTimeWide() - t0);
+       k = (scePowerIsPowerOnline() > 0) << 2 | (scePowerIsBatteryCharging() > 0) << 1 | (scePowerIsLowBattery() > 0);
+       if (k != last) { last = me_bat_line("change"); i = -1; }
+     }
+@@ -293,6 +336,9 @@
+ {
+   SceUID th, f; const char *e = argc > 1 && argv[1] ? strrchr(argv[1], '/') : 0; int n = e ? (int)(e - argv[1]) + 1 : 0;
+   bat_t0 = (uint64_t)sceKernelGetSystemTimeWide();
++  { const char *r = mgs2_getenv ? mgs2_getenv("MGS2_BAT_REC") : 0; bat_rec = r && r[0] == '1' && !r[1]; }   /* gl28 */
++  fprintf(stderr, "gl28 battery recorder (MGS2_BAT_REC %d): %s\n", bat_rec, bat_rec ? "every battery.txt line adds the battery thread's "
++          "lateness and the picture loop's and the ME's state (reads only)" : "off: battery.txt's lines as gl27's");
+   bat_sema = sceKernelCreateSema("battery", 0, 1, 1, 0);
+   snprintf(bat_path, sizeof bat_path, "%.*sbattery.txt", n, n ? argv[1] : "");
+   if ((f = sceIoOpen(bat_path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777)) >= 0) sceIoClose(f);
+--- /dev/null	2026-11-19 23:09:59.339248625 +0000
++++ t28/psp/xme_rest.S	2026-11-19 22:56:24.036114503 +0000
+@@ -0,0 +1,159 @@
++/* xme_rest.S - gl28 (2026-11-19; MGS2_ME_REST, power_design.md section 5 "R1" with power_critique.md section B): the picture loop's
++   Media Engine rests in HALT through the main CPU's turns.  This file is v30me5's psp/me_rest.S (2026-10-26, mgs2/psp/me_rest.S; Ffm
++   chose "Build it" on the decision card of 2026-10-26 20:43; 76,548 rests and 0 lost wakes on Ffm's PSP in v30me5 run 2) with its
++   symbols renamed me_rest* -> xme_rest* and nothing else changed: the same instructions in the same order (tools/xme_rest_chk.py
++   compares them with v30me5's file by mnemonic and operand at every build).  The pattern is mcidclan's (psp-media-engine-custom-core
++   me-core-custom.c and me-soft-interrupt, MIT, credited in third_party/ps2rc/NOTICE.md and psp_harness.md).
++   Register writes, the three of that card and no other: the ME's interrupt enable 0xBC300008 = 0x80000000 and flags 0xBC300000 =
++   0xFFFFFFFF once (xme_rest_init), the acknowledgement 0x80000000 to 0xBC300000 at each wake (xme_rest_vec), all on the ME; the main
++   CPU's interrupt to the ME 0xBC100044 = 1 is psp/me/hle_me_mgs2.c's hle_me_kick (kernel mode).  CP0 writes on the ME only: $25 (the
++   exception vector), $12 (Status: IE + IM2 only inside xme_rest's window), $14 (EPC in the handler).  HALT is .word 0x70000000.
++   Called only from psp/xme_me.c (xme_me_main: xme_rest_init when the main CPU asked for the rest at the start; xme_me_wait: xme_rest
++   in a main-CPU turn, after the handshake).  Words in the ME's boot memory after psp/me/hle_me_mgs2.c's progress words (0xBFC00400,
++   [0..11]; k_start clears [0..15] at every start), as v30me5:
++     [12] 0x430  the ME's interrupt flags 0xBC300000 as the handler found them at the last wake
++     [13] 0x434  the handler's wakes (counts on)
++     [14] 0x438  every flag bit the handler has found
++     [15] 0x43c  the EPC of the last wake (without its kseg0 bit)
++     [16] 0x440  the handler's save of $at
++     [17] 0x444  the exception vector before xme_rest_init (hle_me_mgs2.c's hle_me_fault, kseg0): every other exception goes there,
++                 so it is recorded and the ME halts for good, as before (the main CPU's take-back finds it: hle_me_exception) */
++    .set push
++    .set noreorder
++    .set noat
++    .text
++    .align 2
++
++/* void xme_rest_init(void): once, from xme_me_main (psp/xme_me.c; v30me5: from me_mix_work), before the first rest */
++    .globl xme_rest_init
++    .ent xme_rest_init
++xme_rest_init:
++    lui   $t2, 0xBFC0
++    mfc0  $t0, $25
++    sw    $t0, 0x444($t2)         /* [17] the vector the reset stub set */
++    sync
++    la    $t0, xme_rest_vec
++    lui   $t1, 0x8000
++    or    $t0, $t0, $t1           /* its kseg0 alias, as the stub gives hle_me_fault's */
++    mtc0  $t0, $25
++    sync
++    lui   $t1, 0xBC30
++    lui   $t0, 0x8000
++    sw    $t0, 8($t1)             /* 0xBC300008 = 0x80000000: the main CPU's interrupt enabled at the ME's interrupt controller */
++    sync
++    li    $t0, -1
++    sw    $t0, 0($t1)             /* 0xBC300000 = 0xFFFFFFFF: every flag cleared */
++    sync
++    jr    $ra
++    nop
++    .end xme_rest_init
++
++/* void xme_rest(void): Status + IE + IM2, HALT until the main CPU's interrupt, Status back as it was (IE off).  An interrupt taken
++   anywhere from xme_rest_begin to xme_rest_win_last (one already pending when IE goes on, or the one that ends the HALT) comes back to
++   xme_rest_end through xme_rest_vec, which keeps $t0 (it uses $k0, $k1 and $at, saved).  The handler's address is only 4-byte aligned,
++   as mcidclan's are (aligned(4) in me-core-custom.c and me-soft-interrupt): a 16-byte alignment here would move v30's code. */
++    .globl xme_rest
++    .globl xme_rest_begin
++    .globl xme_rest_halt
++    .globl xme_rest_end
++    .globl xme_rest_win_end
++    .globl xme_rest_win_last
++    .ent xme_rest
++xme_rest:
++    mfc0  $t0, $12
++    ori   $t1, $t0, 0x401
++xme_rest_begin:
++    mtc0  $t1, $12                /* interrupts on: IE + IM2 */
++    sync
++    nop
++    nop
++xme_rest_halt:
++    .word 0x70000000              /* HALT */
++    nop
++    nop
++    nop
++xme_rest_end:
++    mtc0  $t0, $12                /* interrupts off */
++    sync
++    nop
++    nop
++xme_rest_win_end:
++    jr    $ra
++xme_rest_win_last:
++    nop                           /* the jump's delay slot, the window's last word: on the Allegrex an exception there may give
++                                     this address as EPC (mcidclan's handler steps an EPC with Cause.BD back by 4) */
++    .end xme_rest
++
++/* the ME's exception vector from xme_rest_init on (CP0 $25, at its kseg0 alias) */
++    .align 2
++    .globl xme_rest_vec
++    .ent xme_rest_vec
++xme_rest_vec:
++    mfc0  $k0, $13                /* Cause */
++    andi  $k1, $k0, 0x7c          /* ExcCode: 0 = an interrupt */
++    bne   $k1, $zero, 9f
++    andi  $k1, $k0, 0x400         /* (delay slot) IP2: the interrupt from the main CPU */
++    beq   $k1, $zero, 9f
++    nop
++    mfc0  $k0, $14                /* EPC without its kseg0 bit: the link address */
++    sll   $k0, $k0, 1
++    srl   $k0, $k0, 1
++    la    $k1, xme_rest_begin
++    sltu  $k1, $k0, $k1
++    bne   $k1, $zero, 9f          /* before xme_rest's window */
++    nop
++    la    $k1, xme_rest_win_last
++    sltu  $k1, $k1, $k0
++    bne   $k1, $zero, 9f          /* after it */
++    nop
++    lui   $k1, 0xBFC0
++    sw    $k0, 0x43c($k1)         /* [15] EPC of this wake */
++    sw    $at, 0x440($k1)         /* [16] $at saved */
++    lui   $k0, 0xBC30
++    lw    $at, 0($k0)             /* the flags as found */
++    sw    $at, 0x430($k1)         /* [12] */
++    lw    $k0, 0x438($k1)
++    or    $k0, $k0, $at
++    sw    $k0, 0x438($k1)         /* [14] every bit found */
++    lw    $k0, 0x434($k1)
++    addiu $k0, $k0, 1
++    sw    $k0, 0x434($k1)         /* [13] wakes */
++    sync
++    lui   $k0, 0xBC30
++    lui   $k1, 0x8000
++    sw    $k1, 0($k0)             /* acknowledge: bit 31 of the flags written (mcidclan) */
++    sync
++    li    $at, 4096               /* then read until bit 31 is clear (mcidclan waits for the whole word: here bit 31, at most 4,096 reads) */
++1:  lw    $k1, 0($k0)
++    srl   $k1, $k1, 31
++    beq   $k1, $zero, 2f
++    addiu $at, $at, -1
++    bne   $at, $zero, 1b
++    nop
++2:  lui   $k1, 0xBFC0
++    lw    $at, 0x440($k1)         /* $at back */
++    mfc0  $k0, $12
++    ori   $k0, $k0, 1
++    xori  $k0, $k0, 1             /* Status: IE off (eret clears EXL) */
++    mtc0  $k0, $12
++    la    $k0, xme_rest_end
++    lui   $k1, 0x8000
++    or    $k0, $k0, $k1
++    mtc0  $k0, $14                /* back to xme_rest_end (kseg0) */
++    sync
++    nop
++    nop
++    eret
++    nop
++    nop
++    nop
++    nop
++    nop
++    nop
++    nop
++9:  lui   $k0, 0xBFC0
++    lw    $k0, 0x444($k0)         /* [17]: hle_me_fault records Cause / EPC / BadVAddr and halts */
++    jr    $k0
++    nop
++    .end xme_rest_vec
++    .set pop
+--- /home/claude/main/scripts/psp.sh.gl27bak	2026-11-19 13:57:52.567404621 +0000
++++ /home/claude/main/scripts/psp.sh	2026-11-19 23:02:17.504899342 +0000
+@@ -21,6 +21,10 @@
+ #   the same objects and the overlays w00a and w01a with -fprofile-use and GCDA=<folder>'s *.gcda (copied in first; no file = no profile).
+ #   ORDER=<folder>: its layout_elf.ld and layout_<stage>.ld copied in (psp/Makefile LAYOUT=1 links by them).  RELINK=<build folder>: no
+ #   compile: that build's objects, genf.txt and gcda files copied in, then make links them (a new code order on the same objects).
++# gl28 (nothing changes for a tree or a RELINK folder without it): xme_rest.o, the ME's rest (psp/xme_rest.S, MGS2_ME_REST), assembled
++#   when the tree has psp/xme_rest.S (RELINK: when the folder has xme_rest.o) and linked after the other objects; then ge_xme_me.o must
++#   name exactly xme_rest xme_rest_halt xme_rest_init xme_run (without it: xme_run, as before) and tools/xme_rest_chk.py must find
++#   xme_rest.o's instructions equal to v30me5's $MG/psp/me_rest.S renamed.  The gate now runs for RELINK too.
+ . "$(dirname "$0")/env.sh"
+ P=${PSPD:-$B/psp}; SDK=$PSPDEV/psp/sdk
+ TITLE=${TITLE:-MGS2 harness mainline gl19}
+@@ -61,10 +65,19 @@
+   o=$1; shift; s=$(date +%s)
+   { echo "cmd: $*"; eval "$@"; } > cc_$o.log 2>&1; r=$?; echo "$o rc $r $(( $(date +%s) - s )) s" >> cc_$o.log; tail -n 1 cc_$o.log; return $r
+ }
++xme_gate() {   # gl28: the names ge_xme_me.o needs from outside itself (xme_run; with the rest object also its three), and xme_rest.o's check
++  XU="xme_run "; [ -f xme_rest.o ] && XU="xme_rest xme_rest_halt xme_rest_init xme_run "
++  [ "$(psp-nm -u ge_xme_me.o | awk '{ print $2 }' | tr '\n' ' ')" = "$XU" ] || { echo "psp.sh: ge_xme_me.o names more than ${XU% }"; return 1; }
++  [ -f xme_rest.o ] || return 0
++  [ "$(psp-objdump -h xme_rest.o | awk '$2 == ".text" { print $7 }')" = "2**2" ] || { echo "psp.sh: xme_rest.o's .text is not 2**2 (v30me5's)"; return 1; }
++  python3 -I $M/tools/xme_rest_chk.py xme_rest.o $MG/psp/me_rest.S > xme_rest_chk.out 2>&1 || { echo "psp.sh: xme_rest_chk failed"; cat xme_rest_chk.out; return 1; }
++  tail -n 1 xme_rest_chk.out
++}
+ s0=$(date +%s)
+ if [ -n "$RELINK" ]; then   # gl20: the objects of $RELINK as they are (no compile)
+   for o in $RELINK/*.o; do case $(basename $o) in ovl_hdr_*) ;; *) cp $o $P/ || exit 1 ;; esac; done   # (make builds the headers again)
+   cp $RELINK/genf.txt $RELINK/ge_xme_me.dis $RELINK/xme_me_chk.out $P/ || exit 1; echo "psp.sh: objects of $RELINK reused"
++  xme_gate || exit 1   # gl28 (gl18me-gl27's RELINK objects pass it: ge_xme_me.o names xme_run only)
+ else
+ # the G0 units (mkgen18c.sh without the profile)
+ cc gen.o "psp-gcc $GENF $PEG -ffunction-sections '-DGEN=\"$G/wgh/gen_elf.h\"' -c $M/boot_g0/gen.c -o gen.o" &   # gl19: wg's with MGS2_HALF's two lines
+@@ -87,7 +100,8 @@
+   cc ge_xme_me.o "psp-gcc $GF $MEF -fstack-usage -I$HP -c $M/psp/xme_me.c -o ge_xme_me.o" || exit 1
+   psp-objcopy --redefine-sym memcpy=me_memcpy --redefine-sym memset=me_memset --redefine-sym memcmp=me_memcmp ge_xme_me.o || exit 1
+   psp-objcopy --rename-section .bss=.me_bss --rename-section .data=.me_data ge_xme_me.o || exit 1
+-  [ "$(psp-nm -u ge_xme_me.o | awk '{ print $2 }' | tr '\n' ' ')" = "xme_run " ] || { echo "psp.sh: ge_xme_me.o names more than xme_run"; exit 1; }
++  if [ -f $M/psp/xme_rest.S ]; then cc xme_rest.o "psp-gcc -c $M/psp/xme_rest.S -o xme_rest.o" || exit 1; fi   # gl28 (as v30me5.sh's me_rest.o)
++  xme_gate || exit 1
+   psp-objdump -d ge_xme_me.o > ge_xme_me.dis && python3 -I $M/tools/xme_me_chk.py ge_xme_me.dis > xme_me_chk.out 2>&1 || { echo "psp.sh: xme_me_chk failed"; cat xme_me_chk.out; exit 1; }
+   cc hle_me.o "psp-gcc $BASEF -fno-merge-constants $MACHF -DHLE_PSP -DHLE_HAVE_AUDIO_MODEL -DME_REST -DME_SONY -DME_SONY_BOOT -DME_KADDR -I$SDK/include -I$HP -I$M/psp/me -c $M/psp/me/hle_me_mgs2.c -o hle_me.o" || exit 1
+   psp-objcopy --rename-section .text.hle_me_stub=.data.hle_me_stub,alloc,load,contents,data hle_me.o || exit 1
+@@ -108,6 +122,7 @@
+ # the rest and the link: psp/Makefile (rebuild_use.sh / mk_psp.sh's call; every object above kept with -o)
+ OO=$(for o in *.o; do printf -- "-o %s " $o; done)
+ XOBJS="xl_psp.o ge_xlive.o ge_xlate.o ge_gsfront.o ge_gsup2.o ge_texconv.o ge_texcache.o ge_gelive.o ge_gebatch.o ge_xconv.o ge_vu1conv.o ge_gelist.o ge_xlme.o ge_xme.o ge_xme_me.o ge_fxthin.o ge_me_rt.o gl1_glue.o v26me_bat.o exc3b.o exc3b_s.o ps2rc_kcall.o hle_me.o"
++[ -f xme_rest.o ] && XOBJS="$XOBJS xme_rest.o"   # gl28: the ME's rest, last (absent: the link as before)
+ XLIBS="-Wl,--wrap=host_vb_begin,--wrap=mgs2_exit,--wrap=sceKernelExitGame,--wrap=mgs2_main -lpspgu -lpspsystemctrl_user -Wl,-T,$M/psp/me_sec.ld"
+ make -f $M/psp/Makefile -j${J:-3} MG=$S W=$G/WP $MK OVL_SIZE=$OVLS LAYOUT=1 STAGES="$STAGES" PSP_EBOOT_TITLE="$TITLE" GENF="$GENF" RTX="$RTX" \
+   XOBJS="$XOBJS" MAINX="-DMGS2_XL -DMGS2_GL -DPOOL_KB=512" XLIBS="$XLIBS" $OO > make.log 2>&1
+--- /home/claude/main/tools/me_call_chk.py.gl27bak	2026-11-19 11:42:02.664867213 +0000
++++ /home/claude/main/tools/me_call_chk.py	2026-11-19 23:02:33.814971044 +0000
+@@ -8,11 +8,14 @@
+ #     the functions reached outside the ME-safe objects are listed (libc's memcpy and the like are expected).
+ # Calls through other pointers are not followed (the ME's other pointers are set to ME-safe functions at the set-up and ran on the ME
+ # from gl18me to gl19); that is the check's known gap.  Prints "me_call_chk: PASS" or "me_call_chk: FAIL (n)"; exit 0 on PASS.
++# gl28: psp/xme_rest.S (the ME's rest, MGS2_ME_REST) is ME code too.  An assembled object carries no FILE symbol, so its functions
++# are also roots by name when the ELF has them (xme_rest, xme_rest_init, xme_rest_vec and the labels inside xme_rest); an ELF without
++# them (gl27 and before) gets the same roots as before.
+ import sys, os, re, subprocess
+ B = sys.argv[1]
+ BIN = '/home/claude/pspsdk/pspdev/bin/'
+ ME = ['xlive', 'xlate', 'gsfront', 'texconv', 'texcache', 'gelive', 'gebatch', 'xconv', 'vu1conv', 'gelist', 'gsup2', 'xlme', 'xme', 'me_rt',
+-      'xme_me']
++      'xme_me', 'xme_rest']   # gl28: xme_rest (by name below as well)
+ SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'psp', 'xl_psp.c')
+ elf = os.path.join(B, 'MGS2T.elf')
+ dis = subprocess.run([BIN + 'psp-objdump', '-d', elf], capture_output=True, text=True, check=True).stdout
+@@ -42,6 +45,7 @@
+     f = os.path.splitext(os.path.basename(files.get(name, '')))[0]
+     return f in ME or f.startswith('ge_') and f[3:] in ME
+ roots = {n for n in fn if me_obj(n)} | set(sys.argv[2:])   # (more roots by name: the check's own test)
++roots |= {n for n in fn if re.match(r'xme_rest(_init|_vec|_begin|_halt|_end|_win_end|_win_last)?$', n)}   # gl28
+ src = open(SRC).read()
+ for field in ('clk_me', 'w_me'):
+     for m in re.finditer(r'->' + field + r'\s*=\s*(\w+)', src): roots.add(m.group(1))
+@@ -65,6 +69,8 @@
+         outside.append(n)
+ print('me_call_chk: roots %d (ME-safe objects %d), reached %d, reached outside the ME-safe objects %d: %s'
+       % (len(roots), sum(1 for r in roots if me_obj(r)), len(seen), len(outside), ' '.join(outside[:40]) + (' ...' if len(outside) > 40 else '')))
++xr = sorted(n for n in seen if n.startswith('xme_rest'))   # gl28
++if xr: print('me_call_chk: the rest (psp/xme_rest.S) reached: %s' % ' '.join(xr))
+ for b in bad: print('me_call_chk: ' + b)
+ print('me_call_chk: PASS' if not bad else 'me_call_chk: FAIL (%d)' % len(bad))
+ sys.exit(0 if not bad else 1)
+--- /dev/null	2026-11-19 23:09:59.339248625 +0000
++++ /home/claude/main/tools/xme_rest_chk.py	2026-11-20 04:29:43.850226696 +0000
+@@ -0,0 +1,98 @@
++# xme_rest_chk.py <xme_rest.o> [me_rest.S] (gl28, 2026-11-19): psp/xme_rest.S, the picture loop's ME rest (MGS2_ME_REST), must be
++# v30me5's psp/me_rest.S (mgs2/psp/me_rest.S: 76,548 rests and 0 lost wakes on Ffm's PSP in v30me5 run 2) with its symbols renamed
++# me_rest* -> xme_rest* and nothing else.  The reference is assembled here as v30me5.sh did (psp-gcc -c) into a temporary folder; both
++# objects are disassembled with every word shown (psp-objdump -d -r -z) and compared instruction by instruction: the same count, the
++# same mnemonic, the same operands and the same relocations (type and symbol), with the reference's names renamed.  Raw words are
++# compared too and only reported (a relocated word may differ).  Also: .text alignment 2**2 and size equal, no data or bss bytes, the
++# same global symbols at the same offsets, and a list of the special instructions (CP0 moves, eret, HALT, stores).  Each disassembly
++# must give one instruction per 4 bytes of .text and at least one, and the globals must not be empty (an empty read never passes).  Prints
++# "xme_rest_chk: PASS" (exit 0) or "xme_rest_chk: FAIL (n)".  Run it with python3 -I.
++import sys, os, re, subprocess, tempfile
++BIN = '/home/claude/pspsdk/pspdev/bin/'
++OBJ = sys.argv[1]
++REF = sys.argv[2] if len(sys.argv) > 2 else '/mnt/project-files/mgs2/psp/me_rest.S'
++bad = []
++
++def run(*a):
++    return subprocess.run(list(a), capture_output=True, text=True, check=True).stdout
++
++def rename(s):
++    return re.sub(r'\bme_rest', 'xme_rest', s)
++
++def insns(o, ren):
++    """[(offset, word, mnemonic, operands, [relocations])] of .text, names renamed when ren"""
++    out = []
++    for l in run(BIN + 'psp-objdump', '-d', '-r', '-z', '-j', '.text', o).splitlines():
++        m = re.match(r'^\s+([0-9a-f]+):\s+([0-9a-f]{8})\s+(\S+)\s*(.*)$', l)
++        if m:
++            ops = m.group(4).split('#')[0].strip()
++            out.append([int(m.group(1), 16), m.group(2), m.group(3), rename(ops) if ren else ops, []]); continue
++        m = re.match(r'^\s+([0-9a-f]+):\s+(R_\S+)\s+(\S+)', l)
++        if m and out:
++            out[-1][4].append((m.group(2), rename(m.group(3)) if ren else m.group(3)))
++    return out
++
++def sects(o):
++    s = {}
++    for l in run(BIN + 'psp-objdump', '-h', o).splitlines():
++        m = re.match(r'\s*\d+\s+(\S+)\s+([0-9a-f]+)\s+[0-9a-f]+\s+[0-9a-f]+\s+[0-9a-f]+\s+(\S+)', l)
++        if m: s[m.group(1)] = (int(m.group(2), 16), m.group(3))
++    return s
++
++def globs(o, ren):
++    g = {}
++    for l in run(BIN + 'psp-nm', '-g', o).splitlines():
++        p = l.split()
++        if len(p) == 3: g[rename(p[2]) if ren else p[2]] = (int(p[0], 16), p[1])
++    return g
++
++with tempfile.TemporaryDirectory() as td:
++    ro = os.path.join(td, 'me_rest_ref.o')
++    subprocess.run([BIN + 'psp-gcc', '-c', REF, '-o', ro], check=True)
++    a = insns(OBJ, False); b = insns(ro, True)
++    sa = sects(OBJ); sb = sects(ro); ga = globs(OBJ, False); gb = globs(ro, True)
++
++if len(a) != len(b):
++    bad.append('%d instructions, the reference %d' % (len(a), len(b)))
++for nm, ins, se in (('the object', a, sa), ('the reference', b, sb)):   # an empty or short disassembly never passes
++    if not ins or len(ins) * 4 != se.get('.text', (0,))[0]:
++        bad.append('%s: %d instructions read for .text of %d bytes (want one per 4 bytes, at least one)' % (nm, len(ins), se.get('.text', (0,))[0]))
++if not ga:
++    bad.append('no global symbols read')
++words_diff = 0
++for x, y in zip(a, b):
++    if (x[0], x[2], x[3], x[4]) != (y[0], y[2], y[3], y[4]):
++        bad.append('at +%#x: %s %s %s, the reference %s %s %s' % (x[0], x[2], x[3], x[4], y[2], y[3], y[4]))
++    if x[1] != y[1]: words_diff += 1
++for n in ('.text', '.data', '.bss'):
++    if sa.get(n, (0,))[0] != sb.get(n, (0,))[0]:
++        bad.append('%s %s bytes, the reference %s' % (n, sa.get(n, (0,))[0], sb.get(n, (0,))[0]))
++if sa.get('.data', (0,))[0] or sa.get('.bss', (0,))[0]:
++    bad.append('data or bss bytes in the object')
++al = run(BIN + 'psp-objdump', '-h', OBJ)
++m = re.search(r'\.text\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)', al)
++if not m or m.group(1) != '2**2':
++    bad.append('.text alignment %s (2**2 expected, as v30me5)' % (m.group(1) if m else '?'))
++if ga != gb:
++    bad.append('global symbols differ: %s, the reference renamed %s' % (sorted(ga.items()), sorted(gb.items())))
++und = run(BIN + 'psp-nm', '-u', OBJ).split()
++if [u for u in und if u != 'U']:
++    bad.append('undefined symbols: %s' % ' '.join(u for u in und if u != 'U'))
++sp = {}
++for x in a:
++    mn = x[2]
++    if mn in ('mtc0', 'mfc0'): k = '%s %s' % (mn, x[3].split(',')[-1].strip())
++    elif mn in ('eret', 'sw', 'syscall', 'break', 'jal', 'jalr'): k = mn
++    elif mn == '.word': k = '.word ' + x[1]
++    else: continue
++    sp[k] = sp.get(k, 0) + 1
++for k in sp:
++    if k.startswith('mtc0') and k.split()[1] not in ('$12', '$14', '$25'): bad.append('a CP0 write other than $12, $14, $25: ' + k)
++    if k in ('syscall', 'break', 'jal', 'jalr'): bad.append('forbidden: ' + k)
++    if k.startswith('.word') and k != '.word 70000000': bad.append('a data word in the code: ' + k)
++print('xme_rest_chk: %s: %d instructions (.text %d bytes), the reference %s renamed: %d; words differing %d; globals %s; special: %s'
++      % (OBJ, len(a), sa.get('.text', (0,))[0], REF, len(b), words_diff, ' '.join(sorted(ga)), ', '.join('%s %d' % (k, sp[k]) for k in sorted(sp))))
++for x in bad:
++    print('PROBLEM ' + x)
++print('xme_rest_chk: ' + ('PASS' if not bad else 'FAIL (%d)' % len(bad)))
++sys.exit(1 if bad else 0)
+--- /home/claude/main/cfg/mgs2_gl27.cfg	2026-11-19 20:34:12.831335127 +0000
++++ /home/claude/main/cfg/mgs2_gl28.cfg	2026-11-20 06:43:41.935867551 +0000
+@@ -1,3 +1,17 @@
++# gl28, update of 2026-11-20 (the black marks on the deck): five diagnostics for the walk on the aft deck (vb 30,500-31,400), each its
++# own setting at the end of the file; nothing they do changes the game (the hashes stay 72e0ca4c) or what is drawn (GE2 A/B below
++# changes only how the ME's next frame overlaps the GE's drawing). The frame digests move to the walk's first four turns
++# (MGS2_GL_DIG=30500:30900). The cfg before this update is cfg/mgs2_gl28b.cfg (4b342ad4).
++# gl28 (2026-11-19): gl27 for the battery switch-off study (gl27 run 1 switched off on the battery inside codec call 1; 3 of 10
++# battery runs stopped, 0 of 11 on USB charging; cause unknown). Three changes, each its own setting; everything else is gl27's
++# (cfg/mgs2_gl27.cfg a97f7cd5), so hashref.txt stays 72e0ca4c and the game equals gl27's:
++#  1. MGS2_ME_REST=1 (end of the file): the Media Engine rests in HALT whenever its queue stays empty in the main CPU's turns, and the
++#     main CPU wakes it with its interrupt when the ME's turn begins (v30me5's resting ME, which ran 76,548 rests with no lost wake).
++#  2. MGS2_BAT_REC=1 (end of the file): every battery.txt line adds the battery thread's own lateness and the picture loop's and the
++#     ME's state (reads only; no new file).
++#  3. The dense hash window is gone (it was MGS2_HASH_DENSE=15700:16010: a full-RAM state hash every vblank right before codec call 1,
++#     the heaviest sustained load of the run, not something the game itself does). The PC twin and the emulator keep their own dense
++#     checks where needed; the PSP keeps the hash every 500 vblanks.
+ # gl26: gl25 made the deck's standard: two copy areas in every ME turn (MGS2_ME_PIC_TWO=1; gl25's PSP run: the deck's two-area turns
+ # -15.6%, the rain's -22.8% against the same turns of gl24) and the cosmetic actors at half rate in every 100-vblank block from vb 24,000
+ # (MGS2_HALF_CYCLE b x 8: ropes and lamps every other step, the trail off, the sea as before; DEVIATIONS.md G1). New: the ME times its
+@@ -65,7 +79,7 @@
+ # Split finder (v15): every state hash is compared on the PSP with the PC's value in hashref.txt, and from vblank 15700 to 16010
+ # there is a hash at every vblank. At the first difference it prints "split:" lines and writes the game RAM to split.<vblank>
+ # (32 MB) in this folder. Measurement only.
+-MGS2_HASH_DENSE=15700:16010
++# gl28: MGS2_HASH_DENSE=15700:16010 removed (see the top: the dense window is off on the PSP for the switch-off study)
+ MGS2_HASH_REF=hashref.txt
+ # v30: a state hash every 500 vblanks, and every 100 in the timed steps from vblank 31800 to the end (37800): 61 checks.
+ MGS2_HASH_EVERY=500,31800:100
+@@ -91,7 +105,10 @@
+ MGS2_GL_RAIN_SPRITES=0
+ # Frame checks: the frames whose last vblank lies in 31561-31959 (indoors, Snake and the guards) get their list and frame digests in
+ # log.txt, to compare with the PC's, which builds the same frames word for word (measurement only, outside the step's time).
+-MGS2_GL_DIG=31561:31959
++# gl28 (2026-11-20): the digests now cover the first four turns of the walk on the aft deck (30,500-30,900: main, ME, main, ME), to
++# compare the ME's frames there with the PC's; the walk after 30,900 keeps its normal timing for your eyes (the old window lay past
++# the run's end at 31,400).
++MGS2_GL_DIG=30500:30900
+ # Pictures: at these vblanks the frame on the screen is saved as shot_<vblank>.bmp next to the EBOOT (outside the step's time), to
+ # compare with the emulator's and with gl18's: the same sixteen moments as gl15 to gl18. Each is taken in a known turn (the ME's or
+ # the main CPU's). gl19: the first four must equal gl18's; from 24,246 on the game differs from gl18's, so each must equal the
+@@ -124,3 +141,26 @@
+ # and the main CPU turn after it (the cost and the counted cases off), always from vb 30,500 (Snake's walk on the aft deck)
+ MGS2_GL_FLIPWAIT=2
+ MGS2_GL_FLIPWAIT_FROM=30500
++# gl28: the Media Engine rests in HALT through the main CPU's turns (0 = it spins when idle, as gl27). A 'main turn vb A-B gl28 me
++# rest' line per main CPU turn and 'gl28 me rest totals' at the end of log.txt.
++MGS2_ME_REST=1
++# gl28: battery.txt's lines add the battery thread's lateness and the picture loop's and the ME's state (0 = gl27's lines).
++MGS2_BAT_REC=1
++# gl28 (2026-11-20), the black marks on the deck. Hold the R trigger while you see black marks on the deck floor, and let go when
++# they are gone. R does nothing to the game (it plays pad.txt); the run only writes an 'eye: R down' / 'eye: R up' line with the
++# vblank and whose turn it is (the ME's or the main CPU's) into log.txt (0 = off).
++MGS2_EYE=1
++# Live pictures: what the screen shows, copied as it is (no wait: the screen's buffer is complete, the GE draws into the other one)
++# to live_<vblank>.bmp next to the EBOOT, outside the step's time (about 0.3 s each): at 30,550, 30,650, ... 31,350 (mid-turn), and
++# at your first 8 R presses between 30,500 and 31,400 (30 vblanks apart or more; a press before or after that only writes its 'eye'
++# line). from:to:every:R presses at most.
++MGS2_GL_LIVE=30500:31400:100:8
++# The display counter: from vb 30,500, each list given to the GE is compared with the buffer the display says it scans now and the
++# one it shows next (sceDisplayGetFrameBuf, reads only); counts on each turn's 'gl27 display' line and at the end.
++MGS2_GL_FBCHK=30500
++# From vb 30,500 the GE overlap (MGS2_ME_PIC_GE2) only in every other ME turn: on at 30,600 and 31,000, off at 30,800 and 31,200;
++# a 'gl28 ge2 a/b' line at each ME turn. The pictures are the same; only the ME's start of the next frame changes.
++MGS2_ME_PIC_GE2_AB=30500
++# The picture pauses (MGS2_GL_SHOT) from MGS2_GL_FLIPWAIT_FROM on keep the flip wait: no list is drawn into the buffer still on the
++# screen (gl27's shots could flash); the frame saved is the last one made (gl27 could save the one before when two were waiting).
++MGS2_GL_SHOT_FLIPWAIT=1
+--- /home/claude/main/build_gl27/mgs2_gl27_dig.cfg	2026-11-19 21:02:52.098265602 +0000
++++ /home/claude/main/build_gl28/mgs2_gl28_dig.cfg	2026-11-20 06:44:17.642879868 +0000
+@@ -1,3 +1,17 @@
++# gl28, update of 2026-11-20 (the black marks on the deck): five diagnostics for the walk on the aft deck (vb 30,500-31,400), each its
++# own setting at the end of the file; nothing they do changes the game (the hashes stay 72e0ca4c) or what is drawn (GE2 A/B below
++# changes only how the ME's next frame overlaps the GE's drawing). The frame digests move to the walk's first four turns
++# (MGS2_GL_DIG=30500:30900). The cfg before this update is cfg/mgs2_gl28b.cfg (4b342ad4).
++# gl28 (2026-11-19): gl27 for the battery switch-off study (gl27 run 1 switched off on the battery inside codec call 1; 3 of 10
++# battery runs stopped, 0 of 11 on USB charging; cause unknown). Three changes, each its own setting; everything else is gl27's
++# (cfg/mgs2_gl27.cfg a97f7cd5), so hashref.txt stays 72e0ca4c and the game equals gl27's:
++#  1. MGS2_ME_REST=1 (end of the file): the Media Engine rests in HALT whenever its queue stays empty in the main CPU's turns, and the
++#     main CPU wakes it with its interrupt when the ME's turn begins (v30me5's resting ME, which ran 76,548 rests with no lost wake).
++#  2. MGS2_BAT_REC=1 (end of the file): every battery.txt line adds the battery thread's own lateness and the picture loop's and the
++#     ME's state (reads only; no new file).
++#  3. The dense hash window is gone (it was MGS2_HASH_DENSE=15700:16010: a full-RAM state hash every vblank right before codec call 1,
++#     the heaviest sustained load of the run, not something the game itself does). The PC twin and the emulator keep their own dense
++#     checks where needed; the PSP keeps the hash every 500 vblanks.
+ # gl26: gl25 made the deck's standard: two copy areas in every ME turn (MGS2_ME_PIC_TWO=1; gl25's PSP run: the deck's two-area turns
+ # -15.6%, the rain's -22.8% against the same turns of gl24) and the cosmetic actors at half rate in every 100-vblank block from vb 24,000
+ # (MGS2_HALF_CYCLE b x 8: ropes and lamps every other step, the trail off, the sea as before; DEVIATIONS.md G1). New: the ME times its
+@@ -65,7 +79,7 @@
+ # Split finder (v15): every state hash is compared on the PSP with the PC's value in hashref.txt, and from vblank 15700 to 16010
+ # there is a hash at every vblank. At the first difference it prints "split:" lines and writes the game RAM to split.<vblank>
+ # (32 MB) in this folder. Measurement only.
+-MGS2_HASH_DENSE=15700:16010
++# gl28: MGS2_HASH_DENSE=15700:16010 removed (see the top: the dense window is off on the PSP for the switch-off study)
+ MGS2_HASH_REF=hashref.txt
+ # v30: a state hash every 500 vblanks, and every 100 in the timed steps from vblank 31800 to the end (37800): 61 checks.
+ MGS2_HASH_EVERY=500,31800:100
+@@ -91,7 +105,11 @@
+ MGS2_GL_RAIN_SPRITES=0
+ # Frame checks: the frames whose last vblank lies in 31561-31959 (indoors, Snake and the guards) get their list and frame digests in
+ # log.txt, to compare with the PC's, which builds the same frames word for word (measurement only, outside the step's time).
+-MGS2_GL_DIG=31561:31959
++# gl28 (2026-11-20): the digests now cover the first four turns of the walk on the aft deck (30,500-30,900: main, ME, main, ME), to
++# compare the ME's frames there with the PC's; the walk after 30,900 keeps its normal timing for your eyes (the old window lay past
++# the run's end at 31,400).
++# (the emulator check: the digests over the whole walk, 30,500-31,400)
++MGS2_GL_DIG=30500:31400
+ # Pictures: at these vblanks the frame on the screen is saved as shot_<vblank>.bmp next to the EBOOT (outside the step's time), to
+ # compare with the emulator's and with gl18's: the same sixteen moments as gl15 to gl18. Each is taken in a known turn (the ME's or
+ # the main CPU's). gl19: the first four must equal gl18's; from 24,246 on the game differs from gl18's, so each must equal the
+@@ -124,3 +142,26 @@
+ # and the main CPU turn after it (the cost and the counted cases off), always from vb 30,500 (Snake's walk on the aft deck)
+ MGS2_GL_FLIPWAIT=2
+ MGS2_GL_FLIPWAIT_FROM=30500
++# gl28: the Media Engine rests in HALT through the main CPU's turns (0 = it spins when idle, as gl27). A 'main turn vb A-B gl28 me
++# rest' line per main CPU turn and 'gl28 me rest totals' at the end of log.txt.
++MGS2_ME_REST=1
++# gl28: battery.txt's lines add the battery thread's lateness and the picture loop's and the ME's state (0 = gl27's lines).
++MGS2_BAT_REC=1
++# gl28 (2026-11-20), the black marks on the deck. Hold the R trigger while you see black marks on the deck floor, and let go when
++# they are gone. R does nothing to the game (it plays pad.txt); the run only writes an 'eye: R down' / 'eye: R up' line with the
++# vblank and whose turn it is (the ME's or the main CPU's) into log.txt (0 = off).
++MGS2_EYE=1
++# Live pictures: what the screen shows, copied as it is (no wait: the screen's buffer is complete, the GE draws into the other one)
++# to live_<vblank>.bmp next to the EBOOT, outside the step's time (about 0.3 s each): at 30,550, 30,650, ... 31,350 (mid-turn), and
++# at your first 8 R presses between 30,500 and 31,400 (30 vblanks apart or more; a press before or after that only writes its 'eye'
++# line). from:to:every:R presses at most.
++MGS2_GL_LIVE=30500:31400:100:8
++# The display counter: from vb 30,500, each list given to the GE is compared with the buffer the display says it scans now and the
++# one it shows next (sceDisplayGetFrameBuf, reads only); counts on each turn's 'gl27 display' line and at the end.
++MGS2_GL_FBCHK=30500
++# From vb 30,500 the GE overlap (MGS2_ME_PIC_GE2) only in every other ME turn: on at 30,600 and 31,000, off at 30,800 and 31,200;
++# a 'gl28 ge2 a/b' line at each ME turn. The pictures are the same; only the ME's start of the next frame changes.
++MGS2_ME_PIC_GE2_AB=30500
++# The picture pauses (MGS2_GL_SHOT) from MGS2_GL_FLIPWAIT_FROM on keep the flip wait: no list is drawn into the buffer still on the
++# screen (gl27's shots could flash); the frame saved is the last one made (gl27 could save the one before when two were waiting).
++MGS2_GL_SHOT_FLIPWAIT=1

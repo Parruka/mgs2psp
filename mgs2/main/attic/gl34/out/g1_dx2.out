@@ -1,0 +1,8 @@
+tw/x86/out_dxp.log: 17664 picture lines, 17664 content; tw/x86/out_dx2.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+nats (the translator state, gl34)                   : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67

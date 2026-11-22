@@ -1,0 +1,1318 @@
+MGS2 PSP timing harness v5 (compiled VU0 fast form, VF00 + FCGET fixes)
+folder ms0:/PSP/GAME/MGS2T_v7/
+config: clock 333
+speedups: take turns from vb:steps 24000:100
+clock 333 MHz requested: 0
+CPU 333 MHz, bus 166 MHz; FCR31 01000001
+volatile memory: locked (0, 4096 KB at 08400000)
+host stack pool: 1152 KB at 0b8a0000
+free memory: heap headroom 65520 KB; outside the heap: largest block 512 KB, total 764 KB
+run: 25200 vblanks, deck timing from vb 24000, hash every 500
+disc: \MGS2\CODEC.DAT              lsn    400 size 58790976 (pack)
+disc: \MGS2\DEMO.DAT               lsn   7433 size 1653919744 (pack)
+disc: \MGS2\FACE.DAT               lsn  cc6dd size 31127552 (pack)
+disc: \MGS2\MOVIE.DAT              lsn  d024c size 954861568 (pack)
+disc: \MGS2\STAGE.DAT              lsn 141f9d size 657709056 (pack)
+disc: \MGS2\VOX.DAT                lsn 190628 size 1210071040 (pack)
+disc: \MODULES\IOPRP23.IMG         lsn 220a3f size 230329 (pack)
+disc: \MODULES\MODULE.IPK          lsn 220ac0 size 361520 (pack)
+disc: \MODULES\PLD.IRX             lsn 220b81 size 1665 (pack)
+disc: \SLES_503.83                 lsn 220b92 size 833792 (pack)
+disc: \SYSTEM.CNF                  lsn 220d3a size 53 (pack)
+[0 vb, th 1] sys  3c SetupThread          pc 10006c a0 001b88f0 a1 01fff000 a2 00000ff0 a3 001b4900 ra 000000
+[0 vb, th 1] sys  3d SetupHeap            pc 100088 a0 001edbb4 a1 00004000 a2 00000ff0 a3 001b4900 ra 000000
+[0 vb, th 1] sys  40 CreateSema           pc 1737e4 a0 01ffff90 a1 00004000 a2 00000ff0 a3 001b4900 ra 17b414
+[0 vb, th 1] sys  40 CreateSema           pc 1737e4 a0 01ffffb0 a1 00004000 a2 00000ff0 a3 001b4900 ra 17b424
+[0 vb, th 1] sys  74                      pc 17442c a0 0000005a a1 00174448 a2 00000ff0 a3 001b4900 ra 1744d8
+[0 vb, th 1] sys  5a                      pc 17443c a0 80076000 a1 001935d0 a2 00000740 a3 001b4900 ra 1744f0
+[0 vb, th 1] sys  5a                      pc 17443c a0 00082000 a1 00193d10 a2 00000028 a3 001b4900 ra 174508
+[0 vb, th 1] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00193d10 a2 00000028 a3 001b4900 ra 174510
+[0 vb, th 1] sys  64 FlushCache           pc 173a64 a0 00000002 a1 00193d10 a2 00000028 a3 001b4900 ra 174518
+[0 vb, th 1] sys  74                      pc 17442c a0 0000005b a1 80076000 a2 00000028 a3 001b4900 ra 174524
+[0 vb, th 1] sys  5b                      pc 174484 a0 000000fc a1 80076000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 000000fc a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  5b                      pc 174484 a0 000000fe a1 00000000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 000000fe a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  5b                      pc 174484 a0 000000fd a1 00000000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 000000fd a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  5b                      pc 174484 a0 000000ff a1 00000000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 000000ff a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  5b                      pc 174484 a0 0000012c a1 00000000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 0000012c a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  5b                      pc 174484 a0 00000008 a1 00000000 a2 00000028 a3 001b4900 ra 174530
+[0 vb, th 1] sys  74                      pc 17442c a0 00000008 a1 00000000 a2 00000028 a3 001b4900 ra 174540
+[0 vb, th 1] sys  40 CreateSema           pc 1737e4 a0 01ffffa0 a1 00000000 a2 00000028 a3 001b4900 ra 174670
+[0 vb, th 1] sys  20 CreateThread         pc 1735e4 a0 01ffff70 a1 001b88f0 a2 00000400 a3 001b4900 ra 1746b4
+[0 vb, th 1] sys  22 StartThread          pc 173604 a0 00000002 a1 001c8f38 a2 00000400 a3 001b4900 ra 1746e8
+[0 vb, th 1] sys  2f GetThreadId          pc 1736d4 a0 00000002 a1 001c8f38 a2 00000400 a3 001b4900 ra 1746f0
+[0 vb, th 1] sys  29 ChangeThreadPriority pc 173674 a0 00000001 a1 00000001 a2 00000400 a3 001b4900 ra 1746fc
+[0 vb, th 2] sys  44 WaitSema             pc 173824 a0 00000003 a1 00000000 a2 00000000 a3 00000000 ra 1745b0
+[0 vb, th 1] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000001 a2 00000400 a3 001b4900 ra 10009c
+[0 vb, th 1] sys  44 WaitSema             pc 173824 a0 00000002 a1 001c8b00 a2 00000400 a3 001b4900 ra 169928
+[0 vb, th 1] sys  42 SignalSema           pc 173804 a0 00000002 a1 001c8b00 a2 00000400 a3 001b4900 ra 169944
+[0 vb, th 1] sys  2f GetThreadId          pc 1736d4 a0 00000001 a1 00192fa4 a2 00192fa4 a3 001b4900 ra 1001d0
+[0 vb, th 1] sys  20 CreateThread         pc 1735e4 a0 01ffff20 a1 001000d0 a2 00000012 a3 001b0900 ra 15d714
+[0 vb, th 1] sys  22 StartThread          pc 173604 a0 00000003 a1 001c6b90 a2 00000012 a3 001b0900 ra 15d730
+[0 vb, th 1] sys  32 SleepThread          pc 173704 a0 00000003 a1 001c6b90 a2 00000012 a3 001b0900 ra 100200
+[0 vb, th 3] sys  61                      pc 173a34 a0 00000003 a1 00191260 a2 10005000 a3 00000001 ra 100108
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+dma GIF chcr 00000105 madr 00000000 qwc 0 tadr 001b40b0
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+dma GIF chcr 00000105 madr 00000000 qwc 0 tadr 001b40b0
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+dma GIF chcr 00000105 madr 00000000 qwc 0 tadr 001b40b0
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+dma GIF chcr 00000105 madr 00000000 qwc 0 tadr 001b40b0
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000004 a2 0000c000 a3 30004000 ra 11dd08
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 201c9800 a2 201c9780 a3 00000020 ra 175914
+[0 vb, th 3] sys  78                      pc 173bc4 a0 00000000 a1 00170000 a2 201c9780 a3 00000020 ra 175954
+[0 vb, th 3] sys  12 AddDmacHandler       pc 1734f4 a0 00000005 a1 00175cd0 a2 00000000 a3 00000020 ra 175968
+[0 vb, th 3] sys  16 EnableDmac           pc 173544 a0 00000005 a1 00175cd0 a2 00000000 a3 00000020 ra 174378
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 80000000 a1 00175cd0 a2 00000000 a3 00000020 ra 175984
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 00000004 a1 00175cd0 a2 00000000 a3 00000020 ra 1759d8
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 00000002 a1 00175cd0 a2 00000000 a3 00000020 ra 1759ec
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000000 a1 00001000 a2 00000000 a3 00000020 ra 1759fc
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000001 a1 001c9858 a2 00000000 a3 00000020 ra 175a0c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4800 a1 00000001 a2 001c9840 a3 00000014 ra 175c2c
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 80000002 a1 00176260 a2 001cb200 a3 201caa00 ra 175fd0
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4800 a1 00000001 a2 001c9a40 a3 00000010 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000002 a2 201c97a0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000002 a1 00000001 a2 001c9a40 a3 00000010 ra 100120
+[0 vb, th 3] sys  2f GetThreadId          pc 1736d4 a0 00000001 a1 00000000 a2 001c9a40 a3 00000010 ra 164454
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47a0 a1 00000001 a2 00000000 a3 00190000 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4710 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000004 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000004 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000004 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4750 a1 00000010 a2 00000000 a3 001c7100 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46c0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+cdvd: sceCdInit mode 0
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000004 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000004 a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000004 a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 00000101 a2 ffffffff a3 00000040 ra 163a9c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 00000101 a2 ffffffff a3 00000040 ra 163aa8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 00000101 a2 ffffffff a3 00000040 ra 163ab8
+[0 vb, th 3] sys  45 PollSema             pc 173834 a0 00000005 a1 00163bd0 a2 00000000 a3 00000040 ra 1642bc
+[0 vb, th 3] sys  30 ReferThreadStatus    pc 1736e4 a0 00000003 a1 001c6e98 a2 00000000 a3 00000040 ra 16430c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 00000001 a2 00000000 a3 00000040 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4730 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47b0 a1 00000004 a2 00000000 a3 00192980 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4720 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+cdvd: S command 34
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000005 a1 00000002 a2 201c9a00 a3 00000040 ra 164980
+[0 vb, th 3] sys  17                      pc 173554 a0 00000005 a1 00000002 a2 201c9a00 a3 00000040 ra 174310
+[0 vb, th 3] sys  13                      pc 173514 a0 00000005 a1 00000001 a2 201c9a00 a3 00000040 ra 175a78
+[0 vb, th 3] sys  6b                      pc 173ab4 a0 001b4840 a1 00000000 a2 201c9a00 a3 00000040 ra 17b0fc
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 80000000 a1 00000000 a2 201c9a00 a3 00000040 ra 17b108
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 00000004 a1 00040000 a2 001cc800 a3 00000068 ra 17b1b8
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4800 a1 00000001 a2 001cc800 a3 00000068 ra 17b1c4
+sif: IOP reboot: rom0:UDNL cdrom0:\MODULES\IOPRP23.IMG;1
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 00000004 a1 00010000 a2 001cc800 a3 00000068 ra 17b1d4
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 00000004 a1 00020000 a2 001cc800 a3 00000068 ra 17b1e0
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000002 a1 00000000 a2 001cc800 a3 00000068 ra 17b1f0
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000000 a1 00000000 a2 001cc800 a3 00000068 ra 17b1fc
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 00000004 a1 00000000 a2 001cc800 a3 00000068 ra 17b258
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 201c9800 a2 201c9780 a3 00000020 ra 175914
+[0 vb, th 3] sys  78                      pc 173bc4 a0 00000000 a1 00170000 a2 201c9780 a3 00000020 ra 175954
+[0 vb, th 3] sys  12 AddDmacHandler       pc 1734f4 a0 00000005 a1 00175cd0 a2 00000000 a3 00000020 ra 175968
+[0 vb, th 3] sys  16 EnableDmac           pc 173544 a0 00000005 a1 00175cd0 a2 00000000 a3 00000020 ra 174378
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 80000000 a1 00175cd0 a2 00000000 a3 00000020 ra 175984
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 00000004 a1 00175cd0 a2 00000000 a3 00000020 ra 1759d8
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 00000002 a1 00175cd0 a2 00000000 a3 00000020 ra 1759ec
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000000 a1 00001000 a2 00000000 a3 00000020 ra 1759fc
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000001 a1 001c9858 a2 00000000 a3 00000020 ra 175a0c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b47f0 a1 00000001 a2 001c9840 a3 00000014 ra 175c2c
+[0 vb, th 3] sys  7a SifGetReg            pc 173bf4 a0 80000002 a1 00176260 a2 001cb200 a3 201caa00 ra 175fd0
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b47f0 a1 00000001 a2 001c9a40 a3 00000010 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000002 a2 201c97a0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys  79 SifSetReg            pc 173be4 a0 80000002 a1 00000001 a2 001c9a40 a3 00000010 ra 100258
+[0 vb, th 3] sys  2f GetThreadId          pc 1736d4 a0 00000001 a1 00000000 a2 001c9a40 a3 00000010 ra 164454
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47a0 a1 00000001 a2 00000000 a3 00190000 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4710 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4750 a1 00000010 a2 00000000 a3 001c7100 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46c0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+cdvd: sceCdInit mode 0
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  45 PollSema             pc 173834 a0 00000005 a1 00000000 a2 ffffffff a3 00000040 ra 1642bc
+[0 vb, th 3] sys  30 ReferThreadStatus    pc 1736e4 a0 00000003 a1 001c6e98 a2 ffffffff a3 00000040 ra 16430c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47d0 a1 00000001 a2 00000000 a3 00000040 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4740 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 00000004 a2 00000000 a3 00192980 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4730 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+cdvd: S command 34
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000007 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000005 a1 00000002 a2 201c9a00 a3 00000040 ra 164980
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b46e0 a1 00000001 a2 001adacc a3 00000001 ra 177358
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000001 a2 001adacc a3 00000001 ra 17738c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4640 a1 00000001 a2 00000000 a3 00000001 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b45b0 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000008 a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 00000008 a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4670 a1 00000001 a2 201c9a00 a3 00000040 ra 176e40
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4670 a1 00000001 a2 201c9a00 a3 00000040 ra 176e4c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000001 a2 201c9a00 a3 00000040 ra 177468
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00000001 a2 201c9a00 a3 00000040 ra 1774c0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b45f0 a1 00000004 a2 00000000 a3 001b46c0 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4560 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+fileio: init, EE reply area 001cbf00
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 001935c4 a2 ffffffff a3 ffffffff ra 176e88
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 10000000 a2 ffffffff a3 ffffffff ra 176ebc
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4740 a1 0000001c a2 001d0000 a3 001adacc ra 177788
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4670 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b45e0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+fileio: open cdrom0:\MODULES\MODULE.IPK;1 flags 1 -> 3
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000b a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 201cbf14 a2 ffffffff a3 00190000 ra 177314
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 1777f0
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177810
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177818
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000002 a2 201c9a00 a3 00000040 ra 17784c
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00000002 a2 201c9a00 a3 00000040 ra 177868
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000000 a2 00000002 a3 00000040 ra 176f14
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00000000 a2 00000002 a3 00000040 ra 176f44
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000000 a2 00000002 a3 00000040 ra 17738c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47d0 a1 00000001 a2 00000002 a3 00000040 ra 177ae0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4700 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4670 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000b a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 201cbf14 a2 ffffffff a3 00190000 ra 177314
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 177bec
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177c24
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177c2c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000000 a2 00000000 a3 00000040 ra 176f14
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00000000 a2 00000000 a3 00000040 ra 176f44
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000000 a2 00000000 a3 00000040 ra 17738c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47d0 a1 00000001 a2 00000000 a3 00000040 ra 177ae0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4700 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4670 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000b a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 201cbf14 a2 ffffffff a3 00190000 ra 177314
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 177bec
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177c24
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177c2c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00c00000 a2 00058430 a3 00000040 ra 176f14
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00c00000 a2 00058430 a3 00000040 ra 176f44
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00c00000 a2 00058430 a3 00000040 ra 17738c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47b0 a1 00c00000 a2 00058430 a3 00000040 ra 177d20
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b46e0 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4650 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000b a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 201cbf14 a2 201cbf14 a3 00190000 ra 177314
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 177e54
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177e8c
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 177e94
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000008 a1 00000002 a2 201c9a00 a3 00000040 ra 176f14
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000008 a1 00000002 a2 201c9a00 a3 00000040 ra 176f44
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 17738c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47f0 a1 00000002 a2 201c9a00 a3 00000040 ra 177948
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4720 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4690 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000b a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 201cbf14 a2 ffffffff a3 00190000 ra 177314
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  42 SignalSema           pc 173804 a0 00000007 a1 00000002 a2 201c9a00 a3 00000040 ra 1779c4
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1779e4
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1779ec
+[0 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00000002 a2 201c9a00 a3 00000040 ra 100348
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4750 a1 00000001 a2 00000000 a3 001b48b0 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46c0 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4700 a1 00000004 a2 00000000 a3 00000000 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4670 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+loadfile: fno 255 path  args 
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4750 a1 00000200 a2 00000000 a3 001cc5c0 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46c0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+loadfile: fno 0 path cdrom0:\MODULES\PLD.IRX;1 args 00c00000
+IOP: loading KCEJ_SIF_MANAGER at 0x00010000 (0xef0 bytes), 12 imports (0 not implemented)
+sif: IOP library jsifman: 18 exports
+IOP: loading KCEJ_DISC_BIOS at 0x00012000 (0x17b0 bytes), 40 imports (0 not implemented)
+sif: IOP library cdbios: 8 exports
+IOP: AllocSysMemory(0, 0x10000) -> 0x00013800 (heap in use 93696)
+IOP: CreateThread 2 entry 0x00012a68 prio 82 stack 0x800 at 0x001fc800
+IOP: loading  at 0x00040000 (0xe30e4 bytes), 46 imports (0 not implemented)
+IOP: CreateThread 3 entry 0x000408b4 prio 64 stack 0x400 at 0x001fc400
+IOP: CreateThread 4 entry 0x0004f4f0 prio 65 stack 0x4000 at 0x001f8400
+IOP: CreateThread 5 entry 0x0004f668 prio 64 stack 0x4000 at 0x001f4400
+IOP: CreateThread 6 entry 0x00040610 prio 63 stack 0x2000 at 0x001f2400
+IOP: CreateThread 7 entry 0x0004f710 prio 62 stack 0x4000 at 0x001ee400
+IOP: hardware timer 1 started: compare 92160, prescale 1, source 1
+loadfile: KCEJ modules loaded (iop_main start: 0)
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000002 a2 201c97a0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000002 a2 201c97a0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000002 a2 201c97a0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4800 a1 00000001 a2 00000000 a3 ffffffff ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4770 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4800 a1 00000001 a2 00000000 a3 00000040 ra 176590
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4770 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4780 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+padman: command 12 (0 0 0 0)
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4780 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+padman: command 10 (0 0 402 0)
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4740 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46b0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+padman: command 1 (0 0 1 1e6d00)
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4740 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46b0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+padman: command 1 (1 0 1 1e6e00)
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000a a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[0 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[0 vb, th 3] sys  41                      pc 1737f4 a0 0000000a a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b47b0 a1 00000001 a2 001b4840 a3 00000018 ra 175c2c
+[0 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 00000021 a1 00000001 a2 001b4840 a3 00000018 ra 15e2d8
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b47c0 a1 00000001 a2 001b4850 a3 00000018 ra 175c2c
+[0 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 00000022 a1 00000001 a2 001b4850 a3 00000018 ra 15e2d8
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4760 a1 00000001 a2 001b47f0 a3 00000014 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46f0 a1 00000001 a2 001b4780 a3 00000030 ra 175c2c
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b47c0 a1 00000001 a2 001b4850 a3 00000018 ra 175c2c
+[0 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 00000043 a1 00000001 a2 001b4850 a3 00000018 ra 15e2d8
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4760 a1 00000001 a2 001b47f0 a3 00000014 ra 175c2c
+[0 vb, th 3] sys  2f GetThreadId          pc 1736d4 a0 00000000 a1 00f00000 a2 07ffffff a3 00000014 ra 100e24
+[0 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4710 a1 00000001 a2 001b47a0 a3 00000050 ra 175c2c
+[0 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[0 vb, th 3] sys -2f                      pc 174728 a0 00000003 a1 00000000 a2 02e90edd a3 001b0000 ra 15dd70
+[0 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000003 a1 001c8f38 a2 00000000 a3 001b0000 ra 174798
+[0 vb, th 3] sys -77                      pc 173bb4 a0 0007fd30 a1 00000001 a2 0007fdc0 a3 00000050 ra 175c1c
+[0 vb, th 2] sys  33 WakeupThread         pc 173714 a0 00000003 a1 00000001 a2 001c8f41 a3 00000000 ra 174608
+[0 vb, th 2] sys  44 WaitSema             pc 173824 a0 00000003 a1 00000001 a2 001c8f41 a3 00000000 ra 1745b0
+[0 vb, th 3] sys  32 SleepThread          pc 173704 a0 001b4710 a1 00000001 a2 001b47a0 a3 00000050 ra 100e6c
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b48a0 a1 00c00000 a2 00000000 a3 0000007b ra 101bf4
+[0 vb, th 3] sys  71 GsPutIMR             pc 173b24 a0 0000ff00 a1 00010000 a2 00030000 a3 00000000 ra 1614e4
+[0 vb, th 3] sys  02 SetGsCrt             pc 1733e4 a0 00000001 a1 00000003 a2 00000000 a3 00000000 ra 11db30
+[0 vb, th 3] sys  12 AddDmacHandler       pc 1734f4 a0 00000001 a1 00123b28 a2 ffffffff a3 1000a000 ra 123d80
+[0 vb, th 3] sys  16 EnableDmac           pc 173544 a0 00000001 a1 00123b28 a2 ffffffff a3 1000a000 ra 174378
+[0 vb, th 3] sys  10 AddIntcHandler       pc 1734c4 a0 00000000 a1 00123b70 a2 ffffffff a3 1000a000 ra 123da4
+[0 vb, th 3] sys  70 GsGetIMR             pc 173b04 a0 fffffdff a1 001c0000 a2 ffffffff a3 1000a000 ra 161b10
+[0 vb, th 3] sys  71 GsPutIMR             pc 173b24 a0 fffffdff a1 001c0000 a2 ffffffff a3 1000a000 ra 161b1c
+[0 vb, th 3] sys  14 EnableIntc           pc 173524 a0 00000000 a1 001c0000 a2 ffffffff a3 1000a000 ra 1742a8
+[0 vb, th 3] sys  10 AddIntcHandler       pc 1734c4 a0 00000002 a1 0011d930 a2 ffffffff a3 00000000 ra 11db78
+[0 vb, th 3] sys  10 AddIntcHandler       pc 1734d4 a0 00000003 a1 0011d9b8 a2 ffffffff a3 00000000 ra 11db98
+[0 vb, th 3] sys  14 EnableIntc           pc 173524 a0 00000002 a1 0011d9b8 a2 ffffffff a3 00000000 ra 1742a8
+[0 vb, th 3] sys  14 EnableIntc           pc 173524 a0 00000003 a1 0011d9b8 a2 ffffffff a3 00000000 ra 1742a8
+[0 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4850 a1 0004f290 a2 0004f2d0 a3 00000000 ra 1014dc
+[0 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b47d0 a1 00100a70 a2 0000000e a3 01afbf90 ra 15d714
+[0 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf90 ra 15d730
+[0 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 01ab0d00 a2 00000000 a3 00000000 ra 100aa4
+[1 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 00364594 a2 00000000 a3 00ffffff ra 101538
+[1 vb, th 3] sys  42 SignalSema           pc 173804 a0 0000000b a1 001421c3 a2 00eb0c40 a3 00101170 ra 101554
+[1 vb, th 4] sys  77 SifSetDma            pc 173ba4 a0 01affda0 a1 00000001 a2 01affe30 a3 00000050 ra 175c2c
+[1 vb, th 4] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[1 vb, th 4] sys -43 iSignalSema          pc 173814 a0 0000000b a1 201c6d00 a2 201c6d00 a3 201c9780 ra 15dd70
+[1 vb, th 4] sys -77                      pc 173bb4 a0 0007fd30 a1 00000001 a2 0007fdc0 a3 00000050 ra 175c1c
+[1 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000001 a2 01affe30 a3 00000050 ra 1009b8
+[1 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 00000800 a2 00000054 a3 001b0000 ra 100aa4
+[1 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4820 a1 00000001 a2 001061d8 a3 001ade08 ra 166ad0
+[1 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000c a1 00000000 a2 00000000 a3 001ade08 ra 166aec
+[1 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47a0 a1 00000001 a2 00000000 a3 001ade08 ra 176590
+[1 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4710 a1 00000001 a2 201c9a00 a3 00000040 ra 175c2c
+[1 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[1 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000d a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[1 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000d a1 00000001 a2 201c9a00 a3 00000040 ra 1765f0
+[1 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000001 a2 201c9a00 a3 00000040 ra 1765f8
+[1 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4750 a1 0000000c a2 00000000 a3 001c7580 ra 176834
+[1 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b46c0 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+[1 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[1 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000d a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[1 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[1 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[1 vb, th 3] sys  42 SignalSema           pc 173804 a0 0000000c a1 00000002 a2 201c9a00 a3 00000040 ra 166bb8
+[2 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4790 a1 00000001 a2 001b4820 a3 00000020 ra 175c2c
+[2 vb, th 3] sys  2f GetThreadId          pc 1736d4 a0 00000001 a1 00000001 a2 00000001 a3 00013308 ra 15da08
+[2 vb, th 3] sys  2f GetThreadId          pc 1736d4 a0 00000003 a1 ffffffff a2 ffffffff a3 fffffffe ra 15dcc4
+[2 vb, th 3] sys  fc                      pc 173564 a0 00000003 a1 0015dc78 a2 001b4850 a3 fffffffe ra 15dcf8
+[2 vb, th 3] sys  32 SleepThread          pc 173704 a0 00000003 a1 0015dc78 a2 001b4850 a3 fffffffe ra 15dd18
+[2 vb, th 3] sys -2f                      pc 174728 a0 00000003 a1 0000ddee a2 001b4850 a3 fffffffe ra 15dc8c
+[2 vb, th 3] sys -43 iSignalSema          pc 173814 a0 00000003 a1 001c8f3a a2 00000002 a3 fffffffe ra 174798
+[2 vb, th 2] sys  33 WakeupThread         pc 173714 a0 00000003 a1 00000001 a2 001c8f43 a3 00000000 ra 174608
+[2 vb, th 2] sys  44 WaitSema             pc 173824 a0 00000003 a1 00000001 a2 001c8f43 a3 00000000 ra 1745b0
+[2 vb, th 3] sys  70 GsGetIMR             pc 173b04 a0 fffffdff a1 00000002 a2 00190000 a3 fffffffe ra 161b10
+[2 vb, th 3] sys  71 GsPutIMR             pc 173b24 a0 fffffdff a1 00000002 a2 00190000 a3 fffffffe ra 161b1c
+[2 vb, th 3] sys  64 FlushCache           pc 173a64 a0 00000000 a1 10000000 a2 70000000 a3 13000000 ra 123fa4
+dma VIF1 chcr 00000145 madr 00000000 qwc 0 tadr 01b00000
+[2 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b46c0 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+[2 vb, th 3] sys  77 SifSetDma            pc 173ba4 a0 001b4630 a1 00000002 a2 201c9a00 a3 00000040 ra 175c2c
+padman: command 6 (0 0 1 3)
+[2 vb, th 3] sys -78                      pc 173bd4 a0 00000000 a1 00000004 a2 201c97c0 a3 201c9780 ra 175d54
+[2 vb, th 3] sys -43 iSignalSema          pc 173814 a0 0000000d a1 001cb200 a2 001761a8 a3 201c9780 ra 17623c
+[2 vb, th 3] sys  44 WaitSema             pc 173824 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 176898
+[2 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[2 vb, th 3] sys  42 SignalSema           pc 173804 a0 0000000b a1 ffffffff a2 0006c000 a3 0010e800 ra 1013e0
+[2 vb, th 4] sys  77 SifSetDma            pc 173ba4 a0 01affd50 a1 00000001 a2 01affde0 a3 00000050 ra 175c2c
+[2 vb, th 4] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[2 vb, th 4] sys -43 iSignalSema          pc 173814 a0 0000000b a1 201c6d00 a2 201c6d00 a3 201c9780 ra 15dd70
+[2 vb, th 4] sys -77                      pc 173bb4 a0 0007fd30 a1 00000001 a2 0007fdc0 a3 00000050 ra 175c1c
+[2 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 0010e800 a2 00000000 a3 01af0d30 ra 1007f4
+[3 vb, th 4] sys  77 SifSetDma            pc 173ba4 a0 01affd50 a1 00000001 a2 01affde0 a3 00000050 ra 175c2c
+[3 vb, th 4] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[3 vb, th 4] sys -43 iSignalSema          pc 173814 a0 0000000b a1 201c6d00 a2 201c6d00 a3 201c9780 ra 15dd70
+[3 vb, th 4] sys -77                      pc 173bb4 a0 0007fd30 a1 00000001 a2 0007fdc0 a3 00000050 ra 175c1c
+[10 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 01af9370 a2 ffffffff a3 0015efe8 ra 1007f4
+[10 vb, th 4] sys  77 SifSetDma            pc 173ba4 a0 01affd50 a1 00000001 a2 01affde0 a3 00000050 ra 175c2c
+[10 vb, th 4] sys -78                      pc 173bd4 a0 00000000 a1 00000001 a2 201c9790 a3 201c9780 ra 175d54
+[10 vb, th 4] sys -43 iSignalSema          pc 173814 a0 0000000b a1 201c6d00 a2 201c6d00 a3 201c9780 ra 15dd70
+[10 vb, th 4] sys -77                      pc 173bb4 a0 0007fd30 a1 00000001 a2 0007fdc0 a3 00000050 ra 175c1c
+[17 vb, th 4] sys  44 WaitSema             pc 173824 a0 0000000b a1 01af99a4 a2 ffffffff a3 0015efe8 ra 1007f4
+dma fromSPR chcr 00000100 madr 01d000a0 qwc d tadr 00000000
+dma VIF0 chcr 00000141 madr 00194800 qwc 47 tadr 00000000
+dma VIF0 chcr 00000141 madr 00194800 qwc 47 tadr 00000000
+dma fromSPR chcr 00000100 madr 01d001f0 qwc 10 tadr 00000000
+dma fromSPR chcr 00000100 madr 01d002f0 qwc 2 tadr 00000000
+dma fromSPR chcr 00000100 madr 01d00390 qwc 2 tadr 00000000
+dma VIF1 chcr 00000145 madr 00000000 qwc 0 tadr 01d00000
+dma VIF1 chcr 00000145 madr 00000000 qwc 0 tadr 01d000a0
+dma VIF1 chcr 00000145 madr 00000000 qwc 0 tadr 01d001f0
+[30 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c00060 ra 000100
+dma VIF0 chcr 00000141 madr 00194800 qwc 47 tadr 00000000
+dma VIF0 chcr 00000141 madr 00194800 qwc 47 tadr 00000000
+[32 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b46c0 a1 00000080 a2 00000000 a3 001c7480 ra 176834
+padman: command 8 (0 0 ffff01ff ffff)
+[32 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[32 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 001e6f98 a2 70000000 a3 001e6f68 ra 1019ec
+stage code: init
+stage overlay init loaded: 153072 bytes in 49 ms
+[33 vb, th 3] sys  4b                      pc 173894 a0 001b4780 a1 001f1c38 a2 001fd4e0 a3 00000000 ra 2f4a50
+[33 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b45d0 a1 0000000b a2 001d0000 a3 001fd4e0 ra 177788
+[33 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4500 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+disc: rom0:ROMVER not found
+fileio: open rom0:ROMVER flags 1 -> -2
+[33 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[33 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 177818
+[33 vb, th 3] sys  4b                      pc 173894 a0 001b4780 a1 001fc458 a2 0000000e a3 00000040 ra 2f4a70
+[37 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2d0 a3 00000000 ra 1014dc
+[37 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf90 ra 15d714
+[37 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf90 ra 15d730
+[41 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c00060 ra 000100
+[43 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 001e6f98 a2 60000001 a3 00185530 ra 1019ec
+stage code: r_title
+stage overlay r_title loaded: 11776 bytes in 23 ms
+window vb 100: 99 steps, mean 56.47 ms (logic 51.75, draw pipeline 0.09, IOP+sound 4.62, GS walk 0.01), max 95.96 ms, over 20 ms 89, over 40 ms 61
+window vb 200: 100 steps, mean 79.32 ms (logic 76.36, draw pipeline 0.00, IOP+sound 2.96, GS walk 0.00), max 101.83 ms, over 20 ms 100, over 40 ms 100
+[211 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2d0 a3 00000000 ra 1014dc
+[211 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf90 ra 15d714
+[211 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf90 ra 15d730
+window vb 300: 100 steps, mean 31.62 ms (logic 25.94, draw pipeline 0.03, IOP+sound 5.65, GS walk 0.00), max 88.94 ms, over 20 ms 86, over 40 ms 18
+window vb 400: 100 steps, mean 24.67 ms (logic 20.71, draw pipeline 0.00, IOP+sound 3.96, GS walk 0.00), max 71.61 ms, over 20 ms 76, over 40 ms 6
+[405 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c00060 ra 000100
+[407 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 001e6f98 a2 60000001 a3 00185530 ra 1019ec
+stage code: n_title
+stage overlay n_title loaded: 701856 bytes in 144 ms
+window vb 500: 100 steps, mean 80.35 ms (logic 77.11, draw pipeline 0.03, IOP+sound 3.22, GS walk 0.00), max 231.89 ms, over 20 ms 98, over 40 ms 92
+hash: vb 500 ee e900cb3574dc846d iop ab1813344ef44cc0
+[533 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4740 a1 00000004 a2 00000000 a3 001c7580 ra 176834
+[533 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[533 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4740 a1 00000004 a2 00000000 a3 001c7580 ra 176834
+[533 vb, th 3] sys  41                      pc 1737f4 a0 0000000b a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+mc: getinfo port 0 slot 0 -> -1 (free 8000)
+mc: getinfo port 1 slot 0 -> -13 (free 0)
+mc: getinfo port 1 slot 0 -> -13 (free 0)
+mc: getinfo port 1 slot 0 -> -13 (free 0)
+mc: getinfo port 1 slot 0 -> -13 (free 0)
+mc: getinfo port 1 slot 0 -> -13 (free 0)
+mc: getdir /BESLES-50383000G* -> 0
+mc: getinfo port 0 slot 0 -> 0 (free 0)
+window vb 600: 100 steps, mean 32.31 ms (logic 29.03, draw pipeline 0.52, IOP+sound 2.59, GS walk 0.17), max 169.38 ms, over 20 ms 37, over 40 ms 34
+window vb 700: 100 steps, mean 3.78 ms (logic 1.57, draw pipeline 0.77, IOP+sound 1.19, GS walk 0.25), max 3.99 ms, over 20 ms 0, over 40 ms 0
+window vb 800: 100 steps, mean 3.78 ms (logic 1.57, draw pipeline 0.77, IOP+sound 1.19, GS walk 0.25), max 4.00 ms, over 20 ms 0, over 40 ms 0
+window vb 900: 100 steps, mean 3.78 ms (logic 1.56, draw pipeline 0.78, IOP+sound 1.19, GS walk 0.25), max 4.03 ms, over 20 ms 0, over 40 ms 0
+window vb 1000: 100 steps, mean 3.74 ms (logic 1.53, draw pipeline 0.77, IOP+sound 1.20, GS walk 0.24), max 3.99 ms, over 20 ms 0, over 40 ms 0
+hash: vb 1000 ee 3b8537f5b4374c79 iop e7391f520627a0b7
+[1037 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4780 a1 014cf4f0 a2 214ce4e0 a3 00000100 ra 201ae4
+disc: \MGS2\MOVIE.DAT sector 397718 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397734 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397750 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397766 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397782 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397798 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397814 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397830 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397846 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397862 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397878 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397894 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397910 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397926 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397942 x 16 served as end of stream (dev skip)
+disc: \MGS2\MOVIE.DAT sector 397958 x 16 served as end of stream (dev skip)
+[1037 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4780 a1 002006e0 a2 00000019 a3 012d8b90 ra 15d714
+[1037 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 00000019 a3 012d8b90 ra 15d730
+[1041 vb, th 3] sys  25                      pc 173634 a0 00000004 a1 001c0000 a2 014ce3d0 a3 00000007 ra 15d5e0
+[1041 vb, th 3] sys  21                      pc 1735f4 a0 00000004 a1 001c0000 a2 014ce3d0 a3 00000007 ra 2013b4
+window vb 1100: 100 steps, mean 27.55 ms (logic 20.94, draw pipeline 0.92, IOP+sound 2.35, GS walk 3.34), max 137.73 ms, over 20 ms 59, over 40 ms 20
+window vb 1200: 100 steps, mean 20.02 ms (logic 9.33, draw pipeline 1.36, IOP+sound 1.85, GS walk 7.48), max 20.41 ms, over 20 ms 62, over 40 ms 0
+pad: vblank 1300 buttons 0800
+window vb 1300: 100 steps, mean 19.92 ms (logic 9.17, draw pipeline 1.36, IOP+sound 1.90, GS walk 7.49), max 20.45 ms, over 20 ms 20, over 40 ms 0
+pad: vblank 1306 buttons 0000
+window vb 1400: 100 steps, mean 21.50 ms (logic 10.33, draw pipeline 1.36, IOP+sound 2.09, GS walk 7.72), max 40.18 ms, over 20 ms 100, over 40 ms 1
+pad: vblank 1500 buttons 0020
+window vb 1500: 100 steps, mean 21.77 ms (logic 10.26, draw pipeline 1.36, IOP+sound 2.02, GS walk 8.14), max 22.36 ms, over 20 ms 100, over 40 ms 0
+hash: vb 1500 ee 51b8a8f718e690d8 iop 2df73037e23edc22
+pad: vblank 1506 buttons 0000
+window vb 1600: 100 steps, mean 21.82 ms (logic 10.10, draw pipeline 1.36, IOP+sound 2.25, GS walk 8.10), max 27.14 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 1650 buttons 0020
+pad: vblank 1656 buttons 0000
+window vb 1700: 100 steps, mean 21.62 ms (logic 9.98, draw pipeline 1.37, IOP+sound 2.16, GS walk 8.11), max 23.09 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 1800 buttons 0020
+window vb 1800: 100 steps, mean 22.94 ms (logic 10.50, draw pipeline 1.37, IOP+sound 2.81, GS walk 8.27), max 70.44 ms, over 20 ms 100, over 40 ms 2
+pad: vblank 1806 buttons 0000
+window vb 1900: 100 steps, mean 21.80 ms (logic 10.11, draw pipeline 1.36, IOP+sound 2.17, GS walk 8.16), max 22.86 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 1950 buttons 0020
+pad: vblank 1956 buttons 0000
+window vb 2000: 100 steps, mean 21.72 ms (logic 10.07, draw pipeline 1.36, IOP+sound 2.14, GS walk 8.14), max 23.11 ms, over 20 ms 100, over 40 ms 0
+hash: vb 2000 ee 39bdf6bdbb756d04 iop 1cfe2f35ce7c8aff
+pad: vblank 2100 buttons 0020
+window vb 2100: 100 steps, mean 21.83 ms (logic 10.16, draw pipeline 1.37, IOP+sound 2.07, GS walk 8.23), max 28.52 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 2106 buttons 0000
+window vb 2200: 100 steps, mean 21.44 ms (logic 9.90, draw pipeline 1.36, IOP+sound 2.08, GS walk 8.10), max 23.95 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 2250 buttons 0020
+pad: vblank 2256 buttons 0000
+window vb 2300: 100 steps, mean 21.63 ms (logic 9.86, draw pipeline 1.36, IOP+sound 2.38, GS walk 8.04), max 67.83 ms, over 20 ms 100, over 40 ms 3
+pad: vblank 2400 buttons 0020
+window vb 2400: 100 steps, mean 21.14 ms (logic 9.85, draw pipeline 1.36, IOP+sound 1.90, GS walk 8.03), max 43.51 ms, over 20 ms 100, over 40 ms 2
+pad: vblank 2406 buttons 0000
+window vb 2500: 100 steps, mean 21.35 ms (logic 9.86, draw pipeline 1.36, IOP+sound 2.08, GS walk 8.04), max 42.52 ms, over 20 ms 100, over 40 ms 3
+hash: vb 2500 ee c0b09101869be219 iop d43244d8decf2f6c
+pad: vblank 2550 buttons 0020
+pad: vblank 2556 buttons 0000
+window vb 2600: 100 steps, mean 20.78 ms (logic 9.78, draw pipeline 1.37, IOP+sound 1.60, GS walk 8.04), max 35.55 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 2700 buttons 0020
+window vb 2700: 100 steps, mean 15.13 ms (logic 7.12, draw pipeline 1.16, IOP+sound 1.41, GS walk 5.44), max 35.44 ms, over 20 ms 67, over 40 ms 0
+pad: vblank 2706 buttons 0000
+window vb 2800: 100 steps, mean 3.82 ms (logic 1.48, draw pipeline 0.77, IOP+sound 1.35, GS walk 0.22), max 4.15 ms, over 20 ms 0, over 40 ms 0
+pad: vblank 2850 buttons 0020
+pad: vblank 2856 buttons 0000
+window vb 2900: 100 steps, mean 3.95 ms (logic 1.58, draw pipeline 0.77, IOP+sound 1.35, GS walk 0.25), max 4.16 ms, over 20 ms 0, over 40 ms 0
+pad: vblank 3000 buttons 0020
+window vb 3000: 100 steps, mean 3.94 ms (logic 1.57, draw pipeline 0.77, IOP+sound 1.35, GS walk 0.25), max 4.13 ms, over 20 ms 0, over 40 ms 0
+hash: vb 3000 ee 167bb3832a9a1eb4 iop 4df7d07025eb906b
+pad: vblank 3006 buttons 0000
+[3025 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2d0 a3 00000000 ra 1014dc
+[3025 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf90 ra 15d714
+[3025 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf90 ra 15d730
+window vb 3100: 100 steps, mean 24.82 ms (logic 18.02, draw pipeline 0.19, IOP+sound 6.56, GS walk 0.06), max 74.92 ms, over 20 ms 71, over 40 ms 11
+[3117 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c00060 ra 000100
+[3119 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 001e6f98 a2 60000001 a3 0017d530 ra 1019ec
+stage code: r_tnk0
+stage overlay r_tnk0 loaded: 12112 bytes in 24 ms
+pad: vblank 3150 buttons 0020
+pad: vblank 3156 buttons 0000
+window vb 3200: 100 steps, mean 72.06 ms (logic 68.86, draw pipeline 0.04, IOP+sound 3.17, GS walk 0.00), max 100.69 ms, over 20 ms 96, over 40 ms 81
+pad: vblank 3300 buttons 0020
+window vb 3300: 100 steps, mean 84.14 ms (logic 80.83, draw pipeline 0.00, IOP+sound 3.31, GS walk 0.00), max 100.55 ms, over 20 ms 100, over 40 ms 100
+pad: vblank 3306 buttons 0000
+[3314 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2a0 a3 00000000 ra 1014dc
+[3314 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf50 ra 15d714
+[3314 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf50 ra 15d730
+window vb 3400: 100 steps, mean 37.33 ms (logic 29.68, draw pipeline 0.03, IOP+sound 7.62, GS walk 0.00), max 93.55 ms, over 20 ms 98, over 40 ms 25
+pad: vblank 3450 buttons 0020
+pad: vblank 3456 buttons 0000
+window vb 3500: 100 steps, mean 30.46 ms (logic 23.54, draw pipeline 0.00, IOP+sound 6.93, GS walk 0.00), max 76.78 ms, over 20 ms 97, over 40 ms 12
+hash: vb 3500 ee a5aab9108aae02dd iop 284845b2c29eb274
+[3553 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c041b0 ra 000100
+[3554 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 001e6f98 a2 60000001 a3 0017d530 ra 1019ec
+stage code: d00t
+stage overlay d00t loaded: 3165872 bytes in 509 ms
+pad: vblank 3600 buttons 0020
+window vb 3600: 100 steps, mean 24.42 ms (logic 17.68, draw pipeline 1.66, IOP+sound 4.77, GS walk 0.31), max 567.79 ms, over 20 ms 47, over 40 ms 7
+pad: vblank 3606 buttons 0000
+window vb 3700: 100 steps, mean 8.18 ms (logic 2.00, draw pipeline 3.62, IOP+sound 1.84, GS walk 0.72), max 29.50 ms, over 20 ms 2, over 40 ms 0
+pad: vblank 3750 buttons 0020
+pad: vblank 3756 buttons 0000
+window vb 3800: 100 steps, mean 8.32 ms (logic 2.05, draw pipeline 3.63, IOP+sound 1.94, GS walk 0.71), max 34.35 ms, over 20 ms 2, over 40 ms 0
+pad: vblank 3900 buttons 0020
+window vb 3900: 100 steps, mean 8.35 ms (logic 2.05, draw pipeline 3.62, IOP+sound 1.94, GS walk 0.73), max 29.23 ms, over 20 ms 2, over 40 ms 0
+pad: vblank 3906 buttons 0000
+window vb 4000: 100 steps, mean 8.29 ms (logic 2.02, draw pipeline 3.63, IOP+sound 1.93, GS walk 0.71), max 34.14 ms, over 20 ms 2, over 40 ms 0
+hash: vb 4000 ee 47845ca02badc878 iop 17cc9ea270a6f1cf
+pad: vblank 4050 buttons 0020
+pad: vblank 4056 buttons 0000
+window vb 4100: 100 steps, mean 8.22 ms (logic 2.03, draw pipeline 3.63, IOP+sound 1.83, GS walk 0.73), max 29.50 ms, over 20 ms 2, over 40 ms 0
+pad: vblank 4200 buttons 0020
+window vb 4200: 100 steps, mean 7.94 ms (logic 1.97, draw pipeline 3.62, IOP+sound 1.62, GS walk 0.73), max 24.35 ms, over 20 ms 1, over 40 ms 0
+pad: vblank 4206 buttons 0000
+dma toSPR chcr 00000109 madr 01404550 qwc 3 tadr 00000000
+dma toSPR chcr 00000109 madr 01404780 qwc 3 tadr 00000000
+dma toSPR chcr 00000109 madr 014049b0 qwc 3 tadr 00000000
+dma toSPR chcr 00000109 madr 01404be0 qwc 3 tadr 00000000
+window vb 4300: 100 steps, mean 39.37 ms (logic 27.84, draw pipeline 6.73, IOP+sound 3.49, GS walk 1.31), max 282.38 ms, over 20 ms 31, over 40 ms 30
+pad: vblank 4350 buttons 0020
+pad: vblank 4356 buttons 0000
+window vb 4400: 100 steps, mean 54.53 ms (logic 37.97, draw pipeline 10.57, IOP+sound 3.61, GS walk 2.38), max 172.83 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 4500 buttons 0020
+window vb 4500: 100 steps, mean 53.23 ms (logic 37.44, draw pipeline 10.09, IOP+sound 3.53, GS walk 2.17), max 166.56 ms, over 20 ms 50, over 40 ms 50
+hash: vb 4500 ee f441dccc759b7407 iop f391b68eaedd23a2
+pad: vblank 4506 buttons 0000
+window vb 4600: 100 steps, mean 52.55 ms (logic 36.76, draw pipeline 10.09, IOP+sound 3.52, GS walk 2.18), max 164.45 ms, over 20 ms 50, over 40 ms 50
+window vb 4700: 100 steps, mean 51.87 ms (logic 36.08, draw pipeline 10.06, IOP+sound 3.56, GS walk 2.16), max 169.50 ms, over 20 ms 50, over 40 ms 50
+window vb 4800: 100 steps, mean 50.90 ms (logic 34.88, draw pipeline 10.13, IOP+sound 3.52, GS walk 2.38), max 163.41 ms, over 20 ms 50, over 40 ms 50
+window vb 4900: 100 steps, mean 49.22 ms (logic 33.01, draw pipeline 10.18, IOP+sound 3.62, GS walk 2.41), max 162.53 ms, over 20 ms 50, over 40 ms 50
+window vb 5000: 100 steps, mean 58.13 ms (logic 36.62, draw pipeline 16.03, IOP+sound 2.88, GS walk 2.60), max 173.09 ms, over 20 ms 50, over 40 ms 50
+hash: vb 5000 ee 09c59e6350e75128 iop 5c8a00c297ea843f
+window vb 5100: 100 steps, mean 63.13 ms (logic 37.18, draw pipeline 19.33, IOP+sound 3.59, GS walk 3.02), max 187.42 ms, over 20 ms 50, over 40 ms 50
+window vb 5200: 100 steps, mean 61.57 ms (logic 36.57, draw pipeline 18.49, IOP+sound 3.60, GS walk 2.90), max 189.09 ms, over 20 ms 50, over 40 ms 50
+window vb 5300: 100 steps, mean 56.93 ms (logic 35.37, draw pipeline 15.38, IOP+sound 3.56, GS walk 2.62), max 180.68 ms, over 20 ms 50, over 40 ms 50
+window vb 5400: 100 steps, mean 56.07 ms (logic 36.85, draw pipeline 12.28, IOP+sound 3.63, GS walk 3.31), max 178.62 ms, over 20 ms 50, over 40 ms 50
+window vb 5500: 100 steps, mean 57.25 ms (logic 37.24, draw pipeline 12.65, IOP+sound 3.61, GS walk 3.74), max 177.99 ms, over 20 ms 50, over 40 ms 50
+hash: vb 5500 ee 29aa5112cff57080 iop b185a0c0160d8b48
+window vb 5600: 100 steps, mean 57.85 ms (logic 37.32, draw pipeline 13.05, IOP+sound 3.56, GS walk 3.92), max 174.80 ms, over 20 ms 50, over 40 ms 50
+window vb 5700: 100 steps, mean 65.17 ms (logic 38.38, draw pipeline 17.57, IOP+sound 3.64, GS walk 5.59), max 201.73 ms, over 20 ms 50, over 40 ms 50
+window vb 5800: 100 steps, mean 71.86 ms (logic 39.46, draw pipeline 20.41, IOP+sound 3.61, GS walk 8.38), max 206.62 ms, over 20 ms 50, over 40 ms 50
+window vb 5900: 100 steps, mean 72.14 ms (logic 39.14, draw pipeline 20.83, IOP+sound 3.64, GS walk 8.52), max 209.57 ms, over 20 ms 50, over 40 ms 50
+window vb 6000: 100 steps, mean 77.85 ms (logic 41.60, draw pipeline 23.54, IOP+sound 3.56, GS walk 9.15), max 205.25 ms, over 20 ms 52, over 40 ms 50
+hash: vb 6000 ee 36516d085ef8360a iop bfd3198c547d67db
+window vb 6100: 100 steps, mean 74.96 ms (logic 39.89, draw pipeline 22.38, IOP+sound 3.63, GS walk 9.06), max 210.39 ms, over 20 ms 50, over 40 ms 50
+window vb 6200: 100 steps, mean 74.26 ms (logic 39.34, draw pipeline 22.26, IOP+sound 3.63, GS walk 9.04), max 208.76 ms, over 20 ms 50, over 40 ms 50
+window vb 6300: 100 steps, mean 74.18 ms (logic 40.21, draw pipeline 22.85, IOP+sound 2.93, GS walk 8.19), max 203.46 ms, over 20 ms 53, over 40 ms 50
+window vb 6400: 100 steps, mean 71.89 ms (logic 39.62, draw pipeline 23.10, IOP+sound 3.56, GS walk 5.61), max 201.34 ms, over 20 ms 50, over 40 ms 50
+window vb 6500: 100 steps, mean 71.19 ms (logic 38.51, draw pipeline 23.47, IOP+sound 3.58, GS walk 5.63), max 197.17 ms, over 20 ms 50, over 40 ms 50
+hash: vb 6500 ee 7789e7d0298708e9 iop efecc764398c4a60
+window vb 6600: 100 steps, mean 71.78 ms (logic 39.60, draw pipeline 23.05, IOP+sound 3.68, GS walk 5.45), max 207.15 ms, over 20 ms 50, over 40 ms 50
+window vb 6700: 100 steps, mean 69.10 ms (logic 39.06, draw pipeline 21.42, IOP+sound 3.63, GS walk 5.00), max 200.24 ms, over 20 ms 50, over 40 ms 50
+window vb 6800: 100 steps, mean 68.28 ms (logic 36.36, draw pipeline 21.93, IOP+sound 3.62, GS walk 6.37), max 200.48 ms, over 20 ms 50, over 40 ms 50
+window vb 6900: 100 steps, mean 68.17 ms (logic 35.83, draw pipeline 22.06, IOP+sound 3.65, GS walk 6.63), max 199.89 ms, over 20 ms 50, over 40 ms 50
+window vb 7000: 100 steps, mean 66.26 ms (logic 35.87, draw pipeline 20.78, IOP+sound 3.72, GS walk 5.88), max 203.31 ms, over 20 ms 50, over 40 ms 50
+hash: vb 7000 ee ae0762441ef32cf1 iop 9b125b119da85c14
+window vb 7100: 100 steps, mean 66.56 ms (logic 36.83, draw pipeline 20.51, IOP+sound 3.71, GS walk 5.51), max 199.65 ms, over 20 ms 50, over 40 ms 50
+window vb 7200: 100 steps, mean 70.69 ms (logic 39.06, draw pipeline 22.26, IOP+sound 3.72, GS walk 5.65), max 206.20 ms, over 20 ms 50, over 40 ms 50
+window vb 7300: 100 steps, mean 70.85 ms (logic 39.08, draw pipeline 22.42, IOP+sound 3.66, GS walk 5.68), max 200.73 ms, over 20 ms 50, over 40 ms 50
+window vb 7400: 100 steps, mean 68.34 ms (logic 38.40, draw pipeline 21.38, IOP+sound 3.69, GS walk 4.86), max 202.72 ms, over 20 ms 50, over 40 ms 50
+window vb 7500: 100 steps, mean 66.37 ms (logic 37.62, draw pipeline 20.55, IOP+sound 3.72, GS walk 4.49), max 205.42 ms, over 20 ms 50, over 40 ms 50
+hash: vb 7500 ee 72a780aafe6d61e3 iop 6f1d6d8eb8e27138
+window vb 7600: 100 steps, mean 62.98 ms (logic 35.31, draw pipeline 19.45, IOP+sound 3.70, GS walk 4.52), max 190.93 ms, over 20 ms 50, over 40 ms 50
+window vb 7700: 100 steps, mean 61.40 ms (logic 33.95, draw pipeline 19.32, IOP+sound 3.63, GS walk 4.50), max 186.17 ms, over 20 ms 50, over 40 ms 50
+window vb 7800: 100 steps, mean 64.91 ms (logic 36.04, draw pipeline 20.51, IOP+sound 3.68, GS walk 4.68), max 201.29 ms, over 20 ms 50, over 40 ms 50
+window vb 7900: 100 steps, mean 68.21 ms (logic 38.50, draw pipeline 21.32, IOP+sound 3.66, GS walk 4.73), max 202.82 ms, over 20 ms 50, over 40 ms 50
+window vb 8000: 100 steps, mean 67.37 ms (logic 38.66, draw pipeline 20.34, IOP+sound 3.77, GS walk 4.60), max 206.83 ms, over 20 ms 50, over 40 ms 50
+hash: vb 8000 ee 6e3099a2f2dc544f iop a7e021b8782f1335
+window vb 8100: 100 steps, mean 64.88 ms (logic 36.38, draw pipeline 19.72, IOP+sound 3.78, GS walk 4.99), max 201.21 ms, over 20 ms 50, over 40 ms 50
+window vb 8200: 100 steps, mean 64.40 ms (logic 35.60, draw pipeline 19.88, IOP+sound 3.70, GS walk 5.23), max 194.66 ms, over 20 ms 50, over 40 ms 50
+window vb 8300: 100 steps, mean 62.47 ms (logic 35.30, draw pipeline 18.87, IOP+sound 3.66, GS walk 4.65), max 187.98 ms, over 20 ms 50, over 40 ms 50
+window vb 8400: 100 steps, mean 60.12 ms (logic 33.57, draw pipeline 18.32, IOP+sound 3.66, GS walk 4.57), max 185.78 ms, over 20 ms 50, over 40 ms 50
+window vb 8500: 100 steps, mean 58.92 ms (logic 32.49, draw pipeline 18.18, IOP+sound 3.69, GS walk 4.55), max 183.67 ms, over 20 ms 50, over 40 ms 50
+hash: vb 8500 ee 78bd899972570fbd iop 5f77753810ddc3d1
+window vb 8600: 100 steps, mean 66.77 ms (logic 36.45, draw pipeline 21.66, IOP+sound 3.67, GS walk 4.99), max 200.59 ms, over 20 ms 50, over 40 ms 50
+window vb 8700: 100 steps, mean 70.72 ms (logic 38.39, draw pipeline 23.45, IOP+sound 3.66, GS walk 5.21), max 195.37 ms, over 20 ms 50, over 40 ms 50
+[8750 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 00000000 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[8752 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a0b5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[8754 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a0be a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[8757 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a0c9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 8800: 100 steps, mean 68.11 ms (logic 39.69, draw pipeline 20.20, IOP+sound 3.73, GS walk 4.48), max 197.72 ms, over 20 ms 56, over 40 ms 54
+window vb 8900: 100 steps, mean 65.95 ms (logic 41.48, draw pipeline 17.42, IOP+sound 3.57, GS walk 3.48), max 180.99 ms, over 20 ms 65, over 40 ms 58
+window vb 9000: 100 steps, mean 68.54 ms (logic 39.32, draw pipeline 21.68, IOP+sound 3.61, GS walk 3.92), max 196.42 ms, over 20 ms 51, over 40 ms 51
+hash: vb 9000 ee 3de459168e915bca iop cb674f103db955cd
+window vb 9100: 100 steps, mean 64.48 ms (logic 37.13, draw pipeline 20.61, IOP+sound 3.58, GS walk 3.15), max 187.02 ms, over 20 ms 50, over 40 ms 50
+[9179 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a0d6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[9181 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a8d5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[9183 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a8e0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[9185 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a8e9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[9187 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a8f3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[9189 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a8fc a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 9200: 100 steps, mean 69.94 ms (logic 39.23, draw pipeline 22.92, IOP+sound 3.64, GS walk 4.15), max 197.72 ms, over 20 ms 50, over 40 ms 50
+window vb 9300: 100 steps, mean 58.93 ms (logic 37.03, draw pipeline 14.81, IOP+sound 3.63, GS walk 3.47), max 187.35 ms, over 20 ms 50, over 40 ms 50
+window vb 9400: 100 steps, mean 62.60 ms (logic 38.99, draw pipeline 16.34, IOP+sound 3.57, GS walk 3.70), max 186.11 ms, over 20 ms 50, over 40 ms 50
+window vb 9500: 100 steps, mean 63.51 ms (logic 41.96, draw pipeline 14.29, IOP+sound 3.64, GS walk 3.62), max 189.19 ms, over 20 ms 53, over 40 ms 51
+hash: vb 9500 ee 5c677c11f5c67eaf iop 0b0255156d98c502
+window vb 9600: 100 steps, mean 64.18 ms (logic 42.97, draw pipeline 14.42, IOP+sound 2.94, GS walk 3.85), max 180.61 ms, over 20 ms 54, over 40 ms 50
+window vb 9700: 100 steps, mean 63.55 ms (logic 41.69, draw pipeline 14.27, IOP+sound 3.63, GS walk 3.96), max 189.60 ms, over 20 ms 54, over 40 ms 50
+window vb 9800: 100 steps, mean 59.18 ms (logic 37.81, draw pipeline 13.94, IOP+sound 3.58, GS walk 3.86), max 179.42 ms, over 20 ms 50, over 40 ms 50
+window vb 9900: 100 steps, mean 61.89 ms (logic 38.60, draw pipeline 15.34, IOP+sound 3.63, GS walk 4.31), max 188.16 ms, over 20 ms 50, over 40 ms 50
+window vb 10000: 100 steps, mean 59.38 ms (logic 38.08, draw pipeline 14.49, IOP+sound 3.57, GS walk 3.23), max 184.09 ms, over 20 ms 50, over 40 ms 50
+hash: vb 10000 ee 0e01ac3394d050c1 iop eec2f74e7c3872b1
+window vb 10100: 100 steps, mean 59.79 ms (logic 37.69, draw pipeline 15.01, IOP+sound 3.62, GS walk 3.47), max 182.23 ms, over 20 ms 50, over 40 ms 50
+window vb 10200: 100 steps, mean 60.00 ms (logic 37.80, draw pipeline 15.04, IOP+sound 3.65, GS walk 3.51), max 184.35 ms, over 20 ms 50, over 40 ms 50
+window vb 10300: 100 steps, mean 58.73 ms (logic 36.70, draw pipeline 15.26, IOP+sound 3.57, GS walk 3.20), max 176.94 ms, over 20 ms 50, over 40 ms 50
+window vb 10400: 100 steps, mean 73.23 ms (logic 41.94, draw pipeline 21.91, IOP+sound 3.64, GS walk 5.74), max 210.94 ms, over 20 ms 80, over 40 ms 55
+[10490 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000a907 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10492 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1ce a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10494 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1d7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10496 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1e0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10498 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1eb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 10500: 100 steps, mean 76.29 ms (logic 45.75, draw pipeline 22.27, IOP+sound 3.69, GS walk 4.59), max 204.50 ms, over 20 ms 65, over 40 ms 54
+hash: vb 10500 ee c3558146135870ed iop d0fbd9bb1abb1684
+[10500 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1f5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10502 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c1fe a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10504 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c207 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10506 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c212 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10508 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c21c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10510 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c225 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10512 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c22e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10514 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c239 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10516 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c242 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10518 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c24c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10520 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c255 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10522 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c260 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10524 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c269 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10526 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c273 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10528 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c295 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[10530 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c29e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 10600: 100 steps, mean 75.41 ms (logic 46.39, draw pipeline 21.19, IOP+sound 3.71, GS walk 4.12), max 210.14 ms, over 20 ms 63, over 40 ms 53
+window vb 10700: 100 steps, mean 74.78 ms (logic 44.91, draw pipeline 21.65, IOP+sound 3.65, GS walk 4.57), max 207.59 ms, over 20 ms 56, over 40 ms 51
+window vb 10800: 100 steps, mean 75.79 ms (logic 44.57, draw pipeline 22.68, IOP+sound 3.69, GS walk 4.85), max 211.32 ms, over 20 ms 54, over 40 ms 50
+window vb 10900: 100 steps, mean 77.71 ms (logic 44.96, draw pipeline 23.89, IOP+sound 3.62, GS walk 5.25), max 209.60 ms, over 20 ms 64, over 40 ms 52
+window vb 11000: 100 steps, mean 75.37 ms (logic 46.80, draw pipeline 21.04, IOP+sound 3.68, GS walk 3.84), max 203.93 ms, over 20 ms 64, over 40 ms 57
+hash: vb 11000 ee 1fa42d76a4446d65 iop cc762cbb6183a212
+[11016 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000c2a9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11018 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cbe2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11020 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cbec a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11022 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cbf5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11024 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cbfe a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11026 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc09 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11028 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc12 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11030 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc1c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11032 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc41 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11034 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc4c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11036 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc55 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11038 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc5f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11040 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc68 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11042 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc71 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11044 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc7c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11046 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc86 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11048 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc8f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11050 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cc98 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11052 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cca3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11054 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccad a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11056 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccb6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11058 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccbf a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11060 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccca a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11062 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccd3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11064 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccdd a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11066 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cce6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11068 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccef a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11070 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000ccfa a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11072 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd04 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11074 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd0d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11076 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd16 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11078 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd21 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11080 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd2b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11082 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd50 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11084 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd59 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 11100: 100 steps, mean 74.95 ms (logic 46.86, draw pipeline 20.65, IOP+sound 3.66, GS walk 3.78), max 200.67 ms, over 20 ms 65, over 40 ms 57
+window vb 11200: 100 steps, mean 74.21 ms (logic 44.08, draw pipeline 21.95, IOP+sound 3.65, GS walk 4.53), max 213.70 ms, over 20 ms 52, over 40 ms 50
+window vb 11300: 100 steps, mean 71.90 ms (logic 43.86, draw pipeline 20.12, IOP+sound 3.69, GS walk 4.23), max 204.03 ms, over 20 ms 50, over 40 ms 50
+window vb 11400: 100 steps, mean 66.69 ms (logic 42.26, draw pipeline 17.33, IOP+sound 3.61, GS walk 3.48), max 192.46 ms, over 20 ms 50, over 40 ms 50
+window vb 11500: 100 steps, mean 65.75 ms (logic 41.21, draw pipeline 16.98, IOP+sound 3.54, GS walk 4.01), max 189.74 ms, over 20 ms 50, over 40 ms 50
+hash: vb 11500 ee a9589d7c2bcea8bd iop 6487ce0de6f99702
+window vb 11600: 100 steps, mean 70.38 ms (logic 41.72, draw pipeline 19.91, IOP+sound 3.57, GS walk 5.18), max 194.63 ms, over 20 ms 50, over 40 ms 50
+window vb 11700: 100 steps, mean 72.21 ms (logic 42.06, draw pipeline 20.87, IOP+sound 3.58, GS walk 5.70), max 195.47 ms, over 20 ms 50, over 40 ms 50
+window vb 11800: 100 steps, mean 69.04 ms (logic 42.06, draw pipeline 18.55, IOP+sound 3.53, GS walk 4.90), max 193.48 ms, over 20 ms 50, over 40 ms 50
+window vb 11900: 100 steps, mean 70.73 ms (logic 43.72, draw pipeline 19.44, IOP+sound 3.62, GS walk 3.95), max 195.85 ms, over 20 ms 50, over 40 ms 50
+[11978 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000cd64 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11980 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000de4e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11982 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000de59 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11984 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000de62 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[11986 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000de6c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12000: 100 steps, mean 69.70 ms (logic 40.72, draw pipeline 22.22, IOP+sound 2.96, GS walk 3.80), max 190.82 ms, over 20 ms 50, over 40 ms 50
+hash: vb 12000 ee 24d37dd90b3150a4 iop 7df1ba27ba12e45b
+[12018 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000de75 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12020 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df1d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12022 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df26 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12024 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df31 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12026 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df3a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12028 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df44 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12030 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df4d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12032 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df56 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12034 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df61 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12036 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df6b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12038 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df74 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12040 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df7d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12042 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df88 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12044 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df92 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12046 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000df9b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12048 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfa4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12050 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfaf a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12052 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfb8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12054 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfc2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12056 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfe4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12058 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dfef a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12060 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000dff8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12062 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e002 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12064 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e00b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12066 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e014 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12068 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e01f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12070 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e029 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12072 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e032 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12074 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e03b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12076 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e046 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12078 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e050 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12080 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e059 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12082 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e062 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12084 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e06d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12086 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e076 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12088 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e080 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12090 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e089 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12092 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e092 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12094 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e09d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12096 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0a7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12098 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0b0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12100: 100 steps, mean 80.75 ms (logic 45.92, draw pipeline 26.20, IOP+sound 3.60, GS walk 5.03), max 206.30 ms, over 20 ms 70, over 40 ms 50
+[12100 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0b9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12102 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0c4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12104 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0ce a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12106 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0f5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12108 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e0fe a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12110 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e109 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12112 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e112 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12114 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e11c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12116 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e125 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12118 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e130 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12120 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e139 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12122 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e143 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12124 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e14c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12126 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e155 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12128 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e160 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12130 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e16a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12132 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e173 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12134 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e17c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12136 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e187 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12138 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e191 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12140 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e19a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12142 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1a3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12144 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1ae a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12146 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1b7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12148 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1c1 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12150 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1ca a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12152 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1d5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12154 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1de a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12156 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e1e8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12158 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e20a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12160 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e213 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12162 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e21e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12164 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e228 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12166 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e231 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12168 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e23a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12170 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e245 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12172 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e24f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12174 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e258 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12176 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e261 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12178 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e26c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12180 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e275 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12182 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e27f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12184 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e288 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12186 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e293 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12188 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e29c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12190 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2a6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12192 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2af a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12194 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2b8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12196 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2c3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12198 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2cd a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12200: 100 steps, mean 81.04 ms (logic 40.00, draw pipeline 32.15, IOP+sound 3.70, GS walk 5.19), max 207.14 ms, over 20 ms 81, over 40 ms 56
+[12200 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2d6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12202 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2df a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12204 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2ea a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12206 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e2f4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12208 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e316 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12210 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e31f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12212 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e32a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12214 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e333 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12216 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e33d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12218 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e346 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12220 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e34f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12222 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e35a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12224 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e364 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12226 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e36d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12228 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e376 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12230 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e381 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12232 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e38b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12234 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e394 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12236 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e39d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12238 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3a8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12240 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3b1 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12242 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3bb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12244 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3c4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12246 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3cf a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12248 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3d8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12250 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3e2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12252 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3eb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12254 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3f4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12256 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e3ff a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12258 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e409 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12260 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e42d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12262 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e436 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12264 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e441 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12266 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e44b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12268 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e454 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12270 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e45d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12272 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e468 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12274 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e471 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12276 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e47b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12278 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e484 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12280 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e48f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12282 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e498 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12284 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4a2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12286 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4ab a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12288 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4b4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12290 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4bf a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12292 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4c9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12294 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4d2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12296 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4db a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12298 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4e6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12300: 100 steps, mean 68.77 ms (logic 34.40, draw pipeline 25.19, IOP+sound 3.66, GS walk 5.53), max 204.85 ms, over 20 ms 50, over 40 ms 50
+[12300 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4f0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12302 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e4f9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12304 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e502 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12306 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e50d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12308 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e516 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12310 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e520 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12312 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e542 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12314 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e54d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12316 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e556 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12318 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e560 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12320 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e569 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12322 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e572 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12324 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e57d a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12326 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e587 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12328 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e590 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12330 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e599 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12332 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5a4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12334 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5ae a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12336 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5b7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12338 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5c0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12340 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5cb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12342 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5d4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12344 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5de a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12346 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5e7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12348 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5f0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12350 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e5fb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12352 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e605 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12354 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e60e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12356 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e617 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12358 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e622 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12360 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e62c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12362 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e64e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12364 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e657 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12366 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e662 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12368 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e66b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12370 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e675 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12372 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e67e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12374 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e689 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12376 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e692 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12378 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e69c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12380 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6a5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12382 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6ae a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12384 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6b9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12386 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6c3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12388 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6cc a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12390 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6d5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12392 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6e0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12394 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6ea a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12396 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6f3 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12398 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e6fc a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12400: 100 steps, mean 66.71 ms (logic 33.71, draw pipeline 23.85, IOP+sound 3.68, GS walk 5.46), max 198.90 ms, over 20 ms 50, over 40 ms 50
+[12400 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e707 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12402 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e710 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12404 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e71a a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12406 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e723 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12408 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e72e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12410 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e737 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12412 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e741 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12414 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e76b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12416 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e774 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12418 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e77f a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12420 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e789 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12422 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e792 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12424 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e79b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12426 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7a6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12428 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7b0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12430 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7b9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12432 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7c2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12434 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7cd a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12436 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7d6 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12438 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7e0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12440 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7e9 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12442 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7f4 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12444 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e7fd a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12446 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e807 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12448 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e810 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12450 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e819 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12452 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e824 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12454 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e82e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12456 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e837 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12458 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e840 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12460 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e84b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12462 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e855 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12464 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e877 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12466 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e880 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12468 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e88b a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12470 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e894 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12472 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e89e a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12474 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8a7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12476 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8b0 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12478 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8bb a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12480 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8c5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12482 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8ce a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12484 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8d7 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12486 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8e2 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12488 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8ec a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12490 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8f5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12492 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e8fe a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12494 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e909 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12496 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e912 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12498 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e91c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12500: 100 steps, mean 66.20 ms (logic 33.66, draw pipeline 23.50, IOP+sound 3.73, GS walk 5.31), max 202.59 ms, over 20 ms 50, over 40 ms 50
+hash: vb 12500 ee d922097a7ac73415 iop cf6cb6396e1ca7ed
+[12500 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e925 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12502 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e930 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12504 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e939 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12506 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e943 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[12508 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e94c a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 12600: 100 steps, mean 62.19 ms (logic 34.57, draw pipeline 20.43, IOP+sound 3.61, GS walk 3.59), max 185.70 ms, over 20 ms 50, over 40 ms 50
+window vb 12700: 100 steps, mean 62.32 ms (logic 34.74, draw pipeline 20.39, IOP+sound 3.64, GS walk 3.55), max 189.80 ms, over 20 ms 50, over 40 ms 50
+window vb 12800: 100 steps, mean 62.15 ms (logic 34.65, draw pipeline 20.38, IOP+sound 3.59, GS walk 3.54), max 183.58 ms, over 20 ms 50, over 40 ms 50
+window vb 12900: 100 steps, mean 64.06 ms (logic 34.74, draw pipeline 21.56, IOP+sound 3.66, GS walk 4.10), max 195.05 ms, over 20 ms 50, over 40 ms 50
+window vb 13000: 100 steps, mean 67.32 ms (logic 35.14, draw pipeline 23.50, IOP+sound 3.66, GS walk 5.02), max 200.25 ms, over 20 ms 50, over 40 ms 50
+hash: vb 13000 ee 46c6134e85058cc1 iop c8999a21ac36b6cd
+window vb 13100: 100 steps, mean 70.40 ms (logic 39.27, draw pipeline 23.03, IOP+sound 3.63, GS walk 4.47), max 190.30 ms, over 20 ms 52, over 40 ms 50
+window vb 13200: 100 steps, mean 70.76 ms (logic 40.71, draw pipeline 22.28, IOP+sound 3.58, GS walk 4.19), max 185.01 ms, over 20 ms 52, over 40 ms 50
+window vb 13300: 100 steps, mean 69.28 ms (logic 38.03, draw pipeline 22.96, IOP+sound 3.72, GS walk 4.56), max 196.18 ms, over 20 ms 50, over 40 ms 50
+window vb 13400: 100 steps, mean 67.53 ms (logic 35.24, draw pipeline 23.24, IOP+sound 3.65, GS walk 5.40), max 197.60 ms, over 20 ms 50, over 40 ms 50
+window vb 13500: 100 steps, mean 63.18 ms (logic 34.19, draw pipeline 20.51, IOP+sound 3.68, GS walk 4.80), max 204.58 ms, over 20 ms 50, over 40 ms 50
+hash: vb 13500 ee 1462c1ca2a6ee1c5 iop 8de12c0aa1815439
+window vb 13600: 100 steps, mean 66.13 ms (logic 33.56, draw pipeline 22.97, IOP+sound 3.65, GS walk 5.95), max 199.21 ms, over 20 ms 50, over 40 ms 50
+window vb 13700: 100 steps, mean 57.27 ms (logic 32.32, draw pipeline 17.39, IOP+sound 3.80, GS walk 3.76), max 186.60 ms, over 20 ms 50, over 40 ms 50
+window vb 13800: 100 steps, mean 55.40 ms (logic 31.24, draw pipeline 16.69, IOP+sound 3.74, GS walk 3.72), max 187.87 ms, over 20 ms 50, over 40 ms 50
+window vb 13900: 100 steps, mean 53.48 ms (logic 30.44, draw pipeline 15.81, IOP+sound 3.67, GS walk 3.56), max 168.83 ms, over 20 ms 50, over 40 ms 50
+window vb 14000: 100 steps, mean 60.93 ms (logic 36.14, draw pipeline 17.56, IOP+sound 3.68, GS walk 3.55), max 187.84 ms, over 20 ms 50, over 40 ms 50
+hash: vb 14000 ee d451f0623672214a iop 325866bff3edceb3
+window vb 14100: 100 steps, mean 68.68 ms (logic 36.64, draw pipeline 23.48, IOP+sound 3.69, GS walk 4.86), max 191.09 ms, over 20 ms 50, over 40 ms 50
+window vb 14200: 100 steps, mean 67.00 ms (logic 36.17, draw pipeline 22.59, IOP+sound 3.60, GS walk 4.63), max 190.33 ms, over 20 ms 50, over 40 ms 50
+window vb 14300: 100 steps, mean 65.69 ms (logic 36.54, draw pipeline 21.57, IOP+sound 3.75, GS walk 3.83), max 196.00 ms, over 20 ms 50, over 40 ms 50
+window vb 14400: 100 steps, mean 65.19 ms (logic 36.49, draw pipeline 21.36, IOP+sound 3.68, GS walk 3.66), max 192.80 ms, over 20 ms 50, over 40 ms 50
+window vb 14500: 100 steps, mean 66.03 ms (logic 36.93, draw pipeline 21.74, IOP+sound 3.70, GS walk 3.65), max 191.69 ms, over 20 ms 51, over 40 ms 50
+hash: vb 14500 ee e814a5ff4ec3a807 iop e90bc2442fa9e2b8
+window vb 14600: 100 steps, mean 65.33 ms (logic 36.62, draw pipeline 21.45, IOP+sound 3.62, GS walk 3.64), max 186.99 ms, over 20 ms 50, over 40 ms 50
+window vb 14700: 100 steps, mean 58.02 ms (logic 32.95, draw pipeline 17.55, IOP+sound 3.76, GS walk 3.75), max 186.94 ms, over 20 ms 50, over 40 ms 50
+window vb 14800: 100 steps, mean 57.52 ms (logic 32.30, draw pipeline 17.66, IOP+sound 3.68, GS walk 3.88), max 175.93 ms, over 20 ms 50, over 40 ms 50
+[14828 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 0000e955 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[14830 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 000115da a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[14832 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 000115e5 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[14834 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 000115ee a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+[14836 vb, th 3] sys  76 SifDmaStat           pc 173b84 a0 000115f8 a1 001c7190 a2 001c7280 a3 001c728c ra 1649f8
+window vb 14900: 100 steps, mean 67.16 ms (logic 34.67, draw pipeline 23.74, IOP+sound 3.69, GS walk 5.07), max 200.38 ms, over 20 ms 50, over 40 ms 50
+window vb 15000: 100 steps, mean 66.36 ms (logic 34.27, draw pipeline 23.31, IOP+sound 3.69, GS walk 5.09), max 197.18 ms, over 20 ms 50, over 40 ms 50
+hash: vb 15000 ee f1abef312a4a7e9d iop a6381583eec531c2
+window vb 15100: 100 steps, mean 67.45 ms (logic 34.57, draw pipeline 24.12, IOP+sound 3.59, GS walk 5.17), max 196.20 ms, over 20 ms 50, over 40 ms 50
+window vb 15200: 100 steps, mean 63.81 ms (logic 34.74, draw pipeline 21.48, IOP+sound 3.55, GS walk 4.04), max 184.12 ms, over 20 ms 50, over 40 ms 50
+window vb 15300: 100 steps, mean 61.84 ms (logic 33.76, draw pipeline 20.82, IOP+sound 3.62, GS walk 3.64), max 183.15 ms, over 20 ms 50, over 40 ms 50
+window vb 15400: 100 steps, mean 61.78 ms (logic 33.21, draw pipeline 21.04, IOP+sound 3.55, GS walk 3.98), max 182.99 ms, over 20 ms 50, over 40 ms 50
+window vb 15500: 100 steps, mean 60.21 ms (logic 33.52, draw pipeline 20.47, IOP+sound 2.30, GS walk 3.93), max 122.24 ms, over 20 ms 50, over 40 ms 50
+hash: vb 15500 ee 5054822a908dec68 iop 376729ff723c0f15
+window vb 15600: 100 steps, mean 72.24 ms (logic 57.47, draw pipeline 11.70, IOP+sound 2.78, GS walk 0.29), max 116.89 ms, over 20 ms 94, over 40 ms 94
+[15679 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b47f0 a1 00208278 a2 0000003d a3 01ece0f0 ra 15d714
+[15679 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000003d a3 01ece0f0 ra 15d730
+window vb 15700: 100 steps, mean 40.06 ms (logic 31.99, draw pipeline 0.27, IOP+sound 7.35, GS walk 0.46), max 363.99 ms, over 20 ms 40, over 40 ms 39
+window vb 15800: 100 steps, mean 19.47 ms (logic 7.26, draw pipeline 4.20, IOP+sound 2.66, GS walk 5.34), max 63.84 ms, over 20 ms 44, over 40 ms 2
+window vb 15900: 100 steps, mean 27.96 ms (logic 9.96, draw pipeline 9.52, IOP+sound 2.34, GS walk 6.13), max 50.22 ms, over 20 ms 100, over 40 ms 2
+window vb 16000: 100 steps, mean 27.47 ms (logic 9.82, draw pipeline 9.52, IOP+sound 2.09, GS walk 6.05), max 47.48 ms, over 20 ms 100, over 40 ms 1
+hash: vb 16000 ee a2495a82712fc9bf iop fe8f421aed8f39b5
+window vb 16100: 100 steps, mean 27.58 ms (logic 9.68, draw pipeline 9.50, IOP+sound 2.35, GS walk 6.05), max 52.28 ms, over 20 ms 100, over 40 ms 2
+window vb 16200: 100 steps, mean 27.38 ms (logic 9.72, draw pipeline 9.50, IOP+sound 2.10, GS walk 6.05), max 48.60 ms, over 20 ms 100, over 40 ms 1
+window vb 16300: 100 steps, mean 27.54 ms (logic 9.72, draw pipeline 9.51, IOP+sound 2.26, GS walk 6.05), max 46.98 ms, over 20 ms 100, over 40 ms 2
+window vb 16400: 100 steps, mean 27.70 ms (logic 9.76, draw pipeline 9.52, IOP+sound 2.38, GS walk 6.04), max 56.18 ms, over 20 ms 100, over 40 ms 2
+window vb 16500: 100 steps, mean 27.44 ms (logic 9.76, draw pipeline 9.51, IOP+sound 2.11, GS walk 6.05), max 49.59 ms, over 20 ms 100, over 40 ms 1
+hash: vb 16500 ee 2308ff16b569ed5b iop 8c01f3dd08b5a289
+window vb 16600: 100 steps, mean 27.80 ms (logic 9.86, draw pipeline 9.52, IOP+sound 2.37, GS walk 6.05), max 54.55 ms, over 20 ms 100, over 40 ms 2
+window vb 16700: 100 steps, mean 27.68 ms (logic 9.75, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.05), max 54.90 ms, over 20 ms 100, over 40 ms 2
+window vb 16800: 100 steps, mean 27.47 ms (logic 9.81, draw pipeline 9.51, IOP+sound 2.11, GS walk 6.05), max 49.50 ms, over 20 ms 100, over 40 ms 1
+window vb 16900: 100 steps, mean 27.68 ms (logic 9.76, draw pipeline 9.51, IOP+sound 2.35, GS walk 6.06), max 53.11 ms, over 20 ms 100, over 40 ms 2
+window vb 17000: 100 steps, mean 27.45 ms (logic 9.79, draw pipeline 9.51, IOP+sound 2.10, GS walk 6.05), max 49.06 ms, over 20 ms 100, over 40 ms 1
+hash: vb 17000 ee 0684bf3169ba0088 iop c35e0dceabfcec11
+window vb 17100: 100 steps, mean 27.62 ms (logic 9.79, draw pipeline 9.52, IOP+sound 2.25, GS walk 6.06), max 47.29 ms, over 20 ms 100, over 40 ms 2
+window vb 17200: 100 steps, mean 27.71 ms (logic 9.78, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.05), max 55.16 ms, over 20 ms 100, over 40 ms 2
+window vb 17300: 100 steps, mean 27.56 ms (logic 9.88, draw pipeline 9.51, IOP+sound 2.11, GS walk 6.07), max 49.29 ms, over 20 ms 100, over 40 ms 1
+window vb 17400: 100 steps, mean 27.67 ms (logic 9.74, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.05), max 54.28 ms, over 20 ms 100, over 40 ms 2
+window vb 17500: 100 steps, mean 27.49 ms (logic 9.81, draw pipeline 9.50, IOP+sound 2.11, GS walk 6.06), max 48.61 ms, over 20 ms 100, over 40 ms 1
+hash: vb 17500 ee 90980ae1f422dddd iop 371ccf3c96ef2c40
+window vb 17600: 100 steps, mean 27.78 ms (logic 9.85, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.05), max 54.81 ms, over 20 ms 100, over 40 ms 2
+window vb 17700: 100 steps, mean 27.49 ms (logic 9.81, draw pipeline 9.52, IOP+sound 2.10, GS walk 6.06), max 48.82 ms, over 20 ms 100, over 40 ms 1
+window vb 17800: 100 steps, mean 27.79 ms (logic 9.83, draw pipeline 9.52, IOP+sound 2.39, GS walk 6.05), max 56.04 ms, over 20 ms 100, over 40 ms 2
+window vb 17900: 100 steps, mean 27.81 ms (logic 9.86, draw pipeline 9.52, IOP+sound 2.37, GS walk 6.06), max 54.35 ms, over 20 ms 100, over 40 ms 2
+window vb 18000: 100 steps, mean 27.46 ms (logic 9.80, draw pipeline 9.51, IOP+sound 2.10, GS walk 6.05), max 48.69 ms, over 20 ms 100, over 40 ms 1
+hash: vb 18000 ee dbcec890c644255a iop 004ecda70e1800c8
+window vb 18100: 100 steps, mean 27.85 ms (logic 9.91, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.06), max 54.26 ms, over 20 ms 100, over 40 ms 2
+window vb 18200: 100 steps, mean 27.45 ms (logic 9.70, draw pipeline 9.51, IOP+sound 2.18, GS walk 6.05), max 57.17 ms, over 20 ms 100, over 40 ms 1
+window vb 18300: 100 steps, mean 27.23 ms (logic 9.78, draw pipeline 9.51, IOP+sound 1.89, GS walk 6.05), max 29.91 ms, over 20 ms 100, over 40 ms 0
+window vb 18400: 100 steps, mean 27.75 ms (logic 9.82, draw pipeline 9.51, IOP+sound 2.35, GS walk 6.07), max 73.64 ms, over 20 ms 100, over 40 ms 1
+window vb 18500: 100 steps, mean 27.68 ms (logic 9.83, draw pipeline 9.51, IOP+sound 2.29, GS walk 6.06), max 48.55 ms, over 20 ms 100, over 40 ms 2
+hash: vb 18500 ee 85ca1fa5e2e98140 iop b4c414063f24eaff
+window vb 18600: 100 steps, mean 27.75 ms (logic 9.84, draw pipeline 9.52, IOP+sound 2.34, GS walk 6.06), max 51.39 ms, over 20 ms 100, over 40 ms 2
+window vb 18700: 100 steps, mean 27.76 ms (logic 9.83, draw pipeline 9.51, IOP+sound 2.37, GS walk 6.04), max 54.39 ms, over 20 ms 100, over 40 ms 2
+window vb 18800: 100 steps, mean 27.52 ms (logic 9.83, draw pipeline 9.52, IOP+sound 2.11, GS walk 6.07), max 49.66 ms, over 20 ms 100, over 40 ms 1
+window vb 18900: 100 steps, mean 27.88 ms (logic 9.93, draw pipeline 9.52, IOP+sound 2.38, GS walk 6.06), max 55.16 ms, over 20 ms 100, over 40 ms 2
+window vb 19000: 100 steps, mean 27.41 ms (logic 9.74, draw pipeline 9.52, IOP+sound 2.10, GS walk 6.05), max 49.23 ms, over 20 ms 100, over 40 ms 1
+hash: vb 19000 ee d3be38d900d470ff iop e32f0fa0f013ab08
+window vb 19100: 100 steps, mean 27.72 ms (logic 9.76, draw pipeline 9.51, IOP+sound 2.39, GS walk 6.06), max 55.77 ms, over 20 ms 100, over 40 ms 2
+window vb 19200: 100 steps, mean 27.59 ms (logic 9.87, draw pipeline 9.51, IOP+sound 2.15, GS walk 6.06), max 53.59 ms, over 20 ms 100, over 40 ms 1
+window vb 19300: 100 steps, mean 27.67 ms (logic 9.79, draw pipeline 9.51, IOP+sound 2.32, GS walk 6.04), max 49.40 ms, over 20 ms 100, over 40 ms 2
+window vb 19400: 100 steps, mean 27.54 ms (logic 9.85, draw pipeline 9.51, IOP+sound 2.13, GS walk 6.05), max 52.27 ms, over 20 ms 100, over 40 ms 1
+window vb 19500: 100 steps, mean 27.68 ms (logic 9.81, draw pipeline 9.52, IOP+sound 2.30, GS walk 6.05), max 48.29 ms, over 20 ms 100, over 40 ms 2
+hash: vb 19500 ee 6b60cc45ceadccfe iop 74df5c1163b9e837
+window vb 19600: 100 steps, mean 27.83 ms (logic 9.96, draw pipeline 9.52, IOP+sound 2.26, GS walk 6.08), max 47.15 ms, over 20 ms 100, over 40 ms 2
+pad: vblank 19700 buttons 0020
+window vb 19700: 100 steps, mean 27.19 ms (logic 9.74, draw pipeline 9.51, IOP+sound 1.89, GS walk 6.05), max 29.54 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 19706 buttons 0000
+window vb 19800: 100 steps, mean 30.02 ms (logic 12.66, draw pipeline 9.51, IOP+sound 1.79, GS walk 6.06), max 33.84 ms, over 20 ms 100, over 40 ms 0
+pad: vblank 19850 buttons 0020
+[19850 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 0018da70 ra 000100
+[19851 vb, th 3] sys  30 ReferThreadStatus    pc 1736e4 a0 00000004 a1 00000000 a2 f0000000 a3 00000000 ra 204148
+pad: vblank 19856 buttons 0000
+window vb 19900: 100 steps, mean 29.31 ms (logic 12.34, draw pipeline 9.22, IOP+sound 1.79, GS walk 5.96), max 31.67 ms, over 20 ms 97, over 40 ms 0
+[19947 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2a0 a3 00000000 ra 1014dc
+[19947 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf50 ra 15d714
+[19947 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf50 ra 15d730
+pad: vblank 20000 buttons 0020
+window vb 20000: 100 steps, mean 20.62 ms (logic 13.19, draw pipeline 1.62, IOP+sound 5.51, GS walk 0.30), max 72.77 ms, over 20 ms 53, over 40 ms 8
+hash: vb 20000 ee 7acf06a50bfcd044 iop 26a5e8eb6b00fa88
+pad: vblank 20006 buttons 0000
+window vb 20100: 100 steps, mean 31.68 ms (logic 23.80, draw pipeline 0.00, IOP+sound 7.88, GS walk 0.00), max 73.59 ms, over 20 ms 95, over 40 ms 14
+[20135 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c041b0 ra 000100
+[20136 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 001e8910 a2 60000001 a3 00185530 ra 1019ec
+stage code: d01t
+stage overlay d01t loaded: 1831856 bytes in 304 ms
+pad: vblank 20150 buttons 0020
+pad: vblank 20156 buttons 0000
+window vb 20200: 100 steps, mean 52.33 ms (logic 31.86, draw pipeline 14.94, IOP+sound 4.31, GS walk 1.21), max 590.09 ms, over 20 ms 71, over 40 ms 37
+pad: vblank 20300 buttons 0020
+window vb 20300: 100 steps, mean 53.13 ms (logic 22.76, draw pipeline 25.17, IOP+sound 2.94, GS walk 2.26), max 166.18 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20306 buttons 0000
+window vb 20400: 100 steps, mean 53.72 ms (logic 22.78, draw pipeline 25.16, IOP+sound 3.49, GS walk 2.29), max 162.71 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20450 buttons 0020
+pad: vblank 20456 buttons 0000
+window vb 20500: 100 steps, mean 53.65 ms (logic 22.86, draw pipeline 25.42, IOP+sound 2.93, GS walk 2.43), max 168.69 ms, over 20 ms 50, over 40 ms 50
+hash: vb 20500 ee de8abd897a21e760 iop 95c7529da58bcd16
+pad: vblank 20600 buttons 0020
+window vb 20600: 100 steps, mean 54.51 ms (logic 22.85, draw pipeline 25.88, IOP+sound 2.94, GS walk 2.84), max 167.84 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20606 buttons 0000
+window vb 20700: 100 steps, mean 58.32 ms (logic 23.21, draw pipeline 28.14, IOP+sound 2.98, GS walk 3.99), max 178.10 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20750 buttons 0020
+pad: vblank 20756 buttons 0000
+window vb 20800: 100 steps, mean 62.77 ms (logic 23.34, draw pipeline 30.56, IOP+sound 3.53, GS walk 5.35), max 183.36 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20900 buttons 0020
+window vb 20900: 100 steps, mean 65.35 ms (logic 23.23, draw pipeline 32.91, IOP+sound 2.98, GS walk 6.22), max 195.55 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 20906 buttons 0000
+window vb 21000: 100 steps, mean 66.18 ms (logic 23.07, draw pipeline 33.12, IOP+sound 2.93, GS walk 7.06), max 192.52 ms, over 20 ms 50, over 40 ms 50
+hash: vb 21000 ee e01389e2bdc32a9c iop a55893dab21b9916
+pad: vblank 21050 buttons 0020
+pad: vblank 21056 buttons 0000
+window vb 21100: 100 steps, mean 64.06 ms (logic 23.01, draw pipeline 31.07, IOP+sound 3.60, GS walk 6.38), max 190.26 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21200 buttons 0020
+window vb 21200: 100 steps, mean 61.55 ms (logic 24.00, draw pipeline 29.53, IOP+sound 2.94, GS walk 5.09), max 181.89 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21206 buttons 0000
+window vb 21300: 100 steps, mean 61.57 ms (logic 23.85, draw pipeline 29.64, IOP+sound 2.96, GS walk 5.13), max 181.54 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21350 buttons 0020
+pad: vblank 21356 buttons 0000
+window vb 21400: 100 steps, mean 61.86 ms (logic 23.96, draw pipeline 29.70, IOP+sound 3.01, GS walk 5.20), max 185.98 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21500 buttons 0020
+window vb 21500: 100 steps, mean 62.03 ms (logic 23.95, draw pipeline 30.00, IOP+sound 2.92, GS walk 5.15), max 181.54 ms, over 20 ms 50, over 40 ms 50
+hash: vb 21500 ee a459bab10b15f813 iop 2a9afbe5715e4861
+pad: vblank 21506 buttons 0000
+window vb 21600: 100 steps, mean 62.88 ms (logic 24.11, draw pipeline 29.95, IOP+sound 3.67, GS walk 5.14), max 188.19 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21650 buttons 0020
+pad: vblank 21656 buttons 0000
+window vb 21700: 100 steps, mean 62.43 ms (logic 24.25, draw pipeline 30.12, IOP+sound 2.94, GS walk 5.13), max 182.60 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21800 buttons 0020
+window vb 21800: 100 steps, mean 62.73 ms (logic 24.39, draw pipeline 30.22, IOP+sound 2.93, GS walk 5.18), max 184.22 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21806 buttons 0000
+window vb 21900: 100 steps, mean 63.10 ms (logic 24.33, draw pipeline 30.02, IOP+sound 3.59, GS walk 5.16), max 186.28 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 21950 buttons 0020
+pad: vblank 21956 buttons 0000
+window vb 22000: 100 steps, mean 62.34 ms (logic 24.60, draw pipeline 29.70, IOP+sound 2.96, GS walk 5.08), max 184.34 ms, over 20 ms 50, over 40 ms 50
+hash: vb 22000 ee 80464d5bfcbe5f39 iop a3d9f6305ff3a387
+pad: vblank 22100 buttons 0020
+window vb 22100: 100 steps, mean 68.77 ms (logic 24.11, draw pipeline 33.84, IOP+sound 2.88, GS walk 7.94), max 187.69 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22106 buttons 0000
+window vb 22200: 100 steps, mean 74.74 ms (logic 23.87, draw pipeline 37.02, IOP+sound 3.60, GS walk 10.25), max 210.30 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22250 buttons 0020
+pad: vblank 22256 buttons 0000
+window vb 22300: 100 steps, mean 74.25 ms (logic 23.93, draw pipeline 37.11, IOP+sound 2.93, GS walk 10.29), max 203.08 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22400 buttons 0020
+window vb 22400: 100 steps, mean 74.18 ms (logic 23.84, draw pipeline 37.11, IOP+sound 2.93, GS walk 10.29), max 204.35 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22406 buttons 0000
+window vb 22500: 100 steps, mean 74.30 ms (logic 23.86, draw pipeline 37.13, IOP+sound 2.99, GS walk 10.33), max 211.98 ms, over 20 ms 50, over 40 ms 50
+hash: vb 22500 ee dac95777f50d1ffd iop f8ceaf970e636dc4
+pad: vblank 22550 buttons 0020
+pad: vblank 22556 buttons 0000
+window vb 22600: 100 steps, mean 74.69 ms (logic 23.70, draw pipeline 37.10, IOP+sound 3.54, GS walk 10.35), max 205.97 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22700 buttons 0020
+window vb 22700: 100 steps, mean 74.24 ms (logic 23.56, draw pipeline 37.29, IOP+sound 2.99, GS walk 10.40), max 211.27 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22706 buttons 0000
+window vb 22800: 100 steps, mean 74.44 ms (logic 23.80, draw pipeline 37.29, IOP+sound 2.93, GS walk 10.42), max 205.07 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 22850 buttons 0020
+pad: vblank 22856 buttons 0000
+window vb 22900: 100 steps, mean 74.07 ms (logic 23.67, draw pipeline 37.02, IOP+sound 2.98, GS walk 10.40), max 213.10 ms, over 20 ms 50, over 40 ms 50
+pad: vblank 23000 buttons 0020
+window vb 23000: 100 steps, mean 73.20 ms (logic 25.06, draw pipeline 37.75, IOP+sound 2.14, GS walk 8.25), max 149.65 ms, over 20 ms 58, over 40 ms 58
+hash: vb 23000 ee 8ec2b7afa7962526 iop 5a4e5e7297fc8586
+[23000 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b47c0 a1 0004f290 a2 0004f2a0 a3 00000000 ra 1014dc
+[23000 vb, th 3] sys  20 CreateThread         pc 1735e4 a0 001b4740 a1 00100a70 a2 0000000e a3 01afbf50 ra 15d714
+[23000 vb, th 3] sys  22 StartThread          pc 173604 a0 00000004 a1 001c6bb0 a2 0000000e a3 01afbf50 ra 15d730
+pad: vblank 23006 buttons 0000
+window vb 23100: 100 steps, mean 30.63 ms (logic 23.19, draw pipeline 0.00, IOP+sound 7.45, GS walk 0.00), max 72.77 ms, over 20 ms 96, over 40 ms 13
+pad: vblank 23150 buttons 0020
+pad: vblank 23156 buttons 0000
+window vb 23200: 100 steps, mean 36.14 ms (logic 25.92, draw pipeline 0.00, IOP+sound 10.21, GS walk 0.00), max 76.85 ms, over 20 ms 100, over 40 ms 19
+[23243 vb, th 4] sys  24                      pc 173624 a0 001c6bc0 a1 00000001 a2 001c0000 a3 00c041b0 ra 000100
+[23244 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 001e719c a2 60000001 a3 0017d530 ra 1019ec
+stage code: w00a
+stage overlay w00a loaded: 3153680 bytes in 509 ms
+[23256 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b42e0 a1 0000000b a2 001d0000 a3 001b4430 ra 177788
+[23256 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4210 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+disc: rom0:ROMVER not found
+fileio: open rom0:ROMVER flags 1 -> -2
+[23256 vb, th 3] sys  41                      pc 1737f4 a0 0000000e a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[23256 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 177818
+[23256 vb, th 3] sys  4b                      pc 173894 a0 001b4490 a1 00201f48 a2 0000000e a3 00000040 ra 40488c
+[23256 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b42e0 a1 0000000b a2 001d0000 a3 0000000e ra 177788
+[23256 vb, th 3] sys  40 CreateSema           pc 1737e4 a0 001b4210 a1 00000004 a2 00000000 a3 001cb280 ra 176834
+disc: rom0:ROMVER not found
+fileio: open rom0:ROMVER flags 1 -> -2
+[23256 vb, th 3] sys  41                      pc 1737f4 a0 0000000e a1 00000002 a2 201c9a00 a3 00000040 ra 1768a0
+[23256 vb, th 3] sys  41                      pc 1737f4 a0 0000000d a1 00000002 a2 201c9a00 a3 00000040 ra 177818
+[23256 vb, th 3] sys  4b                      pc 173894 a0 001b4490 a1 00201f48 a2 0000000e a3 00000040 ra 404970
+[23256 vb, th 3] sys  6f                      pc 173af4 a0 001b4494 a1 00000001 a2 00000001 a3 00000040 ra 404998
+window vb 23300: 100 steps, mean 78.30 ms (logic 51.34, draw pipeline 19.66, IOP+sound 3.75, GS walk 3.55), max 629.42 ms, over 20 ms 98, over 40 ms 57
+window vb 23400: 100 steps, mean 108.33 ms (logic 48.59, draw pipeline 47.70, IOP+sound 3.01, GS walk 9.04), max 133.97 ms, over 20 ms 100, over 40 ms 100
+window vb 23500: 100 steps, mean 97.71 ms (logic 38.38, draw pipeline 47.71, IOP+sound 2.72, GS walk 8.90), max 131.50 ms, over 20 ms 100, over 40 ms 100
+hash: vb 23500 ee e214dcfe05b329d2 iop e42a1008919e3f0f
+window vb 23600: 100 steps, mean 62.10 ms (logic 3.40, draw pipeline 47.71, IOP+sound 2.49, GS walk 8.51), max 81.68 ms, over 20 ms 100, over 40 ms 100
+window vb 23700: 100 steps, mean 111.75 ms (logic 50.69, draw pipeline 48.88, IOP+sound 2.91, GS walk 9.26), max 134.24 ms, over 20 ms 100, over 40 ms 100
+window vb 23800: 100 steps, mean 115.20 ms (logic 54.16, draw pipeline 48.95, IOP+sound 2.74, GS walk 9.35), max 140.39 ms, over 20 ms 100, over 40 ms 100
+window vb 23900: 100 steps, mean 112.07 ms (logic 51.02, draw pipeline 48.95, IOP+sound 2.74, GS walk 9.35), max 137.87 ms, over 20 ms 100, over 40 ms 100
+window vb 24000: 100 steps, mean 109.44 ms (logic 47.84, draw pipeline 49.20, IOP+sound 2.83, GS walk 9.56), max 134.75 ms, over 20 ms 100, over 40 ms 100
+hash: vb 24000 ee 113503e835d63bb9 iop 731d339ef541ff59
+window vb 24100: 100 steps, mean 118.73 ms (logic 45.86, draw pipeline 56.61, IOP+sound 2.72, GS walk 13.55), max 136.59 ms, over 20 ms 100, over 40 ms 100
+window vb 24200: 100 steps, mean 453.69 ms (logic 45.09, draw pipeline 53.72, IOP+sound 2.83, GS walk 352.05), max 510.56 ms, over 20 ms 100, over 40 ms 100
+window vb 24300: 100 steps, mean 378.33 ms (logic 187.61, draw pipeline 175.88, IOP+sound 2.96, GS walk 11.89), max 441.85 ms, over 20 ms 100, over 40 ms 100
+window vb 24400: 100 steps, mean 694.58 ms (logic 210.25, draw pipeline 174.13, IOP+sound 2.83, GS walk 307.37), max 745.10 ms, over 20 ms 100, over 40 ms 100
+window vb 24500: 100 steps, mean 138.30 ms (logic 71.36, draw pipeline 51.28, IOP+sound 2.76, GS walk 12.91), max 713.92 ms, over 20 ms 100, over 40 ms 100
+hash: vb 24500 ee 5a19f59f4b58c0dd iop 82cab2dead54e8aa
+window vb 24600: 100 steps, mean 491.46 ms (logic 90.68, draw pipeline 51.23, IOP+sound 2.93, GS walk 346.62), max 527.01 ms, over 20 ms 100, over 40 ms 100
+window vb 24700: 100 steps, mean 482.36 ms (logic 253.25, draw pipeline 210.78, IOP+sound 2.89, GS walk 15.43), max 1108.28 ms, over 20 ms 100, over 40 ms 100
+window vb 24800: 100 steps, mean 712.58 ms (logic 199.92, draw pipeline 178.40, IOP+sound 2.75, GS walk 331.51), max 832.35 ms, over 20 ms 100, over 40 ms 100
+window vb 24900: 100 steps, mean 108.54 ms (logic 45.62, draw pipeline 47.65, IOP+sound 2.64, GS walk 12.63), max 642.73 ms, over 20 ms 100, over 40 ms 100
+window vb 25000: 100 steps, mean 369.89 ms (logic 41.83, draw pipeline 44.95, IOP+sound 2.94, GS walk 280.17), max 416.07 ms, over 20 ms 100, over 40 ms 100
+hash: vb 25000 ee 73036473a312936b iop 5655f216db016ec1
+window vb 25100: 100 steps, mean 334.75 ms (logic 169.90, draw pipeline 150.41, IOP+sound 2.77, GS walk 11.67), max 372.48 ms, over 20 ms 100, over 40 ms 100
+window vb 25200: 100 steps, mean 474.04 ms (logic 40.03, draw pipeline 152.25, IOP+sound 2.64, GS walk 279.13), max 610.45 ms, over 20 ms 100, over 40 ms 100
+stop: 25200 vblanks
+stack: guest thread 2 uses 2772 of 131072 bytes
+stack: guest thread 3 uses 9660 of 131072 bytes
+stack: guest thread 4 uses 6904 of 131072 bytes
+stack: IOP thread 0 uses 592 of 65536 bytes
+stack: IOP thread 1 uses 1548 of 65536 bytes
+stack: IOP thread 2 uses 1272 of 65536 bytes
+stack: IOP thread 3 uses 1492 of 65536 bytes
+stack: IOP thread 4 uses 1548 of 65536 bytes
+stack: IOP thread 5 uses 512 of 65536 bytes
+stack: IOP thread 6 uses 512 of 65536 bytes
+stack: IOP thread 7 uses 624 of 65536 bytes
+stack: IOP thread 8 uses 692 of 65536 bytes
+vu0: 342060 micro calls, 33485370 steps, unsupported ops 0; vif0 unsupported codes 0
+idioms: qcopy 10009221 native, 365203 left to the translation
+  thread 1: status 4 prio 1 wait 1/0 entry 000000 ra 100200 sp 01ffffd0
+  thread 2: status 4 prio 0 wait 2/3 entry 174568 ra 1745b0 sp 001c8ea0
+  thread 3: status 4 prio 18 wait 1/10 entry 15d680 ra 15daa8 sp 001b4850
+
+end: end of the run
+deck steps (vb 24000+): 1200, mean 396.44 ms: logic 116.78, draw pipeline 112.27, IOP+sound 2.81, GS walk 164.58; max 1108.28 ms; over 20 ms 1200, over 40 ms 1200
+  all speedups on      301 steps, mean 118.21 ms: logic 53.39, draw 51.08, IOP 2.71, GS 11.04; max 160.46
+  GS bulk walk off     300 steps, mean 441.35 ms: logic 59.20, draw 49.92, IOP 2.90, GS 329.33; max 527.01
+  poll scan skip off   300 steps, mean 398.17 ms: logic 205.07, draw 180.30, IOP 2.87, GS 9.93; max 1108.28
+  all off (= v1)       299 steps, mean 629.72 ms: logic 149.79, draw 168.18, IOP 2.74, GS 309.01; max 832.35

@@ -1,0 +1,31 @@
+--- /home/claude/sb17/ge/xconv.c	2026-11-03 13:06:59.739557531 +0000
++++ ge/xconv.c	2026-11-03 14:01:41.836031737 +0000
+@@ -8,6 +8,10 @@
+ #include "c3model.h"   /* sb13 C3 census of the rooms' meshes (x86 only) */
+ #endif
+ #include <stddef.h>
++#ifndef __psp__
++#include <stdio.h>
++#include <stdlib.h>
++#endif
+ #include <string.h>
+ #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
+ 
+@@ -538,6 +542,17 @@
+   int n = vc_line(c->vm, c->top, &x, v, fl, cc, cls, 1024, d->tme), npv = 0, nsv = 0, nst = 0;
+ #endif
+   if (n < 0) return n;
++#ifndef __psp__
++  { static int pr = -1; if (pr < 0) { const char *e = getenv("MGS2_LPROBE"); pr = e && *e == '1'; }   /* task #158 probe (sb17p only) */
++    if (pr) for (int k = 0; k < h->nthin; k++) if (h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) {
++      float x0 = 9, x1 = -9, y0 = 9, y1 = -9; int nv = 0, ns = 1, nseg = 0; double sx = 0, sy = 0;
++      for (int i = 0; i < n; i++) { if (cc[i][3] <= 0) continue; const float X = cc[i][0] / cc[i][3], Y = cc[i][1] / cc[i][3];
++        if (X < -1 || X > 1 || Y < -1 || Y > 1) continue; nv++; sx += X; sy += Y; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
++      for (int i = 1; i < n; i++) { if (cls[i]) nseg++; else ns++; }
++      printf("lprobe: src %08x lo %08x entry %u n %d strips %d segs %d in %d box %.2f %.2f %.2f %.2f mean %.2f %.2f\n", c->src, h->thin[k].lo,
++             (unsigned)((c->src - h->thin[k].lo) / 0x1290u), n, ns, nseg, nv, x0, x1, y0, y1, nv ? sx / nv : 0.0, nv ? sy / nv : 0.0);
++      break; } }
++#endif
+   { int keep = 1;   /* task #154 */
+     for (int k = 0; k < h->nthin; k++) if (h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { keep = h->thin[k].keep; break; }
+     if (keep > 1) { int s = 0; long nd = 0;

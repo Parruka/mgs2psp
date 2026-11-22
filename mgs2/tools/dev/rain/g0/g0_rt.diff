@@ -1,0 +1,126 @@
+--- /home/claude/sb17/runtime/host_time.h	2026-11-03 13:06:59.739975759 +0000
++++ runtime/host_time.h	2026-11-03 20:54:31.631988763 +0000
+@@ -131,7 +131,14 @@
+                                            (up to 4.6 px off in the opening's rain); and an untextured call's stale UV q not refused (the
+                                            deck's flat triangles at vb 24,467-24,947).  A different picture (closer to the PS2's), so off by
+                                            default until Ffm's OK */
+-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X))   /* g_opt2 at the start: every switch on but C2, C4 and C4X (sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++#define OPT2_G0 2048u                   /* sbg0, G0 (task #165, rain_study.md section 6), boot/native_w00a.c (the private nat/ copy): line_sph's
++                                           prims done natively without placing their vertices (the seed jumped, the polls, registers and
++                                           the scratchpad as the translation leaves them); off: placed in place as since v18.  The game's
++                                           state differs only in memory the renderer alone reads, so off by default until it is proven.
++                                           NOTE: gl16 / gl17 cycle words (fffff9df, ffffffdf) have this bit set */
++#define OPT2_G0H 4096u                  /* sbg0, with OPT2_G0: those prims hidden from the draw pipeline (+164 |= 0x3000, as the game hides
++                                           them itself), so it builds no packets from their unplaced vertices */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0 and G0H (sbg0: G0 until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+ extern uint32_t g_opt2;
+--- /home/claude/sb17/boot/boot.c	2026-11-03 13:06:59.738411351 +0000
++++ boot/boot.c	2026-11-03 21:24:32.253264339 +0000
+@@ -71,7 +71,7 @@
+   state_hash2(&ee, &iop);
+   fprintf(stderr, "hash: vb %ld ee %016llx iop %016llx", k_vblanks, (unsigned long long)ee, (unsigned long long)iop);
+   if (gs_n < 0) gs_load();
+-  if (gs_n > 0) fprintf(stderr, " gs %016llx", (unsigned long long)gs_hash());
++  if (gs_n > 0) { extern int gs_dn; fprintf(stderr, " gs %016llx gsd %d", (unsigned long long)gs_hash(), gs_dn); }   /* sbg0: and the ranges added by the native code */
+   { extern uint32_t g_vgrp_fb; static int vs = -1; if (vs < 0) vs = getenv("MGS2_VFPU_STAT") != 0; if (vs) fprintf(stderr, " vfb %u", g_vgrp_fb); }   /* dev: VFPU group fallbacks so far */
+   fputc('\n', stderr);
+   g_hash_vb = k_vblanks; g_hash_ee = ee; g_hash_iop = iop; hash_ref(ee);
+@@ -683,6 +683,14 @@
+   if (from < 0 || k_vblanks < from) return;
+   for (i = 0; i < nw; i++) if (ww[i] >= w && ww[i] <= e) fprintf(stderr, "wwatch: vb %ld %07x by %p%s\n", k_vblanks, ww[i] << 2, (void *)ra, v ? " (pipeline)" : "");
+ }
++/* sbg0 (task #165, G0H): the hide bits line_sph's native G0 form sets on a prim (+164 |= 0x3000: the draw pipeline then skips it) are
++   the one word G0 changes that game code outside the renderer loads: the act's next turn loads it and ORs the bits (hidden, 0x333400)
++   or ANDs them off (visible, 0x333434) before any use.  rt_g0h_mark (nat/native_w00a.c) marks the word; any store to it by game code or a
++   copy unmarks it; a load of a marked word by line_sph's act (MGS2_READ_G0=<lo>:<hi>, host offsets from rt_dgt_rd as MGS2_READ_SKIP) is
++   hashed with those two bits clear, as the translation leaves them, and unmarks it; any other load of a marked word is hashed as it is
++   and reported ("g0h:" lines, the first 64). */
++static uint8_t *g0h_mk; static unsigned long g0h_fn[2]; static int g0h_on = -1; static long g0h_rep, g0h_n, g0h_set;
++void rt_g0h_mark(uint32_t a) { if (!g0h_mk) g0h_mk = calloc(GUEST_SIZE / 4, 1); g0h_mk[(a & (GUEST_SIZE - 1)) >> 2] = 1; g0h_set++; }
+ static void dgt_wr(uint32_t a, int n, uintptr_t ra)
+ {
+   uint32_t w = (a & (GUEST_SIZE - 1)) >> 2, e = ((a & (GUEST_SIZE - 1)) + n - 1) >> 2; uint8_t v = dgt_inside();
+@@ -692,7 +700,7 @@
+   if (v && !dgt_lw) dgt_lw = calloc(GUEST_SIZE / 4, sizeof *dgt_lw);
+   if (!v && !dgt_lwo) dgt_lwo = calloc(GUEST_SIZE / 4, sizeof *dgt_lwo);
+   if (v && !dgt_wcall) dgt_wcall = calloc(GUEST_SIZE / 4, sizeof *dgt_wcall);
+-  for (; w <= e && w < GUEST_SIZE / 4; w++) { dgt_w[w] = v; if (v) { dgt_lw[w] = ra; dgt_wcall[w] = dgt_call; if (dgt_active()) dgt_ein[w] = 1; } else dgt_lwo[w] = ra; }
++  for (; w <= e && w < GUEST_SIZE / 4; w++) { if (g0h_mk) g0h_mk[w] = 0; dgt_w[w] = v; if (v) { dgt_lw[w] = ra; dgt_wcall[w] = dgt_call; if (dgt_active()) dgt_ein[w] = 1; } else dgt_lwo[w] = ra; }
+ }
+ static void dgt_cnote(uint32_t w, uintptr_t rd)
+ {
+@@ -740,6 +748,17 @@
+   if (n > 16) n = 16;
+   a += o;
+   for (i = 0; i < n; i++) v[i] = g_mem[(a + i) & (GUEST_SIZE - 1)];
++  if (g0h_mk) {
++    uint32_t m = a & (GUEST_SIZE - 1), w;
++    for (w = m >> 2; w <= ((m + n - 1) & (GUEST_SIZE - 1)) >> 2; w++) if (g0h_mk[w]) {
++      if (g0h_on < 0) { const char *e2 = getenv("MGS2_READ_G0"); g0h_on = e2 && sscanf(e2, "%lx:%lx", &g0h_fn[0], &g0h_fn[1]) == 2; }
++      if (g0h_on && (unsigned long)(ra - b) >= g0h_fn[0] && (unsigned long)(ra - b) < g0h_fn[1]) {
++        int j = (int)((w << 2) + 1 - m);   /* bits 12-13 of the word are 0x30 in its byte 1 */
++        if (j >= 0 && j < n) v[j] &= (uint8_t)~0x30u;
++        g0h_mk[w] = 0; g0h_n++;
++      } else if (g0h_rep++ < 64) fprintf(stderr, "g0h: vb %ld word %07x loaded by r%lx while hidden\n", k_vblanks, w << 2, (unsigned long)(ra - b));
++    }
++  }
+   if (dgt_rl_on) {
+     uint32_t w = (a & (GUEST_SIZE - 1)) >> 2; uintptr_t wr = dgt_w[w] ? (dgt_lw ? dgt_lw[w] : 0) : (dgt_lwo ? dgt_lwo[w] : 0); char hx[40], *p = hx;
+     for (i = n - 1; i >= 0; i--) p += sprintf(p, "%02x", v[i]);
+@@ -794,7 +813,7 @@
+              dgt_lw[d] = dgt_w[s] && dgt_lw[s] ? dgt_lw[s] : 0x200 + (dst < 0x4000 ? 9 : 8); if (dgt_active()) dgt_ein[d] = 1;
+              if (!dgt_wcall) dgt_wcall = calloc(GUEST_SIZE / 4, sizeof *dgt_wcall); dgt_wcall[d] = dgt_call; }
+     else { if (!dgt_lwo) dgt_lwo = calloc(GUEST_SIZE / 4, sizeof *dgt_lwo); dgt_lwo[d] = 0x200 + (dst < 0x4000 ? 9 : 8); }
+-    dgt_w[d] = v;
++    dgt_w[d] = v; if (g0h_mk) g0h_mk[d] = 0;
+   }
+ }
+ void rt_dgt_mpg(void) { dgt_prog_in = dgt_inside(); if (dgt_prog_in) dgt_mpg_in++; else dgt_mpg_out++; }
+@@ -1059,11 +1078,42 @@
+     gs_rng[gs_n][0] = a; gs_rng[gs_n][1] = b; gs_n++; }
+   fclose(f); fprintf(stderr, "gs mask: %d ranges from %s\n", gs_n, fn);
+ }
++/* sbg0 (task #165, G0): gs_mask_dyn(a, n) adds [a, a + n) to the mask for the rest of the run (x86 dev; boot/native_w00a.c calls it for
++   every line_sph prim it sees, G0 on or off, so two runs of the same game mask the same ranges at the same times: the prim's vertex
++   buffers A and B and its word +164) */
++int gs_dn; static uint32_t (*gs_dyn)[2]; static int gs_dcap; static uint32_t *gs_dset; static int gs_dsetn;
++void gs_mask_dyn(uint32_t a, uint32_t n)
++{
++  uint32_t m = a & (GUEST_SIZE - 1), e = m + n > GUEST_SIZE ? GUEST_SIZE : m + n, k, i;
++  if (!n) return;
++  if (gs_dn * 2 >= gs_dsetn) {                    /* the set of ranges by start and end: open addressing, rebuilt at half full */
++    int nn = gs_dsetn ? 2 * gs_dsetn : 4096; uint32_t *ns = calloc(2 * (size_t)nn, 4);
++    for (int j = 0; j < gs_dn; j++) { k = (gs_dyn[j][0] * 0x9e3779b1u ^ gs_dyn[j][1]) & (nn - 1); while (ns[2 * k + 1]) k = (k + 1) & (nn - 1);
++      ns[2 * k] = gs_dyn[j][0]; ns[2 * k + 1] = gs_dyn[j][1]; }
++    free(gs_dset); gs_dset = ns; gs_dsetn = nn; }
++  for (k = (m * 0x9e3779b1u ^ e) & (gs_dsetn - 1); gs_dset[2 * k + 1]; k = (k + 1) & (gs_dsetn - 1)) if (gs_dset[2 * k] == m && gs_dset[2 * k + 1] == e) return;
++  gs_dset[2 * k] = m; gs_dset[2 * k + 1] = e;
++  if (gs_dn == gs_dcap) { gs_dcap = gs_dcap ? 2 * gs_dcap : 1024; gs_dyn = realloc(gs_dyn, gs_dcap * sizeof *gs_dyn); }
++  i = gs_dn++; gs_dyn[i][0] = m; gs_dyn[i][1] = e;
++}
++static int gs_cmp(const void *a, const void *b) { const uint32_t *x = a, *y = b; return x[0] < y[0] ? -1 : x[0] > y[0]; }
+ static uint64_t gs_hash(void)
+ {
+-  uint64_t h = 0xcbf29ce484222325ull; uint32_t p = 0; int i;
+-  for (i = 0; i < gs_n; i++) { h = fnv64(g_mem + p, gs_rng[i][0] - p, h); p = gs_rng[i][1]; }
+-  return fnv64(g_mem + p, GUEST_SIZE - p, h);
++  uint64_t h = 0xcbf29ce484222325ull; uint32_t p = 0; int i, n = gs_n;
++  uint32_t (*r)[2] = gs_rng;
++  if (gs_dn) {                                     /* the file's ranges and the added ones, sorted and joined */
++    r = malloc((gs_n + gs_dn) * sizeof *r); memcpy(r, gs_rng, gs_n * sizeof *r); memcpy(r + gs_n, gs_dyn, gs_dn * sizeof *r);
++    qsort(r, gs_n + gs_dn, sizeof *r, gs_cmp); n = 0;
++    for (i = 0; i < gs_n + gs_dn; i++) { if (n && r[i][0] <= r[n - 1][1]) { if (r[i][1] > r[n - 1][1]) r[n - 1][1] = r[i][1]; } else { r[n][0] = r[i][0]; r[n][1] = r[i][1]; n++; } }
++  }
++  for (i = 0; i < n; i++) { h = fnv64(g_mem + p, r[i][0] - p, h); p = r[i][1]; }
++  h = fnv64(g_mem + p, GUEST_SIZE - p, h);
++  { static const char *dn = (const char *)1; static long dv = -1; char fn[300]; FILE *f;   /* dev: MGS2_GS_DYN_OUT=<prefix>:<vb> writes the added ranges */
++    if (dn == (const char *)1) { static char pre[256]; dn = 0; const char *e = getenv("MGS2_GS_DYN_OUT"); if (e && sscanf(e, "%255[^:]:%ld", pre, &dv) == 2) dn = pre; }
++    if (dn && k_vblanks == dv) { snprintf(fn, sizeof fn, "%s.%ld", dn, k_vblanks);
++      if ((f = fopen(fn, "w"))) { for (i = 0; i < gs_dn; i++) fprintf(f, "dyn %06x %06x\n", gs_dyn[i][0], gs_dyn[i][1]); fclose(f); } } }
++  if (r != gs_rng) free(r);
++  return h;
+ }
+ 
+ /* ZT (Ffm 2026-10-21, option A; speed_notes §31): the call of the PS2 draw pipeline (0x11da90, dispatch.h) takes no game time.  Inside

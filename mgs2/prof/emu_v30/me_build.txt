@@ -1,0 +1,55 @@
+/mnt/project-files/mgs2/psp/v26me_pad.S: Assembler messages:
+/mnt/project-files/mgs2/psp/v26me_pad.S:6: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:9: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:11: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:13: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S: Assembler messages:
+/mnt/project-files/mgs2/psp/v26me_pad.S:9: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:11: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:13: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S: Assembler messages:
+/mnt/project-files/mgs2/psp/v26me_pad.S:11: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S:13: Warning: .space repeat count is zero, ignored
+/mnt/project-files/mgs2/psp/v26me_pad.S: Assembler messages:
+/mnt/project-files/mgs2/psp/v26me_pad.S:13: Warning: .space repeat count is zero, ignored
+pads 0x1ad0 0x888 0x1ddc 0xa8c after 4 refits
+[0]        328 bytes | PARAM.SFO
+[1]          0 bytes | NULL
+[2]          0 bytes | NULL
+[3]          0 bytes | NULL
+[4]          0 bytes | NULL
+[5]          0 bytes | NULL
+[6]    3851544 bytes | MGS2T_strip.elf
+[7]          0 bytes | NULL
+.MIPS.abiflags              1 symbols: +0x0 (mod 8K 0x0) x1 e.g. __executable_start 
+.reginfo                    1 symbols: +0x0 (mod 8K 0x0) x1 e.g. _init 
+.init                       1 symbols: +0x0 (mod 8K 0x0) x1 e.g. init 
+.text                    3473 symbols: +0x0 (mod 8K 0x0) x3016 e.g. F_00010000, +0x120f8 (mod 8K 0xf8) x314 e.g. _Balloc, +0x11d10 (mod 8K 0x1d10) x91 e.g. __adddf3, +0x11f34 (mod 8K 0x1f34) x36 e.g. __deinit_mutex, +0x12008 (mod 8K 0x8) x5 e.g. __fixdfsi, +0x11e00 (mod 8K 0x1e00) x4 e.g. __floatsidf ; 16 not found
+.fini                       2 symbols: +0x11ed4 (mod 8K 0x1ed4) x2 e.g. _fini 
+.sceStub.text              70 symbols: +0x11f4c (mod 8K 0x1f4c) x30 e.g. sceKernelAllocPartitionMemory, +0x11f44 (mod 8K 0x1f44) x18 e.g. sceIoChdir, +0x11f3c (mod 8K 0x1f3c) x9 e.g. sceCtrlReadBufferPositive, +0x11f54 (mod 8K 0x1f54) x9 e.g. sceKernelCreateLwMutex, +0x11f64 (mod 8K 0x1f64) x3 e.g. sceKernelExitGame, +0x11ee4 (mod 8K 0x1ee4) x1 e.g. scePowerTick 
+.lib.ent                    2 symbols: +0x11f64 (mod 8K 0x1f64) x2 e.g. __lib_ent_top 
+.lib.ent.btm                1 symbols: +0x11f64 (mod 8K 0x1f64) x1 e.g. __lib_ent_bottom 
+.lib.stub                  16 symbols: +0x11f8c (mod 8K 0x1f8c) x11 e.g. __stub_module_IoFileMgrForUser, +0x11f78 (mod 8K 0x1f78) x4 e.g. __stub_module_sceCtrl, +0x11f64 (mod 8K 0x1f64) x1 e.g. __lib_stub_top 
+.lib.stub.btm               1 symbols: +0x11f8c (mod 8K 0x1f8c) x1 e.g. __lib_stub_bottom 
+.rodata.sceModuleInfo       1 symbols: +0x11f90 (mod 8K 0x1f90) x1 e.g. module_info 
+.rodata.sceResident        16 symbols: +0x11fb8 (mod 8K 0x1fb8) x11 e.g. __stub_modulestr_IoFileMgrForUser, +0x11fa0 (mod 8K 0x1fa0) x4 e.g. __stub_modulestr_sceCtrl, +0x11f90 (mod 8K 0x1f90) x1 e.g. __entrytable 
+.rodata                    83 symbols: +0x12000 (mod 8K 0x0) x66 e.g. A.41, +0x14000 (mod 8K 0x0) x17 e.g. DAYS_IN_MONTH ; 1 not found
+.eh_frame                   2 symbols: +0x14000 (mod 8K 0x0) x2 e.g. __EH_FRAME_BEGIN__ 
+.ctors                      2 symbols: +0x14000 (mod 8K 0x0) x2 e.g. __CTOR_END__ 
+.dtors                      2 symbols: +0x14000 (mod 8K 0x0) x2 e.g. __DTOR_END__ 
+.data                      69 symbols: +0x14000 (mod 8K 0x0) x52 e.g. _fdata, +0x16000 (mod 8K 0x0) x17 e.g. __global_locale 
+.sdata                      9 symbols: +0x16000 (mod 8K 0x0) x9 e.g. __TMC_END__ 
+.sbss                      36 symbols: +0x16000 (mod 8K 0x0) x36 e.g. X 
+.bss                      257 symbols: +0x16000 (mod 8K 0x0) x224 e.g. IMP_mod_cdbios, +0x20000 (mod 8K 0x0) x33 e.g. __atexit0 
+ovl_arena 0x08bb6000 (v26 0x08ba0000)
+crash catcher: handler 0x08b5b3fc, screen 0x08b5ae1c, self-test load 0x08b59c7c
+3ff10587ca3c7bd15ec0f47cde36d6db  EBOOT.PBP
+9b286ecb40a7282ec48bc6ed1e8dadf9  ovl_d00t.bin
+a579aaa62ed4ffef9114632db517acc2  ovl_d01t.bin
+f4b9190db8cb2457065c7df893b57e78  ovl_init.bin
+6ceee4b53e46ac7f7873f55ad21944ee  ovl_n_title.bin
+f6f459d85da6fde90da2b5dafcb24eb5  ovl_r_title.bin
+102b6e324a93756489827365750238f4  ovl_r_tnk0.bin
+80aa55eb98b3cf373e2a8063d62510eb  ovl_w00a.bin
+644c627a106a0a423fbed0f225741c63  ovl_w01a.bin
+rc 0

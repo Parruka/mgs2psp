@@ -1,0 +1,8 @@
+# x86 twin, route i, census run lcen3 (hashes = hr2 at all 378 points). Every step (store to 0x18db6c by Act1, 0x11d9d0) from vb 28,800 to 32,000 whose elapsed value is not 1: vb of the store (decimal), elapsed (decimal), the wait word 0x18db74 at that moment (decimal). Every other step in this range has elapsed 1. Steps before the w00a pointer (29,054) are included for context.
+# vb elapsed wait
+29046 238 0
+29051 5 0
+29069 16 0
+31556 235 0
+31558 2 0
+31660 100 0

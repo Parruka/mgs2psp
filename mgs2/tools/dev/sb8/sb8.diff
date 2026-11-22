@@ -1,0 +1,205 @@
+--- sb6/ge/xlate.c	2026-10-31 21:37:15.129885642 +0000
++++ sb8/ge/xlate.c	2026-11-01 17:16:46.238195396 +0000
+@@ -119,6 +119,7 @@
+    (x, y, ROW z, y), 5 V4-8 unsigned in MODE 0 without a mask (one a P07 call, codec_speed.md step 2; xl_ud_v48); 0 any other (ud_any).
+    The same vectors as ud_any's, lane for lane */
+ static int ud_v48 = 1;   /* xl_ud_v48 */
++static int ud_eager_on = 1, ud_mark_on = 1;   /* sb8 (task #121): xl_ud_eager, xl_ud_mark */
+ typedef int16_t __attribute__((may_alias)) ud_h16;
+ typedef uint32_t __attribute__((may_alias)) ud_w32;
+ static int ud_kind(const Ud *d)
+@@ -208,6 +209,8 @@
+ static const uint32_t *vmw(uint32_t qa) { return (const uint32_t *)(VM + ((qa & 1023) << 4)); }   /* a quadword need_q decoded */
+ void xl_vm_mode(int by_ud) { vm_all(); vm_by_ud = by_ud; }
+ void xl_ud_v48(int on) { ud_v48 = on; }
++void xl_ud_eager(int on) { ud_eager_on = on; }
++void xl_ud_mark(int on) { ud_mark_on = on; }
+ /* an UNPACK that can wait: no filling (WL > CL; or WL 0), no running ROW (MODE 2, 3), no write-protected lane in the mask rows it uses,
+    no quadword written twice; the rest keep unpack() as the words come */
+ static int ud_ok(uint32_t w)
+@@ -232,6 +235,15 @@
+   while (w < e) *w++ = v;
+   if (n & 1) *(uint16_t *)w = id;
+ }
++/* sb8 (task #121): the same fill, always inlined, for ud_eager's straight copy */
++static inline __attribute__((always_inline)) void own_fill_i(uint32_t o, uint32_t n, uint16_t id)
++{
++  uint16_t *q = own + o;
++  if ((o & 1) && n) { *q++ = id; n--; }
++  own2_t v = id | (uint32_t)id << 16, *w = (own2_t *)q, *e = w + n / 2;
++  while (w < e) *w++ = v;
++  if (n & 1) *(uint16_t *)w = id;
++}
+ /* the UNPACK w, its nw data words at p: a descriptor, and the quadwords it writes owned by it */
+ static void ud_new(uint32_t w, const uint32_t *p, uint32_t nw)
+ {
+@@ -246,9 +258,35 @@
+   XC(St.lz_cmds++); XC(St.lz_vec += num); ud_vecs += (uint32_t)num;
+   if (V.cl == V.wl) { uint32_t n1 = 1024 - a < (uint32_t)num ? 1024 - a : (uint32_t)num;
+     own_fill(a, n1, id); if (n1 < (uint32_t)num) own_fill(0, (uint32_t)num - n1, id); }
+-  else if (V.wl == 1) { uint32_t cl = (uint32_t)V.cl; for (int k = 0; k < num; k++, a += cl) own[a & 1023] = id; }
++  else if (V.wl == 1) { uint32_t cl = (uint32_t)V.cl;
++    if (ud_mark_on && a + (uint32_t)(num - 1) * cl < 1024) {   /* sb8 (task #121): no wrap, four entries a turn */
++      uint16_t *q = own + a; int k = num;
++      for (; k >= 4; k -= 4, q += 4 * cl) { q[0] = id; q[cl] = id; q[2 * cl] = id; q[3 * cl] = id; }
++      for (; k > 0; k--, q += cl) *q = id; }
++    else for (int k = 0; k < num; k++, a += cl) own[a & 1023] = id; }
++  else if (ud_mark_on && V.wl == 2 && V.cl > 2 && a + (uint32_t)(num - 1) / 2 * (uint32_t)V.cl + (uint32_t)((num - 1) & 1) < 1024) {
++    uint16_t *q = own + a; uint32_t cl = (uint32_t)V.cl; int k = num;   /* sb8: CL > 2, so the last quadword is the highest; two a turn */
++    for (; k >= 2; k -= 2, q += cl) { q[0] = id; q[1] = id; }
++    if (k) q[0] = id; }
+   else for (int k = 0, cyc = 0; k < num; k++) { own[a & 1023] = id; a++; if (++cyc == V.wl) { cyc = 0; a += (uint32_t)(V.cl - V.wl); } }
+ }
++/* sb8 (task #121, xl_ud_eager(1)): ud_new for a lane's constant block (header or material) in the one form every lane constant takes
++   (the census): V4-32 without a mask in MODE 0 (ud_kind 1: the data as it is), CL = WL, not wrapping.  Its quadwords are copied into VM
++   now, as a read or vm_all would decode them, and VM owns them again (own 0: a pending quadword of an older descriptor that this block
++   overwrites whole is not decoded, as with ud_new).  The VU memory a read, a flush or xl_vm_logical sees is the same; no descriptor,
++   nothing pending.  Any other form, or off: ud_new */
++static void ud_eager(uint32_t w, const uint32_t *p, uint32_t nw)
++{
++  uint32_t c = (w >> 24) & 0x7f, num = (w >> 16) & 0xff, imm = w & 0xffff; if (!num) num = 256;
++  uint32_t a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
++  if (ud_eager_on && (c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + num <= 1024) {
++    const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
++    for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
++    own_fill_i(a, num, 0);
++    XC(St.eg_cmds++); XC(St.eg_vec += num); return;
++  }
++  ud_new(w, p, nw);
++}
+ 
+ #ifdef XL_CENSUS
+ static void up_census(uint32_t w)
+@@ -542,13 +580,14 @@
+   for (int j = 0; j < nr; j++) {   /* each REF: its TTE words (STCYCL, the UNPACK), then its data, all waiting */
+     const uint32_t *g = t + 4 * j; uint32_t w = g[3], nw = 4 * (g[0] & 0xffff); int c = (int)(w >> 24 & 0x7f), s = j - q0 - 1;
+     St.words += 2 + nw; St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff); St.cmds[c]++; XC(St.wd[c] += nw);
+-    up_census(w); ud_new(w, dp[j], nw);
+-    if (s >= 0) { const Ud *d = &UD[ud_n - 1]; int k = ud_kind(d);   /* a stream: A, B (V4-16), C (V2-16 masked) */
++    up_census(w); if (s < 0) { ud_eager(w, dp[j], nw); continue; }   /* sb8: the block and the material at once */
++    ud_new(w, dp[j], nw);
++    { const Ud *d = &UD[ud_n - 1]; int k = ud_kind(d);   /* a stream: A, B (V4-16), C (V2-16 masked) */
+       R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)k;
+       if (n > d->num || (s < 2 ? k != 2 && k != 3 : k != 4)) ok = 0; }
+   }
+   St.words += 10; St.cmds[1]++; V.cl = V.wl = 1; St.cmds[0x6c]++; XC(St.wd[0x6c] += 4);   /* the CNT: STCYCL, the header's UNPACK and data */
+-  up_census(cn[3]); ud_new(cn[3], cn + 4, 4);
++  up_census(cn[3]); ud_eager(cn[3], cn + 4, 4);   /* sb8: the header at once */
+   vsrc0 = tadr + 16 * (uint32_t)nr + 16; usrc = 0;
+   memcpy(R.row, V.row, 16);   /* ROW as the descriptors copied it (it changes only with STROW or a running ROW, which copy again) */
+   R.lane = 1;
+@@ -574,11 +613,12 @@
+     if (!dp[j]) { St.words += 2; St.cmds[0]++; if (s >= 0) R.p[s] = 0; continue; }   /* not sent: a CNT of 0, STCYCL and a NOP */
+     uint32_t w = g[3], nw = 4 * (g[0] & 0xffff); int c = (int)(w >> 24 & 0x7f);
+     St.words += 2 + nw; St.cmds[c]++; XC(St.wd[c] += nw);
+-    up_census(w); ud_new(w, dp[j], nw);
+-    if (s >= 0) { const Ud *d = &UD[ud_n - 1]; R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)ud_kind(d); }
++    up_census(w); if (s < 0) { ud_eager(w, dp[j], nw); continue; }   /* sb8: the block and the materials at once */
++    ud_new(w, dp[j], nw);
++    { const Ud *d = &UD[ud_n - 1]; R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)ud_kind(d); }
+   }
+   St.words += 10; St.cmds[1]++; V.cl = V.wl = 1; St.cmds[0x6c]++; XC(St.wd[0x6c] += 4);   /* the CNT: STCYCL, the header's UNPACK and data */
+-  up_census(cn[3]); ud_new(cn[3], cn + 4, 4);
++  up_census(cn[3]); ud_eager(cn[3], cn + 4, 4);   /* sb8: the header at once */
+   vsrc0 = tadr + 16 * (uint32_t)nr + 16; usrc = 0;
+   memcpy(R.row, V.row, 16); R.lane = 2;
+   vcmd = cn[8]; vn = 0; dqn = 0; St.cmds[0x14]++;
+@@ -605,7 +645,7 @@
+     if (!p) { St.cmds[0]++; if (k < 6) { R.p[k] = 0; R.num[k] = 0; R.kind[k] = 0; } continue; }   /* not sent: a NOP */
+     int c = (int)(w >> 24 & 0x7f);
+     St.cmds[c]++; St.words += nw; XC(St.wd[c] += nw);
+-    up_census(w); ud_new(w, p, nw);
++    up_census(w); if (k < 6) ud_new(w, p, nw); else ud_eager(w, p, nw);   /* sb8: the constants at once, the streams wait */
+     last = k == 6 ? tadr + 112 : g[1] & 0xfffffff0u;   /* (xl_vif1_span's vsrc0: where the last data began) */
+     if (k < 6) { const Ud *d = &UD[ud_n - 1];   /* a stream: A .. D (V4-16, kind 2), E, F (V4-8 unsigned: 5) */
+       R.p[k] = d->p; R.num[k] = d->num; R.kind[k] = (uint8_t)(k < 5 ? ud_kind(d) : d->fmt == 0x0e && d->md == 1 ? 5 : 0); }
+@@ -633,8 +673,9 @@
+     const uint32_t *g = t + 4 * (k < 4 ? k : k + 4), *p = k == 3 ? t + 16 : dp[k]; uint32_t w = g[3], nw = 4 * (g[0] & 0xffff);
+     int c = (int)(w >> 24 & 0x7f);
+     St.words += 2 + nw; St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff); St.cmds[c]++; XC(St.wd[c] += nw);
+-    up_census(w); ud_new(w, p, nw);
+-    if (k < 2) { const Ud *d = &UD[ud_n - 1]; R.p[k] = d->p; R.num[k] = d->num; R.kind[k] = (uint8_t)ud_kind(d); }   /* the positions (kind
++    up_census(w); if (k >= 2) { ud_eager(w, p, nw); continue; }   /* sb8: the constants at once, the streams wait */
++    ud_new(w, p, nw);
++    { const Ud *d = &UD[ud_n - 1]; R.p[k] = d->p; R.num[k] = d->num; R.kind[k] = (uint8_t)ud_kind(d); }   /* the positions (kind
+                                                         1: V4-32), the attributes (2, 3: V4-16 signed) */
+   }
+   R.kind[2] = (t[2] & 0xffff) == 0x0103 && (t[6] & 0xffff) == 0x0203;   /* the layout P04+25f0 and +2870 read: cl 3 */
+--- sb6/ge/xlate.h	2026-10-31 21:32:51.055456853 +0000
++++ sb8/ge/xlate.h	2026-11-01 17:16:58.357468762 +0000
+@@ -81,6 +81,12 @@
+ /* V4-8 unsigned UNPACKs in MODE 0 without a mask: 1 (the default, 2026-10-30) their own decode, 0 the bit-by-bit one (ud_any), as before.
+    The same vectors either way (codec_speed.md step 2); the PSP harness times one against the other */
+ void xl_ud_v48(int on);
++/* sb8 (task #121): xl_ud_eager(1) (the default): the lanes' constant blocks, headers and materials (all V4-32, MODE 0, no mask, CL = WL)
++   are copied into VU memory as they arrive, not decoded when read (the same VU memory; any other form waits as before); xl_ud_mark(1) (the
++   default): ud_new marks WL 1 strides and WL 2 strides with CL > 2 that do not wrap without the wrap test, four or two entries a turn (the
++   same entries).  Both exact, for timing turns (OPT_XL_EAGER, OPT_XL_MARK) */
++void xl_ud_eager(int on);
++void xl_ud_mark(int on);
+ const uint32_t *xl_vm_q(uint32_t qa);   /* VU memory quadword qa (0..1023), decoded first if pending */
+ void xl_vm_logical(uint8_t *out);       /* dev: the VU memory as it reads now into out (16 KB); pending quadwords are decoded there only */
+ const uint64_t *xl_gs(void);                       /* the GS register model */
+@@ -112,6 +118,7 @@
+                     read, before an UNPACK that cannot wait wrote over them, at a flush (the end of a transfer, xl_vm_sync, a full table);
+                     flushes that found work, of those for a full table of UNPACKs or of ROW / COL copies */
+                  long lz_cmds, lz_vec, dec_read, dec_write, dec_flush, flushes, full_ud, full_rc;
++                 long eg_cmds, eg_vec;   /* sb8: lane constants decoded at once (ud_eager) */
+                  long need_calls, need_runs;   /* sb1 xl_vm_need: converter calls, descriptors it decoded */ } XlStats;
+ const XlStats *xl_stats(void);
+ /* sb1, Stage B lane 1: a P1214a0 group the one walk recognised (runtime/ee_io.h lane_p04): t its first tag (guest address tadr), q0 1
+--- sb6/psp/xl_psp.c	2026-10-31 21:32:38.274438088 +0000
++++ sb8/psp/xl_psp.c	2026-11-01 16:09:59.626154172 +0000
+@@ -313,6 +313,8 @@
+   if (!(g_opt & OPT_XL)) { if (state == 1) state = 2; return; }
+   { static int ud = 1; int m = (g_opt & OPT_XL_VMUD) != 0; if (m != ud) { xl_vm_mode(m); ud = m; } }   /* (xlate.c's default: 1) */
+   { static int v4 = 1; int m = (g_opt & OPT_XL_V48) != 0; if (m != v4) { xl_ud_v48(m); v4 = m; } }   /* (xlate.c's default: 1) */
++  { static int eg = 1; int m = (g_opt & OPT_XL_EAGER) != 0; if (m != eg) { xl_ud_eager(m); eg = m; } }   /* sb8 (xlate.c's default: 1) */
++  { static int mk = 1; int m = (g_opt & OPT_XL_MARK) != 0; if (m != mk) { xl_ud_mark(m); mk = m; } }    /* sb8 (xlate.c's default: 1) */
+   { static int ln = 0; int m = ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) |
+                               ((g_opt & OPT_XL_LANE4) ? 8 : 0);   /* sb1, sb2, sb6, sb5 lanes (xlate.c starts with them off) */
+     if (m != ln) { xl_lane(m != 0); g_xl_lane = m; ln = m; } }
+--- sb6/boot/xlive_chk.c	2026-10-31 22:32:59.294328034 +0000
++++ sb8/boot/xlive_chk.c	2026-11-01 16:09:59.626931790 +0000
+@@ -735,7 +735,10 @@
+   if (!on) return;
+   if (lane_opt) { int m = lane_base & (((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) |
+                                      ((g_opt & OPT_XL_LANE4) ? 8 : 0));   /* gl11: as psp/xl_psp.c xlive_chk_dma's first lines */
+-    if (m != g_xl_lane) { xl_lane(m != 0); g_xl_lane = m; } }
++    if (m != g_xl_lane) { xl_lane(m != 0); g_xl_lane = m; }
++    { static int eg = 1, mk = 1; int e = (g_opt & OPT_XL_EAGER) != 0, k = (g_opt & OPT_XL_MARK) != 0;   /* sb8: as psp/xl_psp.c's */
++      if (e != eg) { xl_ud_eager(e); eg = e; }
++      if (k != mk) { xl_ud_mark(k); mk = k; } } }
+   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
+   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
+@@ -904,10 +907,13 @@
+       else fprintf(stderr, "xlive mode: the live renderer's frame on shown vblanks (MGS2_XLIVE_GB=%d), the PSP's depth (Z24, each frame's "
+                    "range mapped)%s%s\n", m, m >= 2 ? ", memo checked" : "", m >= 3 ? ", map checked" : "");
+     }
+-    { static const char *const sw[5] = { "MGS2_XLIVE_GUMEMO", "MGS2_XLIVE_TKFLAGS", "MGS2_XLIVE_GUCLUT", "MGS2_XLIVE_V48", "MGS2_XLIVE_T16" };
+-      for (int i = 0; i < 5; i++) {
++    { static const char *const sw[7] = { "MGS2_XLIVE_GUMEMO", "MGS2_XLIVE_TKFLAGS", "MGS2_XLIVE_GUCLUT", "MGS2_XLIVE_V48", "MGS2_XLIVE_T16",
++                                         "MGS2_XL_EAGER", "MGS2_XL_MARK" };   /* sb8: the last two (xl_ud_eager, xl_ud_mark; default 1) */
++      for (int i = 0; i < 7; i++) {
+         const char *e = getenv(sw[i]); if (!e) continue;
+         int v = atoi(e) != 0;
++        if (i == 5) { xl_ud_eager(v); fprintf(stderr, "xlive mode: %s=%d\n", sw[i], v); continue; }
++        if (i == 6) { xl_ud_mark(v); fprintf(stderr, "xlive mode: %s=%d\n", sw[i], v); continue; }
+         if (i == 0) gu_area_memo(map, v); else if (i == 1) { if (tkc) tk_flags(tkc, v); } else if (i == 2) gu_clut_memo(map, v); else if (i == 3) xl_ud_v48(v); else if (tkc) tk_t16(tkc, v);
+         fprintf(stderr, "xlive mode: %s=%d\n", sw[i], v); } }
+     if (tkc && getenv("MGS2_XLIVE_TKBLK")) { tk_blk(tkc, atoi(getenv("MGS2_XLIVE_TKBLK")));
+--- sb6/runtime/host_time.h	2026-10-31 21:32:38.273953722 +0000
++++ sb8/runtime/host_time.h	2026-11-01 17:16:58.358048297 +0000
+@@ -87,6 +87,11 @@
+ #define OPT_XL_LANE3 536870912u         /* sb6, MGS2_XL builds (runtime/ee_io.h lane_fx, ge/xlate.c xl_lane_fx; renderer_notes 11.33): Stage B
+                                            lane 3, the walk hands the sort pass's effect prims to the translator whole and P04+25f0 / +2870
+                                            read their vertices from the game's data; off: word by word, as sb5.  The same picture either way */
++#define OPT_XL_EAGER 1073741824u        /* sb8, MGS2_XL builds (ge/xlate.c ud_eager; task #121): the lanes' constant blocks, headers and
++                                           materials copied into VU memory as they arrive; off: decoded when read, as gl11.  The same VU memory */
++#define OPT_XL_MARK 2147483648u         /* sb8, MGS2_XL builds (ge/xlate.c ud_new; task #121): an UNPACK's WL 1 stride, or WL 2 with CL > 2,
++                                           that stays below quadword 1024 marked without the wrap test, four or two entries a turn; off: as
++                                           gl11.  The same table */
+ extern uint32_t g_opt;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);

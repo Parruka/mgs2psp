@@ -1,0 +1,19 @@
+slice 0..1000: current order 6376872, first-fetch order 5706168
+optimized order: slice 5706168
+optimized order, whole traces: trace 1 2526975 I-misses (weighted 2526975) test windows 858741 (weighted 858741) trace 2 3179193 I-misses (weighted 3179193) test windows 798758 (weighted 798758), weighted sum 5706168, test 1657499
+seed: hot functions by region {'0': 1007, '1': 502, '2': 454}; from gl20's order {'0': 966, '1': 502, '2': 454}; newly hot (appended) {'0': 41, '1': 0, '2': 0}; of gl20's order no longer hot {'0': 76, '1': 0, '2': 3}
+order_s1 rc 0
+current order, hot functions packed: trace 1 2863132 I-misses (weighted 2863132) test windows 969056 (weighted 969056) trace 2 3513740 I-misses (weighted 3513740) test windows 885629 (weighted 885629), weighted sum 6376872, test 1854685
+/home/claude/main/build_gl33/ord/seed.txt: trace 1 2937177 I-misses (weighted 2937177) test windows 990574 (weighted 990574) trace 2 3507678 I-misses (weighted 3507678) test windows 872307 (weighted 872307), weighted sum 6444855, test 1862881
+slice 0..1000: current order 6376872, first-fetch order 5706168
+slice: /home/claude/main/build_gl33/ord/seed.txt 6444855
+optimized order: slice 4438317
+optimized order, whole traces: trace 1 1989112 I-misses (weighted 1989112) test windows 675185 (weighted 675185) trace 2 2449205 I-misses (weighted 2449205) test windows 610007 (weighted 610007), weighted sum 4438317, test 1285192
+region 0: 1007 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 502 input sections listed, 0 functions in shared sections, 0 left to the linker
+region 0: 1007 input sections listed, 56 functions in shared sections, 0 left to the linker
+region 1: 454 input sections listed, 0 functions in shared sections, 0 left to the linker
+layout_elf.ld equal for both routes
+578a78d77428fd76fc7a42a74a3958fc  final/layout_elf.ld
+44816e6f450bcf64e07c5b016a2320e7  final/layout_w00a.ld
+a0b0f20c9702db7433ee4b652b1af809  final/layout_w01a.ld

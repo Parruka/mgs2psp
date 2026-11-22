@@ -1,0 +1,355 @@
+== read logs at vb 25,944 and 25,974: base (lb) vs MGS2_NAT_CYCLE=0,0,3,3 (lc), tools/dev/rl_cmp.py with the binary
+xt31/out_lb.log: 25979 vblanks (0..25978); xt31/out_lc.log: 25979; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+reads in both: 599919 (a only 0, b only 0)
+differ: 918 (address differs in 0)
+    24  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25944 #50664  70000f68: bf6b7970c95e40f5 / 3f800000c95e40f5
+    18  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #48817  70000f18: 6d808101c95d5fcb / 6d408101c95d5fcb
+    18  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #50654  70000f18: 6d808101c95d5fcb / 6d408101c95d5fcb
+    18  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #52452  70000f18: 6d808101c95d269c / 6d408101c95d269c
+    16  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #48815  70000f08: 6c408100c95d5fcb / 6c108100c95d5fcb
+    16  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25944 #48827  70000f68: bf6b7970c95e40f5 / 3f800000c95e40f5
+    16  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #48829  70000f78: 473b0be3c95e40f5 / 00000000c95e40f5
+    16  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #50652  70000f08: 6c408100c95d5fcb / 6c108100c95d5fcb
+    16  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #50666  70000f78: 473b0be3c95e40f5 / 00000000c95e40f5
+    16  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #52450  70000f08: 6c408100c95d5fcb / 6c108100c95d5fcb
+    16  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25944 #52462  70000f68: bf6b7970c95e40f5 / 3f800000c95e40f5
+    16  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #52464  70000f78: 473b0be3c95e07c6 / 00000000c95e07c6
+    14  block 70000c00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #48727  70000c48: 00000001c958de4a / 00000000c958de4a
+    14  block 70000e00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #48813  70000ef8: 1400056cc95d5fcb / 140004bec95d5fcb
+    14  block 70000c00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #50564  70000c48: 00000001c958de4a / 00000000c958de4a
+    14  block 70000e00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #50650  70000ef8: 1400056cc95d5fcb / 140004bec95d5fcb
+    14  block 70000c00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #52362  70000c48: 00000001c958de4a / 00000000c958de4a
+    14  block 70000e00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #52448  70000ef8: 1400056cc95d269c / 140004bec95d269c
+    12  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #16811  70000f18: 6d808101c9496968 / 6d408101c9496968
+    12  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25944 #16821  70000f68: bf6b7970c949060b / 3f800000c949060b
+    12  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #18648  70000f18: 6d808101c9496968 / 6d408101c9496968
+    12  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #20446  70000f18: 6d808101c94930ae / 6d408101c94930ae
+    12  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25944 #20472  70000fe8: 3ea04c4dc9484bfe / 00000000c9484bfe
+     8  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #16809  70000f08: 6c408100c9496968 / 6c108100c9496968
+     8  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16823  70000f78: 473b0be3c949060b / 00000000c949060b
+     8  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #18646  70000f08: 6c408100c9496968 / 6c108100c9496968
+     8  block 70000f00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25944 #18658  70000f68: bf6b7970c949060b / 3f800000c949060b
+     8  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18660  70000f78: 473b0be3c949060b / 00000000c949060b
+     8  block 70000f00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #20444  70000f08: 6c408100c9496968 / 6c108100c9496968
+     8  block 70000f00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25944 #20456  70000f68: bf6b7970c949060b / 3f800000c949060b
+     8  block 70000f00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20458  70000f78: 473b0be3c948cd51 / 00000000c948cd51
+     8  block 70000100  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #48389  700001b8: 6d408100c94c36ed / 6d008100c94c36ed
+     8  block 70000100  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #48391  700001c8: 6d408101c94c36ed / 6d008101c94c36ed
+     8  block 70000100  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #48393  700001d8: 75408102c94c36ed / 75008102c94c36ed
+     8  block 70000200  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #48405  70000238: 6d048100c94bef9c / 6d008100c94bef9c
+     8  block 70000200  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #48407  70000248: 6d048101c94bef9c / 6d008101c94bef9c
+     8  block 70000200  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #48409  70000258: 75048102c94bef9c / 75008102c94bef9c
+     8  block 70000c00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25944 #48731  70000c68: 70000c80c9595f4c / 70002640c9595f4c
+     8  block 70000d00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #48753  70000d18: 1400056cc95a6abc / 140004bec95a6abc
+     8  block 70000d00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #48773  70000db8: 1400056cc95bea48 / 140004bec95bea48
+     8  block 70000e00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #48793  70000e58: 1400056cc95c730e / 140004bec95c730e
+     8  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25944 #48843  70000fe8: 3ea04c4dc95f60b1 / 00000000c95f60b1
+     8  block 70000100  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #50226  700001b8: 6d408100c94c36ed / 6d008100c94c36ed
+     8  block 70000100  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #50228  700001c8: 6d408101c94c36ed / 6d008101c94c36ed
+     8  block 70000100  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #50230  700001d8: 75408102c94c36ed / 75008102c94c36ed
+     8  block 70000200  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #50242  70000238: 6d048100c94bef9c / 6d008100c94bef9c
+     8  block 70000200  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #50244  70000248: 6d048101c94bef9c / 6d008101c94bef9c
+     8  block 70000200  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #50246  70000258: 75048102c94bef9c / 75008102c94bef9c
+     8  block 70000c00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25944 #50568  70000c68: 70000c80c9595f4c / 70002640c9595f4c
+     8  block 70000d00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #50590  70000d18: 1400056cc95a6abc / 140004bec95a6abc
+     8  block 70000d00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #50610  70000db8: 1400056cc95bea48 / 140004bec95bea48
+     8  block 70000e00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #50630  70000e58: 1400056cc95c730e / 140004bec95c730e
+     8  block 70000100  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #52024  700001b8: 6d408100c94bfdbe / 6d008100c94bfdbe
+     8  block 70000100  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #52026  700001c8: 6d408101c94c36ed / 6d008101c94c36ed
+     8  block 70000100  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #52028  700001d8: 75408102c94bfdbe / 75008102c94bfdbe
+     8  block 70000200  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #52040  70000238: 6d048100c94bb66d / 6d008100c94bb66d
+     8  block 70000200  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #52042  70000248: 6d048101c94bef9c / 6d008101c94bef9c
+     8  block 70000200  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #52044  70000258: 75048102c94bb66d / 75008102c94bb66d
+     8  block 70000c00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25944 #52366  70000c68: 70000c80c9595f4c / 70002640c9595f4c
+     8  block 70000d00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #52388  70000d18: 1400056cc95a318d / 140004bec95a318d
+     8  block 70000d00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #52408  70000db8: 1400056cc95bb119 / 140004bec95bb119
+     8  block 70000e00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #52428  70000e58: 1400056cc95c39df / 140004bec95c39df
+     6  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16839  70000ff8: 3e721f83c9484bfe / 00000000c9484bfe
+     6  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18676  70000ff8: 3e721f83c9484bfe / 00000000c9484bfe
+     6  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20474  70000ff8: 3e721f83c9481344 / 00000000c9481344
+     6  block 70000c00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25974 #13836  70000c98: 6d208101c9619d43 / 6d808101c9619d43
+     6  block 70000c00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25974 #13848  70000cf8: 473d897cc9614175 / 46ef237ac9614175
+     6  block 70000d00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25974 #13854  70000d28: 6c058100c96199ec / 6c208100c96199ec
+     6  block 70000d00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25974 #13874  70000dc8: 6c408100c962303f / 6c208100c962303f
+     6  block 70000e00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25974 #13894  70000e68: 6c408100c963618f / 6c048100c963618f
+     6  block 70000c00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25974 #15673  70000c98: 6d208101c9619d43 / 6d808101c9619d43
+     6  block 70000c00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25974 #15685  70000cf8: 473d897cc9614175 / 46ef237ac9614175
+     6  block 70000d00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25974 #15691  70000d28: 6c058100c96199ec / 6c208100c96199ec
+     6  block 70000d00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25974 #15711  70000dc8: 6c408100c962303f / 6c208100c962303f
+     6  block 70000e00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25974 #15731  70000e68: 6c408100c963618f / 6c048100c963618f
+     6  block 70000c00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25974 #17471  70000c98: 6d208101c9614a3e / 6d808101c9614a3e
+     6  block 70000c00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25974 #17483  70000cf8: 473d897cc960ee70 / 46ef237ac960ee70
+     6  block 70000d00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25974 #17489  70000d28: 6c058100c96199ec / 6c208100c96199ec
+     6  block 70000d00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25974 #17509  70000dc8: 6c408100c962303f / 6c208100c962303f
+     6  block 70000e00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25974 #17529  70000e68: 6c408100c963618f / 6c048100c963618f
+     4  block 70000100  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16383  700001b8: 6d408100c945d6af / 6d008100c945d6af
+     4  block 70000100  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #16385  700001c8: 6d408101c945d6af / 6d008101c945d6af
+     4  block 70000100  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #16387  700001d8: 75408102c945d6af / 75008102c945d6af
+     4  block 70000200  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16399  70000238: 6d048100c9471577 / 6d008100c9471577
+     4  block 70000200  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #16401  70000248: 6d048101c9471577 / 6d008101c9471577
+     4  block 70000200  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #16403  70000258: 75048102c9471577 / 75008102c9471577
+     4  block 70000c00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+1542 / b S_d01t_P299e90+1542
+        first: vb 25944 #16721  70000c48: 00000001c94a4d34 / 00000000c94a4d34
+     4  block 70000c00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+1770 / b S_d01t_P299e90+1770
+        first: vb 25944 #16725  70000c68: 70000c80c94a0ebf / 70002640c94a0ebf
+     4  block 70000d00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #16747  70000d18: 1400056cc94a9f28 / 140004bec94a9f28
+     4  block 70000d00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16767  70000db8: 1400056cc94aaa5a / 140004bec94aaa5a
+     4  block 70000e00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+1673 / b S_d01t_P299e90+1673
+        first: vb 25944 #16787  70000e58: 1400056cc94a0202 / 140004bec94a0202
+     4  block 70000e00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+13d1 / b S_d01t_P299e90+13d1
+        first: vb 25944 #16807  70000ef8: 1400056cc9496968 / 140004bec9496968
+     4  block 70000100  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18220  700001b8: 6d408100c945d6af / 6d008100c945d6af
+     4  block 70000100  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #18222  700001c8: 6d408101c945d6af / 6d008101c945d6af
+     4  block 70000100  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #18224  700001d8: 75408102c945d6af / 75008102c945d6af
+     4  block 70000200  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18236  70000238: 6d048100c9471577 / 6d008100c9471577
+     4  block 70000200  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #18238  70000248: 6d048101c9471577 / 6d008101c9471577
+     4  block 70000200  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #18240  70000258: 75048102c9471577 / 75008102c9471577
+     4  block 70000c00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+231d / b S_d01t_P299e90+231d
+        first: vb 25944 #18558  70000c48: 00000001c94a4d34 / 00000000c94a4d34
+     4  block 70000c00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25944 #18562  70000c68: 70000c80c94a0ebf / 70002640c94a0ebf
+     4  block 70000d00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #18584  70000d18: 1400056cc94a9f28 / 140004bec94a9f28
+     4  block 70000d00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18604  70000db8: 1400056cc94aaa5a / 140004bec94aaa5a
+     4  block 70000e00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2447 / b S_d01t_P299e90+2447
+        first: vb 25944 #18624  70000e58: 1400056cc94a0202 / 140004bec94a0202
+     4  block 70000e00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+21a9 / b S_d01t_P299e90+21a9
+        first: vb 25944 #18644  70000ef8: 1400056cc9496968 / 140004bec9496968
+     4  block 70000f00  lanes w  reader S_d01t_P329668+955
+        writer a S_d01t_P299e90+2547 / b S_d01t_P299e90+2547
+        first: vb 25944 #18674  70000fe8: 3ea04c4dc9484bfe / 00000000c9484bfe
+     4  block 70000100  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20018  700001b8: 6d408100c9459df5 / 6d008100c9459df5
+     4  block 70000100  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #20020  700001c8: 6d408101c945d6af / 6d008101c945d6af
+     4  block 70000100  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #20022  700001d8: 75408102c9459df5 / 75008102c9459df5
+     4  block 70000200  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20034  70000238: 6d048100c946dcbd / 6d008100c946dcbd
+     4  block 70000200  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #20036  70000248: 6d048101c9471577 / 6d008101c9471577
+     4  block 70000200  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #20038  70000258: 75048102c946dcbd / 75008102c946dcbd
+     4  block 70000c00  lanes w  reader S_d01t_P329668+65c
+        writer a S_d01t_P299e90+2b5f / b S_d01t_P299e90+2b5f
+        first: vb 25944 #20356  70000c48: 00000001c94a4d34 / 00000000c94a4d34
+     4  block 70000c00  lanes w  reader S_d01t_P329668+477
+        writer a S_d01t_P299e90+2d82 / b S_d01t_P299e90+2d82
+        first: vb 25944 #20360  70000c68: 70000c80c94a0ebf / 70002640c94a0ebf
+     4  block 70000d00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #20382  70000d18: 1400056cc94a666e / 140004bec94a666e
+     4  block 70000d00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20402  70000db8: 1400056cc94a71a0 / 140004bec94a71a0
+     4  block 70000e00  lanes w  reader S_d01t_P329668+377
+        writer a S_d01t_P299e90+2c84 / b S_d01t_P299e90+2c84
+        first: vb 25944 #20422  70000e58: 1400056cc949c948 / 140004bec949c948
+     4  block 70000e00  lanes w  reader S_d01t_P329668+56b
+        writer a S_d01t_P299e90+29ee / b S_d01t_P299e90+29ee
+        first: vb 25944 #20442  70000ef8: 1400056cc94930ae / 140004bec94930ae

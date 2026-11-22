@@ -1,0 +1,59 @@
+# Nothing taken from the game goes in this repository (personal use only).
+# sync_from_project.py applies the same rules when it copies from the project folder.
+
+# Disc files, game binaries and modules
+disc/
+_stage_x/
+*.83
+*.irx
+*.img
+*.ipk
+*.iso
+*.DAT
+*.dat
+*.pak
+
+# Code generated from the game's code, and hand translations of game functions
+iopgen/
+gen_s_*
+gen_elf*
+native_w00a.*
+native_elf.*
+
+# Reverse-engineering notes (kept in the project folder)
+re/
+
+# Other people's code (kept in the project folder under their own licences)
+third_party/
+hle_me_mgs2.*
+ps2rc_exc.h
+
+# Builds, profiles and objects
+build*/
+*.PBP
+*.pbp
+*.prx
+*.elf
+*.o
+*.a
+*.bin
+*.gcda
+*.gcno
+
+# Pictures, captures, sound and video
+*.png
+*.bmp
+*.ppm
+*.jpg
+*.jpeg
+*.mp4
+*.avi
+*.wav
+*.vag
+*.at3
+*.pmf
+*.ring
+
+# Python caches
+__pycache__/
+*.pyc

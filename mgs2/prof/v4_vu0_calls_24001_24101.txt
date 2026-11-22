@@ -1,0 +1,31 @@
+vu0 profile from vb 24001 (image, entry, calls, steps, steps/call):
+  vu 43da1f40 pc    0 calls       432 steps      101520 (235.0)
+  vu 43da1f40 pc    6 calls       432 steps       10800 (25.0)
+  vu f775577c pc    0 calls     24418 steps     1977858 (81.0)
+  vu f775577c pc    2 calls      3209 steps       28881 (9.0)
+  vu f775577c pc    6 calls      2793 steps      136857 (49.0)
+  vu 33268338 pc    0 calls      1575 steps      107679 (68.4)
+  vu bc35d9d2 pc    0 calls       100 steps       26300 (263.0)
+  vu bc35d9d2 pc    9 calls       200 steps       37200 (186.0)
+  vu bc35d9d2 pc  152 calls       100 steps        6857 (68.6)
+  vu 6ae0fcdf pc    0 calls      1668 steps      377663 (226.4)
+  vu 6ae0fcdf pc    6 calls      1471 steps       51195 (34.8)
+  vu 6e214876 pc    0 calls     14364 steps      865804 (60.3)
+  vu 148d7d43 pc    0 calls     79344 steps     6426864 (81.0)
+  vu 148d7d43 pc    6 calls      9044 steps      443156 (49.0)
+  vu 148d7d43 pc    2 calls      8284 steps       74556 (9.0)
+  vu 5fea5237 pc    0 calls      4725 steps      331485 (70.2)
+  vu 35797bdd pc    0 calls      4536 steps      271752 (59.9)
+  vu f28803a2 pc   22 calls        31 steps       14721 (474.9)
+vu0: 7530188 micro calls, 469095966 steps, unsupported ops 0; vif0 unsupported codes 0
+idioms: qcopy 9666105 native, 17 left to the translation
+  thread 1: status 4 prio 1 wait 1/0 entry 000000 ra 100200 sp 01ffffd0
+  thread 2: status 4 prio 0 wait 2/3 entry 174568 ra 1745b0 sp 001c8ea0
+  thread 3: status 4 prio 18 wait 1/10 entry 15d680 ra 15daa8 sp 001b4850
+EE/GS register ranges touched:
+  10000800..100008ff
+  10001800..100018ff
+  10002000..100020ff
+  10003000..100030ff
+  10003800..100038ff
+  10003c00..10003cff

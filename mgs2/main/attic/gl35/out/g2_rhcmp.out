@@ -1,0 +1,15 @@
+== base (rb) vs gl34's base
+/home/claude/main/build_gl34/xt34/out_rb.log: 31399 vblanks (0..31398); xt35/out_rb.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl34's fast in every turn (rf) vs gl35's rf
+/home/claude/main/build_gl34/xt34/out_rf.log: 31399 vblanks (0..31398); xt35/out_rf.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl35 rf vs keeps in every turn (rk)
+xt35/out_rf.log: 31399 vblanks (0..31398); xt35/out_rk.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl35 rf vs keeps by turns (rkc: 15,15,0,0)
+xt35/out_rf.log: 31399 vblanks (0..31398); xt35/out_rkc.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== base (rb) vs gl35 rf
+xt35/out_rb.log: 31399 vblanks (0..31398); xt35/out_rf.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+rc 1
