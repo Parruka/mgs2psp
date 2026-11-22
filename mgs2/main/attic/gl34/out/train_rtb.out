@@ -1,0 +1,7 @@
+pgo.sh: rtb 958 s
+134540 boot_rt.gcda
+1240 gen_dispatch.gcda
+pgo: counts zeroed at vb 15000
+pgo: profile written to ms0:/pgo at vb 37790 in 87 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl34/pg/log_rtb.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)

@@ -1,0 +1,1 @@
+gl21r ring (2026-11-19): psp/xl_psp.c with the two-frame ring (MGS2_ME_PIC_RING) and the rchk debug (MGS2_ME_PIC_RCHK), on top of gl20 + the ME clock fix (07a68065). Not exact: see psp_harness.md "Build gl21", the ring paragraph. emu_ring_log.txt = its emulator log (contains no game picture).

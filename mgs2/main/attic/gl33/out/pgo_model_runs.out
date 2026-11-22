@@ -1,0 +1,62 @@
+pgo.sh: g33i 656 s
+g33i: # total 1883697152 imiss 9609722 dmiss 12139196 dacc 483988516 fa_imiss 9692386 cde 792912 pref 0 cinv 0 dskip 0 dst 3707725 dwb 5881322
+g33i.1: # total 1696280576 imiss 8782012 dmiss 10207987 dacc 424133336 fa_imiss 7990029 cde 793094 pref 0 cinv 0 dskip 0 dst 3017970 dwb 5031730
+g33i.2: # total 1825148928 imiss 8656493 dmiss 11821457 dacc 461989348 fa_imiss 7975155 cde 672797 pref 0 cinv 0 dskip 0 dst 3637485 dwb 5642804
+g33i.3: # total 1577553920 imiss 7604926 dmiss 9184444 dacc 384053742 fa_imiss 6320365 cde 622110 pref 0 cinv 0 dskip 0 dst 2654749 dwb 4444505
+/home/claude/main/build_gl33/model/log_g33i.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 62 reference lines (0 with vuh): 3 differ; 623 reference lines not in the log (first 100, last 37800)
+  vb 30000: ee 2e11ed4787ff0c6e (ref 64892c084c8807d7)
+  vb 30500: ee 44bf1577744c37b0 (ref 251627c7a663a167)
+  vb 31000: ee 11573a55d856e2f9 (ref 8b46ec034d2ee932)
+pgo.sh: g33ic2 375 s
+g33ic2: # total 707063808 imiss 3558536 dmiss 5384583 dacc 225033404 fa_imiss 3375548 cde 154551 pref 0 cinv 0 dskip 0 dst 1924564 dwb 2587659
+g33ic2.1: # total 624521216 imiss 3283860 dmiss 4037718 dacc 191914056 fa_imiss 3033383 cde 154560 pref 0 cinv 0 dskip 0 dst 1339467 dwb 1952568
+/home/claude/main/build_gl33/model/log_g33ic2.txt: 55 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 55 reference lines (0 with vuh): 1 differ; 630 reference lines not in the log (first 100, last 37800)
+  vb 27500: ee d11f94e84b96bd32 (ref 81b0fc828f605ad1)
+pgo.sh: g33ir 581 s
+g33ir: # total 1827188736 imiss 8666117 dmiss 11829481 dacc 462531881 fa_imiss 7990900 cde 673139 pref 0 cinv 0 dskip 0 dst 3639309 dwb 5645943
+g33ir.1: # total 1579094016 imiss 7609652 dmiss 9195332 dacc 384597313 fa_imiss 6320014 cde 622110 pref 0 cinv 0 dskip 0 dst 2659507 dwb 4450174
+/home/claude/main/build_gl33/model/log_g33ir.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+pgo.sh: g33p 661 s
+g33p: # total 1919729664 imiss 9641446 dmiss 13217801 dacc 498725780 fa_imiss 9705865 cde 794379 pref 0 cinv 0 dskip 0 dst 4188876 dwb 6389607
+g33p.1: # total 1694928896 imiss 8781591 dmiss 10204617 dacc 423849316 fa_imiss 7988337 cde 793094 pref 0 cinv 0 dskip 0 dst 3017957 dwb 5031709
+g33p.2: # total 1841876992 imiss 8679910 dmiss 12083933 dacc 468482153 fa_imiss 7992485 cde 673139 pref 0 cinv 0 dskip 0 dst 3763998 dwb 5773689
+g33p.3: # total 1576497152 imiss 7603127 dmiss 9181681 dacc 383768844 fa_imiss 6316789 cde 622110 pref 0 cinv 0 dskip 0 dst 2653519 dwb 4443218
+/home/claude/main/build_gl33/model/log_g33p.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 62 reference lines (0 with vuh): 2 differ; 623 reference lines not in the log (first 100, last 37800)
+  vb 30000: ee 3eb066c008ca016a (ref 64892c084c8807d7)
+  vb 30500: ee 0c77b243d20a2a1b (ref 251627c7a663a167)
+pgo.sh: g33pc1 210 s
+g33pc1: # total 682983424 imiss 3570111 dmiss 5099036 dacc 220147709 fa_imiss 3379242 cde 154000 pref 0 cinv 0 dskip 0 dst 1863906 dwb 2541023
+g33pc1.1: # total 611442688 imiss 3326936 dmiss 4047677 dacc 191949839 fa_imiss 3076671 cde 152901 pref 0 cinv 0 dskip 0 dst 1394195 dwb 2062241
+/home/claude/main/build_gl33/model/log_g33pc1.txt: 32 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 32 reference lines (0 with vuh): 0 differ; 653 reference lines not in the log (first 100, last 37800)
+pgo.sh: g33pc2 411 s
+g33pc2: # total 706760704 imiss 3557959 dmiss 5383234 dacc 224957978 fa_imiss 3376792 cde 153639 pref 0 cinv 0 dskip 0 dst 1923490 dwb 2585593
+g33pc2.1: # total 625827840 imiss 3290306 dmiss 4046567 dacc 192357653 fa_imiss 3036849 cde 154560 pref 0 cinv 0 dskip 0 dst 1343219 dwb 1957144
+/home/claude/main/build_gl33/model/log_g33pc2.txt: 55 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 55 reference lines (0 with vuh): 1 differ; 630 reference lines not in the log (first 100, last 37800)
+  vb 27500: ee 32c73e25cc6ee668 (ref 81b0fc828f605ad1)
+pgo.sh: g33pr 581 s
+g33pr: # total 1841541120 imiss 8679352 dmiss 12083255 dacc 468405484 fa_imiss 7995389 cde 673139 pref 0 cinv 0 dskip 0 dst 3763981 dwb 5773556
+g33pr.1: # total 1579339776 imiss 7616707 dmiss 9202340 dacc 384745185 fa_imiss 6324796 cde 622110 pref 0 cinv 0 dskip 0 dst 2662014 dwb 4453925
+/home/claude/main/build_gl33/model/log_g33pr.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+pgo.sh: m31c1 245 s
+m31c1: # total 691298304 imiss 4756858 dmiss 5041101 dacc 223114516 fa_imiss 3838006 cde 154000 pref 0 cinv 0 dskip 0 dst 1826923 dwb 2477245
+m31c1.1: # total 615882752 imiss 4417741 dmiss 3974361 dacc 194076516 fa_imiss 3367113 cde 153685 pref 0 cinv 0 dskip 0 dst 1383138 dwb 1984425
+/home/claude/main/build_gl33/model/log_m31c1.txt: 32 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 32 reference lines (0 with vuh): 0 differ; 653 reference lines not in the log (first 100, last 37800)
+pgo.sh: m31c2 501 s
+m31c2: # total 717021184 imiss 4716204 dmiss 5326420 dacc 228566298 fa_imiss 3826540 cde 153461 pref 0 cinv 0 dskip 0 dst 1886906 dwb 2551075
+m31c2.1: # total 629497856 imiss 4318269 dmiss 4048009 dacc 194127368 fa_imiss 3313239 cde 154560 pref 0 cinv 0 dskip 0 dst 1351270 dwb 1966722
+/home/claude/main/build_gl33/model/log_m31c2.txt: 55 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 55 reference lines (0 with vuh): 1 differ; 630 reference lines not in the log (first 100, last 37800)
+  vb 27500: ee d20a7d3f7946cc18 (ref 81b0fc828f605ad1)
+pgo.sh: m31r 657 s
+m31r: # total 1855324160 imiss 12666732 dmiss 12019726 dacc 475253203 fa_imiss 9315918 cde 673139 pref 0 cinv 0 dskip 0 dst 3655016 dwb 5681385
+m31r.1: # total 1584693248 imiss 11217783 dmiss 9084891 dacc 387938288 fa_imiss 7842360 cde 622110 pref 0 cinv 0 dskip 0 dst 2524904 dwb 4322571
+/home/claude/main/build_gl33/model/log_m31r.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/cfg/hashref_gl33.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)

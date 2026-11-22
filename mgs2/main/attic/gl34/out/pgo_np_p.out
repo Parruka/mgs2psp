@@ -1,0 +1,4 @@
+pgo.sh: np_p 547 s
+np_p: # total 1964670976 imiss 20655476 dmiss 12148353 dacc 513916869 fa_imiss 18507038 cde 794379 pref 0 cinv 0 dskip 0 dst 3670014 dwb 5787830
+/home/claude/main/build_gl34/model/log_np_p.txt: 59 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 59 reference lines (0 with vuh): 0 differ; 626 reference lines not in the log (first 100, last 37800)

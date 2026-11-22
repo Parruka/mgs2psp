@@ -1,0 +1,195 @@
+gl31 build report (build agent, 2026-11-20). gl31 = gl30 (deck shadow marks) + native step 1 (ship meshes from records).
+Built and gated in the container; NOT delivered. Marks: [C] measured in the container (x86 twin, PPSSPP 1.20.4 headless, code),
+[C model] PspProf cost model, [C PSP gl30] read in gl30's PSP log, [I] inferred, UNKNOWN. Nothing below is a gl31 PSP figure.
+
+RESULT IN ONE PARAGRAPH
+The merge is clean and the package is ready for the lead's read: build_gl31/deliver, EBOOT 024bedf5. With the lead's two cfg
+changes (flip wait from the start, arm X on the whole run) the exact deliverables give 62/62 hashes and 916/916 digests equal to
+the twin on the emulator, the run ends by itself, all 16 shots keep the flip wait with no "GAVE UP", and no list is drawn into
+the shown buffer in any of 315 turns. Two plan expectations are met in substance but not to the letter (G1b: 53 arm-0 frames of
+the known HUD set differ in digest; G2: 2 vblanks with different read values, readers named). One new finding outside the
+gates: on the emulator 1,154 frame digests before the digest window differ from the twin (title screens, and 1 frame at 26,007);
+gl30's own EBOOT shows the same 1,154, so it is not from gl31.
+
+1. WHAT WAS BUILT
+Tree /home/claude/t31 = copy of t30n (99 files, no symlink) with 4 files changed:
+  ge/gelist.c c0173220, ge/gelist.h d2cbeda6 (t30's, whole);
+  psp/xl_psp.c b941869e = diff3 -m t30 t29 t30n, clean (checked both ways);
+  boot/xlive_chk.c f8cb4a34 = diff3 -m gl30's m30 copy, gl29's m29 copy (813323c2, the common base), t30n's: clean.
+  No other file was changed by both parents.
+Build folder /home/claude/main/build_gl31. Deliverables in build_gl31/deliver (md5):
+  EBOOT.PBP        024bedf5fb710257fd71a7bb1c61ce25  (4,345,664 bytes; MGS2T.elf 56302bde; text 4,336,044 =
+                   gl29 4,312,220 + gl30's 3,064 + step 1's 20,760)
+  ovl_d00t.bin     08b979b5116bd498d2035ffe438bf8d6
+  ovl_d01t.bin     11ea73b0ec4093de77e98358fa43bc51
+  ovl_init.bin     b25edabbaf13485e4d8791bf55f3230e
+  ovl_n_title.bin  8c25f9dcb408febd1c3f4b1e71cb35e9
+  ovl_r_title.bin  cc9a8ce72e3eb4b687f5e498ecf54600
+  ovl_r_tnk0.bin   b9f8e1fe64db1d19b6e8de66b5c22f89
+  ovl_w00a.bin     5d168552544d004caf591af08cb26881
+  ovl_w01a.bin     9e3cedc293aa07bfe818d1ffdaa77bdd
+  mgs2.cfg         ac1b29e2ec57d989d4ac8e936703c7b5  (final, with the lead's update)
+  hashref.txt      177108d46d4c460e8389c3c5000b3ac9  (twin run d1, the delivered keys; = twin run b: MGS2_GL_DZ does not move it)
+  pad.txt          7bc72aceb89b192298c635ef52b81b8f  (gl30's)
+  README.txt       97308a1509213d98ccc8b691ba3aea6e  (DRAFT, marked so in its 3rd line)
+  MANIFEST.md5     gl30's format and order (with the SLES_503.83 and mgs2disc.pak lines)
+Objects: ge_gelist.o is gl30's stage object byte for byte; ge_xlate, boot_rt, gen, ge_xlme, ge_xme_me are gl30n's; ge_xme.o and
+xl_psp.o are new (both parents changed what they include). PARAM.SFO title "MGS2 harness gl31 native step 1".
+
+2. THE LEAD'S CFG UPDATE (both done, cfg only)
+cfg = gl30's d0ff49e0 + an 18-line gl31 header + exactly 3 changed setting lines (non-comment diff vs gl30):
+  MGS2_GL_FLIPWAIT_FROM=0                                     (was 30500)
+  MGS2_GL_DZ=0:29489:X,29490:31400:X,31401:999999999:X       (was 29490:31400:X)
+  MGS2_NAT_CYCLE=0,0,3,3                                      (new, at the end)
+The plan's first cfg (gl30 + NAT only) is kept as cfg/mgs2_gl31_v1_plan.cfg 16149c74 and was run once (e1) as an isolation run.
+a) Flip wait from the start. Code [C]: flip_sel is true in every turn once flip_from >= 0 and vb >= flip_from; shots take
+   shot_wait under the same test, so all 16 shots now use the path the 9 walk shots used on the PSP in gl29x/gl30. Emulator,
+   exact deliverables (e2) [C]: 315 of 315 'gl27 display' lines say 'flip wait on' and 'lists drawn into the shown buffer 0'
+   (e1 with FROM=30500: 153 flip-off turns, lists drawn into the shown buffer in 19 of them, up to 43 in one, among them
+   26,000-26,100 with 26 and 28,800-28,900 with 4: the two turns the lead named from gl30's PSP log); 16 'the flip wait
+   kept' lines (7 before 30,500: 0.0 ms in main turns, 65-66 ms in the two ME-turn ones), 0 'GAVE UP', 'last list = shot frame:
+   yes' 16 of 16; the run ends by itself ('end: end of the run', steps.csv written; 539 s, e1 526 s). UNKNOWN: what the wait
+   costs on the PSP before 30,500, and shot_wait on the real PSP for the 7 early shots.
+b) Arm X on the whole run. Parser [C]: 1-9 digit numbers, at most 48 entries, one 'gl29 dz window' line per entry. I wrote three
+   entries of the same arm instead of one wide entry, so the PSP log keeps a window line for 29,490-31,400 that can be set
+   against gl30's; 999999999 as the end because dz_gap(prev+1, 0x7fffffff) would overflow. MGS2_GL_DIG stays 29490:31400.
+   Env slots used: 37 of 48 [C].
+Both are in the cfg header and in the README draft.
+
+3. WHOLE-ROUTE CENSUS OF ARM X (twin to vb 37,800, delivered DZ; d0 = d1) [C]
+  stage visit (vb)          0x42 targets  paired  subset  fallbacks (base + vertex set)
+  n_title                              0
+  d00t   3,556-20,136                224      32       0   192 (87 + 105), in 17 frames
+  d01t  20,143-23,244                 39      27      12     0
+  w00a  23,261-23,663              1,117   1,103      14     0
+  d01t  23,670-29,052                  1       1       0     0
+  w00a  29,070-31,559             15,741  13,382   2,359     0
+  w01a  31,661-37,799 (beyond)     7,594       0       0   7,594 (5,033 + 2,561)
+  all                             24,716  14,545   2,385   7,786 (5,120 + 2,666); other kinds 1,347,023
+To vb 31,400 (the PSP run): 14,592 frames, 1,249 with a target, 17,122 targets, 14,545 paired, 2,385 subset, 192 fallbacks (all
+in d00t, drawn O as before). In 29,490-31,400: 12,247 / 10,306 / 1,941 / 0, as gl30. Largest copy 4,864 B (vb 22,978).
+No fallback kind other than base and vertex set occurs. w01a (not in this run): every target falls back, so X changes nothing
+there yet.
+
+4. GATES
+G1 twin [C]
+ (a) NAT key absent: PASS. a1 (gl30's own command): hashref 4304f7e0 = gl30's hashref_g1; all 17,664 picture lines, dz text and
+     content digests equal build_gl30/x86/out_g1.log. a2 (the PSP cfg's schedule): hashref 72e0ca4c = hashref_g22b (685/685),
+     all 17,664 equal gl30's twin.
+ (b) 0,0,3,3 with gl30's DZ (run b): hashref 177108d4 (136 of 685 lines differ from g22b, first at 24,300). dz text, natb and
+     natq equal in all 17,664 frames. List/frame and content digests differ in 92 frames, vb 30,854-31,082: exactly gl30n's
+     known HUD never-tested-Z set. NOT TO THE LETTER: the plan expected content digests equal in arm-0 turns; 53 of the 92 are
+     in arm-0 turns (30,854-31,000), 38 in the arm-3 turn 31,008-31,082, 1 is a turn's first picture (31,002). Why: the HUD's
+     never-written Z comes from packet memory, and after native turns that memory holds older bytes, also in the builder turns
+     that follow. Evidence: at 30,856 one batch differs (THROUGH, 60 vertices), Z only; natq (that Z zeroed) equal; every list
+     starts with a colour+depth clear and that batch has no depth test (gelist.c 854-860); on the emulator every picture in the
+     set is byte-identical to gl30's.
+ With the delivered DZ: d0 (NAT absent) hashref 72e0ca4c; vs a2 content equal in all 17,664, lists differ in 330 frames
+     (10,426..29,488), none in 29,490-31,400. d1 (delivered keys) hashref 177108d4; d1 vs d0: the same 92 frames, dz text / natb
+     / natq equal in all. The delivered hashref.txt is d1's.
+ Side finding: gl30's UNKNOWN ("177 hash lines differ from g22b from vb 20,200") is scripts/twin.sh's default cycle starting
+     at vb 1000; with the PSP schedule gl30's twin equals g22b.
+G2 read hash [C]: base = gl30n's base in all 31,399 vblanks. Base vs 0,0,3,3: read counts equal in all 31,399; read VALUES differ
+     in 2 vblanks, 25,944 and 25,974: 918 reads, all w lanes of scratchpad quadwords 0x70000100-0x70000fff, reader d01t
+     0x329668 (S_d01t_P329668), writer S_d01t_P299e90: the design's known pair. It shows here because 25,901-26,000 is a native
+     turn in 0,0,3,3 (it was a builder turn in gl30n's 0,0,3,3,4,4). NOT TO THE LETTER ("equal in every vblank"); readers named
+     as the plan asks. The pictures do not change there: twin d1 and d0 have equal list, frame and content digests in every
+     frame outside the 92-frame HUD set.
+G3 emulator [C], run e2 = the exact deliverables (inputs.md5 = deliver's): PASS.
+     62/62 hashes = hashref.txt. 916/916 digest lines = twin d1 (whole lines). Ended by itself.
+     Native counters: 75 'nat turn' lines, 0 turns with a fallback, early fill, dropped group, record with no array, partly read
+     group or undone plan. Totals: calls recorded 152,036, groups 614,225, pictures with records 1,061; the builder run instead
+     0 (array full 0, key order 0, near the buffer's end 0, other 0); recorded with no array 0; early fills 0; dropped 0.
+     'groups left untaken 423 (pictures 3)', all in turn 25,000-25,100 (gl30n's own run: 2,037 in 1 picture; not a gate item).
+     dz windows: 0-29,489 X: 13,676 frames, 4,875 targets, 4,239 paired, 444 subset, fallbacks 87 base + 105 vertex set (= the
+     census); 29,490-31,400 X: 916 frames, 12,247 / 10,306 / 1,941, fallbacks 0 (= gl30).
+     Pictures vs gl30's emu_g3/pic, 52 names (16 shots, 36 live; each live capture against gl30's shot of the same frame, because
+     gl30's emu_g3 took a shot every 2 vblanks and its live captures show another frame): 49 byte-identical, 3 differ:
+       shot_24784: 331 px, 5 by 2+ levels, largest 3: the emulator noise known since gl26 (e1 335 px, e3 448 px).
+       shot_23263 (first deck visit, X new there): 490 px in any channel, luma by 1 level in 131 px, 0 by 2+; 0 px outside the
+         0x42 coverage of this frame and the one before (14 targets, coverage 110,309 px).
+       shot_29500 (inside the old window): 110 px in any channel, 42 px luma by 1 level, 0 by 2+; 2 px outside coverage.
+         Cause isolated: a run with O before 29,490 and everything else the same (e5) is byte-identical to gl30's there, the X
+         run (e4) equals e2. It is the trail of the frames before 29,490, which are now X.
+       shot_10516 (d00t, 2 targets, 0 px coverage) is byte-identical; 8760, 15761, 24244 identical.
+     All arm-0 and arm-3 pictures inside the walk are byte-identical to gl30's.
+   Extra, for the lead's "differ only inside 0x42 coverage" on the deck after codec call 2: two more emulator runs with a shot
+     every 6 vblanks 29,070-29,488, one X (delivered DZ), one O (gl30's DZ), 70 frames 29,074-29,500 with 1,169 targets: all 70
+     differ; luma by 1+ in 114,883 px, 2+ 7,865, 6+ 1,878, over 8 in 23 (largest 11). Outside the 0x42 coverage of the frame and
+     the one before (gl30's picchk rule, 2 px wider): 222 px by 1 level, 0 px by 2+. PASS by gl30's rule (2+ outside).
+   Dense run e3 (delivered EBOOT, cfg + MGS2_GL_DIG=0:31400 + a shot every 2 vblanks in the walk): 62/62; in 29,490-31,400
+     916/916; 455 pictures vs gl30's emu_g3: 452 byte-identical, the same 3 differ.
+   NEW FINDING (not a gl31 change): over the whole route e3 has 14,592 digest lines; the LIST digest equals the twin's in all,
+     the FRAME digest differs in 1,154: 1,153 in vb 536-3,021 (title screens) and 1 at vb 26,007. Controls: gl30's package on
+     the emulator shows the same 1,154 against gl30's twin (runs c30, c30b), and gl31 with the NAT key absent shows the same
+     (e6). At 26,007 the difference is one 32-bit word of the frame's last texture (CLUT4, 512x256): 0x00000000 in the twin,
+     0x80000000 on the emulator, i.e. one texel, index 8 against 0 (found with an instrumented copy of the twin that dumps the
+     hashed stream, and a backward pass of the hash). 26,007 is a single drawn frame between blank frames, in an ME turn.
+     Cause UNKNOWN (title: several words differ, not located; 26,007: [I] the texture's source read at another moment than the
+     twin reads it). No earlier build had digests outside the deck, so this was never seen. It cannot show in the PSP log
+     (MGS2_GL_DIG is 29490:31400).
+G4 ME [C]: PASS. xme_rest_chk, xme_me_chk (277 instructions, = gl30n's file), mesec_chk, me_call_chk (roots 140 = gl29's 134 +
+     gl30's 4 + step 1's 2) pass; psp.sh rc 0. Undefined symbols of all 45 stage objects identical to gl30n's: no new import,
+     system call or register write. ELF symbols vs gl30n: 4 new local text symbols (blend, dz_mv, dz_tin, xf_draw: gl30's
+     gelist). xl_psp.o vs gl30n's: 9 function sections differ (8 dz_* text functions, mq_service 6 instructions).
+     Non-recompiled picture objects: preprocessed text main vs t31 differs only for ge_xlive and ge_fxthin (a typedef and a
+     prototype from xlate.h); both recompiled from t31 equal the stage objects byte for byte.
+G5 memory, emulator [C]: heap headroom at the start 12,608 KB (gl30 12,640, gl30n 12,624); lowest about 156 KB, at vb 23,677
+     (gl30 184, gl30n 156); 160 KB at the end. Outside the heap: 224 KB largest / 432 KB total before the arrays, 116 / 216 KB
+     after two 108 KB blocks (= gl30n; gl30 has no arrays). PSP side: gl30's PSP log has 224 / 432 KB at the same point and a
+     lowest heap headroom of about 2,732 KB [C PSP gl30]; so both blocks should fit and the PSP headroom should drop by about
+     30 KB [I]. If only one block is given the log says 'ONE ARRAY ONLY' (pictures the same, early fills); if none, 'NOT MADE'
+     and the ship is not drawn in native turns (code read [C]).
+G6 reader [C]: build_gl31/rd31.py = rd30.py + a "native step 1" section (start and totals lines; one row per 'nat turn' line
+     joined with the 'window vb' and 'me turn' lines of the same 100 vblanks; a NAT PROBLEM list; means per ME/main turn and arm
+     over all turns and over 29,500-31,400; the cut last turn left out). Run on e2: rd31_e2.out. Also run on gl30's real PSP
+     log as a format check: 62/62, 916/916, as the lead read it. PSP command line:
+       python3 -I /home/claude/main/build_gl31/rd31.py <LOGS/gl31>/log.txt --bat <LOGS/gl31>/battery.txt --live <LOGS/gl31>
+     (defaults: --ref build_gl31/emu_e3/pic, --twin build_gl31/tw/x86/out_d1.log, --hashref build_gl31/deliver/hashref.txt).
+G7 reproducible [C]: PASS. A second build (sh rl31.sh <folder>) gave the same EBOOT, 8 overlays, ELF and all 45 stage objects.
+     (The second folder was deleted afterwards to save space.)
+Optional cost model [C model] (PspProf, 'prof A B all', 4 windows of 80 vblanks = 40 pictures in the rain wait, NAT run against
+     a run with the NAT key absent; ms = (1.65 instr + 68 I-miss + 86 D-miss) / 333,000):
+       native - builder, main turn 29,910-29,990: -7.84 ms a picture (instructions -690,892, I-misses -18,165, D-misses -2,739)
+       native - builder, ME turn   29,810-29,890: -11.98 ms a picture (on the emulator the ME's work is on the one CPU)
+       control (builder turns in both runs): +0.30 (main), +0.79 (ME) ms a picture
+     By function, main turn: xl_lane_p04 -2.75, xm_walk -2.65, io_dma_start -2.24, xl_p04_core +1.95, code outside the ELF's
+     sized functions (the builder and the overlay) -1.66, rt_nat_p04 +0.90. Caveats: a model, not a time; 'all' windows count
+     waits too, so only the differences mean anything; the first state hash after the windows (vb 30,000) differs from the
+     reference in both runs (59 of 60 equal), as in all 8 of gl20's model logs, cause UNKNOWN. Not a PSP figure.
+
+5. UNKNOWN UNTIL THE PSP RUN
+- The native turns' time against the builder turns' on the PSP (ME turns and main turns), and the holds.
+- Memory outside the heap after the two blocks, and the heap headroom, on the PSP.
+- Early fills on the PSP (0 on the emulator, whose timing is not the PSP's).
+- Whether the flick after codec call 2 is gone; what the flip wait costs before 30,500; shot_wait for the 7 early shots.
+- X's cost before 29,490 on the PSP (list build time on the 0-29,489 window line; emulator: ME turns' largest 62.00 ms there,
+  with no O control on the same frames).
+- Cause of the pre-existing emulator-vs-twin frame-digest differences (title, 26,007).
+- w01a with arm X: all fallbacks (beyond this run).
+
+6. DEVIATIONS FROM THE PLAN
+- G1(b) and G2 not met to the letter (above), both explained and inside the known sets.
+- cfg changed after the plan by the lead's update; DZ written as three entries of one arm.
+- e1 ran the plan's first cfg (isolation run); the gate run is e2. Extra emulator runs: e3 (dense), e4/e5 (X against O on the
+  deck after the codec), e6 (NAT absent, digests to 26,100), c30/c30b (gl30's package, digests), e7 (a 500-vblank end test).
+- Live captures are compared with gl30's shot of the same frame, not with gl30's live capture of the same name.
+- Emulator game folders were made outside build_gl31 (/home/claude/ms_gl31_<tag>, as em30.sh does) and deleted by literal
+  path after a look; the model's folders were inside build_gl31. One run that ends at vblank 3,100 (c30) did not stop by
+  itself (no steps.csv that early) and wrote a 1.09 GB battery.txt before I stopped it by its PID; both copies deleted.
+- A debug copy of the tree (build_gl31/dbg, patch kept as dbg/dbg.diff) was built to dump one frame's hashed stream; its twin
+  gives the same picture and hash lines as d1. It is not part of the gated tree.
+- /home/claude/main/build_gl30/__pycache__/rd30.cpython-313.pyc appeared at 21:56 during my work; it comes from
+  attic/gl30/clus.py (it imports rd30.py), not from my scripts. I did not touch it.
+- No .md file written; this report is build_gl31/report.txt.
+Read-only check at the end: main/runtime's 9 files unchanged (md5), no symlink in t31, nothing newer than my start in t29,
+t30, t30n or main outside build_gl31 except the lead's runs/gl30 and that pycache.
+
+7. FILES
+build_gl31: deliver/, cfg/ (final + v1), cfg_emu/ (test variants), rl31.sh (build), tw31.sh tw_run.sh tw_part.sh g1run.sh
+g1run2.sh (twin), g1cmp31.py census31.py, xt31.sh rh31.sh rhcmp.py (read hash), em31.sh em31p.sh piccmp31.py covchk31.py
+covchk2.py (emulator), rd31.py, cost31.py, reuse_chk.sh, dbg/digloc.py; outputs g1cmp31.out g1cmp31_dz.out census_d0.out
+census_d1.out g2_rhcmp.out g2_readers.out g3_e1.out g3_e2_pic.out g3_e2_cov.out g3_e3_pic.out g3_cov2.out g4_syms.out g7.out
+rd31_e2.out rd31_hw_gl30.out cost_m31.out dbg/digloc.out; twin logs tw/x86/out_{a1,a2,b,d0,d1}.log; emulator runs emu_e1..e7,
+emu_c30, emu_c30b (logs and pictures, container only); model/. About 0.86 GB.
+Copies of the scripts, cfg, README, MANIFEST, tree diffs and text outputs (no pictures, no game data): mgs2/main/attic/gl31/.

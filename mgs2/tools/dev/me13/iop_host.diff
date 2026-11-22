@@ -1,0 +1,20 @@
+--- /home/claude/me13/runtime/iop_host.h.orig
++++ /home/claude/me13/runtime/iop_host.h
+@@ -182,7 +182,7 @@
+   (void)fno;
+   fprintf(stderr, "cdvd: sceCdSearchFile %s -> %s lsn %x size %u\n", path, ok ? "found" : "not found", lsn, size);
+   if (ok) { const char *b = strrchr(path, '\\'); wr32(g_iop, buf, lsn); wr32(g_iop, buf + 4, size); memset(iop_p(buf + 8), 0, 24); if (b) strncpy((char *)iop_p(buf + 8), b + 1, 15); }
+-  for (i = 0; i < n; i++) WR8(eedest + i, *iop_p(buf + i));
++  DGT_PRE(eedest, n); for (i = 0; i < n; i++) WR8(eedest + i, *iop_p(buf + i));   /* me13: DGT_PRE, the ME hand-off's guard */
+   wr32(g_iop, buf + 0x200, ok); *rep = buf + 0x200; return 0;
+ }
+ static uint8_t cd_sec[2048 * 64];
+@@ -192,7 +192,7 @@
+   if (fno == 1 || fno == 19) {                     /* read to EE memory: { lbn, sectors, ee addr, mode, ... } */
+     uint32_t lbn = rd32(g_iop, buf), n = rd32(g_iop, buf + 4), ee = rd32(g_iop, buf + 8);
+     fprintf(stderr, "cdvd: read lsn %x x %u -> EE %08x\n", lbn, n, ee);
+-    while (n) { uint32_t k = n > 64 ? 64 : n, i; disc_read_cb(0, lbn, k, cd_sec); for (i = 0; i < k * 2048; i++) WR8(ee + i, cd_sec[i]); lbn += k; ee += k * 2048; n -= k; }
++    while (n) { uint32_t k = n > 64 ? 64 : n, i; disc_read_cb(0, lbn, k, cd_sec); DGT_PRE(ee, k * 2048); for (i = 0; i < k * 2048; i++) WR8(ee + i, cd_sec[i]); lbn += k; ee += k * 2048; n -= k; }
+   } else fprintf(stderr, "cdvd: N command %u\n", fno);
+   wr32(g_iop, buf + 0x100, r); wr32(g_iop, buf + 0x104, 1); *rep = buf + 0x100; return 0;
+ }

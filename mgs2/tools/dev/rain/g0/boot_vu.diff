@@ -1,0 +1,22 @@
+--- boot/boot.c	2026-11-03 21:24:32.253264339 +0000
++++ boot/boot_vu.c	2026-11-03 21:51:49.200318428 +0000
+@@ -1144,7 +1144,19 @@
+ #ifndef __psp__
+   if (g_pkt_on) fprintf(stderr, "dgc: vb %ld %d\n", k_vblanks, g_dg_lite | DGC_DEV);   /* dev (MGS2_PKT_HASH window): each call, 1 = reduced (tools/dev/lite_cmp.py) */
+ #endif
++#ifndef __psp__
++  { static long va = -2, vb2; uint32_t h;
++    if (va == -2) { const char *e = getenv("MGS2_VU_LOG"); va = -1; if (e && sscanf(e, "%ld:%ld", &va, &vb2) != 2) va = -1; }
++    if (va >= 0 && (long)k_vblanks >= va && (long)k_vblanks <= vb2) {
++      h = fnv32(VF, sizeof VF, 2166136261u); h = fnv32(VACC, sizeof VACC, h);
++      fprintf(stderr, "vu: vb %ld pre  CLIP %06x STAT %04x MAC %04x VF+ACC %08x\n", (long)k_vblanks, VCLIP, VSTAT, VMAC, h);
++      ok = guest_call(a);
++      h = fnv32(VF, sizeof VF, 2166136261u); h = fnv32(VACC, sizeof VACC, h);
++      fprintf(stderr, "vu: vb %ld post CLIP %06x STAT %04x MAC %04x VF+ACC %08x\n", (long)k_vblanks, VCLIP, VSTAT, VMAC, h);
++    } else ok = guest_call(a); }
++#else
+   ok = guest_call(a);
++#endif
+   g_dg_lite = 0;
+   ZT_T1(); g_zt = 0; K_SET(t0); k_poll_arm();
+   return ok;

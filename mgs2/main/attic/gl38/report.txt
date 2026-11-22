@@ -1,0 +1,480 @@
+gl38 build agent report, 2026-11-22 (plan: attic/gl38/gl38_plan.md). NOT DELIVERED: the lead verifies and delivers.
+Marks: [C] measured or read in code, [C model] the PspProf cost model (unit named), [I] inferred (basis named), UNKNOWN.
+Tree /home/claude/t38 (= t37 + gl38 code). Build folder /home/claude/main/build_gl38. Package build_gl38/deliver.
+UNITS: the model's own unit is ms a PICTURE (2 PSP steps). Every model figure below is given per PSP STEP (a vblank,
+= picture / 2), the unit of the PSP log's "ms a step", unless "a picture" is written.
+
+0. SUMMARY
+- gl38 is built, gated and packaged: build_gl38/deliver, EBOOT 80c7b7e06ea9ca5e2c641b7eef4d3937, NOT delivered.
+  Every exactness gate PASSES [C]: twin 685/685 in 10 arms; read hash 0 differing in 31,399 vblanks (both schedules);
+  emulator 62/62 hashes and 916/916 frame digests = the twin's in every kind of turn; F1's check 0 differing of 567,299
+  groups; nat problem counters 0; 133 sce names = gl36's; the heap's low point reads 64 KB as gl36's (break 40 KB lower).
+  ONE GATE FAILED: the retrain's guard on the model, in 7 of 12 windows [C model]: the 6 main-CPU turns are +1.5 to +2.8 ms a
+  PSP step over gl36 and the steady deck's ME turn +0.64; the 5 other ME-turn windows are at or under gl36's (-1.98 to
+  +0.04). After three rounds of order search the code order is no longer the cause (I-misses at or under gl36's in every
+  window); what is left is D-misses in main-CPU turns [I: static data placement] and the new code's own instructions
+  (section 5). gl38's measurement (kinds by ME turns of one build) does not depend on it; the opening's main turns may show it.
+- The first relink was WRONG and I caught it only on the model: an alias in the order search's seed (section 5, round 1).
+- Three things the lead did not ask for, and why (details in 9):
+  (a) the rain wait's turns were re-ordered after a first schedule, because the first four turns of the rain wait still settle
+      and the frame digests (an ME cost of its own) only start at 29,490;
+  (b) the log's RAM buffer went from 128 KB to 64 KB (psp/main_psp.c g_logbuf), or the heap's low point would have read
+      32 KB against gl36's 64;
+  (c) MGS2_ME_PIC_GE2_AB=30500 is out of the cfg (it changed a second thing in the walk's turns).
+- A finding for the plan after gl38: the Media Engine's "list build, about 17 ms a step" is mostly the FRAME DIGEST
+  (MGS2_GL_DIG, a proof tool, hashed by the ME inside the list step in 29,490-31,400). On the emulator's clock the ME's
+  frame-end + list time is 3.3-4.4 ms a step before 29,490 and 16.0-16.4 after it, in gl36's own run as in gl38's [C
+  emulator]. Its size on the PSP is UNKNOWN until gl38's 'gl38 timers' lines (the digest is timed apart there).
+
+1. THE SCHEDULE (MGS2_BOUND_CYCLE and MGS2_NAT_F1_CYCLE, a digit a turn of 100 vblanks from vb 24,000; turn t = (vb - 24000) / 100)
+  MGS2_BOUND_CYCLE=00340120670007007000000005705700570570057057057000006102340000516737074260
+  MGS2_NAT_F1_CYCLE=00001000000000000000000000000000000000000000000000000000000101000000001000
+  MGS2_GL_RAIN_NEAR=1   (cfg/mgs2_gl38.cfg, md5 65bbe66d60179ff485b261b9ee1292aa; 40 MGS2 keys)
+A frame's kind is the kind of the turn its first hook falls in, so a turn's window holds its own pictures' walks [C code].
+The re-use keeps gl37's cycle 1,1,0,0 (R1 when t % 4 < 2); its arm is the turn's as gl36 defines it ((k - from - 1) / n), so it
+is one picture off the bound's turn at an edge [C code].
+Scenes [C twin frames, emulator counts]:
+- t1-t9 (24,100-25,000) the first deck scene: a cutscene whose content moves all the time; every kind once. Indicative only.
+- t11-t19 nothing is drawn (logic only): K0, with K7 twice (25,300, 25,600).
+- t22-t46 (26,200-28,700) the steady deck (961 batches in every frame): K0 x11, K5 x7, K7 x7. There are NO native ship groups
+  there and chains 2 and 6 are empty, so K1, K2, K3, K4, K6, the re-use and F1 change nothing: they are not scheduled.
+- t51-t54 (29,100-29,500) the rain wait's first turns: K0, K6, K1, K0. No frame digests yet, and the scene still settles
+  (gl37's emulator run: the ME turn's step falls from 74.6 at t52 to 70.9 at t54 [C emulator clock]); the two K0 turns are
+  both R0, the two kinds between them do not draw the ship (the re-use's arm does not matter to them).
+- t55-t65 (29,500-30,600) the rain wait, flat part (gl37's emulator run: ME turns 81.5-82.8 ms a step from 29,600 to 30,500
+  [C emulator clock]), frame digests in every turn: K2 (R0), K3 (R1), K4 (R1), K0 (R0), K0 F1 (R0), K0 (R1), K0 F1 (R1), K5 (R0),
+  K1, K6, K7. Every kind that draws the ship has a K0 turn of its own re-use arm.
+- t66-t67 (30,600-30,800): second copies, K3 (R0) and K7; gl37's emulator run is 5 ms a step heavier here.
+- t68-t72 (30,800-31,300) the rain walk: K0 (R1), K7, K4 (R0, F1), K2 (R0), K6. The content moves (ship groups a turn 22,900,
+  14,800, 14,400): indicative only. F1's turn there is read by the 'nat split' register stage, not by the step.
+- Per kind in the rain wait: K0 x4 (+2 with F1), K1 x2, K2 x1 (+1 in the walk), K3 x2, K4 x1 (+1 in the walk), K5 x1,
+  K6 x2 (+1 in the walk), K7 x2 (+1 in the walk). K2 and K4 have ONE turn in the wait, not two (17 turns: the K0 turns of
+  both arms and F1's two turns took the places).
+The table by vblank is in the README (tools/sched38.py table).
+
+2. HOW EACH KIND IS SWITCHED OFF, AND ITS PROOF
+Code: ge/bound.h (masks), boot/nat_stub.h (bd_setup, rt_bound_at, rt_nat_f1_at), boot/xlive_chk.c + psp/xl_psp.c (the
+transfers by chain; the turn's lines), ge/gelive.c (gl_bd_out: call by call), ge/fxthin.c (the rain owners' blocks).
+- K1 ship: the native path's arm 3 becomes arm 4 for the pictures of the turn: the builder's stub does the game-side work
+  (the VU memory's state as always) and the groups are not handed on, so nothing of the ship is converted or drawn.
+- K2 people, K5 stage program: the transfer of chain 2 / chain 10 of the frame's list is left out before it is queued
+  (bd_drop_chain); the game's own DMA state moves as always.
+- K3 sorted primitives and meshes: inside chain 6's walk, every call that is not the rain's is left out (gl_call; the rain's
+  calls are known by their owner blocks, ge/fxthin.c). The VIF walk of the left-out calls still runs, so K3 UNDER-measures
+  chain 6's cost by the walk's share [C code].
+- K4 rain: the rain owners' calls are left out but the last MGS2_GL_RAIN_NEAR (cfg: 1) of each picture's 4 drop-sheet calls.
+  The sheets come far to near in the sorted chain in 24 of 25 sampled pictures [C twin probe], so "last" is "nearest".
+  Per turn in the rain wait: 5,200 rain calls (200 sheets), 5,150 left out, 50 kept [C twin = emulator]. The same
+  under-measure as K3. Its own whole-run switch is MGS2_GL_RAIN_CUT=1 (with MGS2_GL_RAIN_NEAR), state-exact on the twin.
+- K6: K1 + K2 + chain 6's whole transfer left out (the rain with it).
+- K7: every transfer left out; the turn is the main CPU's and the ME rests (no walks, no lists). The builder's stub stays arm 3
+  and its recorded groups are dropped by the main CPU ('natg' in the bound line), so the main CPU's game code does K0's work.
+What "chain N" means changes with the scene (a chain's number is its place in the frame's list) [C emulator, gl37's log]:
+  rain: chain 2 people, chain 3 the native ship groups, chain 6 the sorted chain, chain 10 the stage's program;
+  first deck scene: the ship's native groups are in chain 4, chain 2 and chain 7 are other things;
+  steady deck: no native ship groups; chains 3, 10 and 14 carry the picture.
+  So K2 / K5 / K6 leave out "the transfer at place 2 / 10 / 6" and only mean people / stage program / sorted in the rain.
+PROOF, game state [C twin; hash file byte-equal to cfg/hashref_gl38.txt = gl33's c9ddb593, 685 of 685 lines, 307 with the VU hash]:
+  final code, 10 arms: gl37's keys alone; the first schedule; the REVISED schedule (sch2); F1 whole run; F1's check mode with
+  the re-use recording every run; the rain cut whole run + F1; two rotations of every kind over every scene to 36,800
+  (kinds 1..7,0 and 4..7,0..3, with F1 on and the near rule); the first and the revised schedule with F1's check mode.
+  Earlier code states: 3 rotations + a probe arm, 685/685 each.
+  Read hash (xt38, every vblank's guest reads): gl36's rrc against gl38 with gl37's keys, and gl38 with gl37's keys against
+  gl38 with the first schedule and with the revised one: 31,399 vblanks, 0 differing in count and value in all three [C].
+PROOF, frames [C twin, 17,664 frames, 7 columns]:
+  - gl38 with gl37's keys = gl37's own twin log in every frame and column.
+  - F1 whole run and F1's check arm = the plain arm in every frame and column (one statistics line differs, 'xlive lazy':
+    flushes for a full table 1,070 -> 967: F1's own effect on the VU model's table).
+  - The revised schedule against the plain arm: the K0 turns' 15,815 frames differ in 4 (the first frame of the K0 turn after
+    a K7, K1 or K6 turn: vb 25,000, 29,400, 30,800, 31,300: textures and packet memory carried over from the turn before),
+    dz text in 0. The other kinds' frames differ as they are meant to.
+
+3. THE NEW TIMERS (timers only; ge/xme.c, ge/gelist.c, ge/natsplit.h, ge/xlme.c, ge/xlate.c, ge/xconv.c, ge/gelive.c, psp/xl_psp.c)
+One line of each per Media Engine turn in log.txt; gl36's 'nat split' and 'me chains' lines are kept as they were.
+- 'me turn vb A-B gl38 timers': the ME's own ms in the turn, by part:
+  * the hooks: frame ends; frame ends + lists (gl36's figure); results and cache out; frame starts; the texture cache's frame;
+  * the records: out of the cache; extents copied; native groups copied;
+  * the LIST BUILD by part, timed in one list in 4 (XME_GX_EVERY; a clock read at each change of the batches' kind, about 5
+    a list): depth, set-up and clear, GS primitives' batches, ship batches, effects' batches, people's batches, the list's
+    end, and the FRAME DIGEST apart; with each kind's batch count. The reader scales the timed lists to all.
+  * what is still inside a part: the list words' own hashing (put(), when the digest is on) is in the batch parts.
+- 'people split vb A-B': a people group (lane 2, P06) by stage, one group in 16 timed (NS_P_EVERY), as 'nat split' does for
+  a ship group: at the walk (walk and pointers, register, A+D packet, call's rest, way back, drawn areas, walk's end, to the
+  hold: test + GS state + texture, the call kept, the passes' look-ups) and at its flush (header + bones + lights,
+  vertices, strips + GE data + passes' records, into the frame, passes into the frame). The people's vertex work runs on
+  the CPU's lit path in this cfg (the C2 path is off), which is where the flush marks are.
+- 'nat f1 vb A-B': F1's counts in the turn (runs planned, groups, not written, without the fast form, not planned, problems).
+- '<me|main> turn vb A-B gl38 bound: turn T kind K (mask M), F1 x; ...': the turn's kind and what was left out (transfers by
+  chain, native groups recorded and not drawn, rain calls left out / near sheets kept, chain 6's other calls left out, the
+  rain owners' blocks over the table). Totals at the end: 'bound totals (gl38)', 'F1 totals (gl38)'.
+Emulator clock, for orientation only (NOT PSP times; the reader's NEW TIMERS and PEOPLE SPLIT sections print them):
+  rain wait, K0 turns (n 4), ME ms a step: frame ends + lists 16.18, of it the FRAME DIGEST 9.92, people's batches 3.88,
+    ship batches 1.76, effects 0.37, GS primitives 0.23; records: extents copied 1.03, native groups copied 0.03.
+  rain wait's first turns, K0 (n 2; digests only in the last 5 pictures of 29,400): frame ends + lists 3.95 (digest 0.77,
+    people 2.02, ship 1.02, effects 0.27, GS primitives 0.21).
+  steady deck, K0 (n 11): frame ends + lists 2.63 (batches of the people's kind 2.56, digest 0.00); extents copied 0.71.
+  people split, rain wait K0 turns: a timed people group 37.5 us at the walk (register 5.5, A+D packet 5.3-5.6, walk and
+    pointers 3.9-4.1, the hold's test + GS state + texture 4.9-5.1, the passes' look-ups 8.8-10.9, the call kept 2.3) and
+    26.6 us at its flush; 14,100 people groups a turn, 854 timed at the walk, 100 at the flush.
+  the ME's walks by chain, rain wait K0: people (2) 9.18, ship (3) 5.99, sorted (6) 7.95, stage program (10) 2.28 ms a step.
+
+4. F1 (gl37's fix_design.md option A)
+- Built behind its own switches: MGS2_NAT_F1=1 (every turn), MGS2_NAT_F1_CYCLE=<a digit a turn>, MGS2_NAT_F1CHK=1 (check).
+- What it does [C code, ge/xlate.c xl_f1_begin / f1_plan / xl_f1_end]: before a run of native ship groups is fed, the run's
+  records are read backwards per VU buffer and each group that writes nothing a later group of the run does not write again
+  takes xl_p04_fast's existing skip branch (XR_SKIP: the matrix, tag template, header and counts as always). Tests at the
+  run's start (the VU program at 0x1be is df0, the buffers in range and apart, the state the fast form needs); every group
+  must end with an MSCAL, or the run is not planned. A group without the fast form by its record is a BARRIER: it is fed in
+  full and the groups before it are planned as a run of their own (the re-use notes' rule). Replayed runs are left alone.
+- Differences from the design note: (1) the note asked for runs whose every group has the fast form; that planned only
+  39 % of the groups (none in the walk), so runs are planned by segments between barriers; (2) the check mode re-plans a
+  run with the groups that declined when they ran as barriers before it compares (the first plan predicts them fast; the
+  run-time decline writes the same quadwords: gl36's "replays with a decline" case, counted apart).
+- Proof [C]: twin, F1 whole run: 685/685, every frame and column = the plain arm; 33,384 runs planned, 1,610,127 groups,
+  1,233,041 not written (77 %), 299,619 barriers, 0 runs not planned, 0 problems. Check mode, twin, re-use recording every
+  run: 2,226,860 groups compared, 0 DIFFERING, 0 written by the plan and not by the notes, 904 the decline case. Check mode
+  with the revised schedule: 140,346 compared, 0 differing. Emulator check run (no-PGO build): 62/62, 567,749 compared,
+  0 differing; final build: 62/62, 7,016 runs planned, 731,605 groups, 567,299 compared, 0 DIFFERING (emu_f3).
+- In the cfg F1 is ON in four turns: 24,400 (first deck scene), 29,900 (K0 R0), 30,100 (K0 R1), 31,000 (walk, K4 R0).
+  Under the re-use's R1 few groups are left for F1 (the replayed runs are not planned), so the R1 turn is a proof of the
+  two together more than a measure.
+- Cost [C model]: rain wait, K0 turns, F1 on minus off, ms a PSP step: -2.21 with the re-use off (29,900 against
+  29,800: instructions -0.61M, D-misses -5.9k a picture) and +1.68 with it on (30,100 against 30,000). The two K0 turns
+  without F1 are 1.48 apart, so -2.2 is at the edge of what one turn shows and +1.7 is noise: F1 is worth about 2 ms a step
+  of both processors' work with the re-use off and nothing with it on [C model, one turn each].
+  Emulator's clock (NOT PSP): step -0.80 / +0.73; a ship group on the ME 19.82 -> 18.70 us with the re-use off (the
+  register stage 3.72 -> 2.34 us); groups not written 27,145 of 29,695 planned in the 29,900 turn, 3,370 of 5,382 in the
+  30,100 turn, 10,362 of 14,782 in the walk's (31,000) [C emulator].
+
+5. THE RETRAIN (gl36's method on t38) AND ITS GUARD
+- Profile: five instrumented builds, each trained with cfg/mgs2_gl38pgo.cfg (the FIRST schedule's cfg without the shots: every
+  kind, F1 by turns and the re-use by turns are in the counts); every training run's hash lines against hashref_gl38: game
+  124/124, rtb 124/124, pic 124/124, w00a 63/63, w01a 124/124, 0 differ [C]. pgochk clean.
+  (The rain wait's turns were re-ordered after the training: the same kinds and code, other vblanks. In the training runs
+  with MGS2_ME_PIC=0 (game, w00a, w01a) the kinds that work by chain are not left out: the chain index is only computed with
+  the ME picture on [C code]; the picture objects' own run (pic) has them.)
+- Traces of the use build (build_gl38/u) with cfg/mgs2_gl38trc.cfg (NO bound turns: every kind of drawing in every window):
+  t0 16,001 17,501 26,501 27,801 29,601 29,801 30,101 31,101; t1 31,901 ... 37,151 (the w01a route); t2 16,101 27,501. Taken
+  twice (the first set was deleted too early, my mistake): the two sets differ by a few per cent in a window (the profiler's
+  known run-to-run perturbation; the trace runs show transient hash differences in profiled stretches, as gl36's did).
+- THE ORDER SEARCH TOOK THREE ROUNDS. I-misses of the 16 training windows on the two traces [C sim]:
+  (1) Seed = gl36's order with the newly hot functions appended, gl36's objective and -guard 10 (no window more than 1 % over
+      the seed), 40,000 moves: 8,161,651 -> 5,769,404 simulated. But the relinked build (EBOOT a91dab59, kept as
+      build_gl38/psp_o1) had 6,567,961 on the same traces, and on the model it was +6.3 to +9.8 ms a PSP step over gl36 in
+      the rain. CAUSE [C]: three symbols name one hot function (vupv_660a267e_0 = vupv_8baafbc3_0 = vupv_96936c0f_0, 3,460
+      bytes of VU vertex code). gl36's order lists the third name, this build's function list gives the fetches to the
+      second. The seed kept the old name in its slot and appended the other as "newly hot", so the simulator had the code
+      at the end of the region while the linker put the one section at the old name's slot: the search optimised a layout
+      the link did not make.
+  (2) Seed with the alias fixed (rt_order38b.sh), 60,000 moves: 8,195,455 -> 5,541,597; the relinked build's real addresses
+      on the traces: 5,541,597, equal window by window (the check that failed in round 1). Model: rain +0.6 to +1.4 a PSP
+      step over gl36 in the ME turns.
+      WHY THE GUARD INSIDE THE SEARCH HELD NOTHING: gl36's order does not carry over to gl38. With gl38's sizes it evaluates
+      like a packed order (8.1 to 8.2M against 7.8M packed; gl36's own seed from gl35 was 6.19M against 7.64M): 109 of
+      region 0's 1,023 hot functions changed size (the places after them move by 0.7 to 3.9 KB; a cache way is 8 KB) and the
+      overlays' base moved 24 KB. "No window more than 1 % over the seed" is then no bound at all. The bound that counts is
+      gl36's own windows, so from here on I judged every round against gl36's final build (table below).
+  (3) A chained search from round 2's order (rt_order38d.sh, build_gl38/layout_sim38 = gl36's simulator + two options, source
+      layout_sim38.c): the four rain windows weighted 4, a lower start temperature (gl36's start temperature undoes an order
+      that is already a search's result: a plain chained search was at -0.2 % after 18,000 moves and I stopped it), every
+      window guarded at 1 % over round 2's order or at 0.98 x gl36's own window where round 2 was under it. 60,000 moves:
+      5,541,597 -> 5,298,819; the relinked build's real addresses: 5,298,819 (2,573,653 + 2,725,166), equal window by window.
+      THIS IS THE FINAL ORDER (build_gl38/ord4/final).
+  I-misses a window [C sim; gl36's column is gl36's final build on gl36's own traces of the same vblanks, so the last column
+  is I; the first relink's column is on the first trace set]:
+  window (first vblank)          gl36 final   gl38 seed   1st relink   search 2   search 4 = FINAL    final vs gl36
+  16,001 opening                  120,041     167,021      133,249    122,126    121,382            +1.1 %
+  16,101 opening                  199,360     298,625      206,458    185,022    187,255            -6.1 %
+  26,501 steady deck              160,192     244,961      172,364    150,813    151,442            -5.5 %
+  27,501 steady deck              161,107     248,474      175,644    154,303    155,046            -3.8 %
+  27,801 steady deck              168,288     257,101      172,707    169,029    168,181            -0.1 %
+  29,601 rain wait                486,503     747,018      654,233    508,215    464,510            -4.5 %
+  29,801 rain wait                481,823     738,400      635,220    507,527    458,312            -4.9 %
+  30,101 rain wait                446,645     710,367      605,245    487,451    455,203            +1.9 %
+  31,101 rain walk                404,946     674,771      571,725    439,148    412,322            +1.8 %
+  17,501 (test window)            194,421     305,760      225,452    189,735    191,650            -1.4 %
+  31,901 w01a route               345,758     596,817      443,447    383,043    371,091            +7.3 %
+  32,651 w01a route               294,454     503,195      396,432    336,584    316,855            +7.6 %
+  33,401 w01a route               244,921     395,215      334,137    289,531    277,381           +13.3 %
+  34,151 w01a route               447,680     745,847      565,463    507,602    494,397           +10.4 %
+  34,901 w01a route               426,297     638,320      503,249    440,903    430,149            +0.9 %
+  37,151 w01a route               484,438     718,730      574,502    505,011    497,593            +2.7 %
+  35,651 w01a route               333,157     510,593      423,886    355,289    337,700            +1.4 %
+  36,401 w01a route (test window)    268,059     378,024      310,607    269,120    255,958            -4.5 %
+  sum, 16 training windows      5,205,610   8,195,455    6,567,961  5,541,597  5,298,819            +1.8 %
+  The w01a route's windows (31,900+) are 1 to 13 % over gl36's own: this run never reaches them (it ends at 31,400), they
+  had weight 1 in round 3, and they are not among the windows the guard is judged on. A build meant for playing past the
+  tanker's deck should give them a round of their own.
+- THE GUARD ON THE MODEL: FAILED in 7 of 12 windows, PASSED in 5 [C model; the final build against gl36's own model files,
+  the same cfg files, no bound turns; ms a PSP step = the model's ms a picture / 2; limit +0.25]:
+  window                               re-use                gl38    gl36    diff      instr   I-miss   D-miss (a picture)
+  rain wait, ME turn 29,810-29,890     re-use 0            174.07  176.06   -1.98    +88,576  -13,972   -6,003   pass
+  rain wait, main turn 29,910-29,990   re-use 0            157.34  155.11   +2.22   +251,290   -5,314  +16,593   FAIL
+  rain walk, ME turn 31,010-31,090     re-use 0            168.53  168.94   -0.41   +232,550   -4,044   -4,450   pass
+  rain walk, main turn 31,110-31,190   re-use 0            144.26  142.38   +1.89   +179,917   -1,146  +12,082   FAIL
+  rain wait, ME turn 29,810-29,890     re-use 1 every run  173.38  174.37   -0.99   +199,782   -7,781   -5,365   pass
+  rain wait, main turn 29,910-29,990   re-use 1 every run  156.75  153.99   +2.76   +258,150     -636  +16,899   FAIL
+  rain walk, ME turn 31,010-31,090     re-use 1 every run  169.21  170.13   -0.93    +89,395   -5,099   -4,913   pass
+  rain walk, main turn 31,110-31,190   re-use 1 every run  144.36  142.82   +1.54    +84,275   -1,149  +11,203   FAIL
+  opening, ME turn 16,010-16,090       re-use 1             67.58   67.54   +0.04    -32,051     +251     +731   pass
+  opening, main turn 16,110-16,190     re-use 1             61.30   59.55   +1.74    +84,685   -1,191  +12,811   FAIL
+  steady deck, ME turn 27,410-27,490   re-use 1             70.43   69.79   +0.64    +99,123     +135   +2,933   FAIL
+  steady deck, main turn 27,510-27,590 re-use 1             62.23   60.62   +1.61    +51,610   -2,447  +13,383   FAIL
+  (ME turn = the Media Engine draws; main turn = the main CPU draws. The model's runs are not state-exact runs: PspProf's
+  known perturbation, 1 to 9 of a run's hash lines differ from the reference, in gl36's model runs too.)
+  What the failures are made of [C model]:
+  - NOT the code order any more: every window's I-misses are at or under gl36's (-14.0k to +0.3k a picture).
+  - All 6 MAIN-CPU turns fail, by +1.5 to +2.8 ms a step, in every scene: D-misses +11k to +17k a picture (+1.4 to +2.2 ms a
+    step) and the new code's own instructions (+52k to +258k a picture, +0.1 to +0.6 ms a step; the largest in the rain's
+    main turn: fx_draw +90k, gx_batch +63k, lw_walk +58k [C model]; [I] the rain owners' bookkeeping, the timers' marks and
+    the bound's tests, which run in every turn). The D-misses are spread over the whole picture
+    pipeline with no instruction change behind them (the opening's main turn: gu_clut_load +1,750, tk_get_um +1,705, xc_hold
+    +1,386, xc_lit +1,032, each with 0 to 2,700 more instructions), and the ME turns do not have them (-6k to +3k). [I] It
+    is data placement: against gl36 the static data moved by amounts that differ from block to block (.data +17.2 KB, the
+    bss before the log buffer +18.5 to +24.5 KB, after it -38 to -41 KB), so what collides with what in the main CPU's 16 KB
+    D-cache changed. A code order cannot repair that, and a single pad cannot either (the shifts are not uniform).
+  - The steady deck's ME turn fails by +0.64: instructions +99k and D-misses +2.9k a picture, I-misses +0.1k.
+  - On gl36 the PSP did NOT show the model's data-placement part for ME turns (model +3.96, PSP +0.22: psp_harness.md, "Build
+    gl36"). For main-CPU turns the PSP's answer is UNKNOWN.
+  What it means for gl38's measurement: from 24,000 on every turn is an ME turn but K7's, and a kind's cost is a difference
+  between turns of this one build, so the kinds' figures do not depend on it. The turns in which the main CPU draws (in
+  this run only before 24,000: the opening) may run 1.5 to 2.8 ms a step slower than on gl36's layout [C model; PSP
+  UNKNOWN]. Whether a K7 turn (the main CPU without the picture pipeline) carries any of it is UNKNOWN: gl36 has no such
+  window to compare with.
+  What would settle it: a D-miss trace by data address in PspProf (it has none today) and a placement search for the hot
+  static blocks, or the main CPU's D-cache counters read on the PSP in a K0 main turn.
+
+6. GATES (all on the final build build_gl38/psp unless a line says otherwise)
+Final build: EBOOT 80c7b7e06ea9ca5e2c641b7eef4d3937 (4,450,996 B; gl36's 4,432,500). Linked twice from the use build's objects
+with the final order: the EBOOT and the 8 overlays byte-equal both times [C].
+G1 twin, game state [C]: PASS. 685/685 in each of the 10 final-code arms (section 2), hash file = hashref_gl38 (c9ddb593).
+G2 twin, frames between arms [C]: PASS in every game-state column (section 2); the picture columns differ only where a kind
+   leaves drawing out, plus the 4 carry-over frames named there.
+G3 read hash [C]: PASS, 31,399 vblanks, 0 differing in count and value: gl36's rrc against gl38 with gl37's keys; gl38 with
+   gl37's keys against gl38 with the first schedule AND against gl38 with the revised schedule (build_gl38/rh38.out, rh38b.out).
+G4 emulator, final package (build_gl38/pk_f38 = deliver's files), the gl38 cfg (emu_f2) [C]: PASS.
+   - 62/62 hash lines = hashref, 0 differ.
+   - 916/916 frame digests (29,490-31,400) equal to the twin's arm with the same schedule (sch2), dz text too, in every kind:
+     K0 266, K1 50, K2 100, K3 100, K4 100, K5 50, K6 100, K7 150 frames, 0 differing. So the digests are compared in ALL
+     turns, each against the twin's digest of the same kind of turn (the plan's "expected digests for K1-K7").
+   - Against the twin's plain arm (gl37's keys): the K0 turns' 266 frames differ in 2 (vb 30,800 and 31,300, the first frame
+     after a K7 / K6 turn); every other kind's frames differ, as meant.
+   - Equal, digest for digest, to the no-PGO build's run with the same cfg (emu_n4): 916/916.
+   - Reader fingerprints: hashes 62 / 66499cdb584a (= gl36's and gl37's), digests 916 / 9ae227a44404, with dz 4c447e32a4ac
+     (NOT gl36's b4bf989fb1d6: the kinds' turns have other lists).
+   - Schedule check: every turn's logged kind and F1 = the schedule. 75 'nat turn', 75 'nat f1', 315 'gl38 bound' turn lines,
+     62 'gl38 timers', 62 'people split' lines; 16 'flip wait kept', 0 'GAVE UP'. The bound lines' counts are the same, line
+     for line, as the first relink's run.
+G5 emulator, F1's check cfg (emu_f3; cfg_emu/mgs2_gl38_f1chk.cfg) [C]: PASS. 62/62; F1: 7,016 runs planned, 731,605 groups,
+   567,299 compared with the notes, DIFFERING 0, written by the plan and not by the notes 0, runs with a problem 0; the
+   re-use's own check: 1,661 runs checked (351,627 groups), S differing 0, boxes differing 0.
+G6 pictures of K0 turns against gl36's emulator pictures (build_gl36/emu_e2; image data; build_gl38/piccmp_f2.out) [C]:
+   PASS WITH A NOTE. 14 of the 52 pictures fall in K0 turns (or before 24,000): 9 byte-equal (8,760, 10,516, 15,761, 23,263,
+   live 30,862, 30,887, 31,337, 31,362, 31,387). 5 differ:
+   - shot_24784: 280 px, at most 4 a channel (93 px / 1 in the first relink's run): the known run-to-run frame (gl36's and
+     gl37's runs differ there too).
+   - live_30812 (118,177 px, at most 6 a channel), shot_30824 (1,958 px, 2), live_30837 (177 px, 1): the first 37 vblanks of
+     the K0 turn after a K7 turn; equal from 30,862. live_31312 (128,511 px, 30): 12 vblanks after a K6 turn; equal from
+     31,337. [I] a fading trace of the turn before: the lists of those frames are the plain run's from the turn's second
+     frame on (twin and emulator digests), so only the frame buffer the blur pass reads can differ.
+   The other kinds' pictures differ, as meant. The picture folders were deleted after the checks (literal paths).
+G7 nat problem counters [C]: PASS. NAT PROBLEMS none; 'groups left untaken' 2,984 in 3 turns (24,000: 524, 25,000: 423,
+   29,000: 2,037) = gl37's own count (changes of scene); re-use: replays with a group not taken 0; F1: planned runs with a
+   problem 0; bound: rain owners' blocks not right 0, over the table 36,498 (the first deck scene: limit L2).
+G8 check modes [C]: PASS, 0 differing: F1 (twin 2,226,860 + 140,346 groups, emulator 567,299), the re-use (S and boxes 0).
+   The cull's check mode was not re-run (its code is gl37's; its totals: 268,914 calls tested, 195,616 left out).
+G9 heap [C emulator]: PASS. Start 12,560 KB (gl36 12,528). Low point at vb 23,677: reads 64 KB (gl36: 64 KB); the break's
+   highest point 0be60000 against gl36's 0be6a000 (40 KB lower); at the end malloc can still give 96 KB in 2 blocks (64 + 32;
+   gl36: 64 in 1). Outside the heap: 116 KB largest, 118 KB total, as gl36. This holds BECAUSE of deviation D2 (the log
+   buffer): without it the ELF would end 26 KB above gl36's.
+G10 system calls, clock, hardware [C]: PASS. The ELF's sce* names 133 = gl36's 133, 0 differences; the five stub sections
+   the same sizes; no object has a sce* reference gl36's object lacks. xme_me_chk, xme_rest_chk, mesec_chk, me_call_chk PASS
+   (on both links). No new register write, nothing near flash, the clock code untouched [C, code: the changes are
+   translator logic, counters, log lines, timers on the clocks the old timers read, and the log buffer's size].
+G11 PGO training [C]: PASS, 5 runs, 0 hash lines differing; pgochk clean.
+G12 the retrain's guard on the model [C model]: FAILED in 7 of 12 windows (section 5): the 6 main-CPU turns (+1.5 to +2.8 ms
+   a PSP step) and the steady deck's ME turn (+0.64); the 5 other ME-turn windows pass (-1.98 to +0.04). The failures are
+   D-misses and the new code's instructions, not I-misses.
+NOT DONE: no PSP run (not mine to do); a full rebuild from sources of the final build a second time (the relink was
+repeated, not the compile); the cull's check mode.
+
+7. WHAT THE MODEL SAYS EACH KIND COSTS [C model; ms a PSP step = the model's ms a picture / 2]
+The windows count BOTH processors' instructions, so a difference is the work left out on both together (the game's own code
+runs the same instructions in every kind, so it is the picture code's work plus cache effects), not a step time. On gl36's
+levers the PSP showed about half of the model's ME-side savings (cull 1.8x, re-use 2.3x smaller on the PSP) [C, gl36's PSP run].
+Each kind in its own turn of the cfg's schedule, the final build, one run, vblanks 10-90 of the turn (build_gl38/score38.out):
+  vblank turn kind                         R  F1   step   minus its K0 turn(s)        (instr, I-miss, D-miss: a picture)
+ -- first deck scene (a cutscene whose content moves from turn to turn: indicative only)
+  24100 t1  K0 all drawn                   R1     147.34   (a K0 turn)
+  24200 t2  K3 sorted off (rain kept)      R0     167.51     +8.61 against K0 (turns 24100,24700) (instr +2.28M, I-miss +13.8k, D-miss +12.1k)
+  24300 t3  K4 rain off but the near sheet R0     144.94    -13.96 against K0 (turns 24100,24700) (instr -3.90M, I-miss -12.8k, D-miss -23.2k)
+  24400 t4  K0 all drawn                   R1 F1  141.08    -17.82 against K0 (turns 24100,24700) (instr -4.15M, I-miss -21.6k, D-miss -41.3k)
+  24500 t5  K1 ship off                    R1     144.12    -14.78 against K0 (turns 24100,24700) (instr -3.67M, I-miss -13.3k, D-miss -33.4k)
+  24600 t6  K2 people off                  R0     150.51     -8.39 against K0 (turns 24100,24700) (instr -2.21M, I-miss -6.9k, D-miss -17.1k)
+  24700 t7  K0 all drawn                   R0     170.46   (a K0 turn)
+  24800 t8  K6 ship+people+sorted+rain off R1     135.51    -23.39 against K0 (turns 24100,24700) (instr -5.94M, I-miss -23.7k, D-miss -48.4k)
+     the K0 turns among themselves (24100 R1, 24700 R0): 23.12 apart
+ -- steady deck
+  26700 t27 K0 all drawn                   R0      68.88   (a K0 turn)
+  26800 t28 K5 stage program off           R1      51.30    -17.59 against K0 (turn 26700)        (instr -4.43M, I-miss -20.3k, D-miss -35.2k)
+  26900 t29 K7 nothing drawn, ME rests     R1      20.28    -48.61 against K0 (turn 26700)        (instr -12.25M, I-miss -53.8k, D-miss -98.9k)
+ -- rain wait, first turns (29,100-29,500: no frame digests (they begin at 29,490), the scene still settles; K0 at both ends)
+  29100 t51 K0 all drawn                   R0     165.17   (a K0 turn)
+  29200 t52 K6 ship+people+sorted+rain off R1      81.86    -76.84 against K0 (turns 29100,29400) (instr -18.07M, I-miss -111.5k, D-miss -160.3k)
+  29300 t53 K1 ship off                    R1     137.75    -20.95 against K0 (turns 29100,29400) (instr -4.23M, I-miss -46.6k, D-miss -44.2k)
+  29400 t54 K0 all drawn                   R0     152.23   (a K0 turn)
+     the K0 turns among themselves (29100 R0, 29400 R0): 12.94 apart
+ -- rain wait (29,500-30,800: frame digests in every turn; K0 turns in the middle; 30,600 is a second copy in a heavier part of the scene)
+  29500 t55 K2 people off                  R0     134.54    -39.08 against K0 R0 (turn 29800)     (instr -11.01M, I-miss -31.3k, D-miss -66.6k)
+  29600 t56 K3 sorted off (rain kept)      R1     171.26     -0.87 against K0 R1 (turn 30000)     (instr -0.20M, I-miss -1.4k, D-miss -1.8k)
+  29700 t57 K4 rain off but the near sheet R1     162.79     -9.35 against K0 R1 (turn 30000)     (instr -2.69M, I-miss -8.6k, D-miss -14.1k)
+  29800 t58 K0 all drawn                   R0     173.62   (a K0 turn)
+  29900 t59 K0 all drawn                   R0 F1  171.41     -2.21 against K0 R0 (turn 29800)     (instr -0.61M, I-miss +0.5k, D-miss -5.9k)
+  30000 t60 K0 all drawn                   R1     172.14   (a K0 turn)
+  30100 t61 K0 all drawn                   R1 F1  173.81     +1.68 against K0 R1 (turn 30000)     (instr +0.44M, I-miss +1.5k, D-miss +3.4k)
+  30200 t62 K5 stage program off           R0     168.51     -5.11 against K0 R0 (turn 29800)     (instr -1.83M, I-miss -1.1k, D-miss -3.7k)
+  30300 t63 K1 ship off                    R0     143.45    -29.42 against K0 (turns 29800,30000) (instr -6.98M, I-miss -50.6k, D-miss -53.8k)
+  30400 t64 K6 ship+people+sorted+rain off R1      80.16    -92.72 against K0 (turns 29800,30000) (instr -24.23M, I-miss -106.6k, D-miss -168.7k)
+  30500 t65 K7 nothing drawn, ME rests     R1      70.32   -102.56 against K0 (turns 29800,30000) (instr -27.42M, I-miss -108.6k, D-miss -182.4k)
+  30600 t66 K3 sorted off (rain kept)      R0     187.85    +14.23 against K0 R0 (turn 29800)     (instr +3.79M, I-miss +14.2k, D-miss +26.2k)
+     the K0 turns among themselves (29800 R0, 30000 R1): 1.48 apart
+ -- rain walk (the content moves from turn to turn (ship groups a turn 22,900 / 14,800 / 14,400): indicative only)
+  30800 t68 K0 all drawn                   R1     170.55   (a K0 turn)
+  30900 t69 K7 nothing drawn, ME rests     R1      67.86   -102.69 against K0 (turn 30800)        (instr -27.72M, I-miss -96.7k, D-miss -186.9k)
+  31000 t70 K4 rain off but the near sheet R0 F1  165.28     -5.27 against K0 (turn 30800)        (instr -1.22M, I-miss -2.9k, D-miss -15.0k)
+  31100 t71 K2 people off                  R0     107.52    -63.03 against K0 (turn 30800)        (instr -17.19M, I-miss -58.4k, D-miss -112.2k)
+  31200 t72 K6 ship+people+sorted+rain off R1      76.97    -93.58 against K0 (turn 30800)        (instr -24.84M, I-miss -92.3k, D-miss -175.1k)
+In short, rain wait (digests in every turn; the K0 turn of the same re-use arm):
+  K1 ship -29.4 | K2 people -39.1 | K3 sorted but the rain -0.9 (under-measured: limit L1) | K4 rain but the near sheet -9.4 |
+  K5 stage program -5.1 | K6 ship + people + sorted + rain -92.7 | K7 nothing drawn -102.6 | F1 -2.2 (re-use off).
+  K6 is more than K1 + K2 + K3 + K4 (-78.8): chain 6's transfer as a whole (its walk and what K3 / K4 keep) and the cache.
+  K7 minus K6 = -9.8: what is left of the picture's work once ship, people, sorted and rain are out (stage program, set-up,
+  ends).
+Steady deck: K5 -17.6, K7 -48.6. Walk (indicative): K2 -63.0, K4 -5.3 (with F1), K6 -93.6, K7 -102.7.
+First deck scene: indicative only (its two K0 turns are 23 apart).
+The same on the emulator's clock is in the reader's output (build_gl38/rd/rd38pc_f2.out): rain wait step K1 -11.6, K2 -18.9,
+K3 (R1) -0.6, K4 -4.7, K5 -2.9, K6 -41.4, K7 -46.5 ms; the ME's own busy time K1 -11.2, K2 -18.1, K4 -4.8, K6 -39.0
+[C emulator clock, NOT PSP times].
+
+8. PACKAGE (build_gl38/deliver, 18 MB; NOT delivered, nothing on the PC or the PSP)
+80c7b7e06ea9ca5e2c641b7eef4d3937  EBOOT.PBP
+0f52f6e8da7c0a487ab09139d87dbc90  ovl_d00t.bin
+5eb6f190bd7ef00b160321905e72931f  ovl_d01t.bin
+285c95891a50387f7d7587350a15c72d  ovl_init.bin
+894eca8785f145c23ff5475752489c37  ovl_n_title.bin
+96692876ff52426f1ebc7ae73506f453  ovl_r_title.bin
+19571c20d891061c4b198d8d3b714da3  ovl_r_tnk0.bin
+2a605b56cc7a0b142438383d11615481  ovl_w00a.bin
+37787bbd243d27c4d2648d6911587f37  ovl_w01a.bin
+65bbe66d60179ff485b261b9ee1292aa  mgs2.cfg
+c9ddb593c61c07c41b0183952c753d94  hashref.txt
+7bc72aceb89b192298c635ef52b81b8f  pad.txt
+7a873c71a1065f1da3cbd9064b54a9fd  rd38pc.py
+99bb29fd15a5f98e46da2a7e8574c98e  README.txt
+e3f4c0df306b8567beddb9e899e83cd6  SLES_503.83
+189ca53f0db7ebbe170007beb06a8c09  mgs2disc.pak
+MANIFEST.md5 itself: 01d3cbdab8566203d01574280d1e2e9e. SLES_503.83 and mgs2disc.pak are the stick's own files (md5s as gl36's
+manifest; not in the folder). README.txt: what it is, the table of turns, what the owner will see, what it touches, what
+the run should show, how to read it. rd38pc.py: one file, standard library only; made from the final package's emulator
+log (rd/mkpc38.py); it is byte-equal to the one made from the first relink's run (the fingerprints are the same). Tested
+on the emulator's folder, on a CRLF log, with battery.txt / crash.txt missing and on a cut log: no traceback.
+Copies of README.txt, MANIFEST.md5 and rd38pc.py are in attic/gl38/ (text only).
+Kept in build_gl38 for the lead: psp/ (final ELF and overlays), pk_f38/ (the package as the emulator ran it), emu_f2/, emu_f3/
+(logs), model/ (the final build's PspProf windows), score38.out, fin38.out, psp_o1/ + score38_o1.out + model_o1/ (the first
+relink and its evidence), model_s2/ + score38_s2.out (round 2), lay/ls_s1.out, ls_s2.out, ls_s4.out, ord4/final (the order).
+The merged traces (590 MB) were deleted after the last relink check; lay/merge_n2.out has their counts, rt_tr38.sh makes
+them again from build_gl38/u (a new trace run differs by a few per cent in a window).
+
+9. DEVIATIONS FROM THE PLAN, LIMITS, FAILURES, THINGS I AM UNSURE OF
+Deviations (each chosen by me; say if you want one undone):
+ D1. THE SCHEDULE WAS REVISED after the first no-PGO gates (16:20 UTC). The first schedule had the rain wait's four K0 turns
+     at its start (29,100-29,500). Two things were wrong with that: those turns have no frame digests (MGS2_GL_DIG starts at
+     29,490) while every later turn has them, and the scene still settles there. Every K minus K0 would have carried the
+     digest's cost (about +12 ms a step of ME time on the emulator's clock) and the drift. Now: K0, K6, K1, K0 in the first
+     four turns, and the K0 turns of both re-use arms and F1's turns in the middle of the flat part (see 1). MGS2_GL_DIG is
+     unchanged (916 digests as before). Cost: K2 and K4 have one turn in the rain wait (plus one each in the walk), not two.
+     The PGO training ran with the first schedule (same kinds and code); the twin, the emulator and the model gates of the
+     final build all ran with the revised one.
+ D2. psp/main_psp.c: g_logbuf 128 KB -> 64 KB. gl38's code and log lines are about 17 KB over gl36's trained build and
+     the low point moves with the ELF byte for byte (gl36 report, addendum 2); gl36's real headroom at the low point was
+     64 to 68 KB [I: gl36's builds with the break at 0be69000 and 0be6a000 (the delivered one) read 64 KB, the one at 0be6b000
+     read 32], and the ELF would have ended 26 KB higher than gl36's, so gl38 would have read 32 KB. With the change gl38's
+     break is 40 KB under gl36's (about 104 to 108 KB of real headroom [I]; the log line still reads 64). The log is
+     written to the stick every 100 vblanks outside the timed steps; the largest burst between two writes in a run is
+     21.9 KB, the boot report 79.6 KB (now two writes, before the game starts) [C emulator log]. No game byte changes.
+ D3. MGS2_ME_PIC_GE2_AB=30500 taken out of the cfg ("cfg otherwise = gl37's" broken on purpose): it switched the GE
+     overlap off in every other 200 vblanks from 30,500, i.e. a second thing changing across the last rain-wait turns and
+     the walk. The overlap is on in the whole run.
+ D4. From vb 24,000 every turn is an ME turn but K7's (the plan allowed it for the deck; it is so for the rain too, or half
+     of the turns would have been lost to main turns).
+ D5. Digests are compared in EVERY kind's turns (not only K0's), against the twin's arm with the same schedule; against
+     the twin's plain arm the K0 turns' frames are equal but for the first frame after a K7 / K6 / K1 turn.
+ D6. F1 is planned by segments between barrier groups, not only for runs whose every group has the fast form (see 4).
+ D7. The model's kind costs come from one run of the cfg's schedule (each kind in its own turn, as the PSP will have them),
+     not from eight whole-run arms: the same build, the same run, the scene's own K0 turns as the reference.
+ D8. The order search was run three times and the last round is NOT gl36's method as it stood (section 5): my own copy of
+     the simulator (build_gl38/layout_sim38.c: per-window weights, per-window caps in the guard, a start temperature), the
+     rain windows weighted 4, started from the second round's order. The judge stayed the same: gl36's own model windows.
+ D9. The traces were taken twice (I deleted the merged files to free disk before the model check of the first relink).
+     Rounds 2 and 3 used the second set.
+FAILED OR UNSURE (each also where it belongs above):
+ F1. THE RETRAIN'S GUARD FAILED in 7 of 12 model windows (section 5): the 6 main-CPU turns +1.5 to +2.8 ms a PSP step, the
+     steady deck's ME turn +0.64. Not the code order (I-misses at or under gl36's everywhere); D-misses in the main CPU's
+     turns [I: static data placement] and the new code's instructions. I did not find a way to repair the data placement
+     with the tools at hand and did not try blind pads. Whether the PSP shows it is UNKNOWN (gl36's PSP run did not show
+     the model's data-placement part for ME turns).
+ F2. The first relink was wrong for a reason the pipeline did not catch by itself (an alias in the order's seed). The check
+     that catches it (the relinked build's real addresses on the traces = the search's own figure, window by window) was run
+     after the fact; it should come BEFORE the model in the next retrain, and the seed should be made from addresses, not
+     names. A new harness rule is drafted in section 10.
+ F3. The w01a route's trace windows are 1 to 13 % over gl36's own in I-misses [C sim / I across trace sets]; not in this
+     run, not judged by the model.
+ F4. Unsure: K3's second copy (30,600, R0) is in the heavier part of the scene and reads +14 on the model and +3.5 on the
+     emulator's clock against the K0 turn of 29,800: unusable as a cost. K3's usable turn is 29,600 (R1).
+ F5. Unsure: the frame digest's cost on the PSP (limit L7): it is inside every rain turn from 29,490 and shrinks with what
+     a kind leaves out, so K1 / K2 / K6's ME 'lists' differences include the digest's share.
+Limits of the measurement (in the README too):
+ L1. K3 and K4 leave out their calls' conversion and drawing, not the VIF walk of their packets: an under-measure.
+ L2. The rain owners' table holds 16 blocks: 0 over it in the rain wait, 1-10 a turn in the walk, 15,000-21,000 a turn in
+     the first deck scene (24,200-24,400), where K3 / K4 mis-sort those calls. A whole-run rain cut as a default needs a
+     larger table or a test by owner first.
+ L3. The near rule is "the last 1 of the picture's 4 sheet calls"; far-to-near order held in 24 of 25 sampled pictures.
+ L4. Chain numbers are places in the frame's list: K2 / K5 / K6's chains mean people / stage program / sorted only in the
+     rain. The steady deck has only K0 / K5 / K7.
+ L5. The first frame of a K0 turn after a K7 / K6 / K1 turn differs from the plain run's (carry-over), and the first
+     half second of its pictures carries a fading trace (the blur reads the last picture); 'frames begun with a mask' is
+     one off at a turn's edge; the re-use's arm is one picture off the kind's turn at an edge.
+ L6. K1's main-side figure includes the stub's work without the record's hand-over; K7's main turn drops the recorded groups
+     on the main CPU ('natg').
+ L7. The frame digest shrinks when a kind leaves data out, so a kind's ME 'lists' difference in 29,500+ is partly the
+     digest's; the list words' own hashing is inside the batch parts of the list timer, the frame digest is timed apart.
+ L8. The last 5 pictures of the 29,400 K0 turn already have digests (the window starts at 29,490): about +1 ms a step
+     on that turn's ME 'lists' [I: 5 of 50 pictures x the emulator clock's 12 ms].
+ L9. The emulator's ME figures come from a thread on the one emulated CPU and its own clock: they are for the reader's
+     tests, not PSP figures.
+ L10. F1's code is cold in the traces (their windows hold no F1 turn), so the order search did not place it; if F1
+     becomes a default, a retrain should have it on.
+ L11. The env table holds 48 keys: the cfg has 40 MGS2 keys + 5 defaults = 45; F1's check cfg 42 + 5 = 47.
+ F6. Unsure: the model runs (PspProf) are not state-exact runs: 1 to 9 of a run's hash lines differ from the reference
+     (k38a 1 of 59, k38b 2 of 61, k38c 9 of 62, k38d 1 of 49, g38c 3, g38rc 3, g38rcd 9 of 55); gl36's model runs show the
+     same (3 of 62) and gl36's report names it as the profiler's perturbation. The package's own emulator runs are 62/62.
+     I did not look into why the profiled runs differ.
+
+10. DRAFT HARNESS ENTRY (for psp_harness.md; the lead edits and places it)
+## Build gl38 (2026-11-22): measurement build, kinds of drawing by turns; packaged, NOT delivered
+
+- **What it is:** gl37's parts (cull on, re-use by its rule in turns 1,1,0,0) + MGS2_BOUND_CYCLE (a digit a turn of 100 vblanks from 24,000: K0 all drawn, K1 ship off, K2 people off, K3 sorted off but the rain, K4 rain off but the nearest drop sheet, K5 stage program off, K6 ship+people+sorted+rain off, K7 nothing drawn / ME rests) + F1 (gl37 fix design A, by segments between barriers) in 4 turns + new timers ('gl38 timers': the ME's list build by part with the frame digest apart, records by part; 'people split') + g_logbuf 128 -> 64 KB + MGS2_ME_PIC_GE2_AB taken out. From 24,000 every turn is an ME turn but K7's.
+- **Schedule:** revised once: the rain wait's first four turns settle and have no frame digests, so K0 K6 K1 K0 there and the K0 / F1 turns of both re-use arms in the flat part 29,800-30,200. Steady deck: only K0 / K5 / K7 (no ship groups, chains 2 and 6 empty). Table: attic/gl38/README.txt.
+- **Finding:** the ME's "list build ~17 ms a step" in the rain is mostly the FRAME DIGEST (MGS2_GL_DIG, 29,490-31,400): emulator clock 3.3-4.4 ms a step before 29,490, 16.0-16.4 after, the digest 9.9 of 16.2 [C emulator]. PSP size UNKNOWN until this run's 'gl38 timers' lines.
+- **Gates [C]:** twin 10 arms 685/685 = c9ddb593; frames: K0 turns = the plain arm but the first frame after a K7 / K6 / K1 turn (4 of 15,815); read hash 31,399 vblanks 0 differing (both schedules); emulator final package 62/62 + 916/916 digests = the twin's same-schedule arm in every kind (K0 266 ... K7 150); F1 check 0 differing (twin 2,226,860 + 140,346 groups, emulator 567,299); K0 pictures vs gl36's: 9 of 14 equal, 5 differ (the known noisy shot_24784; 4 in the first half second after a K7 / K6 turn: the blur's fading trace); NAT PROBLEMS none; 133 sce names = gl36's; heap low point reads 64 KB (break 0be60000, gl36 0be6a000); relink twice byte-equal.
+- **Retrain:** 5 training runs 0 differing. ORDER SEARCH x3: (1) seed from gl36's order: the relinked build was +6.3..+9.8 ms a PSP step over gl36 in the rain [C model]: an alias (three symbols, one hot VU function) put the code elsewhere than the simulator thought; (2) alias fixed: real = simulated, rain ME turns +0.6..+1.4; (3) chained search, rain windows weighted 4: I-misses at or under gl36's in every model window. gl36's order does not carry over (109 hot functions changed size, overlay base +24 KB): the search's own guard against the seed binds nothing.
+- **Guard [C model, ms a PSP step vs gl36, limit +0.25]: FAILED 7 of 12.** ME turns: rain wait -1.98 / -0.99, walk -0.41 / -0.93, opening +0.04 pass; steady deck +0.64 fail. Main-CPU turns all fail: +2.22 / +2.76 (rain wait), +1.89 / +1.54 (walk), +1.74 (opening), +1.61 (steady deck): D-misses +11k..17k a picture with no instruction change behind them [I: static data placement] + the new code's instructions (+52k..258k). PSP: UNKNOWN.
+- **Model, kinds [C model, ms a PSP step, both processors' work, rain wait]:** K1 -29.4, K2 -39.1, K3 -0.9 (under-measured), K4 -9.4, K5 -5.1, K6 -92.7, K7 -102.6; F1 -2.2 (re-use off), +1.7 (on: noise); steady deck K5 -17.6, K7 -48.6.
+- **Package** /home/claude/main/build_gl38/deliver (attic/gl38/MANIFEST.md5 01d3cbda): EBOOT 80c7b7e0, d00t 0f52f6e8, d01t 5eb6f190, init 285c9589, n_title 894eca87, r_title 96692876, r_tnk0 19571c20, w00a 2a605b56, w01a 37787bbd, cfg 65bbe66d, hashref c9ddb593, pad 7bc72ace, rd38pc.py 7a873c71, README 99bb29fd.
+- **Read rule for the PSP run:** a kind's cost = its turn minus the K0 turn(s) of the same scene and re-use arm; rain wait's first turns (29,100-29,500) have their own K0 turns (no digests there); K3's copy at 30,600 is not a cost; K7 minus K0 on the main CPU's parts is the coupling question.
+
+Proposed harness rule (new): "After every order search, BEFORE any model or emulator run of the relinked build: evaluate the
+relinked ELF's real addresses on the search's own traces (layout_sim -new) and require the sums and every window EQUAL to the
+search's 'optimized order, whole traces'. A seed order is built from addresses (one entry a section), not from names: a
+function can have several names. And judge a retrain against the last build's own windows, not against the seed: an old
+order does not carry over once function sizes change."

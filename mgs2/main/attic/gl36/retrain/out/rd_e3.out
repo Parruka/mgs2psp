@@ -1,0 +1,1231 @@
+== rd36: emu_e3/log.txt (md5 78d99168, 18676 lines); window vb 29400..31500
+  gl28 battery recorder (MGS2_BAT_REC 1): every battery.txt line adds the battery thread's lateness and the picture loop's and the ME's state (reads only)
+  gl28 eye (MGS2_EYE 1): on: the R trigger peeked once a vblank hook, outside the step's time (sceCtrlPeekBufferPositive: the game plays pad.txt and never reads the pad; a peek takes nothing from the end screen's or the cr ...
+  gl28 live (MGS2_GL_LIVE 30500:31400:25:8): the buffer on the screen copied as it is (no drain, no wait for the GE) to live_<vb>.bmp next to the EBOOT, outside the step's time: at vb 30500 + k*25 + 12 up to 31400; at R pr ...
+  gl29 dz (MGS2_GL_DZ): the 0x42 shadow decals' depth arm by frame (its last vblank), O elsewhere: 3 entries: 0-29489 X 29490-31400 X 31401-999999999 X; 4 windows (a 'gl29 dz window' line each once the screen has left it)
+  gl29 shot range (MGS2_GL_SHOT_RANGE 30500:31400:2): a shot (drained as MGS2_GL_SHOT's, no depth) at every 2-th vblank hook from 30500 to 31400
+  gl28 me rest (MGS2_ME_REST 1): the ME rests in HALT (psp/xme_rest.S) through the main CPU's turns, woken by the main CPU's interrupt (0xBC100044) when its own turn begins; never inside its turns; a 'main turn vb A-B gl28 ...
+  gl28 fbchk (MGS2_GL_FBCHK 30500): on from vb 30500: at each list given to the GE, the display's answers (sceDisplayGetFrameBuf IMMEDIATE and NEXTFRAME) against the list's target buffer and the display vblanks since the f ...
+  gl28 shot flip wait (MGS2_GL_SHOT_FLIPWAIT 1): on: from MGS2_GL_FLIPWAIT_FROM on, a shot's drained path keeps the flip wait and gives the GE every list made (the last frame made saved; no list drawn into the buffer still ...
+  gl28 ge2 a/b (MGS2_ME_PIC_GE2_AB 30500): from vb 30500 GE2 only in every other ME turn: on when vb / (2 * MGS2_ME_PIC_TURN) is odd (it needs MGS2_ME_PIC_GE2 for the second frame memory); a 'gl28 ge2 a/b' line at each ME  ...
+  nat: cull study v3: MGS2_NAT_CULL 0, MGS2_NAT_CULL_CYCLE 1,1,1,1,0,0,0,0 (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 0
+  end: end of the run
+  natcull: totals (v3): effect calls tested 168442, left out 124903 (4385102 vertices); kept: vertex 0 inside 25539, no plane proven 17904, a bad attribute 0, count 0, out of the clamps' range 0, thinned 96; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 5429223, 1018582 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+
+== hashes and digests
+  emu_e3/log.txt: 62 hash lines, 0 vuh lines; reference deliver/hashref.txt: 685 lines
+  compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+  frames: 14592 vblanks with digests, 13438 equal to the twin, first differing 536; 6179 distinct
+  vuh: 0 lines, 0 equal to the twin
+  digests in me turns (by the frame's vblank): 7258, equal to the twin 6691 (list, frame and the dz text), differing: [600, 602, 604, 606, 608, 610, 612, 614, 616, 618, 620, 622, 624, 626, 628, 630, 632, 634, 636, 638]
+  digests in main turns (by the frame's vblank): 7334, equal to the twin 6747 (list, frame and the dz text), differing: [536, 538, 540, 542, 544, 546, 548, 550, 552, 554, 556, 558, 560, 562, 564, 566, 568, 570, 572, 574]
+  by arm (frames with digests; ME turns; equal to the twin; 0x42 batches; other kinds; paired; gl30 subset pairs; fallbacks base/matrix/vertex set/triangles/uv-colour/room; biased; W; the largest copy in bytes):
+    X    frames 14592 (ME 7258), = twin 13438; 0x42  17122, other 910512; paired  14545; subset   2385; fallbacks 87/0/105/0/0/0; biased 0; W 0; copy at most 4864; frames with unpaired decals (vb, n): [(9424, 16), (9454, 14), (9484, 10), (9534, 1), (10426, 151)]
+
+== gl29 dz windows (frames by turn, counts, list build time, R held)
+       0-29489 X   frames 13676 (ME 6803, main 6873); 0x42  4875 paired  4239 subset   444 fb 87,0,105,0,0,0; bias 0 W 0; copy   4864 B; list ms ME 68062.5 (avg 10.00, max 344.51), main 55933.9 (avg 8.14, max 55.62); R held   0 (ME 0, main 0), from the 10th vb 0
+   29490-31400 X   frames 916 (ME 455, main 461); 0x42 12247 paired 10306 subset  1941 fb 0,0,0,0,0,0; bias 0 W 0; copy   2480 B; list ms ME 14515.5 (avg 31.90, max 38.05), main 13347.6 (avg 28.95, max 35.02); R held   0 (ME 0, main 0), from the 10th vb 0
+   31401-999999999 X   frames   0 (ME   0, main   0); 0x42     0 paired     0 subset     0 fb 0,0,0,0,0,0; bias 0 W 0; copy      0 B; list ms ME     0.0 (avg 0.00, max 0.00), main     0.0 (avg 0.00, max 0.00); R held   0 (ME 0, main 0), from the 10th vb 0
+  1000000000-end   O   frames   0 (ME   0, main   0); 0x42     0 paired     0 subset     0 fb 0,0,0,0,0,0; bias 0 W 0; copy      0 B; list ms ME     0.0 (avg 0.00, max 0.00), main     0.0 (avg 0.00, max 0.00); R held   0 (ME 0, main 0), from the 10th vb 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 0/0
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 0-29489 X 0 (0) 29490-31400 X 0 (0) 31401-999999999 X 0 (0) 1000000000-end O 0 (0)
+
+== gl29 shots (arm, last list = shot frame, depth files, VRAM read)
+  shot vb 29502 (SHOT, main turn): frame 29500 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30500 (SHOT_RANGE, me turn): frame 30498 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30502 (SHOT, main turn): frame 30500 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30504 (SHOT_RANGE, main turn): frame 30502 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30506 (SHOT_RANGE, main turn): frame 30504 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30508 (SHOT_RANGE, main turn): frame 30506 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30510 (SHOT_RANGE, main turn): frame 30508 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30512 (SHOT_RANGE, main turn): frame 30510 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30514 (SHOT_RANGE, main turn): frame 30512 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30516 (SHOT_RANGE, main turn): frame 30514 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30518 (SHOT_RANGE, main turn): frame 30516 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30520 (SHOT_RANGE, main turn): frame 30518 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30522 (SHOT_RANGE, main turn): frame 30520 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30524 (SHOT_RANGE, main turn): frame 30522 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30526 (SHOT_RANGE, main turn): frame 30524 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30528 (SHOT_RANGE, main turn): frame 30526 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30530 (SHOT_RANGE, main turn): frame 30528 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30532 (SHOT_RANGE, main turn): frame 30530 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30534 (SHOT_RANGE, main turn): frame 30532 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30536 (SHOT_RANGE, main turn): frame 30534 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30538 (SHOT_RANGE, main turn): frame 30536 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30540 (SHOT_RANGE, main turn): frame 30538 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30542 (SHOT_RANGE, main turn): frame 30540 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30544 (SHOT_RANGE, main turn): frame 30542 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30546 (SHOT_RANGE, main turn): frame 30544 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30548 (SHOT, main turn): frame 30546 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30550 (SHOT_RANGE, main turn): frame 30548 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30552 (SHOT_RANGE, main turn): frame 30550 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30554 (SHOT_RANGE, main turn): frame 30552 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30556 (SHOT_RANGE, main turn): frame 30554 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30558 (SHOT_RANGE, main turn): frame 30556 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30560 (SHOT_RANGE, main turn): frame 30558 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30562 (SHOT_RANGE, main turn): frame 30560 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30564 (SHOT_RANGE, main turn): frame 30562 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30566 (SHOT_RANGE, main turn): frame 30564 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30568 (SHOT_RANGE, main turn): frame 30566 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30570 (SHOT_RANGE, main turn): frame 30568 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30572 (SHOT_RANGE, main turn): frame 30570 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30574 (SHOT_RANGE, main turn): frame 30572 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 30576 (SHOT_RANGE, main turn): frame 30574 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30578 (SHOT_RANGE, main turn): frame 30576 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30580 (SHOT_RANGE, main turn): frame 30578 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30582 (SHOT_RANGE, main turn): frame 30580 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30584 (SHOT_RANGE, main turn): frame 30582 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30586 (SHOT_RANGE, main turn): frame 30584 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30588 (SHOT_RANGE, main turn): frame 30586 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30590 (SHOT_RANGE, main turn): frame 30588 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30592 (SHOT_RANGE, main turn): frame 30590 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 30594 (SHOT_RANGE, main turn): frame 30592 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30596 (SHOT_RANGE, main turn): frame 30594 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30598 (SHOT_RANGE, main turn): frame 30596 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30600 (SHOT_RANGE, main turn): frame 30598 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30602 (SHOT_RANGE, me turn): frame 30600 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30604 (SHOT_RANGE, me turn): frame 30602 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30606 (SHOT_RANGE, me turn): frame 30604 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30608 (SHOT_RANGE, me turn): frame 30606 arm X; last list = shot frame yes; colour 4.0 ms; no depth
+  shot vb 30610 (SHOT_RANGE, me turn): frame 30608 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30612 (SHOT_RANGE, me turn): frame 30610 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30614 (SHOT_RANGE, me turn): frame 30612 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30616 (SHOT_RANGE, me turn): frame 30614 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30618 (SHOT_RANGE, me turn): frame 30616 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30620 (SHOT_RANGE, me turn): frame 30618 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30622 (SHOT_RANGE, me turn): frame 30620 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30624 (SHOT_RANGE, me turn): frame 30622 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30626 (SHOT_RANGE, me turn): frame 30624 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30628 (SHOT_RANGE, me turn): frame 30626 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30630 (SHOT_RANGE, me turn): frame 30628 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30632 (SHOT_RANGE, me turn): frame 30630 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30634 (SHOT_RANGE, me turn): frame 30632 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30636 (SHOT_RANGE, me turn): frame 30634 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30638 (SHOT_RANGE, me turn): frame 30636 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30640 (SHOT_RANGE, me turn): frame 30638 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30642 (SHOT_RANGE, me turn): frame 30640 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30644 (SHOT_RANGE, me turn): frame 30642 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30646 (SHOT, me turn): frame 30644 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30648 (SHOT_RANGE, me turn): frame 30646 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30650 (SHOT_RANGE, me turn): frame 30648 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30652 (SHOT_RANGE, me turn): frame 30650 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30654 (SHOT_RANGE, me turn): frame 30652 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30656 (SHOT_RANGE, me turn): frame 30654 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30658 (SHOT_RANGE, me turn): frame 30656 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30660 (SHOT_RANGE, me turn): frame 30658 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30662 (SHOT_RANGE, me turn): frame 30660 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30664 (SHOT_RANGE, me turn): frame 30662 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30666 (SHOT_RANGE, me turn): frame 30664 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30668 (SHOT_RANGE, me turn): frame 30666 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30670 (SHOT_RANGE, me turn): frame 30668 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30672 (SHOT_RANGE, me turn): frame 30670 arm X; last list = shot frame yes; colour 4.0 ms; no depth
+  shot vb 30674 (SHOT_RANGE, me turn): frame 30672 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30676 (SHOT_RANGE, me turn): frame 30674 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30678 (SHOT_RANGE, me turn): frame 30676 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 30680 (SHOT_RANGE, me turn): frame 30678 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30682 (SHOT_RANGE, me turn): frame 30680 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30684 (SHOT_RANGE, me turn): frame 30682 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30686 (SHOT_RANGE, me turn): frame 30684 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30688 (SHOT_RANGE, me turn): frame 30686 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30690 (SHOT_RANGE, me turn): frame 30688 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30692 (SHOT_RANGE, me turn): frame 30690 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30694 (SHOT_RANGE, me turn): frame 30692 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30696 (SHOT_RANGE, me turn): frame 30694 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30698 (SHOT_RANGE, me turn): frame 30696 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30700 (SHOT_RANGE, me turn): frame 30698 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30702 (SHOT_RANGE, main turn): frame 30700 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30704 (SHOT_RANGE, main turn): frame 30702 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30706 (SHOT_RANGE, main turn): frame 30704 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30708 (SHOT_RANGE, main turn): frame 30706 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30710 (SHOT_RANGE, main turn): frame 30708 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30712 (SHOT_RANGE, main turn): frame 30710 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30714 (SHOT_RANGE, main turn): frame 30712 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30716 (SHOT_RANGE, main turn): frame 30714 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30718 (SHOT_RANGE, main turn): frame 30716 arm X; last list = shot frame yes; colour 4.4 ms; no depth
+  shot vb 30720 (SHOT_RANGE, main turn): frame 30718 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30722 (SHOT_RANGE, main turn): frame 30720 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30724 (SHOT, main turn): frame 30722 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30726 (SHOT_RANGE, main turn): frame 30724 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30728 (SHOT_RANGE, main turn): frame 30726 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30730 (SHOT_RANGE, main turn): frame 30728 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30732 (SHOT_RANGE, main turn): frame 30730 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30734 (SHOT_RANGE, main turn): frame 30732 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30736 (SHOT_RANGE, main turn): frame 30734 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30738 (SHOT_RANGE, main turn): frame 30736 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30740 (SHOT_RANGE, main turn): frame 30738 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30742 (SHOT_RANGE, main turn): frame 30740 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30744 (SHOT_RANGE, main turn): frame 30742 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30746 (SHOT_RANGE, main turn): frame 30744 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30748 (SHOT_RANGE, main turn): frame 30746 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30750 (SHOT_RANGE, main turn): frame 30748 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30752 (SHOT_RANGE, main turn): frame 30750 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30754 (SHOT_RANGE, main turn): frame 30752 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30756 (SHOT_RANGE, main turn): frame 30754 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30758 (SHOT_RANGE, main turn): frame 30756 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30760 (SHOT_RANGE, main turn): frame 30758 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30762 (SHOT_RANGE, main turn): frame 30760 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30764 (SHOT_RANGE, main turn): frame 30762 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30766 (SHOT_RANGE, main turn): frame 30764 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30768 (SHOT_RANGE, main turn): frame 30766 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30770 (SHOT_RANGE, main turn): frame 30768 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30772 (SHOT_RANGE, main turn): frame 30770 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30774 (SHOT_RANGE, main turn): frame 30772 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30776 (SHOT_RANGE, main turn): frame 30774 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30778 (SHOT_RANGE, main turn): frame 30776 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30780 (SHOT_RANGE, main turn): frame 30778 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30782 (SHOT_RANGE, main turn): frame 30780 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30784 (SHOT_RANGE, main turn): frame 30782 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30786 (SHOT_RANGE, main turn): frame 30784 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30788 (SHOT_RANGE, main turn): frame 30786 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30790 (SHOT_RANGE, main turn): frame 30788 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30792 (SHOT_RANGE, main turn): frame 30790 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30794 (SHOT_RANGE, main turn): frame 30792 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30796 (SHOT_RANGE, main turn): frame 30794 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30798 (SHOT_RANGE, main turn): frame 30796 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30800 (SHOT_RANGE, main turn): frame 30798 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30802 (SHOT_RANGE, me turn): frame 30800 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30804 (SHOT_RANGE, me turn): frame 30802 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30806 (SHOT_RANGE, me turn): frame 30804 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30808 (SHOT_RANGE, me turn): frame 30806 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30810 (SHOT_RANGE, me turn): frame 30808 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30812 (SHOT_RANGE, me turn): frame 30810 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30814 (SHOT_RANGE, me turn): frame 30812 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30816 (SHOT_RANGE, me turn): frame 30814 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30818 (SHOT_RANGE, me turn): frame 30816 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30820 (SHOT_RANGE, me turn): frame 30818 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30822 (SHOT_RANGE, me turn): frame 30820 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30824 (SHOT_RANGE, me turn): frame 30822 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30826 (SHOT, me turn): frame 30824 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30828 (SHOT_RANGE, me turn): frame 30826 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30830 (SHOT_RANGE, me turn): frame 30828 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30832 (SHOT_RANGE, me turn): frame 30830 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30834 (SHOT_RANGE, me turn): frame 30832 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30836 (SHOT_RANGE, me turn): frame 30834 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 30838 (SHOT_RANGE, me turn): frame 30836 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30840 (SHOT_RANGE, me turn): frame 30838 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30842 (SHOT_RANGE, me turn): frame 30840 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30844 (SHOT_RANGE, me turn): frame 30842 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30846 (SHOT_RANGE, me turn): frame 30844 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30848 (SHOT_RANGE, me turn): frame 30846 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30850 (SHOT_RANGE, me turn): frame 30848 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30852 (SHOT_RANGE, me turn): frame 30850 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30854 (SHOT_RANGE, me turn): frame 30852 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30856 (SHOT_RANGE, me turn): frame 30854 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30858 (SHOT_RANGE, me turn): frame 30856 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30860 (SHOT_RANGE, me turn): frame 30858 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30862 (SHOT_RANGE, me turn): frame 30860 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30864 (SHOT_RANGE, me turn): frame 30862 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 30866 (SHOT_RANGE, me turn): frame 30864 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30868 (SHOT_RANGE, me turn): frame 30866 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30870 (SHOT_RANGE, me turn): frame 30868 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30872 (SHOT_RANGE, me turn): frame 30870 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30874 (SHOT_RANGE, me turn): frame 30872 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30876 (SHOT_RANGE, me turn): frame 30874 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30878 (SHOT_RANGE, me turn): frame 30876 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30880 (SHOT_RANGE, me turn): frame 30878 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30882 (SHOT_RANGE, me turn): frame 30880 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30884 (SHOT_RANGE, me turn): frame 30882 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30886 (SHOT_RANGE, me turn): frame 30884 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30888 (SHOT_RANGE, me turn): frame 30886 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30890 (SHOT_RANGE, me turn): frame 30888 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30892 (SHOT_RANGE, me turn): frame 30890 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30894 (SHOT_RANGE, me turn): frame 30892 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30896 (SHOT_RANGE, me turn): frame 30894 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30898 (SHOT_RANGE, me turn): frame 30896 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30900 (SHOT_RANGE, me turn): frame 30898 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30902 (SHOT_RANGE, main turn): frame 30900 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30904 (SHOT_RANGE, main turn): frame 30902 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30906 (SHOT_RANGE, main turn): frame 30904 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30908 (SHOT_RANGE, main turn): frame 30906 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30910 (SHOT_RANGE, main turn): frame 30908 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30912 (SHOT_RANGE, main turn): frame 30910 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30914 (SHOT_RANGE, main turn): frame 30912 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30916 (SHOT_RANGE, main turn): frame 30914 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30918 (SHOT_RANGE, main turn): frame 30916 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30920 (SHOT_RANGE, main turn): frame 30918 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30922 (SHOT_RANGE, main turn): frame 30920 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30924 (SHOT_RANGE, main turn): frame 30922 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30926 (SHOT, main turn): frame 30924 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30928 (SHOT_RANGE, main turn): frame 30926 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30930 (SHOT_RANGE, main turn): frame 30928 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 30932 (SHOT_RANGE, main turn): frame 30930 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30934 (SHOT_RANGE, main turn): frame 30932 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30936 (SHOT_RANGE, main turn): frame 30934 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30938 (SHOT_RANGE, main turn): frame 30936 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 30940 (SHOT_RANGE, main turn): frame 30938 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30942 (SHOT_RANGE, main turn): frame 30940 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30944 (SHOT_RANGE, main turn): frame 30942 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30946 (SHOT_RANGE, main turn): frame 30944 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30948 (SHOT_RANGE, main turn): frame 30946 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 30950 (SHOT_RANGE, main turn): frame 30948 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30952 (SHOT_RANGE, main turn): frame 30950 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30954 (SHOT_RANGE, main turn): frame 30952 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30956 (SHOT_RANGE, main turn): frame 30954 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30958 (SHOT_RANGE, main turn): frame 30956 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30960 (SHOT_RANGE, main turn): frame 30958 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30962 (SHOT_RANGE, main turn): frame 30960 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30964 (SHOT_RANGE, main turn): frame 30962 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30966 (SHOT_RANGE, main turn): frame 30964 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30968 (SHOT_RANGE, main turn): frame 30966 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30970 (SHOT_RANGE, main turn): frame 30968 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30972 (SHOT_RANGE, main turn): frame 30970 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 30974 (SHOT_RANGE, main turn): frame 30972 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30976 (SHOT_RANGE, main turn): frame 30974 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30978 (SHOT_RANGE, main turn): frame 30976 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30980 (SHOT_RANGE, main turn): frame 30978 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30982 (SHOT_RANGE, main turn): frame 30980 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30984 (SHOT_RANGE, main turn): frame 30982 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30986 (SHOT_RANGE, main turn): frame 30984 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 30988 (SHOT_RANGE, main turn): frame 30986 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30990 (SHOT_RANGE, main turn): frame 30988 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30992 (SHOT_RANGE, main turn): frame 30990 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30994 (SHOT_RANGE, main turn): frame 30992 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 30996 (SHOT_RANGE, main turn): frame 30994 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 30998 (SHOT_RANGE, main turn): frame 30996 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31000 (SHOT_RANGE, main turn): frame 30998 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31002 (SHOT_RANGE, me turn): frame 31000 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31004 (SHOT_RANGE, me turn): frame 31002 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31006 (SHOT_RANGE, me turn): frame 31004 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31008 (SHOT_RANGE, me turn): frame 31006 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31010 (SHOT_RANGE, me turn): frame 31008 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31012 (SHOT_RANGE, me turn): frame 31010 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31014 (SHOT_RANGE, me turn): frame 31012 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31016 (SHOT_RANGE, me turn): frame 31014 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31018 (SHOT_RANGE, me turn): frame 31016 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31020 (SHOT_RANGE, me turn): frame 31018 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31022 (SHOT_RANGE, me turn): frame 31020 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31024 (SHOT_RANGE, me turn): frame 31022 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31026 (SHOT_RANGE, me turn): frame 31024 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 31028 (SHOT_RANGE, me turn): frame 31026 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31030 (SHOT_RANGE, me turn): frame 31028 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31032 (SHOT_RANGE, me turn): frame 31030 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 31034 (SHOT_RANGE, me turn): frame 31032 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31036 (SHOT_RANGE, me turn): frame 31034 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31038 (SHOT_RANGE, me turn): frame 31036 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31040 (SHOT_RANGE, me turn): frame 31038 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31042 (SHOT_RANGE, me turn): frame 31040 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31044 (SHOT_RANGE, me turn): frame 31042 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31046 (SHOT_RANGE, me turn): frame 31044 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31048 (SHOT, me turn): frame 31046 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31050 (SHOT_RANGE, me turn): frame 31048 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31052 (SHOT_RANGE, me turn): frame 31050 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31054 (SHOT_RANGE, me turn): frame 31052 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31056 (SHOT_RANGE, me turn): frame 31054 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31058 (SHOT_RANGE, me turn): frame 31056 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31060 (SHOT_RANGE, me turn): frame 31058 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31062 (SHOT_RANGE, me turn): frame 31060 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31064 (SHOT_RANGE, me turn): frame 31062 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31066 (SHOT_RANGE, me turn): frame 31064 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31068 (SHOT_RANGE, me turn): frame 31066 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31070 (SHOT_RANGE, me turn): frame 31068 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31072 (SHOT_RANGE, me turn): frame 31070 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31074 (SHOT_RANGE, me turn): frame 31072 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31076 (SHOT_RANGE, me turn): frame 31074 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31078 (SHOT_RANGE, me turn): frame 31076 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31080 (SHOT_RANGE, me turn): frame 31078 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31082 (SHOT_RANGE, me turn): frame 31080 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31084 (SHOT_RANGE, me turn): frame 31082 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31086 (SHOT_RANGE, me turn): frame 31084 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31088 (SHOT_RANGE, me turn): frame 31086 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31090 (SHOT_RANGE, me turn): frame 31088 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31092 (SHOT_RANGE, me turn): frame 31090 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 31094 (SHOT_RANGE, me turn): frame 31092 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31096 (SHOT_RANGE, me turn): frame 31094 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31098 (SHOT_RANGE, me turn): frame 31096 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31100 (SHOT_RANGE, me turn): frame 31098 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31102 (SHOT_RANGE, main turn): frame 31100 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31104 (SHOT_RANGE, main turn): frame 31102 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31106 (SHOT_RANGE, main turn): frame 31104 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 31108 (SHOT_RANGE, main turn): frame 31106 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31110 (SHOT_RANGE, main turn): frame 31108 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31112 (SHOT_RANGE, main turn): frame 31110 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31114 (SHOT, main turn): frame 31112 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31116 (SHOT_RANGE, main turn): frame 31114 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31118 (SHOT_RANGE, main turn): frame 31116 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31120 (SHOT_RANGE, main turn): frame 31118 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31122 (SHOT_RANGE, main turn): frame 31120 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31124 (SHOT_RANGE, main turn): frame 31122 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31126 (SHOT_RANGE, main turn): frame 31124 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31128 (SHOT_RANGE, main turn): frame 31126 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31130 (SHOT_RANGE, main turn): frame 31128 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31132 (SHOT_RANGE, main turn): frame 31130 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31134 (SHOT_RANGE, main turn): frame 31132 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31136 (SHOT_RANGE, main turn): frame 31134 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31138 (SHOT_RANGE, main turn): frame 31136 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31140 (SHOT_RANGE, main turn): frame 31138 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31142 (SHOT_RANGE, main turn): frame 31140 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31144 (SHOT_RANGE, main turn): frame 31142 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31146 (SHOT_RANGE, main turn): frame 31144 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31148 (SHOT_RANGE, main turn): frame 31146 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31150 (SHOT_RANGE, main turn): frame 31148 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31152 (SHOT_RANGE, main turn): frame 31150 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 31154 (SHOT_RANGE, main turn): frame 31152 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31156 (SHOT_RANGE, main turn): frame 31154 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31158 (SHOT_RANGE, main turn): frame 31156 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31160 (SHOT_RANGE, main turn): frame 31158 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31162 (SHOT_RANGE, main turn): frame 31160 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31164 (SHOT_RANGE, main turn): frame 31162 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31166 (SHOT_RANGE, main turn): frame 31164 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31168 (SHOT_RANGE, main turn): frame 31166 arm X; last list = shot frame yes; colour 4.0 ms; no depth
+  shot vb 31170 (SHOT_RANGE, main turn): frame 31168 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31172 (SHOT_RANGE, main turn): frame 31170 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31174 (SHOT_RANGE, main turn): frame 31172 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31176 (SHOT_RANGE, main turn): frame 31174 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31178 (SHOT_RANGE, main turn): frame 31176 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31180 (SHOT_RANGE, main turn): frame 31178 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31182 (SHOT_RANGE, main turn): frame 31180 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31184 (SHOT_RANGE, main turn): frame 31182 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31186 (SHOT_RANGE, main turn): frame 31184 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31188 (SHOT_RANGE, main turn): frame 31186 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31190 (SHOT_RANGE, main turn): frame 31188 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31192 (SHOT_RANGE, main turn): frame 31190 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31194 (SHOT_RANGE, main turn): frame 31192 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31196 (SHOT_RANGE, main turn): frame 31194 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31198 (SHOT_RANGE, main turn): frame 31196 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31200 (SHOT_RANGE, main turn): frame 31198 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31202 (SHOT_RANGE, me turn): frame 31200 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31204 (SHOT_RANGE, me turn): frame 31202 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31206 (SHOT_RANGE, me turn): frame 31204 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31208 (SHOT_RANGE, me turn): frame 31206 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31210 (SHOT_RANGE, me turn): frame 31208 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31212 (SHOT_RANGE, me turn): frame 31210 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 31214 (SHOT_RANGE, me turn): frame 31212 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31216 (SHOT_RANGE, me turn): frame 31214 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31218 (SHOT_RANGE, me turn): frame 31216 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 31220 (SHOT_RANGE, me turn): frame 31218 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31222 (SHOT_RANGE, me turn): frame 31220 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31224 (SHOT_RANGE, me turn): frame 31222 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31226 (SHOT_RANGE, me turn): frame 31224 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31228 (SHOT_RANGE, me turn): frame 31226 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31230 (SHOT_RANGE, me turn): frame 31228 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31232 (SHOT_RANGE, me turn): frame 31230 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31234 (SHOT_RANGE, me turn): frame 31232 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31236 (SHOT_RANGE, me turn): frame 31234 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31238 (SHOT_RANGE, me turn): frame 31236 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31240 (SHOT_RANGE, me turn): frame 31238 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31242 (SHOT_RANGE, me turn): frame 31240 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31244 (SHOT_RANGE, me turn): frame 31242 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31246 (SHOT_RANGE, me turn): frame 31244 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31248 (SHOT_RANGE, me turn): frame 31246 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 31250 (SHOT_RANGE, me turn): frame 31248 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31252 (SHOT_RANGE, me turn): frame 31250 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31254 (SHOT_RANGE, me turn): frame 31252 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31256 (SHOT_RANGE, me turn): frame 31254 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 31258 (SHOT_RANGE, me turn): frame 31256 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31260 (SHOT_RANGE, me turn): frame 31258 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31262 (SHOT_RANGE, me turn): frame 31260 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 31264 (SHOT, me turn): frame 31262 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31266 (SHOT_RANGE, me turn): frame 31264 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31268 (SHOT_RANGE, me turn): frame 31266 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31270 (SHOT_RANGE, me turn): frame 31268 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31272 (SHOT_RANGE, me turn): frame 31270 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31274 (SHOT_RANGE, me turn): frame 31272 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31276 (SHOT_RANGE, me turn): frame 31274 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31278 (SHOT_RANGE, me turn): frame 31276 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31280 (SHOT_RANGE, me turn): frame 31278 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 31282 (SHOT_RANGE, me turn): frame 31280 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31284 (SHOT_RANGE, me turn): frame 31282 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31286 (SHOT_RANGE, me turn): frame 31284 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 31288 (SHOT_RANGE, me turn): frame 31286 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31290 (SHOT_RANGE, me turn): frame 31288 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31292 (SHOT_RANGE, me turn): frame 31290 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31294 (SHOT_RANGE, me turn): frame 31292 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31296 (SHOT_RANGE, me turn): frame 31294 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31298 (SHOT_RANGE, me turn): frame 31296 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31300 (SHOT_RANGE, me turn): frame 31298 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31302 (SHOT_RANGE, main turn): frame 31300 arm X; last list = shot frame yes; colour 3.9 ms; no depth
+  shot vb 31304 (SHOT_RANGE, main turn): frame 31302 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31306 (SHOT_RANGE, main turn): frame 31304 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31308 (SHOT_RANGE, main turn): frame 31306 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31310 (SHOT_RANGE, main turn): frame 31308 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31312 (SHOT_RANGE, main turn): frame 31310 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31314 (SHOT_RANGE, main turn): frame 31312 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31316 (SHOT_RANGE, main turn): frame 31314 arm X; last list = shot frame yes; colour 4.0 ms; no depth
+  shot vb 31318 (SHOT_RANGE, main turn): frame 31316 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31320 (SHOT_RANGE, main turn): frame 31318 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31322 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31324 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31326 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31328 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31330 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31332 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31334 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31336 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31338 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31340 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31342 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31344 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.7 ms; no depth
+  shot vb 31346 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31348 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.8 ms; no depth
+  shot vb 31350 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31352 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31354 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31356 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.1 ms; no depth
+  shot vb 31358 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31360 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31362 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31364 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31366 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31368 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31370 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31372 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31374 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31376 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31378 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31380 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31382 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31384 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31386 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.0 ms; no depth
+  shot vb 31388 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.3 ms; no depth
+  shot vb 31390 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.6 ms; no depth
+  shot vb 31392 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31394 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31396 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 4.2 ms; no depth
+  shot vb 31398 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  shot vb 31400 (SHOT_RANGE, main turn): frame 31320 arm X; last list = shot frame yes; colour 3.5 ms; no depth
+  gl29 shot lines 458; with a problem (not saved, last list not the shot frame, depth not saved) 0; GAVE UP lines 0
+
+== native step 1 (MGS2_NAT / MGS2_NAT_CYCLE) and the static streams in place of gl33 (MGS2_NAT_INPL / MGS2_NAT_INPL_CYCLE)
+  native step 1: the groups' arrays: 2304 groups of 48 B a packet buffer, 216 KB of the system's memory outside newlib's heap: made, an array each (0bec8000, 0bfc0000); that memory before: largest block 224 KB, total 432 KB; after: 116 KB, 216 KB; the merge runs timed on the ME (MGS2_NAT_T): yes
+  nat turn lines 75 (parsed 75)
+  nat inpl lines 75 (parsed 75)
+  nat fast lines 75 (parsed 75)
+  nat keep lines 75 (parsed 75)
+  nat reuse lines 75 (parsed 75)
+  per turn (vb; ME or main picture turn; arm; the harness window of the same 100 vblanks: mean ms a step = logic + draw pipeline + GS walk + picture + GE wait + IOP; in ME turns the ME's walks / records / fills ms; nat: calls, groups, pictures, bytes a picture mean/most; fallbacks; early fills; dropped; native ms; holds: fills / copies ms):
+  24000-24100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   72.70 (logic  21.91 dp  26.35 gsw  2.44 pic  0.05 gew  19.19) max  398.60 | ME walks  1475.8 rec  106.5 fills   3.3 idle  5219.1, waits copy    0.0 fill   500.1 | calls   532 groups   4587 pics  45 bytes  4892/22320 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   84.81 ms | hold fills   500.1 copies    0.0 | static   4137, data in the copy   6060, read from RAM  10788
+  24100-24200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   70.07 (logic  38.06 dp  15.19 gsw  3.73 pic 10.94 gew   0.55) max  132.14 | calls   587 groups   3484 pics  50 bytes  3344/ 7344 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   2664, data in the copy      0, read from RAM      0
+  24200-24300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   86.32 (logic  29.34 dp  17.21 gsw  3.78 pic  0.08 gew  33.08) max  222.60 | ME walks  2315.0 rec  143.0 fills   3.9 idle  5231.5, waits copy    0.0 fill  1126.9 | calls  1758 groups   7186 pics  50 bytes  6898/ 7536 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  141.12 ms | hold fills  1126.9 copies    0.0 | static   3000, data in the copy  22862, read from RAM   9000
+  24300-24400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   64.24 (logic  37.77 dp  11.81 gsw  2.79 pic 10.67 gew   0.00) max   98.31 | calls  1108 groups   5332 pics  49 bytes  5223/ 8208 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   2776, data in the copy      0, read from RAM      0
+  24400-24500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   77.54 (logic  21.95 dp  14.55 gsw  3.62 pic  0.05 gew  34.50) max  171.57 | ME walks  2528.3 rec  136.6 fills   4.1 idle  4179.5, waits copy    0.0 fill  1196.1 | calls   280 groups   2638 pics  50 bytes  2532/ 3024 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   61.71 ms | hold fills  1196.1 copies    0.0 | static   2420, data in the copy   3873, read from RAM   7245
+  24500-24600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   74.74 (logic  42.50 dp  14.68 gsw  3.12 pic 12.37 gew   0.50) max  130.78 | calls  2027 groups  12665 pics  50 bytes 12158/13200 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   8466, data in the copy      0, read from RAM      0
+  24600-24700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   84.12 (logic  23.83 dp  15.12 gsw  3.19 pic  0.05 gew  40.00) max  227.12 | ME walks  2654.7 rec  151.4 fills   4.2 idle  4346.1, waits copy    0.0 fill  1441.0 | calls  2274 groups  12493 pics  50 bytes 11993/13920 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  251.90 ms | hold fills  1441.0 copies    0.0 | static   8058, data in the copy  29560, read from RAM  24207
+  24700-24800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   81.91 (logic  47.15 dp  15.72 gsw  3.71 pic 13.08 gew   0.69) max  195.61 | calls  2944 groups  14406 pics  50 bytes 13829/15312 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   7774, data in the copy      0, read from RAM      0
+  24800-24900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   76.56 (logic  22.57 dp  13.94 gsw  3.63 pic  0.05 gew  33.53) max  141.21 | ME walks  2156.1 rec  141.4 fills   4.0 idle  4178.1, waits copy    0.0 fill  1310.4 | calls   831 groups   5198 pics  50 bytes  4990/11568 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  113.61 ms | hold fills  1310.4 copies    0.0 | static   3809, data in the copy  11360, read from RAM  11667
+  24900-25000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   66.85 (logic  36.49 dp  13.11 gsw  3.71 pic 11.72 gew   0.54) max  126.98 | calls   613 groups   4121 pics  50 bytes  3956/ 4224 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   3206, data in the copy      0, read from RAM      0
+  25000-25100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   34.56 (logic  12.89 dp   6.62 gsw  1.37 pic  0.03 gew  11.32) max  148.71 | ME walks   946.8 rec  113.3 fills   3.2 idle  2147.9, waits copy    0.0 fill   190.5 | calls  3349 groups  13577 pics  45 bytes 14482/15984 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  130.78 ms | hold fills   190.5 copies    0.0 | static  12063, data in the copy  21824, read from RAM  34263
+  25100-25200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   24.35 (logic  14.99 dp   6.49 gsw  1.48 pic  0.06 gew   0.10) max   78.59 | calls  4231 groups  16673 pics  50 bytes 16006/16032 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  14750, data in the copy      0, read from RAM      0
+  25200-25300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   31.81 (logic  10.68 dp   6.70 gsw  1.47 pic  0.03 gew  11.56) max   85.53 | ME walks  1049.5 rec  137.3 fills   3.9 idle  2012.1, waits copy    0.0 fill   139.9 | calls  4239 groups  16716 pics  50 bytes 16047/16176 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  162.19 ms | hold fills   139.9 copies    0.0 | static  14786, data in the copy  28453, read from RAM  44346
+  25300-25400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   25.64 (logic  15.85 dp   6.87 gsw  1.48 pic  0.07 gew   0.11) max   81.58 | calls  3005 groups   8635 pics  50 bytes  8289/16224 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   5971, data in the copy      0, read from RAM      0
+  25400-25500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   31.62 (logic  10.91 dp   6.75 gsw  1.44 pic  0.04 gew  10.58) max   93.43 | ME walks  1124.4 rec  133.8 fills   3.7 idle  2070.5, waits copy    0.0 fill   134.9 | calls  3035 groups   8557 pics  50 bytes  8214/ 8544 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   94.62 ms | hold fills   134.9 copies    0.0 | static   5807, data in the copy  20851, read from RAM  17292
+  25500-25600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   23.39 (logic  14.23 dp   6.46 gsw  1.34 pic  0.06 gew   0.07) max   78.62 | calls  3146 groups   8872 pics  50 bytes  8517/ 8544 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   6122, data in the copy      0, read from RAM      0
+  25600-25700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   29.38 (logic   9.94 dp   6.55 gsw  1.35 pic  0.03 gew  10.11) max   86.19 | ME walks   911.6 rec  123.5 fills   3.6 idle  1915.1, waits copy    0.0 fill   125.5 | calls  2655 groups   7774 pics  50 bytes  7463/ 8592 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   90.54 ms | hold fills   125.5 copies    0.0 | static   5045, data in the copy  19652, read from RAM  15366
+  25700-25800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   22.62 (logic  13.38 dp   6.27 gsw  1.35 pic  0.06 gew   0.01) max   75.91 | calls  1677 groups   4278 pics  50 bytes  4106/ 4656 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   1790, data in the copy      0, read from RAM      0
+  25800-25900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   43.68 (logic  12.40 dp   7.62 gsw  1.52 pic  0.03 gew  20.54) max  109.91 | ME walks  1944.4 rec  180.1 fills   3.9 idle  2275.7, waits copy    0.0 fill   182.0 | calls 27430 groups 103794 pics  50 bytes 99642/99792 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  945.70 ms | hold fills   182.0 copies    0.0 | static  95600, data in the copy 164482, read from RAM 281166
+  25900-26000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   32.66 (logic  22.08 dp   7.50 gsw  1.49 pic  0.06 gew   0.28) max   94.22 | calls 27448 groups 103098 pics  50 bytes 98974/99168 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  95590, data in the copy      0, read from RAM      0
+  26000-26100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   17.02 (logic   6.97 dp   1.16 gsw  0.19 pic  0.02 gew   7.98) max  208.77 | ME walks   457.0 rec   20.1 fills   0.4 idle   862.5, waits copy    0.0 fill   298.6 | calls  2702 groups  10261 pics   5 bytes 98505/99072 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  198.52 ms | hold fills   298.6 copies    0.0 | static   9555, data in the copy  16350, read from RAM  28665
+  26100-26200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   15.67 (logic   6.60 dp   0.46 gsw  0.54 pic  5.08 gew   0.04) max  224.79 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26200-26300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   42.21 (logic   5.13 dp   2.95 gsw  2.63 pic  0.02 gew  29.60) max  135.06 | ME walks  1637.1 rec   74.6 fills   6.4 idle  1154.8, waits copy    0.0 fill  1406.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1406.8 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26300-26400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   37.25 (logic  17.45 dp   2.91 gsw  2.62 pic 13.12 gew   0.46) max  107.42 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26400-26500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   42.33 (logic   5.15 dp   2.95 gsw  2.60 pic  0.02 gew  29.73) max  135.11 | ME walks  1794.5 rec   73.6 fills   6.5 idle  1131.8, waits copy    0.0 fill  1415.4 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1415.4 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26500-26600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   36.72 (logic  17.02 dp   2.89 gsw  2.66 pic 13.00 gew   0.48) max   88.01 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26600-26700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   41.73 (logic   5.05 dp   2.96 gsw  2.63 pic  0.02 gew  29.22) max   76.76 | ME walks  1603.6 rec   73.5 fills   2.5 idle  1145.3, waits copy    0.0 fill  1402.6 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1402.6 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26700-26800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   37.27 (logic  17.39 dp   2.92 gsw  2.62 pic 13.12 gew   0.48) max   88.77 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26800-26900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   41.75 (logic   5.03 dp   2.94 gsw  2.63 pic  0.02 gew  29.29) max  130.98 | ME walks  1603.0 rec   74.6 fills   2.3 idle  1137.7, waits copy    0.0 fill  1411.2 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1411.2 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  26900-27000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   37.19 (logic  17.30 dp   2.96 gsw  2.60 pic 13.09 gew   0.48) max   87.09 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27000-27100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   41.85 (logic   5.04 dp   2.97 gsw  2.61 pic  0.02 gew  29.35) max  133.29 | ME walks  1607.8 rec   73.7 fills   2.4 idle  1293.6, waits copy    0.0 fill  1413.3 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1413.3 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27100-27200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   37.17 (logic  17.34 dp   2.93 gsw  2.58 pic 13.16 gew   0.48) max   86.29 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27200-27300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   42.06 (logic   5.06 dp   2.94 gsw  2.64 pic  0.02 gew  29.52) max  134.75 | ME walks  1627.6 rec   73.8 fills   4.5 idle  1148.8, waits copy    0.0 fill  1408.1 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1408.1 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27300-27400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   36.92 (logic  17.26 dp   2.89 gsw  2.61 pic 13.00 gew   0.48) max   86.40 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27400-27500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   41.92 (logic   5.08 dp   2.96 gsw  2.61 pic  0.02 gew  29.38) max  134.10 | ME walks  1757.4 rec   73.9 fills   2.5 idle  1147.3, waits copy    0.0 fill  1415.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1415.5 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27500-27600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   37.14 (logic  17.31 dp   2.90 gsw  2.64 pic 13.12 gew   0.47) max   85.85 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27600-27700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   41.84 (logic   5.08 dp   2.96 gsw  2.62 pic  0.02 gew  29.30) max  136.10 | ME walks  1608.0 rec   74.7 fills   2.4 idle  1142.8, waits copy    0.0 fill  1411.6 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1411.6 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27700-27800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   37.03 (logic  17.35 dp   2.93 gsw  2.59 pic 13.00 gew   0.48) max   86.77 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27800-27900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   42.07 (logic   5.12 dp   2.91 gsw  2.60 pic  0.02 gew  29.58) max  132.16 | ME walks  1633.4 rec   73.7 fills   6.5 idle  1142.9, waits copy    0.0 fill  1409.7 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1409.7 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  27900-28000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   36.97 (logic  17.03 dp   2.91 gsw  2.67 pic 13.12 gew   0.48) max   87.49 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28000-28100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   41.80 (logic   5.07 dp   2.95 gsw  2.61 pic  0.03 gew  29.32) max  134.14 | ME walks  1602.8 rec   73.8 fills   2.6 idle  1298.3, waits copy    0.0 fill  1412.3 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1412.3 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28100-28200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   37.20 (logic  17.33 dp   2.91 gsw  2.61 pic 13.12 gew   0.48) max   86.75 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28200-28300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   42.18 (logic   5.14 dp   2.93 gsw  2.60 pic  0.02 gew  30.24) max   98.13 | ME walks  1634.6 rec   73.8 fills   6.6 idle  1143.7, waits copy    0.0 fill  1443.7 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1443.7 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28300-28400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   37.28 (logic  17.48 dp   2.90 gsw  2.65 pic 13.06 gew   0.48) max   87.70 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28400-28500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   41.83 (logic   5.07 dp   2.93 gsw  2.62 pic  0.03 gew  29.35) max  134.40 | ME walks  1757.5 rec   74.2 fills   2.3 idle  1138.3, waits copy    0.0 fill  1415.2 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1415.2 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28500-28600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   36.63 (logic  16.94 dp   2.95 gsw  2.61 pic 13.08 gew   0.48) max   87.62 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28600-28700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   41.87 (logic   4.94 dp   2.94 gsw  2.62 pic  0.02 gew  30.72) max   97.83 | ME walks  1637.1 rec   73.9 fills   4.4 idle  1122.8, waits copy    0.0 fill  1460.1 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills  1460.1 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28700-28800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   11.23 (logic   3.37 dp   0.55 gsw  0.44 pic  5.81 gew   0.48) max   87.63 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28800-28900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   13.11 (logic   9.28 dp   0.05 gsw  0.02 pic  0.02 gew   0.27) max   36.93 | ME walks     7.4 rec    0.9 fills   0.0 idle  1225.0, waits copy    0.0 fill     1.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     1.8 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  28900-29000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   16.64 (logic  11.55 dp   0.00 gsw  0.00 pic  0.00 gew   0.00) max   37.81 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  29000-29100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   47.04 (logic  24.52 dp   4.87 gsw  0.93 pic  0.03 gew  15.31) max  522.39 | ME walks  1070.8 rec   33.6 fills   1.1 idle  3345.3, waits copy    0.0 fill   500.9 | calls  2500 groups  10218 pics  16 bytes 30654/34080 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  264.68 ms | hold fills   500.9 copies    0.0 | static   9293, data in the copy  14545, read from RAM  24045
+  29100-29200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   78.64 (logic  41.66 dp  15.19 gsw  3.18 pic 16.81 gew   0.80) max  167.87 | calls  7683 groups  31831 pics  50 bytes 30557/30672 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28781, data in the copy      0, read from RAM      0
+  29200-29300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   87.95 (logic  19.49 dp  15.33 gsw  3.23 pic  0.04 gew  49.09) max  137.53 | ME walks  3063.6 rec  118.7 fills   4.2 idle  3894.5, waits copy    0.0 fill  1897.9 | calls  7678 groups  31796 pics  50 bytes 30524/30672 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  584.50 ms | hold fills  1897.9 copies    0.0 | static  28746, data in the copy  52084, read from RAM  86196
+  29300-29400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   76.87 (logic  41.00 dp  14.97 gsw  3.16 pic 16.20 gew   0.77) max  165.44 | calls  7537 groups  30969 pics  50 bytes 29730/30672 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28091, data in the copy      0, read from RAM      0
+  29400-29500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   81.67 (logic  18.45 dp  14.73 gsw  2.94 pic  0.04 gew  44.72) max  126.51 | ME walks  2999.3 rec  107.5 fills   4.1 idle  3702.3, waits copy    0.0 fill  1673.6 | calls  7346 groups  30040 pics  50 bytes 28838/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  601.38 ms | hold fills  1673.6 copies    0.0 | static  28090, data in the copy  46465, read from RAM  84225
+  29500-29600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   72.78 (logic  39.23 dp  14.46 gsw  2.88 pic 14.72 gew   0.71) max  154.47 | calls  7353 groups  30103 pics  50 bytes 28898/28944 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28153, data in the copy      0, read from RAM      0
+  29600-29700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   79.68 (logic  18.05 dp  14.59 gsw  2.86 pic  0.04 gew  43.36) max  123.41 | ME walks  2661.7 rec  108.1 fills   4.0 idle  3638.8, waits copy    0.0 fill  1720.3 | calls  7491 groups  30787 pics  50 bytes 29555/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  569.42 ms | hold fills  1720.3 copies    0.0 | static  28837, data in the copy  47451, read from RAM  86469
+  29700-29800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   70.62 (logic  36.83 dp  14.48 gsw  2.84 pic 15.00 gew   0.68) max  146.59 | calls  7447 groups  30479 pics  50 bytes 29259/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28529, data in the copy      0, read from RAM      0
+  29800-29900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   79.85 (logic  18.05 dp  14.54 gsw  2.85 pic  0.04 gew  43.60) max  124.33 | ME walks  2708.4 rec  107.4 fills   4.2 idle  3632.8, waits copy    0.0 fill  1696.6 | calls  7423 groups  30417 pics  50 bytes 29200/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  612.74 ms | hold fills  1696.6 copies    0.0 | static  28467, data in the copy  47019, read from RAM  85491
+  29900-30000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   70.72 (logic  37.38 dp  14.34 gsw  2.88 pic 14.61 gew   0.72) max  155.05 | calls  7324 groups  29710 pics  50 bytes 28521/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  27760, data in the copy      0, read from RAM      0
+  30000-30100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   80.46 (logic  18.19 dp  14.47 gsw  2.86 pic  0.04 gew  44.13) max  124.96 | ME walks  2789.6 rec  107.3 fills   4.3 idle  3793.4, waits copy    0.0 fill  1673.5 | calls  7350 groups  30100 pics  50 bytes 28896/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  548.37 ms | hold fills  1673.5 copies    0.0 | static  28150, data in the copy  46550, read from RAM  84450
+  30100-30200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   72.44 (logic  38.51 dp  14.53 gsw  2.88 pic 14.99 gew   0.75) max  156.78 | calls  7452 groups  30574 pics  50 bytes 29351/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28624, data in the copy      0, read from RAM      0
+  30200-30300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   81.90 (logic  18.12 dp  14.77 gsw  2.88 pic  0.04 gew  45.23) max  127.47 | ME walks  2869.9 rec  109.2 fills   4.0 idle  3674.2, waits copy    0.0 fill  1702.3 | calls  7452 groups  30514 pics  50 bytes 29293/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  617.46 ms | hold fills  1702.3 copies    0.0 | static  28564, data in the copy  47136, read from RAM  85734
+  30300-30400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   72.96 (logic  38.94 dp  14.68 gsw  2.86 pic 14.96 gew   0.72) max  157.60 | calls  7418 groups  30306 pics  50 bytes 29093/29280 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28356, data in the copy      0, read from RAM      0
+  30400-30500 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   78.98 (logic  18.09 dp  14.71 gsw  2.88 pic  0.04 gew  42.48) max  123.59 | ME walks  2784.0 rec  107.0 fills   4.4 idle  3676.3, waits copy    0.0 fill  1659.2 | calls  7320 groups  29650 pics  50 bytes 28464/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  542.88 ms | hold fills  1659.2 copies    0.0 | static  27700, data in the copy  46040, read from RAM  83100
+  30500-30600 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   70.50 (logic  37.43 dp  14.67 gsw  2.91 pic 14.67 gew   0.00) max   82.31 | calls  7442 groups  30310 pics  50 bytes 29097/30576 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  28217, data in the copy      0, read from RAM      0
+  30600-30700 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   40.25 (logic  19.40 dp  15.44 gsw  3.32 pic  0.04 gew   1.21) max   45.05 | ME walks  2948.7 rec  117.4 fills   3.8 idle  4884.7, waits copy    0.0 fill   109.6 | calls  7662 groups  31819 pics  50 bytes 30546/32448 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  635.77 ms | hold fills   109.6 copies    0.0 | static  28519, data in the copy  53031, read from RAM  85650
+  30700-30800 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   77.16 (logic  40.61 dp  15.33 gsw  3.41 pic 16.97 gew   0.00) max   89.18 | calls  7453 groups  35614 pics  50 bytes 34189/36576 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  31434, data in the copy      0, read from RAM      0
+  30800-30900 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   38.16 (logic  17.99 dp  15.02 gsw  3.12 pic  0.04 gew   1.13) max   44.76 | ME walks  2704.0 rec  105.8 fills   4.1 idle  4692.8, waits copy    0.0 fill   102.1 | calls  5017 groups  22576 pics  50 bytes 21672/33888 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  497.91 ms | hold fills   102.1 copies    0.0 | static  18656, data in the copy  42138, read from RAM  56733
+  30900-31000 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   63.56 (logic  33.37 dp  14.26 gsw  2.73 pic 12.31 gew   0.00) max   78.49 | calls  3710 groups  13634 pics  50 bytes 13088/19152 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  11019, data in the copy      0, read from RAM      0
+  31000-31100 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   39.08 (logic  18.92 dp  14.87 gsw  3.17 pic  0.04 gew   1.12) max   44.14 | ME walks  2605.4 rec  105.3 fills   4.1 idle  4781.5, waits copy    0.0 fill   100.9 | calls  3282 groups  14893 pics  50 bytes 14297/17616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  288.62 ms | hold fills   100.9 copies    0.0 | static  10950, data in the copy  31426, read from RAM  32541
+  31100-31200 main arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | step   67.01 (logic  35.11 dp  14.81 gsw  2.93 pic 13.26 gew   0.00) max   80.43 | calls  2321 groups  14417 pics  50 bytes 13840/14736 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static  12800, data in the copy      0, read from RAM      0
+  31200-31300 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   37.39 (logic  17.20 dp  15.06 gsw  2.92 pic  0.04 gew   1.07) max   56.83 | ME walks  2313.6 rec  102.4 fills   3.8 idle  4573.5, waits copy    0.0 fill    96.1 | calls  2826 groups  15618 pics  50 bytes 14993/17808 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  318.25 ms | hold fills    96.1 copies    0.0 | static  12829, data in the copy  28079, read from RAM  38487
+  31300-31400 main arm 3 native    inpl 1 fast 1 keep  1 reuse 1 | step   23.88 (logic  14.29 dp   2.70 gsw  0.46 pic  2.64 gew   0.00) max   69.94 | calls   468 groups   2691 pics   9 bytes 14352/14352 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static   2304, data in the copy      0, read from RAM      0
+  31400-31400 me   arm 3 native    inpl 1 fast 1 keep  1 reuse 0 | a cut turn (the run ends): not in the means | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0 | static      0, data in the copy      0, read from RAM      0
+  turns with a fallback, an early fill, a dropped group, a record with no array, a partly read group or an undone plan: 0
+  by picture turn, arm, in-place arm, fast arm, keep bits and reuse arm, all nat turns (vb 24000-31400):
+    me   turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 0: 18 turns; step mean   52.44 ms (logic  13.46, draw pipeline   8.51, GS walk  2.54, picture  0.03, GE wait  26.38); ME a turn: walks  1983.3, records  101.1, fills   4.0, idle  2680.2 ms; waits: copies    0.0, fills  1045.1; nat a turn: calls 4084, groups 16306, pictures 28.4, native 254.71 ms, hold fills 1045.1, copies 0.0 ms; groups flagged static 14356, their data in the copy 27733, read from RAM 42423
+    me   turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 1: 19 turns; step mean   51.18 ms (logic  12.78, draw pipeline   9.27, GS walk  2.44, picture  0.03, GE wait  25.00); ME a turn: walks  1836.6, records   92.6, fills   3.4, idle  2676.8 ms; waits: copies    0.0, fills  1010.3; nat a turn: calls 2575, groups 10932, pictures 28.9, native 198.56 ms, hold fills 1010.3, copies 0.0 ms; groups flagged static 9719, their data in the copy 18321, read from RAM 29132
+    main turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 0: 18 turns; step mean   50.01 ms (logic  26.47, draw pipeline   8.60, GS walk  2.51, picture 11.10, GE wait   0.41); nat a turn: calls 4357, groups 17798, pictures 30.5, native 0.00 ms, hold fills 0.0, copies 0.0 ms; groups flagged static 15794, their data in the copy 0, read from RAM 0
+    main turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 1: 19 turns; step mean   46.94 ms (logic  24.69, draw pipeline   7.88, GS walk  2.35, picture 10.23, GE wait   0.36); nat a turn: calls 2209, groups 9044, pictures 26.8, native 0.00 ms, hold fills 0.0, copies 0.0 ms; groups flagged static 7836, their data in the copy 0, read from RAM 0
+  by picture turn, arm, in-place arm, fast arm, keep bits and reuse arm, the turns inside vb 29500-31400 (--natfrom / --natto):
+    me   turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 0:  4 turns; step mean   60.27 ms (logic  18.62, draw pipeline  14.90, GS walk  3.05, picture  0.04, GE wait  22.79); ME a turn: walks  2783.1, records  109.8, fills   4.0, idle  4243.3 ms; waits: copies    0.0, fills   902.3; nat a turn: calls 6455, groups 26911, pictures 50.0, native 538.65 ms, hold fills 902.3, copies 0.0 ms; groups flagged static 24125, their data in the copy 44653, read from RAM 72354
+    me   turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 1:  5 turns; step mean   62.93 ms (logic  17.90, draw pipeline  14.77, GS walk  2.93, picture  0.04, GE wait  26.43); ME a turn: walks  2650.6, records  106.1, fills   4.1, idle  4075.0 ms; waits: copies    0.0, fills  1050.2; nat a turn: calls 6001, groups 25746, pictures 50.0, native 495.37 ms, hold fills 1050.2, copies 0.0 ms; groups flagged static 23234, their data in the copy 42052, read from RAM 69848
+    main turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 0:  5 turns; step mean   72.13 ms (logic  38.25, draw pipeline  14.72, GS walk  2.99, picture 14.90, GE wait   0.43); nat a turn: calls 6374, groups 28030, pictures 50.0, native 0.00 ms, hold fills 0.0, copies 0.0 ms; groups flagged static 25701, their data in the copy 0, read from RAM 0
+    main turns, arm 3 native    inpl 1 fast 1 keep  1 reuse 1:  5 turns; step mean   60.20 ms (logic  32.09, draw pipeline  12.13, GS walk  2.36, picture 11.92, GE wait   0.29); nat a turn: calls 5304, groups 21538, pictures 41.8, native 0.00 ms, hold fills 0.0, copies 0.0 ms; groups flagged static 19739, their data in the copy 0, read from RAM 0
+  (the emulator has no ME: its "ME" times are the loop thread's on the one CPU; only a PSP log gives a speed)
+  native step 1 totals: arrays made, one a buffer; calls recorded 242826, groups 993411, pictures with records 2119; stubbed with no record 0; calls with no group 0; the builder run instead: array full 0, key order 0, near the buffer's end 0, other 0; recorded with no array 0; groups left untaken 2984 (pictures 6); transfers planned with groups 1227 (497020 groups), groups taken by walks from RAM 492697, plans undone for the groups' room 0, early fills for an array's reuse 0; records' groups copied 1227 (497020 groups, 23856960 bytes); merge runs 12291, groups to the core 989444, fed word by word 273, dropped 0, drawn at a walk's end 0, run lanes stopped at a key 2101; the groups' data in the copy 847291, read from RAM 1317126, partly (dropped) 0
+  static streams in place totals (gl33): groups flagged static 876258
+
+== gl34: the fast native front end (MGS2_NAT_FAST / MGS2_NAT_FAST_CYCLE), the ME split (MGS2_NAT_SPLIT)
+  nat: gl34 fast native front end: MGS2_NAT_FAST 1, MGS2_NAT_FAST_CYCLE none (1: arm 3's groups go to the translator's fast front end; by the same turns)
+  nat split (gl34, MGS2_NAT_SPLIT; the lines 'nat split' and 'me chains' of each ME turn): on; a group in about 32 timed by stage
+  fast native front end totals (gl34): groups flagged 993411; taken 872659, declined: state 0, entry 116682, buffers 0, stream counts 0, material tag 0, tables full 103, path 1 busy 0; transforms taken 493990, computed and kept 115245; pointers by their own hints 4310240 (checked 0, differing 0); nat split: groups timed by stage 15779 of 497020, clock read pairs 5824; chain lists read 14519, transfers in a list 192717, not in one 3
+  me   turns fast 1: 37 turns; a turn: groups flagged 13546, taken 11865 (declined: state 0, entry 1564, buffers 0, stream counts 0, material tag 0, tables full 1, path 1 busy 0), transforms kept from the last keyed call 6567, computed 1540, pointers by hints 58498 (checked 0, DIFFERING 0)
+  main turns fast 1: 37 turns; a turn: groups flagged 13303, taken 11721 (declined: state 0, entry 1590, buffers 0, stream counts 0, material tag 0, tables full 1, path 1 busy 0), transforms kept from the last keyed call 6784, computed 1575, pointers by hints 57995 (checked 0, DIFFERING 0)
+  nat split lines 38 (parsed 38), me chains lines 38 (parsed 38)
+  the split per ME turn inside vb 29500-31400 (us a timed group; the clock: 1000 ticks a ms):
+    stages: 0 walk and pointers, 1 register, 2 A+D packet, 3 call's rest, 4 host call and GS state, 5 transform, 6 positions, 7 cut test, 8 attributes, 9 texture, 10 strips, 11 GE transform and batch data, 12 depth range, 13 into the frame, 14 way back, 15 drawn areas, 16 walk's end
+    29600-29700 arm 3 fast 1 keep  1 reuse 1: groups  30773 timed  977 (vertices 16986, cut  481) read 0.650 us |  2.81  2.52  3.06  1.09  1.71  1.54  0.81  2.37  1.25  1.87  0.88  1.75  0.69  0.39  1.22  1.18  0.68 | sum  25.82 | native   569.42 ms =  18.50 us a group | records  108.1 ms, plans  39424 KB, groups' data  8750 KB, array 1442 KB
+    29800-29900 arm 3 fast 1 keep  1 reuse 0: groups  30447 timed  967 (vertices 17494, cut  487) read 0.780 us |  2.90  3.85  3.31  1.09  1.78  1.59  2.04  2.35  1.01  1.83  0.93  1.58  0.69  0.39  1.23  1.08  0.75 | sum  28.39 | native   612.74 ms =  20.12 us a group | records  107.4 ms, plans  39389 KB, groups' data  8669 KB, array 1427 KB
+    30000-30100 arm 3 fast 1 keep  1 reuse 1: groups  30100 timed  955 (vertices 17340, cut  475) read 0.540 us |  2.79  2.49  3.27  0.97  1.57  1.51  0.79  2.33  1.25  2.25  0.87  1.64  0.66  0.39  1.30  1.00  0.70 | sum  25.78 | native   548.37 ms =  18.22 us a group | records  107.3 ms, plans  39363 KB, groups' data  8580 KB, array 1410 KB
+    30200-30300 arm 3 fast 1 keep  1 reuse 0: groups  30528 timed  969 (vertices 17549, cut  482) read 0.555 us |  2.85  3.83  3.32  1.11  1.72  1.68  2.23  2.39  0.95  1.77  0.89  1.68  0.62  0.40  1.23  0.98  0.69 | sum  28.34 | native   617.46 ms =  20.23 us a group | records  109.2 ms, plans  39519 KB, groups' data  8693 KB, array 1431 KB
+    30400-30500 arm 3 fast 1 keep  1 reuse 1: groups  29650 timed  941 (vertices 16653, cut  475) read 0.790 us |  2.92  2.50  3.06  1.05  1.64  1.66  0.82  2.34  1.13  1.83  0.94  1.56  0.71  0.54  1.20  0.93  0.66 | sum  25.47 | native   542.88 ms =  18.31 us a group | records  107.0 ms, plans  39348 KB, groups' data  8501 KB, array 1389 KB
+    30600-30700 arm 3 fast 1 keep  1 reuse 0: groups  31850 timed 1011 (vertices 17410, cut  497) read 0.555 us |  2.98  3.96  3.69  1.10  1.65  1.57  1.94  2.25  0.95  1.75  0.96  1.52  0.63  0.38  1.19  0.94  0.69 | sum  28.14 | native   635.77 ms =  19.96 us a group | records  117.4 ms, plans  44909 KB, groups' data 10032 KB, array 1492 KB
+    30800-30900 arm 3 fast 1 keep  1 reuse 1: groups  22882 timed  727 (vertices 12337, cut  348) read 0.700 us |  3.16  4.73  6.51  1.05  1.51  1.36  1.66  2.13  0.81  1.71  0.80  1.30  0.56  0.34  1.54  0.98  0.63 | sum  30.77 | native   497.91 ms =  21.76 us a group | records  105.8 ms, plans  40150 KB, groups' data  7869 KB, array 1072 KB
+    31000-31100 arm 3 fast 1 keep  1 reuse 0: groups  14796 timed  470 (vertices  7290, cut  222) read 0.647 us |  2.79  4.49  4.01  0.99  1.30  1.27  1.52  2.05  0.70  1.11  0.67  1.01  0.48  0.24  1.62  1.06  0.76 | sum  26.07 | native   288.62 ms =  19.51 us a group | records  105.3 ms, plans  40238 KB, groups' data  5918 KB, array  693 KB
+    31200-31300 arm 3 fast 1 keep  1 reuse 1: groups  15606 timed  495 (vertices  9486, cut  291) read 0.482 us |  3.27  4.52  3.92  1.14  1.55  1.26  1.54  2.38  1.07  1.01  0.55  0.84  0.71  0.21  1.94  0.99  0.79 | sum  27.68 | native   318.25 ms =  20.39 us a group | records  102.4 ms, plans  39630 KB, groups' data  4878 KB, array  731 KB
+    mean, fast 1 keep 1 reuse 0,  4 ME turns: groups a turn 26905; native 538.65 ms a turn = 20.02 us a group; timed groups: 17.5 vertices each; clock read 0.621 us; by stage (us a timed group): walk and pointers 2.89, register 3.96, A+D packet 3.52, call's rest 1.08, host call and GS state 1.66, transform 1.57, positions 1.99, cut test 2.29, attributes 0.93, texture 1.69, strips 0.89, GE transform and batch data 1.51, depth range 0.62, into the frame 0.37, way back 1.27, drawn areas 1.01, walk's end 0.72; sum 27.99; hand-off a turn: records 109.8 ms, plans 41014 KB, the groups' data 8328 KB
+    mean, fast 1 keep 1 reuse 1,  5 ME turns: groups a turn 25802; native 495.37 ms a turn = 19.20 us a group; timed groups: 17.8 vertices each; clock read 0.641 us; by stage (us a timed group): walk and pointers 2.95, register 3.14, A+D packet 3.83, call's rest 1.05, host call and GS state 1.61, transform 1.49, positions 1.05, cut test 2.31, attributes 1.12, texture 1.82, strips 0.84, GE transform and batch data 1.49, depth range 0.67, into the frame 0.39, way back 1.38, drawn areas 1.02, walk's end 0.68; sum 26.84; hand-off a turn: records 106.1 ms, plans 39583 KB, the groups' data 7716 KB
+    (fast 1 keep 1 reuse 1) - (fast 1 keep 1 reuse 0) (us a timed group): walk and pointers +0.05, register -0.82, A+D packet +0.30, call's rest -0.03, host call and GS state -0.05, transform -0.07, positions -0.95, cut test +0.02, attributes +0.19, texture +0.13, strips -0.05, GE transform and batch data -0.02, depth range +0.04, into the frame +0.02, way back +0.11, drawn areas +0.01, walk's end -0.03; sum -1.15; native us a group -0.82 (-4.1 %); native ms a turn -43.28
+    (the stage figures are sampled: one group in about 32, at changing places in the runs; each holds one clock read.  The native time is the whole merge runs', timed at their two ends.  On the emulator the times are the host's: only a PSP log gives a speed.)
+  the ME's walks by chain per ME turn inside vb 29500-31400 (ms a turn: converter calls; a chain = one transfer of the frame's list; ends = the transfers' ends, where held calls are converted; other = transfers not in a list):
+    29600-29700 arm 3 fast 1 keep  1 reuse 1: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 868.0:14100 3 606.8:30773 4 13.5:600 5 87.8:4352 6 789.9:18100 7 23.8:0 8 0.6:0 9 1.0:0 10 214.4:20894 11 0.2:0 ends 52.7:0 | walks   2661.7 ms
+    29800-29900 arm 3 fast 1 keep  1 reuse 0: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 871.0:14100 3 650.4:30447 4 13.6:600 5 86.7:4286 6 790.4:18100 7 23.9:0 8 0.6:0 9 1.1:0 10 214.5:20894 11 0.2:0 ends 53.0:0 | walks   2708.4 ms
+    30000-30100 arm 3 fast 1 keep  1 reuse 1: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 870.0:14100 3 583.5:30100 4 14.0:600 5 85.8:4300 6 941.0:18100 7 23.9:0 8 0.6:0 9 1.0:0 10 214.3:20894 11 0.2:0 ends 52.4:0 | walks   2789.6 ms
+    30200-30300 arm 3 fast 1 keep  1 reuse 0: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 873.6:14100 3 652.2:30528 4 13.9:600 5 87.7:4326 6 946.2:18180 7 23.9:0 8 0.6:0 9 1.1:0 10 214.9:20894 11 0.2:0 ends 52.7:0 | walks   2869.9 ms
+    30400-30500 arm 3 fast 1 keep  1 reuse 1: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 873.4:14100 3 577.8:29650 4 13.7:600 5 84.5:4216 6 788.5:18100 7 24.0:0 8 0.6:0 9 1.0:0 10 213.1:20894 11 0.3:0 ends 204.2:0 | walks   2784.0 ms
+    30600-30700 arm 3 fast 1 keep  1 reuse 0: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 1009.6:19648 3 674.4:31700 4 13.5:600 5 85.2:4262 6 744.5:18580 7 23.9:0 8 0.6:0 9 1.1:0 10 215.0:20894 11 0.3:0 ends 177.6:0 | walks   2948.7 ms
+    30800-30900 arm 3 fast 1 keep  1 reuse 1: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 1004.0:19183 3 533.3:22724 4 13.9:600 5 60.6:2932 6 682.5:16856 7 24.0:0 8 0.6:0 9 1.1:0 10 206.6:19761 11 0.2:0 ends 174.2:0 | walks   2704.0 ms
+    31000-31100 arm 3 fast 1 keep  1 reuse 0: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 1101.4:20869 3 318.0:14784 4 13.8:600 5 31.7:1380 6 657.2:16283 7 24.1:0 8 0.7:0 9 0.9:0 10 236.0:23030 11 0.2:0 ends 218.5:0 | walks   2605.4 ms
+    31200-31300 arm 3 fast 1 keep  1 reuse 1: lists  50, transfers in a list  600, not    0 | 0 0.9:0 1 1.1:0 2 1069.4:19074 3 344.6:15606 4 13.8:600 5 44.5:2060 6 475.8:16244 7 24.1:0 8 0.6:0 9 1.3:0 10 147.2:15192 11 0.2:0 ends 189.0:0 | walks   2313.6 ms
+    mean, fast 1 keep 1 reuse 0,  4 ME turns (ms a turn, calls; native ms and groups where any): 0: 0.9, 0; 1: 1.1, 0; 2: 963.9, 17179; 3: 573.7, 26865 (native 537.9, 26865); 4: 13.7, 600; 5: 72.8, 3564; 6: 784.6, 17786 (native 0.8, 40); 7: 23.9, 0; 8: 0.6, 0; 9: 1.0, 0; 10: 220.1, 21428; 11: 0.2, 0; ends: 125.5, 0; walks 2783.1 ms
+    mean, fast 1 keep 1 reuse 1,  5 ME turns (ms a turn, calls; native ms and groups where any): 0: 0.9, 0; 1: 1.1, 0; 2: 937.0, 16111; 3: 529.2, 25771 (native 494.8, 25771); 4: 13.8, 600; 5: 72.6, 3572; 6: 735.5, 17480 (native 0.6, 32); 7: 24.0, 0; 8: 0.6, 0; 9: 1.1, 0; 10: 199.1, 19527; 11: 0.2, 0; ends: 134.5, 0; walks 2650.6 ms
+    (fast 1 keep 1 reuse 1) - (fast 1 keep 1 reuse 0) (ms a turn): 0 +0.0; 1 -0.0; 2 -26.9; 3 -44.6; 4 +0.1; 5 -0.2; 6 -49.0; 7 +0.0; 8 +0.0; 9 +0.0; 10 -21.0; 11 +0.0; ends +9.1
+
+== gl35: the keeps for the fast native groups (MGS2_NAT_KEEP / MGS2_NAT_KEEP_CYCLE; bits 1 drawn areas, 2 A+D packet, 4 / 8 texture)
+  nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 1, MGS2_NAT_KEEP_CYCLE none (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns), MGS2_NAT_KCHK 0
+  keeps for fast native groups totals (gl35): groups flagged 993411; drawn areas replayed 866954, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+  me   turns keep  1: 37 turns; a turn: groups flagged 13546; drawn areas replayed 11790; textures replayed 0, records 0; CLUT calls not made 0; PRIM writes in line 0; checked: drawn areas 0, textures 0; DIFFERING 0, 0
+  main turns keep  1: 37 turns; a turn: groups flagged 13303; drawn areas replayed 11641; textures replayed 0, records 0; CLUT calls not made 0; PRIM writes in line 0; checked: drawn areas 0, textures 0; DIFFERING 0, 0
+  turns where the keeps' check differs: 0
+
+== gl36: the reuse of a fast native run's VU memory writes and kept boxes from the last picture (MGS2_NAT_REUSE / MGS2_NAT_REUSE_CYCLE)
+  nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE 1,1,0,0 (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 0 (1: such a run fed in full and compared)
+  nat reuse (gl36): the table: made, 1536 entries of 64 B = 96 KB and the last writers' 2 KB (0bee3000); the system's memory before: largest block 116 KB, total 216 KB; after: 116 KB, 118 KB; check mode (MGS2_NAT_RCHK) 0
+  reuse totals (gl36): table 1536 entries; runs replayed 1099 (groups 231403, skipping 224139), recorded 3528 (groups 138854; kept 484, not kept 3044), checked 0 (groups 0; S differing 0, boxes differing 0); in S 49593; boxes recorded 84132, taken 211289, cut 116225, positions then needed 9099; no table room 63; replays with a group not taken 0, with a decline 181
+  me   turns reuse 0 (all turns): 18 turns; a turn: runs replayed 1 (groups 106, skipping 102, in S 45), recorded 3 (groups 115; kept 0, not kept 2); kept boxes taken 95, cut 51, positions then needed 2; no table room 1; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  me   turns reuse 0 (in vb 29500-31400):  4 turns; a turn: runs replayed 1 (groups 290, skipping 284, in S 57), recorded 4 (groups 231; kept 0, not kept 3); kept boxes taken 290, cut 153, positions then needed 8; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  me   turns reuse 1 (all turns): 19 turns; a turn: runs replayed 31 (groups 6736, skipping 6526, in S 1248), recorded 82 (groups 3474; kept 13, not kept 69); kept boxes taken 5979, cut 3296, positions then needed 272; no table room 3; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  me   turns reuse 1 (in vb 29500-31400):  5 turns; a turn: runs replayed 75 (groups 16965, skipping 16526, in S 2606), recorded 163 (groups 8277; kept 23, not kept 141); kept boxes taken 16945, cut 9301, positions then needed 721; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  main turns reuse 0 (all turns): 18 turns; a turn: runs replayed 0 (groups 0, skipping 0, in S 0), recorded 0 (groups 0; kept 0, not kept 0); kept boxes taken 0, cut 0, positions then needed 0; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  main turns reuse 0 (in vb 29500-31400):  5 turns; a turn: runs replayed 0 (groups 0, skipping 0, in S 0), recorded 0 (groups 0; kept 0, not kept 0); kept boxes taken 0, cut 0, positions then needed 0; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  main turns reuse 1 (all turns): 19 turns; a turn: runs replayed 26 (groups 5343, skipping 5174, in S 1319), recorded 101 (groups 3724; kept 12, not kept 89); kept boxes taken 5052, cut 2772, positions then needed 205; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  main turns reuse 1 (in vb 29500-31400):  5 turns; a turn: runs replayed 57 (groups 13917, skipping 13597, in S 1965), recorded 130 (groups 7707; kept 19, not kept 111); kept boxes taken 13912, cut 7510, positions then needed 450; no table room 0; checked runs 0 (groups 0): S DIFFERING 0, boxes DIFFERING 0; replays with a group not taken 0
+  turns where the reuse's check differs or a replayed run has a group not taken: 0
+
+== gl28 me rest
+  main-turn rest lines 0: rests 0, woken in HALT 0, kicks 0, ME asleep 0.0 s
+  ME-turn notes (a rest held over the switch) 0
+  gl28 me rest totals: MGS2_ME_REST 1: the ME did not run, no rests
+
+== GE2 per ME turn (window)
+  me turn 29400-29500: 8408 ms; GE2 1, lists 49, GE drawing 0.4 ms, frames begun while the GE drew 49; TWO 1
+  me turn 29600-29700: 8054 ms; GE2 1, lists 49, GE drawing 0.4 ms, frames begun while the GE drew 50; TWO 1
+  me turn 29800-29900: 8071 ms; GE2 1, lists 49, GE drawing 0.4 ms, frames begun while the GE drew 48; TWO 1
+  me turn 30000-30100: 8138 ms; GE2 1, lists 49, GE drawing 0.4 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30200-30300: 8281 ms; GE2 1, lists 49, GE drawing 0.4 ms, frames begun while the GE drew 49; TWO 1
+  me turn 30400-30500: 8152 ms; GE2 1, lists 50, GE drawing 0.4 ms, frames begun while the GE drew 49; TWO 1
+  me turn 30600-30700: 9753 ms; GE2 1 (a/b line: on), lists 50, GE drawing 0.4 ms, frames begun while the GE drew 0; TWO 1
+  me turn 30800-30900: 9126 ms; GE2 0 (a/b line: off), lists 50, GE drawing 0.4 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31000-31100: 8956 ms; GE2 1 (a/b line: on), lists 50, GE drawing 0.4 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31200-31300: 8431 ms; GE2 0 (a/b line: off), lists 50, GE drawing 0.4 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31400-31400: 19 ms; GE2 1 (a/b line: on), lists 0, GE drawing 0.0 ms, frames begun while the GE drew 0; TWO 1
+  ge2 a/b lines: 30600 on, 30800 off, 31000 on, 31200 off, 31400 on
+
+== display (gl27 lines with the gl28 fbchk counts), turns in the window
+  me   29400-29500 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29500-29600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29600-29700 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29700-29800 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29800-29900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29900-30000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30000-30100 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30100-30200 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30200-30300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30300-30400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30400-30500 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30500-30600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 11 vblanks after the show
+  me   30600-30700 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 14 vblanks after the show
+  main 30700-30800 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 12 vblanks after the show
+  me   30800-30900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 15 vblanks after the show
+  main 30900-31000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 10 vblanks after the show
+  me   31000-31100 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 22 vblanks after the show
+  main 31100-31200 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 10 vblanks after the show
+  me   31200-31300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 13 vblanks after the show
+  main 31300-31400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 11, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 9 vblanks after the show
+  me   31400-31400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 0, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 0 vblanks after the show
+  end: MGS2_GL_FLIPWAIT 2 (from vb 0): ME turns: lists held for the screen 435 (8.27 s), lists drawn into the shown buffer 0; main CPU turns: held 536 (6.90 s), drawn into the shown buffer 0; gl28 fbchk from vb 30500: ME turns: lists 200, into the buffer the display shows now (IMMEDIATE) 0, into the buffer it shows next (NEXTFRAME) 0, in the display vblank of the show 0, display vblanks since the show at most 22; main CPU turns: lists 211, IMMEDIATE 0, NEXTFRAME 0, in the vblank of the show 0, at most 12; answers refused 0; answers naming neither buffer 0
+  fbchk detail lines 1 (the first check, then lists into the buffer on the screen or shown next, and the first answer that names neither buffer; 50 at most)
+    vb 30501 (main turn): the list of frame vb 30500 into buffer 1; the display's answers: IMMEDIATE 44000000 (buffer 0, rc 0), NEXTFRAME 44000000 (buffer 0, rc 0); 8 display vblanks after the show of frame vb 30498
+  the first fbchk line's answers name buffer 0 (IMMEDIATE) and buffer 0 (NEXTFRAME): the counts can match
+  fbchk end: answers refused 0, answers naming neither buffer 0
+
+== eye (R trigger)
+  eye: t 0 at vb 1 (t: ms from this hook)
+  no R presses
+  gl28 eye: R pressed 0 times, let go 0 times (from vb 1)
+  gl28 live: captures 36 periodic, 0 at R presses (of 8 at most); not saved 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 0/0
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 0-29489 X 0 (0) 29490-31400 X 0 (0) 31401-999999999 X 0 (0) 1000000000-end O 0 (0)
+
+== shots that kept the flip wait: 458
+  vb 8762 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 10518 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 15763 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 23265 (me turn): the flip wait kept: 89.0 ms, 0 rounds of 200 us
+  vb 24246 (me turn): the flip wait kept: 75.5 ms, 0 rounds of 200 us
+  vb 24786 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 29502 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30500 (me turn): the flip wait kept: 65.4 ms, 0 rounds of 200 us
+  vb 30502 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30504 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30506 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30508 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30510 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30512 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30514 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30516 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30518 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30520 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30522 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30524 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30526 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30528 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30530 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30532 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30534 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30536 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30538 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30540 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30542 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30544 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30546 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30548 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30550 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30552 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30554 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30556 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30558 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30560 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30562 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30564 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30566 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30568 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30570 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30572 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30574 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30576 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30578 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30580 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30582 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30584 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30586 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30588 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30590 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30592 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30594 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30596 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30598 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30600 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30602 (me turn): the flip wait kept: 90.9 ms, 0 rounds of 200 us
+  vb 30604 (me turn): the flip wait kept: 92.0 ms, 0 rounds of 200 us
+  vb 30606 (me turn): the flip wait kept: 93.3 ms, 0 rounds of 200 us
+  vb 30608 (me turn): the flip wait kept: 94.7 ms, 0 rounds of 200 us
+  vb 30610 (me turn): the flip wait kept: 92.6 ms, 0 rounds of 200 us
+  vb 30612 (me turn): the flip wait kept: 93.1 ms, 0 rounds of 200 us
+  vb 30614 (me turn): the flip wait kept: 93.3 ms, 0 rounds of 200 us
+  vb 30616 (me turn): the flip wait kept: 94.2 ms, 0 rounds of 200 us
+  vb 30618 (me turn): the flip wait kept: 93.1 ms, 0 rounds of 200 us
+  vb 30620 (me turn): the flip wait kept: 93.1 ms, 0 rounds of 200 us
+  vb 30622 (me turn): the flip wait kept: 94.6 ms, 0 rounds of 200 us
+  vb 30624 (me turn): the flip wait kept: 95.1 ms, 0 rounds of 200 us
+  vb 30626 (me turn): the flip wait kept: 93.3 ms, 0 rounds of 200 us
+  vb 30628 (me turn): the flip wait kept: 95.2 ms, 0 rounds of 200 us
+  vb 30630 (me turn): the flip wait kept: 94.0 ms, 0 rounds of 200 us
+  vb 30632 (me turn): the flip wait kept: 94.4 ms, 0 rounds of 200 us
+  vb 30634 (me turn): the flip wait kept: 94.3 ms, 0 rounds of 200 us
+  vb 30636 (me turn): the flip wait kept: 94.0 ms, 0 rounds of 200 us
+  vb 30638 (me turn): the flip wait kept: 95.3 ms, 0 rounds of 200 us
+  vb 30640 (me turn): the flip wait kept: 93.8 ms, 0 rounds of 200 us
+  vb 30642 (me turn): the flip wait kept: 94.4 ms, 0 rounds of 200 us
+  vb 30644 (me turn): the flip wait kept: 94.9 ms, 0 rounds of 200 us
+  vb 30646 (me turn): the flip wait kept: 95.2 ms, 0 rounds of 200 us
+  vb 30648 (me turn): the flip wait kept: 95.1 ms, 0 rounds of 200 us
+  vb 30650 (me turn): the flip wait kept: 97.4 ms, 0 rounds of 200 us
+  vb 30652 (me turn): the flip wait kept: 96.9 ms, 0 rounds of 200 us
+  vb 30654 (me turn): the flip wait kept: 96.9 ms, 0 rounds of 200 us
+  vb 30656 (me turn): the flip wait kept: 96.7 ms, 0 rounds of 200 us
+  vb 30658 (me turn): the flip wait kept: 97.4 ms, 0 rounds of 200 us
+  vb 30660 (me turn): the flip wait kept: 98.9 ms, 0 rounds of 200 us
+  vb 30662 (me turn): the flip wait kept: 95.8 ms, 0 rounds of 200 us
+  vb 30664 (me turn): the flip wait kept: 95.8 ms, 0 rounds of 200 us
+  vb 30666 (me turn): the flip wait kept: 96.7 ms, 0 rounds of 200 us
+  vb 30668 (me turn): the flip wait kept: 97.1 ms, 0 rounds of 200 us
+  vb 30670 (me turn): the flip wait kept: 97.6 ms, 0 rounds of 200 us
+  vb 30672 (me turn): the flip wait kept: 100.0 ms, 0 rounds of 200 us
+  vb 30674 (me turn): the flip wait kept: 97.6 ms, 0 rounds of 200 us
+  vb 30676 (me turn): the flip wait kept: 96.5 ms, 0 rounds of 200 us
+  vb 30678 (me turn): the flip wait kept: 95.6 ms, 0 rounds of 200 us
+  vb 30680 (me turn): the flip wait kept: 94.9 ms, 0 rounds of 200 us
+  vb 30682 (me turn): the flip wait kept: 97.4 ms, 0 rounds of 200 us
+  vb 30684 (me turn): the flip wait kept: 95.6 ms, 0 rounds of 200 us
+  vb 30686 (me turn): the flip wait kept: 95.3 ms, 0 rounds of 200 us
+  vb 30688 (me turn): the flip wait kept: 95.1 ms, 0 rounds of 200 us
+  vb 30690 (me turn): the flip wait kept: 95.2 ms, 0 rounds of 200 us
+  vb 30692 (me turn): the flip wait kept: 94.0 ms, 0 rounds of 200 us
+  vb 30694 (me turn): the flip wait kept: 96.9 ms, 0 rounds of 200 us
+  vb 30696 (me turn): the flip wait kept: 94.7 ms, 0 rounds of 200 us
+  vb 30698 (me turn): the flip wait kept: 94.9 ms, 0 rounds of 200 us
+  vb 30700 (me turn): the flip wait kept: 74.4 ms, 0 rounds of 200 us
+  vb 30702 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30704 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30706 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30708 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30710 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30712 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30714 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30716 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30718 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30720 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30722 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30724 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30726 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30728 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30730 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30732 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30734 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30736 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30738 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30740 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30742 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30744 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30746 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30748 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30750 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30752 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30754 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30756 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30758 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30760 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30762 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30764 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30766 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30768 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30770 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30772 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30774 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30776 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30778 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30780 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30782 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30784 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30786 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30788 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30790 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30792 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30794 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30796 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30798 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30800 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30802 (me turn): the flip wait kept: 98.3 ms, 0 rounds of 200 us
+  vb 30804 (me turn): the flip wait kept: 104.3 ms, 0 rounds of 200 us
+  vb 30806 (me turn): the flip wait kept: 102.3 ms, 0 rounds of 200 us
+  vb 30808 (me turn): the flip wait kept: 102.1 ms, 0 rounds of 200 us
+  vb 30810 (me turn): the flip wait kept: 101.2 ms, 0 rounds of 200 us
+  vb 30812 (me turn): the flip wait kept: 101.0 ms, 0 rounds of 200 us
+  vb 30814 (me turn): the flip wait kept: 100.3 ms, 0 rounds of 200 us
+  vb 30816 (me turn): the flip wait kept: 97.3 ms, 0 rounds of 200 us
+  vb 30818 (me turn): the flip wait kept: 95.6 ms, 0 rounds of 200 us
+  vb 30820 (me turn): the flip wait kept: 94.4 ms, 0 rounds of 200 us
+  vb 30822 (me turn): the flip wait kept: 92.2 ms, 0 rounds of 200 us
+  vb 30824 (me turn): the flip wait kept: 91.4 ms, 0 rounds of 200 us
+  vb 30826 (me turn): the flip wait kept: 92.9 ms, 0 rounds of 200 us
+  vb 30828 (me turn): the flip wait kept: 89.2 ms, 0 rounds of 200 us
+  vb 30830 (me turn): the flip wait kept: 88.1 ms, 0 rounds of 200 us
+  vb 30832 (me turn): the flip wait kept: 87.0 ms, 0 rounds of 200 us
+  vb 30834 (me turn): the flip wait kept: 85.9 ms, 0 rounds of 200 us
+  vb 30836 (me turn): the flip wait kept: 84.7 ms, 0 rounds of 200 us
+  vb 30838 (me turn): the flip wait kept: 86.5 ms, 0 rounds of 200 us
+  vb 30840 (me turn): the flip wait kept: 85.2 ms, 0 rounds of 200 us
+  vb 30842 (me turn): the flip wait kept: 84.5 ms, 0 rounds of 200 us
+  vb 30844 (me turn): the flip wait kept: 83.8 ms, 0 rounds of 200 us
+  vb 30846 (me turn): the flip wait kept: 82.7 ms, 0 rounds of 200 us
+  vb 30848 (me turn): the flip wait kept: 81.4 ms, 0 rounds of 200 us
+  vb 30850 (me turn): the flip wait kept: 86.5 ms, 0 rounds of 200 us
+  vb 30852 (me turn): the flip wait kept: 83.0 ms, 0 rounds of 200 us
+  vb 30854 (me turn): the flip wait kept: 83.9 ms, 0 rounds of 200 us
+  vb 30856 (me turn): the flip wait kept: 80.0 ms, 0 rounds of 200 us
+  vb 30858 (me turn): the flip wait kept: 79.1 ms, 0 rounds of 200 us
+  vb 30860 (me turn): the flip wait kept: 78.0 ms, 0 rounds of 200 us
+  vb 30862 (me turn): the flip wait kept: 81.6 ms, 0 rounds of 200 us
+  vb 30864 (me turn): the flip wait kept: 77.8 ms, 0 rounds of 200 us
+  vb 30866 (me turn): the flip wait kept: 80.2 ms, 0 rounds of 200 us
+  vb 30868 (me turn): the flip wait kept: 79.8 ms, 0 rounds of 200 us
+  vb 30870 (me turn): the flip wait kept: 80.9 ms, 0 rounds of 200 us
+  vb 30872 (me turn): the flip wait kept: 82.7 ms, 0 rounds of 200 us
+  vb 30874 (me turn): the flip wait kept: 81.4 ms, 0 rounds of 200 us
+  vb 30876 (me turn): the flip wait kept: 81.2 ms, 0 rounds of 200 us
+  vb 30878 (me turn): the flip wait kept: 81.8 ms, 0 rounds of 200 us
+  vb 30880 (me turn): the flip wait kept: 81.6 ms, 0 rounds of 200 us
+  vb 30882 (me turn): the flip wait kept: 81.4 ms, 0 rounds of 200 us
+  vb 30884 (me turn): the flip wait kept: 83.0 ms, 0 rounds of 200 us
+  vb 30886 (me turn): the flip wait kept: 81.8 ms, 0 rounds of 200 us
+  vb 30888 (me turn): the flip wait kept: 82.5 ms, 0 rounds of 200 us
+  vb 30890 (me turn): the flip wait kept: 82.3 ms, 0 rounds of 200 us
+  vb 30892 (me turn): the flip wait kept: 82.3 ms, 0 rounds of 200 us
+  vb 30894 (me turn): the flip wait kept: 84.3 ms, 0 rounds of 200 us
+  vb 30896 (me turn): the flip wait kept: 81.4 ms, 0 rounds of 200 us
+  vb 30898 (me turn): the flip wait kept: 82.3 ms, 0 rounds of 200 us
+  vb 30900 (me turn): the flip wait kept: 62.9 ms, 0 rounds of 200 us
+  vb 30902 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30904 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30906 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30908 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30910 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30912 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30914 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30916 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30918 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30920 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30922 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30924 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30926 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30928 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30930 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30932 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30934 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30936 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30938 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30940 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30942 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30944 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30946 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30948 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30950 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30952 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30954 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30956 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30958 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30960 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30962 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30964 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30966 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30968 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30970 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30972 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30974 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30976 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30978 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30980 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30982 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30984 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30986 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30988 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30990 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30992 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30994 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30996 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30998 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31000 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31002 (me turn): the flip wait kept: 75.1 ms, 0 rounds of 200 us
+  vb 31004 (me turn): the flip wait kept: 74.2 ms, 0 rounds of 200 us
+  vb 31006 (me turn): the flip wait kept: 73.8 ms, 0 rounds of 200 us
+  vb 31008 (me turn): the flip wait kept: 74.2 ms, 0 rounds of 200 us
+  vb 31010 (me turn): the flip wait kept: 76.4 ms, 0 rounds of 200 us
+  vb 31012 (me turn): the flip wait kept: 79.0 ms, 0 rounds of 200 us
+  vb 31014 (me turn): the flip wait kept: 77.1 ms, 0 rounds of 200 us
+  vb 31016 (me turn): the flip wait kept: 77.3 ms, 0 rounds of 200 us
+  vb 31018 (me turn): the flip wait kept: 75.7 ms, 0 rounds of 200 us
+  vb 31020 (me turn): the flip wait kept: 76.5 ms, 0 rounds of 200 us
+  vb 31022 (me turn): the flip wait kept: 76.7 ms, 0 rounds of 200 us
+  vb 31024 (me turn): the flip wait kept: 78.4 ms, 0 rounds of 200 us
+  vb 31026 (me turn): the flip wait kept: 76.6 ms, 0 rounds of 200 us
+  vb 31028 (me turn): the flip wait kept: 76.2 ms, 0 rounds of 200 us
+  vb 31030 (me turn): the flip wait kept: 76.7 ms, 0 rounds of 200 us
+  vb 31032 (me turn): the flip wait kept: 77.7 ms, 0 rounds of 200 us
+  vb 31034 (me turn): the flip wait kept: 76.6 ms, 0 rounds of 200 us
+  vb 31036 (me turn): the flip wait kept: 79.1 ms, 0 rounds of 200 us
+  vb 31038 (me turn): the flip wait kept: 76.0 ms, 0 rounds of 200 us
+  vb 31040 (me turn): the flip wait kept: 76.2 ms, 0 rounds of 200 us
+  vb 31042 (me turn): the flip wait kept: 76.9 ms, 0 rounds of 200 us
+  vb 31044 (me turn): the flip wait kept: 77.5 ms, 0 rounds of 200 us
+  vb 31046 (me turn): the flip wait kept: 77.6 ms, 0 rounds of 200 us
+  vb 31048 (me turn): the flip wait kept: 79.8 ms, 0 rounds of 200 us
+  vb 31050 (me turn): the flip wait kept: 77.3 ms, 0 rounds of 200 us
+  vb 31052 (me turn): the flip wait kept: 79.8 ms, 0 rounds of 200 us
+  vb 31054 (me turn): the flip wait kept: 80.0 ms, 0 rounds of 200 us
+  vb 31056 (me turn): the flip wait kept: 81.6 ms, 0 rounds of 200 us
+  vb 31058 (me turn): the flip wait kept: 83.2 ms, 0 rounds of 200 us
+  vb 31060 (me turn): the flip wait kept: 85.7 ms, 0 rounds of 200 us
+  vb 31062 (me turn): the flip wait kept: 85.4 ms, 0 rounds of 200 us
+  vb 31064 (me turn): the flip wait kept: 85.4 ms, 0 rounds of 200 us
+  vb 31066 (me turn): the flip wait kept: 87.0 ms, 0 rounds of 200 us
+  vb 31068 (me turn): the flip wait kept: 85.0 ms, 0 rounds of 200 us
+  vb 31070 (me turn): the flip wait kept: 84.3 ms, 0 rounds of 200 us
+  vb 31072 (me turn): the flip wait kept: 87.5 ms, 0 rounds of 200 us
+  vb 31074 (me turn): the flip wait kept: 89.8 ms, 0 rounds of 200 us
+  vb 31076 (me turn): the flip wait kept: 85.2 ms, 0 rounds of 200 us
+  vb 31078 (me turn): the flip wait kept: 85.7 ms, 0 rounds of 200 us
+  vb 31080 (me turn): the flip wait kept: 87.9 ms, 0 rounds of 200 us
+  vb 31082 (me turn): the flip wait kept: 85.9 ms, 0 rounds of 200 us
+  vb 31084 (me turn): the flip wait kept: 88.2 ms, 0 rounds of 200 us
+  vb 31086 (me turn): the flip wait kept: 83.4 ms, 0 rounds of 200 us
+  vb 31088 (me turn): the flip wait kept: 118.1 ms, 0 rounds of 200 us
+  vb 31090 (me turn): the flip wait kept: 84.1 ms, 0 rounds of 200 us
+  vb 31092 (me turn): the flip wait kept: 84.1 ms, 0 rounds of 200 us
+  vb 31094 (me turn): the flip wait kept: 86.8 ms, 0 rounds of 200 us
+  vb 31096 (me turn): the flip wait kept: 84.5 ms, 0 rounds of 200 us
+  vb 31098 (me turn): the flip wait kept: 85.0 ms, 0 rounds of 200 us
+  vb 31100 (me turn): the flip wait kept: 62.9 ms, 0 rounds of 200 us
+  vb 31102 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31104 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31106 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31108 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31110 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31112 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31114 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31116 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31118 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31120 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31122 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31124 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31126 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31128 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31130 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31132 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31134 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31136 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31138 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31140 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31142 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31144 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31146 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31148 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31150 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31152 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31154 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31156 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31158 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31160 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31162 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31164 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31166 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31168 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31170 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31172 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31174 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31176 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31178 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31180 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31182 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31184 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31186 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31188 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31190 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31192 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31194 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31196 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31198 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31200 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31202 (me turn): the flip wait kept: 78.9 ms, 0 rounds of 200 us
+  vb 31204 (me turn): the flip wait kept: 74.6 ms, 0 rounds of 200 us
+  vb 31206 (me turn): the flip wait kept: 74.8 ms, 0 rounds of 200 us
+  vb 31208 (me turn): the flip wait kept: 74.2 ms, 0 rounds of 200 us
+  vb 31210 (me turn): the flip wait kept: 74.7 ms, 0 rounds of 200 us
+  vb 31212 (me turn): the flip wait kept: 72.6 ms, 0 rounds of 200 us
+  vb 31214 (me turn): the flip wait kept: 76.1 ms, 0 rounds of 200 us
+  vb 31216 (me turn): the flip wait kept: 72.6 ms, 0 rounds of 200 us
+  vb 31218 (me turn): the flip wait kept: 73.0 ms, 0 rounds of 200 us
+  vb 31220 (me turn): the flip wait kept: 72.2 ms, 0 rounds of 200 us
+  vb 31222 (me turn): the flip wait kept: 73.0 ms, 0 rounds of 200 us
+  vb 31224 (me turn): the flip wait kept: 71.5 ms, 0 rounds of 200 us
+  vb 31226 (me turn): the flip wait kept: 75.1 ms, 0 rounds of 200 us
+  vb 31228 (me turn): the flip wait kept: 73.1 ms, 0 rounds of 200 us
+  vb 31230 (me turn): the flip wait kept: 76.0 ms, 0 rounds of 200 us
+  vb 31232 (me turn): the flip wait kept: 80.9 ms, 0 rounds of 200 us
+  vb 31234 (me turn): the flip wait kept: 85.6 ms, 0 rounds of 200 us
+  vb 31236 (me turn): the flip wait kept: 88.6 ms, 0 rounds of 200 us
+  vb 31238 (me turn): the flip wait kept: 92.0 ms, 0 rounds of 200 us
+  vb 31240 (me turn): the flip wait kept: 89.7 ms, 0 rounds of 200 us
+  vb 31242 (me turn): the flip wait kept: 80.5 ms, 0 rounds of 200 us
+  vb 31244 (me turn): the flip wait kept: 80.5 ms, 0 rounds of 200 us
+  vb 31246 (me turn): the flip wait kept: 81.2 ms, 0 rounds of 200 us
+  vb 31248 (me turn): the flip wait kept: 79.6 ms, 0 rounds of 200 us
+  vb 31250 (me turn): the flip wait kept: 82.7 ms, 0 rounds of 200 us
+  vb 31252 (me turn): the flip wait kept: 80.9 ms, 0 rounds of 200 us
+  vb 31254 (me turn): the flip wait kept: 79.6 ms, 0 rounds of 200 us
+  vb 31256 (me turn): the flip wait kept: 80.2 ms, 0 rounds of 200 us
+  vb 31258 (me turn): the flip wait kept: 80.5 ms, 0 rounds of 200 us
+  vb 31260 (me turn): the flip wait kept: 80.7 ms, 0 rounds of 200 us
+  vb 31262 (me turn): the flip wait kept: 82.0 ms, 0 rounds of 200 us
+  vb 31264 (me turn): the flip wait kept: 56.4 ms, 0 rounds of 200 us
+  vb 31266 (me turn): the flip wait kept: 60.9 ms, 0 rounds of 200 us
+  vb 31268 (me turn): the flip wait kept: 62.7 ms, 0 rounds of 200 us
+  vb 31270 (me turn): the flip wait kept: 67.0 ms, 0 rounds of 200 us
+  vb 31272 (me turn): the flip wait kept: 66.7 ms, 0 rounds of 200 us
+  vb 31274 (me turn): the flip wait kept: 70.3 ms, 0 rounds of 200 us
+  vb 31276 (me turn): the flip wait kept: 67.2 ms, 0 rounds of 200 us
+  vb 31278 (me turn): the flip wait kept: 69.0 ms, 0 rounds of 200 us
+  vb 31280 (me turn): the flip wait kept: 68.9 ms, 0 rounds of 200 us
+  vb 31282 (me turn): the flip wait kept: 70.3 ms, 0 rounds of 200 us
+  vb 31284 (me turn): the flip wait kept: 67.6 ms, 0 rounds of 200 us
+  vb 31286 (me turn): the flip wait kept: 71.7 ms, 0 rounds of 200 us
+  vb 31288 (me turn): the flip wait kept: 67.9 ms, 0 rounds of 200 us
+  vb 31290 (me turn): the flip wait kept: 69.2 ms, 0 rounds of 200 us
+  vb 31292 (me turn): the flip wait kept: 67.9 ms, 0 rounds of 200 us
+  vb 31294 (me turn): the flip wait kept: 68.5 ms, 0 rounds of 200 us
+  vb 31296 (me turn): the flip wait kept: 68.5 ms, 0 rounds of 200 us
+  vb 31298 (me turn): the flip wait kept: 71.0 ms, 0 rounds of 200 us
+  vb 31300 (me turn): the flip wait kept: 57.3 ms, 0 rounds of 200 us
+  vb 31302 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31304 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31306 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31308 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31310 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31312 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31314 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31316 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31318 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31320 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31322 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31324 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31326 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31328 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31330 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31332 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31334 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31336 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31338 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31340 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31342 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31344 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31346 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31348 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31350 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31352 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31354 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31356 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31358 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31360 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31362 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31364 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31366 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31368 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31370 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31372 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31374 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31376 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31378 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31380 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31382 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31384 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31386 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31388 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31390 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31392 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31394 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31396 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31398 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31400 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+
+== live captures
+  references (emulator frames by their vblank) in /home/claude/main/build_gl35/emu_e3/pic: 8760, 10516, 15761, 23263, 24244, 24784, 29500, 30498, 30500, 30502, 30504, 30506, 30508, 30510, 30512, 30514, 30516, 30518, 30520, 30522, 30524, 30526, 30528, 30530, 30532, 30534, 30536, 30538, 30540, 30542, 30544, 30546, 30548, 30550, 30552, 30554, 30556, 30558, 30560, 30562, 30564, 30566, 30568, 30570, 30572, 30574, 30576, 30578, 30580, 30582, 30584, 30586, 30588, 30590, 30592, 30594, 30596, 30598, 30600, 30602, 30604, 30606, 30608, 30610, 30612, 30614, 30616, 30618, 30620, 30622, 30624, 30626, 30628, 30630, 30632, 30634, 30636, 30638, 30640, 30642, 30644, 30646, 30648, 30650, 30652, 30654, 30656, 30658, 30660, 30662, 30664, 30666, 30668, 30670, 30672, 30674, 30676, 30678, 30680, 30682, 30684, 30686, 30688, 30690, 30692, 30694, 30696, 30698, 30700, 30702, 30704, 30706, 30708, 30710, 30712, 30714, 30716, 30718, 30720, 30722, 30724, 30726, 30728, 30730, 30732, 30734, 30736, 30738, 30740, 30742, 30744, 30746, 30748, 30750, 30752, 30754, 30756, 30758, 30760, 30762, 30764, 30766, 30768, 30770, 30772, 30774, 30776, 30778, 30780, 30782, 30784, 30786, 30788, 30790, 30792, 30794, 30796, 30798, 30800, 30802, 30804, 30806, 30808, 30810, 30812, 30814, 30816, 30818, 30820, 30822, 30824, 30826, 30828, 30830, 30832, 30834, 30836, 30838, 30840, 30842, 30844, 30846, 30848, 30850, 30852, 30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868, 30870, 30872, 30874, 30876, 30878, 30880, 30882, 30884, 30886, 30888, 30890, 30892, 30894, 30896, 30898, 30900, 30902, 30904, 30906, 30908, 30910, 30912, 30914, 30916, 30918, 30920, 30922, 30924, 30926, 30928, 30930, 30932, 30934, 30936, 30938, 30940, 30942, 30944, 30946, 30948, 30950, 30952, 30954, 30956, 30958, 30960, 30962, 30964, 30966, 30968, 30970, 30972, 30974, 30976, 30978, 30980, 30982, 30984, 30986, 30988, 30990, 30992, 30994, 30996, 30998, 31000, 31002, 31004, 31006, 31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022, 31024, 31026, 31028, 31030, 31032, 31034, 31036, 31038, 31040, 31042, 31044, 31046, 31048, 31050, 31052, 31054, 31056, 31058, 31060, 31062, 31064, 31066, 31068, 31070, 31072, 31074, 31076, 31078, 31080, 31082, 31084, 31086, 31088, 31090, 31092, 31094, 31096, 31098, 31100, 31102, 31104, 31106, 31108, 31110, 31112, 31114, 31116, 31118, 31120, 31122, 31124, 31126, 31128, 31130, 31132, 31134, 31136, 31138, 31140, 31142, 31144, 31146, 31148, 31150, 31152, 31154, 31156, 31158, 31160, 31162, 31164, 31166, 31168, 31170, 31172, 31174, 31176, 31178, 31180, 31182, 31184, 31186, 31188, 31190, 31192, 31194, 31196, 31198, 31200, 31202, 31204, 31206, 31208, 31210, 31212, 31214, 31216, 31218, 31220, 31222, 31224, 31226, 31228, 31230, 31232, 31234, 31236, 31238, 31240, 31242, 31244, 31246, 31248, 31250, 31252, 31254, 31256, 31258, 31260, 31262, 31264, 31266, 31268, 31270, 31272, 31274, 31276, 31278, 31280, 31282, 31284, 31286, 31288, 31290, 31292, 31294, 31296, 31298, 31300, 31302, 31304, 31306, 31308, 31310, 31312, 31314, 31316, 31318, 31320
+  live 30512 (periodic, main turn): buffer 0 frame vb 30510 arm X (3 vblanks after its show; display scans 0; other buffer frame 30508; GE idle; lists waiting 0); VRAM 3.5 ms, all 18.4 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30512.bmp
+  live 30537 (periodic, main turn): buffer 0 frame vb 30534 arm X (8 vblanks after its show; display scans 0; other buffer frame 30532; GE idle; lists waiting 0); VRAM 3.7 ms, all 18.0 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30537.bmp
+  live 30562 (periodic, main turn): buffer 1 frame vb 30560 arm X (3 vblanks after its show; display scans 1; other buffer frame 30558; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30562.bmp
+  live 30587 (periodic, main turn): buffer 1 frame vb 30584 arm X (8 vblanks after its show; display scans 1; other buffer frame 30582; GE idle; lists waiting 0); VRAM 4.3 ms, all 18.5 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30587.bmp
+  live 30612 (periodic, me turn): buffer 0 frame vb 30610 arm X (1 vblanks after its show; display scans 0; other buffer frame 30608; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30612.bmp
+  live 30637 (periodic, me turn): buffer 0 frame vb 30634 arm X (4 vblanks after its show; display scans 0; other buffer frame 30632; GE idle; lists waiting 0); VRAM 3.7 ms, all 17.9 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30637.bmp
+  live 30662 (periodic, me turn): buffer 1 frame vb 30660 arm X (1 vblanks after its show; display scans 1; other buffer frame 30658; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30662.bmp
+  live 30687 (periodic, me turn): buffer 1 frame vb 30684 arm X (4 vblanks after its show; display scans 1; other buffer frame 30682; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30687.bmp
+  live 30712 (periodic, main turn): buffer 0 frame vb 30710 arm X (3 vblanks after its show; display scans 0; other buffer frame 30708; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30712.bmp
+  live 30737 (periodic, main turn): buffer 0 frame vb 30734 arm X (8 vblanks after its show; display scans 0; other buffer frame 30732; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30737.bmp
+  live 30762 (periodic, main turn): buffer 1 frame vb 30760 arm X (3 vblanks after its show; display scans 1; other buffer frame 30758; GE idle; lists waiting 0); VRAM 3.9 ms, all 18.2 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30762.bmp
+  live 30787 (periodic, main turn): buffer 1 frame vb 30784 arm X (9 vblanks after its show; display scans 1; other buffer frame 30782; GE idle; lists waiting 0); VRAM 3.6 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30787.bmp
+  live 30812 (periodic, me turn): buffer 0 frame vb 30810 arm X (1 vblanks after its show; display scans 0; other buffer frame 30808; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30812.bmp
+  live 30837 (periodic, me turn): buffer 0 frame vb 30834 arm X (3 vblanks after its show; display scans 0; other buffer frame 30832; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30837.bmp
+  live 30862 (periodic, me turn): buffer 1 frame vb 30860 arm X (2 vblanks after its show; display scans 1; other buffer frame 30858; GE idle; lists waiting 0); VRAM 3.9 ms, all 18.1 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30862.bmp
+  live 30887 (periodic, me turn): buffer 1 frame vb 30884 arm X (4 vblanks after its show; display scans 1; other buffer frame 30882; GE idle; lists waiting 0); VRAM 3.9 ms, all 18.1 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30887.bmp
+  live 30912 (periodic, main turn): buffer 0 frame vb 30910 arm X (3 vblanks after its show; display scans 0; other buffer frame 30908; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30912.bmp
+  live 30937 (periodic, main turn): buffer 0 frame vb 30934 arm X (8 vblanks after its show; display scans 0; other buffer frame 30932; GE idle; lists waiting 0); VRAM 4.3 ms, all 18.5 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30937.bmp
+  live 30962 (periodic, main turn): buffer 1 frame vb 30960 arm X (3 vblanks after its show; display scans 1; other buffer frame 30958; GE idle; lists waiting 0); VRAM 4.3 ms, all 18.5 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30962.bmp
+  live 30987 (periodic, main turn): buffer 1 frame vb 30984 arm X (7 vblanks after its show; display scans 1; other buffer frame 30982; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_30987.bmp
+  live 31012 (periodic, me turn): buffer 0 frame vb 31010 arm X (1 vblanks after its show; display scans 0; other buffer frame 31008; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31012.bmp
+  live 31037 (periodic, me turn): buffer 0 frame vb 31034 arm X (4 vblanks after its show; display scans 0; other buffer frame 31032; GE idle; lists waiting 0); VRAM 3.8 ms, all 18.1 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31037.bmp
+  live 31062 (periodic, me turn): buffer 1 frame vb 31060 arm X (1 vblanks after its show; display scans 1; other buffer frame 31058; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31062.bmp
+  live 31087 (periodic, me turn): buffer 1 frame vb 31084 arm X (4 vblanks after its show; display scans 1; other buffer frame 31082; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31087.bmp
+  live 31112 (periodic, main turn): buffer 0 frame vb 31110 arm X (3 vblanks after its show; display scans 0; other buffer frame 31108; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31112.bmp
+  live 31137 (periodic, main turn): buffer 0 frame vb 31134 arm X (8 vblanks after its show; display scans 0; other buffer frame 31132; GE idle; lists waiting 0); VRAM 3.6 ms, all 17.9 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31137.bmp
+  live 31162 (periodic, main turn): buffer 1 frame vb 31160 arm X (3 vblanks after its show; display scans 1; other buffer frame 31158; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31162.bmp
+  live 31187 (periodic, main turn): buffer 1 frame vb 31184 arm X (7 vblanks after its show; display scans 1; other buffer frame 31182; GE idle; lists waiting 0); VRAM 4.0 ms, all 18.2 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31187.bmp
+  live 31212 (periodic, me turn): buffer 0 frame vb 31210 arm X (1 vblanks after its show; display scans 0; other buffer frame 31208; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31212.bmp
+  live 31237 (periodic, me turn): buffer 0 frame vb 31234 arm X (4 vblanks after its show; display scans 0; other buffer frame 31232; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31237.bmp
+  live 31262 (periodic, me turn): buffer 1 frame vb 31260 arm X (1 vblanks after its show; display scans 1; other buffer frame 31258; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31262.bmp
+  live 31287 (periodic, me turn): buffer 1 frame vb 31284 arm X (4 vblanks after its show; display scans 1; other buffer frame 31282; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31287.bmp
+  live 31312 (periodic, main turn): buffer 0 frame vb 31310 arm X (2 vblanks after its show; display scans 0; other buffer frame 31308; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31312.bmp
+  live 31337 (periodic, main turn): buffer 1 frame vb 31320 arm X (23 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31337.bmp
+  live 31362 (periodic, main turn): buffer 1 frame vb 31320 arm X (60 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31362.bmp
+  live 31387 (periodic, main turn): buffer 1 frame vb 31320 arm X (95 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 3.5 ms, all 17.8 ms
+    no picture /home/claude/main/build_gl36/emu_e3/live_31387.bmp

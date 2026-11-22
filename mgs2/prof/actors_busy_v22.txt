@@ -1,0 +1,111 @@
+# Logic cost per actor, deck vb 24001-24100 (100 steps), v22 code (build v22 d + GEN_ACTOR_PROF in gen_dispatch.o: /home/claude/v22/act, ephemeral), PspProf
+# PSPPROF_BUCKET; draw pipeline and GS walk excluded (prof 24001 24101). act = the act function the scheduler 0x13f140 calls (0 = scheduler, sync
+# waits, IOP between actors); names from prof/actor_list_vb24050.txt (xN = instances). ms per step = (1.4 x instructions + 70 x (I-miss + D-miss)) / 333,000.
+# The hook adds 4.8 k I-misses per step (code moved): 37.00 ms here, 36.01 ms in the same build without it (prof l22d).
+total 37.00 ms per step
+act    name                                      ms   kinstr  kimiss  kdmiss      %
+2e8410 ropemain.c x2                           4.50    492.8    9.69    1.88  12.2%
+290ce0 raiden.c                                4.09    479.0    7.53    2.36  11.1%
+319938 d_splash_fall.c x4                      3.70    544.3    2.05    4.65  10.0%
+11d9d0 DG_ActFirst (end-of-frame wait)         2.67    298.7    3.23    3.51   7.2%
+296f68 pl_arm.c                                2.10    384.9    1.53    0.77   5.7%
+333380 line_sph.c x8                           2.02    304.0    0.34    3.20   5.5%
+318798 d_splash_floor.c                        1.61    272.6    0.66    1.55   4.3%
+29b898 wt_door.c x4                            1.53    109.5    4.69    0.40   4.1%
+3271a8 body_sph.c                              1.45    278.3    0.44    0.90   3.9%
+31af28 rain.c                                  1.33    242.6    0.43    1.05   3.6%
+3af278 wave2.c                                 1.25    184.0    0.35    1.91   3.4%
+2d30c8 charaspread.c                           1.01    167.1    0.30    1.15   2.7%
+33e230 item_box.c x5                           0.64     76.7    1.28    0.24   1.7%
+3a4138 radar.c                                 0.60     76.9    0.60    0.73   1.6%
+2e1e10 fade_lgt.c x20                          0.60     67.3    1.19    0.30   1.6%
+24ceb8 bgmfader.c x4                           0.56     42.7    1.47    0.35   1.5%
+15b288 sprite_dma.c                            0.56     89.8    0.29    0.57   1.5%
+13ee58 gvd_Act                                 0.52     56.9    0.67    0.65   1.4%
+2e9428 ropemain2.c x2                          0.42     56.2    0.68    0.17   1.1%
+310dd8 manhat3d.c                              0.39     69.7    0.29    0.15   1.0%
+342878 d_splash_camera.c                       0.36     54.0    0.36    0.28   1.0%
+3b6890 mtstream.c                              0.33     59.8    0.29    0.10   0.9%
+24c880 windnois.c                              0.32     26.6    0.78    0.20   0.9%
+332180 ripple.c                                0.31     39.2    0.16    0.53   0.8%
+21f868 wp_chng2.c                              0.26     28.4    0.56    0.10   0.7%
+000000 map.c,wt_door.c x2                      0.25     19.5    0.55    0.27   0.7%
+3a9ba8 f_focus.c x2                            0.22     37.6    0.09    0.20   0.6%
+30f150 chim_smo.c                              0.22     40.6    0.13    0.10   0.6%
+3117c8 brooklyn.c                              0.21     31.5    0.24    0.11   0.6%
+3135a0 sky_prev.c                              0.21     34.4    0.12    0.17   0.6%
+10b720 camerad.c                               0.17     15.7    0.46    0.04   0.5%
+32cc70 set_t_dr.c x2                           0.16     20.3    0.27    0.07   0.4%
+3ad468 mirror.c                                0.15     16.2    0.16    0.24   0.4%
+119940 dumstream.c x4                          0.14     22.7    0.04    0.19   0.4%
+331160 rain_gas_pers.c                         0.14     18.7    0.25    0.04   0.4%
+3496c8 usp.c                                   0.13     11.1    0.29    0.09   0.3%
+320210 blood_sp.c                              0.12     19.8    0.06    0.11   0.3%
+10c920 camera.c x10                            0.11     10.2    0.29    0.03   0.3%
+3215a8 wind_man.c                              0.09      6.1    0.29    0.03   0.2%
+1186f8 strctrl.c                               0.08     13.0    0.07    0.07   0.2%
+2c0230 delay.c x2                              0.08      7.4    0.18    0.04   0.2%
+2e11d0 brk_spotlgt.c x20                       0.08     12.5    0.09    0.02   0.2%
+29a600 lodctrl.c                               0.07      5.8    0.09    0.13   0.2%
+2f3a88 attachments.c                           0.07      6.8    0.12    0.07   0.2%
+3ac5a8 actblur.c                               0.06     10.0    0.07    0.02   0.2%
+370688 emb_control.c                           0.05      4.7    0.07    0.08   0.1%
+343468 d_splash_motion.c                       0.05      6.7    0.07    0.03   0.1%
+326a38 mdl_p_am.c                              0.05      4.0    0.12    0.01   0.1%
+365fa0 crtrg.c x2                              0.04      4.2    0.09    0.03   0.1%
+234910 putobj.c x6                             0.04      4.8    0.08    0.02   0.1%
+11a530 caption.c                               0.04      8.0    0.01    0.02   0.1%
+29b300 paddemo.c x3                            0.04      3.2    0.10    0.01   0.1%
+31c0d0 blood_cm.c                              0.04      4.0    0.04    0.04   0.1%
+31cf10 blood_wl.c                              0.03      3.2    0.04    0.05   0.1%
+329f60 ft_splsh.c                              0.03      2.7    0.07    0.02   0.1%
+32a7d0 rain_cm.c                               0.03      2.6    0.07    0.02   0.1%
+324960 body_sdw.c                              0.03      2.1    0.07    0.02   0.1%
+312aa8 bonbori_red.c x3                        0.03      3.5    0.04    0.02   0.1%
+21b4a0 menu_sub.c                              0.03      1.7    0.07    0.02   0.1%
+324240 z_man.c x2                              0.03      2.1    0.07    0.01   0.1%
+32c458 set_t_fw.c                              0.02      2.5    0.05    0.01   0.1%
+2dfeb8 wave.c                                  0.02      1.3    0.07    0.02   0.1%
+298fd8 rai_action_blur.c                       0.02      3.8    0.02    0.02   0.1%
+236350 bgmanage.c                              0.02      1.1    0.08    0.00   0.1%
+326e70 lit_man.c                               0.02      2.9    0.02    0.01   0.1%
+221a00 it_chng2.c                              0.02      1.0    0.07    0.01   0.1%
+205f48 codec.c                                 0.02      1.5    0.04    0.02   0.1%
+342ff8 d_fog_set.c                             0.02      0.9    0.06    0.01   0.1%
+10f8b0 ?                                       0.02      0.9    0.05    0.01   0.0%
+315458 sky_column.c                            0.02      1.1    0.04    0.02   0.0%
+314e38 fog_wall.c x4                           0.02      1.8    0.02    0.02   0.0%
+119368 sdstream.c                              0.02      1.0    0.04    0.01   0.0%
+2c62c8 cinema_scr.c                            0.02      0.8    0.06    0.00   0.0%
+1568f0 gaged.c                                 0.02      0.9    0.04    0.01   0.0%
+2d2058 namedetect.c                            0.02      1.0    0.05    0.01   0.0%
+235420 sdmanage.c                              0.02      1.0    0.04    0.01   0.0%
+104f10 ?                                       0.02      0.8    0.04    0.01   0.0%
+314790 thund_flash.c                           0.02      0.8    0.04    0.01   0.0%
+2c1320 duct_sight2.c                           0.01      0.7    0.04    0.02   0.0%
+338ab8 foot_print.c                            0.01      1.1    0.04    0.01   0.0%
+330778 weapon_sph2.c                           0.01      0.9    0.04    0.01   0.0%
+3283e0 set_tex.c                               0.01      0.7    0.03    0.02   0.0%
+348d80 wp_mng.c                                0.01      1.0    0.02    0.02   0.0%
+2de918 foot_shadow.c                           0.01      0.6    0.04    0.01   0.0%
+3a0860 layout_2d.c                             0.01      1.6    0.02    0.01   0.0%
+3a6768 outrange.c                              0.01      0.9    0.03    0.01   0.0%
+2c8870 2d_sprt.c x2                            0.01      1.2    0.02    0.01   0.0%
+2f43e8 attachment3a.c                          0.01      1.4    0.02    0.00   0.0%
+321a80 blur.c                                  0.01      0.8    0.03    0.01   0.0%
+31a4e8 d_fade_io.c                             0.01      0.8    0.03    0.01   0.0%
+32fbc0 weapon_sph.c                            0.01      0.9    0.03    0.00   0.0%
+2c0fb0 cancel.c                                0.01      0.6    0.03    0.01   0.0%
+2df990 wall_scar.c                             0.01      1.0    0.03    0.00   0.0%
+295ab0 pl_global.c                             0.01      0.7    0.02    0.01   0.0%
+10a318 target.c                                0.01      0.5    0.02    0.01   0.0%
+1177e0 mapcnct.c                               0.01      0.4    0.02    0.01   0.0%
+3a5ee0 bomb_sensor.c                           0.01      0.7    0.02    0.00   0.0%
+218268 automenu.c                              0.01      0.6    0.01    0.01   0.0%
+157f80 bul_c4_mng.c                            0.00      0.3    0.01    0.01   0.0%
+29a990 lodctrl.c                               0.00      0.5    0.01    0.01   0.0%
+312328 bonbori_yw.c                            0.00      0.4    0.00    0.00   0.0%
+11da90 DG_ActLast                              0.00      0.1    0.01    0.00   0.0%
+13f578 actblur.c,T,@,sdstream.c,dumstream.c    0.00      0.4    0.00    0.00   0.0%
+143a60 ?                                       0.00      0.1    0.01    0.00   0.0%
+343df8 d_splash_parts_slow.c x136              0.00      0.0    0.00    0.00   0.0%

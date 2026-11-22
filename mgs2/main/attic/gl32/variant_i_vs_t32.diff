@@ -1,0 +1,218 @@
+diff -ru t32/ge/vu1conv.c main/build_gl32/alt/t32i/ge/vu1conv.c
+--- t32/ge/vu1conv.c	2026-11-21 00:28:01.446335157 +0000
++++ main/build_gl32/alt/t32i/ge/vu1conv.c	2026-11-21 02:19:08.596915839 +0000
+@@ -99,16 +99,6 @@
+    C's u | v << 16 its u, v; a UV is negative when bit 15 or 31 of C's word is set.  Kind 3 (plus ROW, which may leave 16 bits) as
+    vc_df0_rec.  The box only when the count is returned (no position off 16 bits, no negative UV) */
+ typedef uint32_t __attribute__((may_alias)) vc_w32;
+-/* gl32 (vu1conv.h): vc_df0_pos's first part alone */
+-int vc_df0_head(const uint8_t *vm, uint32_t top, VcXform *x, int max)
+-{
+-  const uint32_t *h = vq(vm, top + 0x14);
+-  int n = (int)(h[0] & 0xffff);
+-  if (n > max) return -1;
+-  vc_xform(vm, top, 0, 32768.0f, x);
+-  x->n = n; x->clip = h[3] != 0;
+-  return n;
+-}
+ int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
+ {
+   const uint32_t *h = vq(vm, top + 0x14);
+diff -ru t32/ge/vu1conv.h main/build_gl32/alt/t32i/ge/vu1conv.h
+--- t32/ge/vu1conv.h	2026-11-21 00:28:01.448351486 +0000
++++ main/build_gl32/alt/t32i/ge/vu1conv.h	2026-11-21 02:19:08.600687879 +0000
+@@ -43,9 +43,6 @@
+    vc_df0_flag: vertex i's flag word as vc_df0_att writes it */
+ int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max);
+ void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n);
+-/* gl32 (the ship's vertex cache, ge/natvc.h): the header's count and the call's VcXform as vc_df0_pos writes them, without the
+-   streams: the count, or -1 (over max: x not written), as vc_df0_pos before its loop */
+-int vc_df0_head(const uint8_t *vm, uint32_t top, VcXform *x, int max);
+ static inline uint16_t vc_df0_flag(const void *const *p, const uint8_t *kind, const uint32_t *row, int i)
+ {
+   typedef int16_t __attribute__((may_alias)) h16;
+diff -ru t32/ge/xconv.c main/build_gl32/alt/t32i/ge/xconv.c
+--- t32/ge/xconv.c	2026-11-21 00:29:18.513466482 +0000
++++ main/build_gl32/alt/t32i/ge/xconv.c	2026-11-21 02:19:15.903340318 +0000
+@@ -11,7 +11,6 @@
+ #include <string.h>
+ #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+-#include "natvc.h"   /* gl32: the ship's vertex cache */
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
+@@ -145,53 +144,6 @@
+ static int Datt = 1, Dbox_ok; static int16_t Dbox[6]; static const XlRec *Drec;
+ static VcVert *Dvp = Dv;   /* sb14 3w: where the call's vertices are: Dv, or the frame's room after the GerXform (xc_df0's place for them) */
+ int xc_c3_chk;   /* xconv.h */
+-/* gl32 (ge/natvc.h; xconv.h): the ship's vertex cache.  Dce: the df0 call xc_call read has this entry (found, or just added with its
+-   box); Dpos 0: the call's positions are not in Dvp (the entry gave the count and the box: xc_dpos brings them when something reads
+-   them); Dc the call */
+-VcHdr *xc_vc; int xc_vc_chk;
+-static VcE *Dce; static int Dpos = 1; static const XlCall *Dc;
+-static inline uint32_t xc_a2(int a) { return a >= 0x80 ? 0xffu : (uint32_t)(a < 0 ? 0 : a * 2); }   /* vu1conv.c vc_a2 */
+-int xc_vc_set(void *blk, uint32_t bytes, uint32_t slots) { xc_vc = 0; if (blk && vc_setup(blk, bytes, slots)) xc_vc = (VcHdr *)blk; return xc_vc != 0; }
+-/* the call's positions: Dvp once converted, or the entry's vertices */
+-static const VcVert *xc_dpos(void)
+-{
+-  if (Dpos) return Dvp;
+-  if ((Dce->st & VCE_ST) == VCE_FULL) return (const VcVert *)(const void *)((const uint8_t *)xc_vc + Dce->voff);
+-  (void)vc_df0_pos(Dc->vm, Dc->top, Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dbox, 1024); Dpos = 1;
+-  return Dvp;
+-}
+-#ifndef __psp__
+-/* x86 check mode (xc_vc_chk; MGS2_NAT_VC_CHK): a found entry against the streams converted again: the count, the transform, the box,
+-   the no-triangle bit; with its vertices: every vertex but the alpha byte, the alpha byte against the entry's, the strips and indices */
+-static void xc_vc_check(const XlCall *c, const XlRec *r, const VcE *e, int n0, int noidx)
+-{
+-  static VcVert Ev[1024]; static uint16_t Efl[1024], Er[2048], Ei[4096]; VcXform Ex; int16_t eb[6]; int bad, i = 2;
+-  int En = vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Ex, Ev, eb, 1024);
+-  bad = En != n0 || memcmp(&Ex, &Dx, sizeof Ex) || memcmp(eb, e->box, sizeof eb);
+-  if (En > 0) {
+-    while (i < En && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
+-    bad |= (i >= En) != ((e->st & VCE_NODRAW) != 0);
+-    if ((e->st & VCE_ST) != VCE_BOX) {
+-      vc_df0_att(r->p, r->kind, r->row, &Ex, Ev, Efl, En);
+-      int nst = vc_strips(Efl, En, Er, 1024), ni = 0;
+-      for (int k = 0; k < nst && !noidx; k++) {
+-        if (k) { Ei[ni] = Ei[ni - 1]; ni++; Ei[ni++] = Er[2 * k]; }
+-        for (int j = 0; j < Er[2 * k + 1]; j++) Ei[ni++] = (uint16_t)(Er[2 * k] + j);
+-      }
+-      if ((e->st & VCE_ST) == VCE_NONE) bad |= nst != 0;
+-      else {
+-        const VcVert *v = (const VcVert *)(const void *)((const uint8_t *)xc_vc + e->voff);
+-        bad |= nst != e->nst || ni != e->ni || !nst;
+-        for (int k = 0; k < En && !bad; k++)
+-          bad |= v[k].u != Ev[k].u || v[k].v != Ev[k].v || v[k].x != Ev[k].x || v[k].y != Ev[k].y || v[k].z != Ev[k].z || v[k].pad != Ev[k].pad
+-                 || ((v[k].c ^ Ev[k].c) & 0xffffffu) || (v[k].c >> 24) != e->a;
+-        if (!bad) bad |= memcmp(v + En, Er, 4u * (uint32_t)nst) || memcmp((const uint8_t *)(v + En) + 4u * (uint32_t)nst, Ei, 2u * (uint32_t)ni);
+-      }
+-    }
+-  }
+-  xc_vc->c[VCC_CHK]++; xc_vc->c[VCC_CHK_BAD] += (uint32_t)(bad != 0);
+-}
+-#endif
+ /* the df0 call xc_call read: 1 when XcHost.cut leaves it out */
+ static int xc_df0_off(const XcGs *d)
+ {
+@@ -242,14 +194,14 @@
+   if (h->c3z && Dbox_ok && n > 0 && xc_df0_zin(z, &Dx, Dbox)) {
+ #ifndef __psp__
+     if (xc_c3_chk) {
+-      XcZr c = *z; xc_zr_df0(&c, &Dx, xc_dpos(), n); St.c3_chk++;
++      XcZr c = *z; xc_zr_df0(&c, &Dx, Dvp, n); St.c3_chk++;
+       if (c.calls != z->calls + 1 || c.verts != z->verts + n || c.wmin != z->wmin || c.wmax != z->wmax || c.on != z->on || c.lo != z->lo || c.hi != z->hi) St.c3_chk_bad++;
+     }
+ #endif
+     z->calls++; z->verts += n; St.c3z_in++; St.c3z_in_v += n;
+     return;
+   }
+-  xc_zr_df0(z, &Dx, xc_dpos(), n);   /* (gl32: Dvp, or a cache entry's vertices) */
++  xc_zr_df0(z, &Dx, Dvp, n);
+ }
+ /* a call the cut leaves out gives the frame's depth range (XcZr) what xc_df0 would have given it: a depth-testing, depth-writing call
+    with a triangle to draw, its vertices' w.  The frame's depth map and the next frame's class 3 window for the effects are then the same
+@@ -258,8 +210,7 @@
+ {
+   if (!h->zr || !d->zte || d->zmsk || (d->ate && d->atst == 0 && d->afail == 1)) return;   /* xc_state's GERF_ZWRITE */
+   int i = 2;
+-  if (Dce) i = (Dce->st & VCE_NODRAW) ? Dn : 2;   /* gl32: the entry's bit (made by the loop below) */
+-  else if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
++  if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
+   else {   /* sb14 3v: the flags from the stream B, as vc_df0_att would write them */
+     const XlRec *r = Drec;
+     while (i < Dn && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
+@@ -276,19 +227,12 @@
+   VcVert *v = Dvp; uint16_t *fl = Dfl; VcXform x = Dx; int n = Dn;
+   (void)c;
+   if (n < 0) return n;
+-  int nst, ni = 0; const uint16_t *runp = runs, *idxp = idx;
+-  if (Dce && (Dce->st & VCE_ST) != VCE_BOX) {   /* gl32: the entry's strips and indices (v is its vertices: xc_call) */
+-    if ((Dce->st & VCE_ST) == VCE_NONE) return 0;
+-    nst = Dce->nst; ni = Dce->ni; runp = (const uint16_t *)(const void *)(v + n); idxp = runp + 2 * nst;
+-  } else {
+-  nst = vc_strips(fl, n, runs, 1024);
+-  if (!nst) { if (Dce) Dce->st = (uint8_t)(VCE_NONE | (Dce->st & VCE_NODRAW)); return 0; }
++  int nst = vc_strips(fl, n, runs, 1024), ni = 0;
++  if (!nst) return 0;
+   for (int k = 0; k < nst && !h->noidx; k++) {   /* the strips joined into one by repeated vertices */
+     if (k) { idx[ni] = idx[ni - 1]; ni++; idx[ni++] = runs[2 * k]; }
+     for (int j = 0; j < runs[2 * k + 1]; j++) idx[ni++] = (uint16_t)(runs[2 * k] + j);
+   }
+-  if (Dce) vc_store(xc_vc, Dce, v, runs, nst, idx, ni, xc_a2(x.alpha));   /* gl32: the entry's second step */
+-  }
+   GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
+   gx.nv = n; gx.nst = nst; gx.nidx = ni;
+   uint32_t o = 0, need = sizeof gx + n * sizeof *v + nst * 4 + ni * 2;
+@@ -296,8 +240,8 @@
+   memcpy(blob + o, &gx, sizeof gx); o += sizeof gx;
+   if ((uint8_t *)v != blob + o) memcpy(blob + o, v, n * sizeof *v);   /* sb14 3w: there already */
+   o += n * sizeof *v;
+-  memcpy(blob + o, runp, nst * 4); o += nst * 4;
+-  memcpy(blob + o, idxp, ni * 2); o += ni * 2;
++  memcpy(blob + o, runs, nst * 4); o += nst * 4;
++  memcpy(blob + o, idx, ni * 2); o += ni * 2;
+   xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = nst;
+   if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }   /* GERF_ZWRITE has ZTEST; sb14:
+                                                                                      x, v, n are Dx, Dv, Dn */
+@@ -1152,33 +1096,11 @@
+   XcGs d; xc_gs(c->gr, &d);
+   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
+     Datt = 1; Dbox_ok = 0; Dvp = Dv;   /* sb14 */
+-    Dce = 0; Dpos = 1; Dc = c;         /* gl32 */
+     if (c->rec) {   /* sb1 lane: the streams from the game's data */
+       const XlRec *r = c->rec; xc_rec_calls++;
+       if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
+         if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
+-        VcE *ve = 0, *vi = 0; int vn = 0, vcu = r->vc && xc_vc && !xc_rec_chk;   /* gl32: the ship's vertex cache (ge/natvc.h) */
+-#ifndef __psp__
+-        if (xc_c3_chk || c3m_on) vcu = 0;   /* (dev modes that read every call's whole input) */
+-#endif
+-        if (vcu) {
+-          if (r->kind[0] != 2 || r->kind[1] != 2 || (vn = vc_df0_head(c->vm, c->top, &Dx, 1024)) <= 0) { vcu = 0; xc_vc->c[VCC_BYPASS]++; }
+-          else ve = vc_find(xc_vc, r->vck, (uint32_t)vn, r->vcg, &vi);
+-        }
+-        if (ve) {   /* found: the count, the box; the vertices when the call is drawn */
+-          Dn = vn; memcpy(Dbox, ve->box, sizeof Dbox); Dbox_ok = 1; Datt = 0; Drec = r; Dce = ve; Dpos = 0; St.c3v_calls++;
+-          xc_vc->c[(ve->st & VCE_ST) == VCE_BOX ? VCC_HIT_BOX : (ve->st & VCE_ST) == VCE_FULL ? VCC_HIT_FULL : VCC_HIT_NONE]++;
+-#ifndef __psp__
+-          if (xc_vc_chk) xc_vc_check(c, r, ve, vn, h->noidx);
+-#endif
+-        } else {
+         Dn = vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024); Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
+-        if (vcu) {
+-          if (Dn > 0) { int i = 2; while (i < Dn && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
+-            Dce = vc_add(xc_vc, vi, r->vck, (uint32_t)Dn, Dbox, i >= Dn); xc_vc->c[VCC_MISS]++; }
+-          else xc_vc->c[VCC_BYPASS]++;
+-        }
+-        }
+ #ifndef __psp__   /* (x86 only: no check arrays or code in the PSP's hot path) */
+         if (xc_c3_chk) {   /* the two passes against vc_df0_rec: every output the same; the flags read from the stream the same as converted */
+           static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex; int16_t eb[6];
+@@ -1216,15 +1138,7 @@
+ #endif
+     if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+       xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
+-    if (!Datt && Dce && (Dce->st & VCE_ST) != VCE_BOX) {   /* gl32: the entry's vertices (xc_df0 copies them into the frame's room) */
+-      if ((Dce->st & VCE_ST) == VCE_FULL) {
+-        VcVert *cv = (VcVert *)(void *)((uint8_t *)xc_vc + Dce->voff); const uint32_t a = xc_a2(Dx.alpha);
+-        if (Dce->a != a) { for (int i = 0; i < Dn; i++) cv[i].c = (cv[i].c & 0xffffffu) | a << 24; Dce->a = (uint8_t)a; xc_vc->c[VCC_ALPHA]++; }
+-        Dvp = cv; Dpos = 1; xc_vc->c[VCC_USED_V]++; xc_vc->c[VCC_BYTES_V] += 16u * (uint32_t)Dn;
+-      }
+-      Datt = 1;
+-    }
+-    if (!Datt) { if (Dn > 0) { (void)xc_dpos(); vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); } Datt = 1; }   /* sb14 3v: the second pass */
++    if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+   }
+   XcTex t; memset(&t, 0, sizeof t); t.index = -1;
+   if (d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
+@@ -1471,3 +1385,8 @@
+     memcpy(Sv + ((a + 6) << 4), w, 16);
+   }
+ }
++
++/* gl32 variant "in place only" (build_gl32/alt): gl31's converter, with no vertex cache; the names psp/xl_psp.c links against */
++#include "natvc.h"
++VcHdr *xc_vc; int xc_vc_chk;
++int xc_vc_set(void *blk, uint32_t bytes, uint32_t slots) { (void)blk; (void)bytes; (void)slots; return 0; }

@@ -1,0 +1,135 @@
+# Local changes to the container's headless PPSSPP 1.20.4 on top of tt_port/src/ppsspp_patches.diff (dev tool only, never shipped).
+# PspProf.h/.cpp: against the TT versions. MIPS.cpp: the core switch. MIPSTables.cpp / MIPSInt.cpp (lines listed at the end): PspProf::Exec in
+# the other two interpreter loops and PspProf::ApplyFcr31Host (the PSP FPU mode on the host) after HLE code and FPU control writes.
+--- a/Core/MIPS/PspProf.h
++++ b/Core/MIPS/PspProf.h
+@@ -3,6 +3,7 @@
+ // misses each instruction causes can be attributed.  Dumped as text "pc count imiss dmiss" when the flag drops back to 0 (or at exit).
+ #pragma once
+ #include <cstdint>
++#include <xmmintrin.h>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <vector>
+@@ -41,11 +42,19 @@
+ 	uint32_t tick = 0; uint64_t total = 0, imiss = 0, dmiss = 0, dacc = 0;
+ 	std::vector<uint32_t> cnt, im, dm; Cache ic, dc; int dumps = 0; bool fa = false; FACache fic; uint64_t faimiss = 0; uint32_t faline = 0xffffffffu;
+ 	std::unordered_map<uint64_t, uint32_t> calls;   // (call site pc << 32 | target) -> count
++	bool sw = false;   // local change (MGS2): PSPPROF_SWITCH=1, see WantCore
+ };
+ extern State g;
+ void Init();
+ void Dump();
+-static constexpr uint32_t BASE = 0x08800000u, SIZE = 0x01800000u;
++static constexpr uint32_t BASE = 0x08800000u, SIZE = 0x04000000u;   // MGS2T: 51 MB image at 0x08804000 (was 24 MB for TT)
++// local change: the interpreter computes in the PSP's FPU mode: FCR31 rounding mode on the host, FS as FTZ only (no DAZ)
++inline void ApplyFcr31Host(uint32_t fcr31) {
++	static const uint32_t rc[4] = {0, 3, 2, 1};   // MIPS RN RZ RP RM -> x86 RC
++	uint32_t csr = _mm_getcsr() & ~(0x6000u | 0x8040u);
++	csr |= rc[fcr31 & 3] << 13; if (fcr31 & 0x01000000u) csr |= 0x8000u;
++	_mm_setcsr(csr);
++}
+ inline uint32_t memAddr(MIPSState *mips, uint32_t op, bool *isMem) {
+ 	uint32_t opc = op >> 26; *isMem = false;
+ 	switch (opc) {
+@@ -66,17 +75,28 @@
+ 		else if (!on && g.active) { g.active = false; Dump(); }
+ 	}
+ 	if (!g.active) return;
+-	uint32_t k = (pc - BASE) >> 2; bool inRange = (pc - BASE) < SIZE;
+-	g.total++;
++	// local change (MGS2): flag 2 = paused (the game sets it around code the profile leaves out): the caches run on, nothing is counted
++	const bool cnt = Memory::ReadUnchecked_U32(g.flagAddr) != 2;
++	uint32_t k = (pc - BASE) >> 2; bool inRange = cnt && (pc - BASE) < SIZE;
++	if (cnt) g.total++;
+ 	if (inRange) g.cnt[k]++;
+-	if (g.ic.access(pc & 0x1fffffffu)) { g.imiss++; if (inRange) g.im[k]++; }
+-	if (g.fa) { uint32_t ln = (pc & 0x1fffffffu) >> 6; if (ln != g.faline) { g.faline = ln; if (g.fic.access(pc & 0x1fffffffu)) g.faimiss++; } }
+-	if ((op >> 26) == 3) g.calls[((uint64_t)pc << 32) | ((pc & 0xf0000000u) | ((op & 0x03ffffffu) << 2))]++;
+-	else if ((op >> 26) == 0 && (op & 0x3f) == 9) g.calls[((uint64_t)pc << 32) | mips->r[(op >> 21) & 31]]++;
++	if (g.ic.access(pc & 0x1fffffffu)) { if (cnt) g.imiss++; if (inRange) g.im[k]++; }
++	if (g.fa) { uint32_t ln = (pc & 0x1fffffffu) >> 6; if (ln != g.faline) { g.faline = ln; if (g.fic.access(pc & 0x1fffffffu) && cnt) g.faimiss++; } }
++	if (cnt && (op >> 26) == 3) g.calls[((uint64_t)pc << 32) | ((pc & 0xf0000000u) | ((op & 0x03ffffffu) << 2))]++;
++	else if (cnt && (op >> 26) == 0 && (op & 0x3f) == 9) g.calls[((uint64_t)pc << 32) | mips->r[(op >> 21) & 31]]++;
+ 	bool isMem; uint32_t a = memAddr(mips, op, &isMem);
+ 	if (isMem) {
+ 		uint32_t pa = a & 0x3fffffffu;
+-		if (!(a & 0x40000000u) && pa >= 0x08000000u && pa < 0x0c000000u) { g.dacc++; if (g.dc.access(pa)) { g.dmiss++; if (inRange) g.dm[k]++; } }
++		if (!(a & 0x40000000u) && pa >= 0x08000000u && pa < 0x0c000000u) { if (cnt) g.dacc++; if (g.dc.access(pa)) { if (cnt) g.dmiss++; if (inRange) g.dm[k]++; } }
+ 	}
+ }
++// local change (MGS2): with PSPPROF_SWITCH=1 the JIT runs until the flag turns non-zero, the (profiled) interpreter while it is, the JIT again
++// after it drops (the dump happens here then): 1 = want the interpreter, 0 = want the JIT, -1 = leave the core alone (MIPS.cpp RunLoopUntil)
++inline int WantCore() {
++	if (!g.inited) Init();
++	if (!g.enabled || !g.sw || !Memory::IsValidAddress(g.flagAddr)) return -1;
++	bool on = Memory::ReadUnchecked_U32(g.flagAddr) != 0;
++	if (!on && g.active) { g.active = false; Dump(); }
++	return on ? 1 : 0;
++}
+ }
+--- a/Core/MIPS/PspProf.cpp
++++ b/Core/MIPS/PspProf.cpp
+@@ -6,7 +6,7 @@
+ 	g.inited = true;
+ 	const char *f = getenv("PSPPROF_FLAG"); g.out = getenv("PSPPROF_OUT");
+ 	if (!f || !g.out) return;
+-	g.flagAddr = (uint32_t)strtoul(f, nullptr, 16); g.enabled = true; { const char *fa = getenv("PSPPROF_FA"); g.fa = fa && *fa; }
++	g.flagAddr = (uint32_t)strtoul(f, nullptr, 16); g.enabled = true; { const char *fa = getenv("PSPPROF_FA"); g.fa = fa && *fa; } { const char *sw = getenv("PSPPROF_SWITCH"); g.sw = sw && *sw == '1'; }
+ 	g.cnt.assign(SIZE / 4, 0); g.im.assign(SIZE / 4, 0); g.dm.assign(SIZE / 4, 0); g.ic.reset(); g.dc.reset();
+ 	atexit(atExit);
+ 	fprintf(stderr, "PspProf: flag at %08x, output %s\n", g.flagAddr, g.out);
+--- a/Core/MIPS/MIPS.cpp
++++ b/Core/MIPS/MIPS.cpp
+@@ -26,6 +26,7 @@
+ #include "Common/Serialize/SerializeFuncs.h"
+ #include "Core/ConfigValues.h"
+ #include "Core/MIPS/MIPS.h"
++#include "Core/MIPS/PspProf.h"
+ #include "Core/MIPS/MIPSInt.h"
+ #include "Core/MIPS/MIPSTables.h"
+ #include "Core/MIPS/MIPSDebugInterface.h"
+@@ -330,6 +331,11 @@
+ 
+ // returns 1 if reached ticks limit
+ int MIPSState::RunLoopUntil(u64 globalTicks) {
++	{	// local change (MGS2): PspProf PSPPROF_SWITCH (JIT up to the profiled range, the interpreter in it)
++		int w = PspProf::WantCore();
++		if (w == 1 && PSP_CoreParameter().cpuCore != CPUCore::INTERPRETER) UpdateCore(CPUCore::INTERPRETER);
++		else if (w == 0 && PSP_CoreParameter().cpuCore == CPUCore::INTERPRETER) UpdateCore(CPUCore::JIT);
++	}
+ 	switch (PSP_CoreParameter().cpuCore) {
+ 	case CPUCore::JIT:
+ 	case CPUCore::JIT_IR:
+# MIPSTables.cpp / MIPSInt.cpp lines:
+#   Core/MIPS/MIPSTables.cpp:979:			PspProf::Exec(curMips, curMips->pc, op.encoding);
+#   Core/MIPS/MIPSTables.cpp:1004:			PspProf::Exec(curMips, curMips->pc, op.encoding);
+#   Core/MIPS/MIPSTables.cpp:1053:		PspProf::ApplyFcr31Host(curMips->fcr31);   // local change: HLE code between slices may have changed the host mode
+#   Core/MIPS/MIPSInt.cpp:544:					PspProf::ApplyFcr31Host(currentMIPS->fcr31);
+# 2026-10-20 (v16): the JIT's add.s / sub.s go to the interpreter (its Allegrex FS rule: x +- 0 keeps a denormal x), and the interpreter's
+# add.s / sub.s apply the FCR31 mode themselves, because Comp_Generic calls interpreter functions in the host's default mode.
+--- a/Core/MIPS/x86/CompFPU.cpp
++++ b/Core/MIPS/x86/CompFPU.cpp
+@@ -90,8 +90,7 @@
+ void Jit::Comp_FPU3op(MIPSOpcode op) {
+ 	CONDITIONAL_DISABLE(FPU);
+ 	switch (op & 0x3f) {
+-	case 0: CompFPTriArith(op, &XEmitter::ADDSS, false); break; //F(fd) = F(fs) + F(ft); //add
+-	case 1: CompFPTriArith(op, &XEmitter::SUBSS, true); break;  //F(fd) = F(fs) - F(ft); //sub
++	case 0: case 1: DISABLE;  // local change: add.s / sub.s in the interpreter, which has the Allegrex FS rule (x +- 0 keeps a denormal x)
+ 	case 2: //F(fd) = F(fs) * F(ft); //mul
+ 		// XMM1 = !my_isnan(fs) && !my_isnan(ft)
+ 		MOVSS(XMM1, fpr.R(_FS));
+--- a/Core/MIPS/MIPSInt.cpp
++++ b/Core/MIPS/MIPSInt.cpp
+@@ -1013,7 +1013,10 @@
+ 				else FI(fd) = (op & 1) ? (b ^ 0x80000000) : b;
+ 				break;
+ 			}
++			const u32 csr = _mm_getcsr();   // local change: the JIT calls this through Comp_Generic in the host's mode (CompFPU.cpp)
++			PspProf::ApplyFcr31Host(currentMIPS->fcr31);
+ 			F(fd) = (op & 1) ? F(fs) - F(ft) : F(fs) + F(ft);
++			_mm_setcsr(csr);
+ 			if (my_isnan(F(fd)) && !my_isnan(F(fs)) && !my_isnan(F(ft)))
+ 				FI(fd) = 0x7fc00000;  // Inf - Inf: the positive default NaN (PSP-3000), not the host's
+ 			break;

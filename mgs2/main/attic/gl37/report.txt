@@ -1,0 +1,157 @@
+gl37 build agent report, 2026-11-22 (plan: attic/gl37/gl37_plan.md). Marks: [C] measured or read in code, [C emu] the emulator
+(PPSSPP 1.20.4 headless), [C model] the PspProf cost model, [I] inferred (basis named), UNKNOWN.
+
+RESULT: STOPPED AT THE DESIGN CHECKPOINT (plan step 4). NOTHING PACKAGED, NOTHING DELIVERED.
+- The fixed-work lever was NOT built: its design (attic/gl37/fix_design.md) cannot be expected to reach -15% of the fixed work. Best
+  estimate -5.1..-5.8 of ~43 us a group on the PSP's stage timers, -12..-13.5% [I]; model terms -5.8..-6.5 us a group [C model basis].
+- Done before the checkpoint, with its gates: the tree (step 1), cull always on (step 2, cfg only), the reuse's new rule (step 3).
+- Not done (they follow the lever in the plan): the PGO retrain with the binding guard (step 5), the full gates on a trained
+  build, the scoring of a lever, the package build_gl37/deliver, README, MANIFEST, rd37pc.py, the "Build gl37" harness entry.
+
+1. Tree [C]
+- /home/claude/t37 = t36. t36 checks against build_gl36/t36_files_C.md5: 105 of 105 OK.
+- The base rebuild reproduces the package: EBOOT c4d797f0 and all 8 overlays the same; 53 of 53 objects the same as gl36's use
+  build (build_gl37/base36.out). The base twin objects are byte-identical to gl36's.
+- t37 differs from t36 in 6 files: boot/nat_stub.h, boot/nat_x86.c, ge/gelive.c, ge/xlate.c, ge/xlate.h, psp/xl_psp.c
+  (build_gl37/t37_files.md5).
+
+2. Cull always on [C]
+- cfg only: MGS2_NAT_CULL=1 in place of MGS2_NAT_CULL_CYCLE=1,1,1,1,0,0,0,0 (build_gl37/cfg/mgs2_gl37.cfg, md5 34147bea; gl36's
+  delivered file plus a gl37 header). The cull code is gl36's, unchanged.
+
+3. The reuse's new rule: re-use only when it pays [C]
+What it does (ge/xlate.c, xl_nr_begin and xl_nr_pic; key MGS2_NAT_RRULE, 1 by default, 0 = gl36's rule):
+- Replays are unchanged. The rule only decides whether a run that did not replay is recorded.
+- A run is recorded only while each of the last two pictures had at least half of its tried groups in runs that either replayed or
+  were the same as in the picture before.
+- Otherwise the run is fed plain. Its "shadow" is written at its head entry: length, VU buffers, and two 32-bit hashes of its records'
+  words. The entry's head becomes 0xffff, so no replay can use it.
+- A later run that equals its shadow counts as a good run. This is how the rule notices that the camera has settled again.
+- On the reuse's on-turns only (MGS2_NAT_REUSE_CYCLE=1,1,0,0, as gl36); off-turns are plain, as before.
+- New lines: 'nat reuse rule vb A-B' per turn and 'reuse rule totals (gl37)' on the PSP; 'natreuse: ... rule' on the twin.
+How it was chosen:
+- From the twin's runs (dump MGS2_NAT_RDUMP, x86 only), simulated by build_gl37/nrsim.py.
+- The simulator reproduces gl36's twin modes run for run (0 differing) and its totals exactly.
+- Rules tried: per run (stab), per picture with thresholds (pic, pic2, pich, stabpic, picstab). Outputs: sim_rules1.txt,
+  sim_rules2.txt, sim_pic2_2304.txt.
+- pic2:0.5 kept the wait's gain and lost least in the walk. The twin implementation matches the simulator exactly.
+
+Twin gates [C] (runs37a.sh, cmp37a.out). Arms:
+- rrC: the gl37 cfg's keys;
+- rrkC: rrC + MGS2_NAT_RCHK=1;
+- rr0C: MGS2_NAT_RRULE=0, which is gl36's onC;
+- rrallC: the rule in every turn + RCHK.
+Results:
+- 685/685 hashes in all 4 arms; each hashref equals hashref_gl37 (c9ddb593) byte for byte.
+- 17,664 frames equal in every column against each other and against gl36's onC (the rule arm by its cycle, both arms):
+  list/frame digests, dz text, content digest, natb, natz, natq, nats.
+- Check mode: S differing 0, boxes differing 0.
+  - rrkC: 8,260 runs, 616,900 groups.
+  - rrallC: 17,383 runs, 1,280,650 groups.
+- Problem counters 0. Replays with a group not taken: 0.
+Counts, rrC against rr0C:
+- Replayed: 8,260 runs (616,900 groups) against 9,323 runs (694,802).
+- Recorded: 6,995 runs (165,770 groups) against 11,625 (319,912).
+- Not recorded: 5,693 runs (232,044 groups); 2,733 of them (96,032 groups) equal to their shadow.
+By scene, on-turns, groups replayed / recorded / not recorded, rule against gl36 (build_gl37/rrscene.out):
+- rain wait: 150,182 / 23,504 / 9,234 against 156,887 / 26,033.
+- rain walk: 0 / 0 / 54,326 against 7,511 / 46,815.
+- d00t deck: 14,746 / 11,176 / 48,688 against 24,933 / 49,677.
+- Net [I] (PSP stage costs: -7.5 us a replayed group, +9.0 a recorded one, +0.3 a shadow), ms a vblank step:
+  - wait -1.52 against gl36's -1.57;
+  - walk +0.04 against +0.91;
+  - deck +0.00 against +0.24.
+
+Emulator gates [C emu]:
+- Build: no-PGO build_gl37/nopgo, EBOOT 09f8e7fd, package pk_n37 (pk_n37.md5).
+- Runs (em37a.sh, em37.sh): n2 with the gl37 cfg; n5 with + MGS2_NAT_RCHK=1. Each ran to vb 31,400.
+- 62/62 hashes in both runs.
+- 916/916 digests equal to the twin: n2 against rrC, n5 against rrkC (tools/emucmp.py rc 0).
+- gl36's reader (deliver/rd36pc.py) against gl36's e2:
+  - HASHES EQUAL (66499cdb584a);
+  - DIGESTS EQUAL (b4bf989fb1d6 / dz 7d2f93ab5f56);
+  - NAT PROBLEMS none, in both runs.
+- Reuse check (n5): 786 runs (202,464 groups) checked, S differing 0, boxes differing 0.
+- natcull totals: 340,085 tested, 245,840 left out. This equals gl36's e5 figure.
+- Pictures: 51 of 52 byte-identical to gl36's e2 in both runs.
+  - The exception is shot_24784, the known noise frame: 376 px (n2) and 445 px (n5), max 4 a channel.
+  - gl36's own e2 and e5 differ there too.
+  - The picture folders were deleted after the check (literal paths).
+- Heap (no-PGO build): start 12,592 KB, the same as gl36's no-PGO build. Lowest about 120 KB at vb 23,677. The trained build's figure
+  is UNKNOWN (not built). Its gate is >= gl36's 64 KB.
+- System calls: the sce* symbol names of the ELF equal gl36's psp ELF (144 names). The changed code is translator logic and log lines
+  only: no new hardware writes, and the clock code is unchanged [C, code diff].
+- Per-turn rule counts, emulator against twin (rrturns_n2.out):
+  - Summed over vb 24,000-31,400 these are equal: groups replayed 202,464, groups replayed or the same 242,725, groups equal to
+    their shadow 40,261.
+  - Groups tried differ by -6,368 on the emulator, all in two deck turns (25,800 and 26,000). Cause: the emulator's reuse table has
+    1,536 entries and the twin's 2,304. Runs past entry 1,536 are not tried there ('no table room 63', as in gl36's e2).
+  - Elsewhere only +-12 groups move between neighbouring turns (a picture on a turn's edge).
+  - Proof of the cause: a twin arm with the emulator's table size (rrC1536: rrC + MGS2_NAT_RCAP=1536, runs37b.sh,
+    rrturns_n2_1536.out):
+    - 685/685 hashes; picture and nat lines the same as rrC's (md5 of all 35,336 picture lines + natb/z/q/s lines equal);
+    - 'no table room 63', as on the emulator;
+    - summed counts against the emulator: replayed 202,464 = 202,464; recorded 45,106 = 45,106; replayed-or-same 242,725 =
+      242,725; shadow-equal 40,261 = 40,261; tried 370,269 against 370,257. The 12 are one picture at the run's end.
+    - So the emulator's rule counts are the twin's at the same table size [C]. The PSP's table size is UNKNOWN: it tries 2,304 entries
+      first, then 1,536. The PSP log line 'nat reuse (gl36): the table' gives it.
+
+Model score of the rule [C model] (model37a.sh, score37a.out):
+- Runs: the no-PGO ELF, cull on, reuse whole-run; n37c reuse off, n37rc0 gl36's rule, n37rc the gl37 rule.
+- The model's figures are ms a PICTURE (40 pictures in a window of 80 vblanks).
+- Rain wait, pair mean (ME and main turn):
+  - gl36's rule -4.84;
+  - gl37's rule -4.92: the gain is kept (-0.09 against gl36's rule).
+- Rain walk, pair mean:
+  - gl36's rule +1.56;
+  - gl37's rule +0.23: -1.34 against gl36's rule. The loss is mostly gone. What is left is the shadows' hashing, about +31 k
+    instructions a picture.
+- Expected on the PSP [I]: about half of these figures a vblank step (see the units note below). That is wait about -2.4, walk about
+  +0.1 ms a step against reuse off.
+- The model runs' hash lines differ only at the profiler's own vblanks (30,000, 30,500, 31,000), as in gl35 and gl36.
+
+4. The fixed work (plan step 4): attic/gl37/fix_design.md. Summary:
+- The stages measured on the model match the PSP timers (sum ~36 model against ~43 PSP us a group).
+- Why gl35's texture keep cost +0.8: its replay must redo every effect of the pure path (stamps, counters, LRU touches,
+  gu_clut_id called for real), so it is about as long as the path. Bit 4 rarely fired for the ship's own look-ups. Its new code
+  added 3,400-6,700 I-misses a picture by placement.
+- Exact skips found, us a group, model / PSP timers [I]:
+  - F1, the last-writer skip for every non-replayed run, from a pre-pass: -4.1 / about -3.8;
+  - F2, TEX0's CLUT call: -0.15;
+  - F3, the GS state memo and gl_call's df0 tests: -1.0..-1.4;
+  - F4, GerTex only on insert: -0.3;
+  - F5, fewer descriptors to decode: -0.2..-0.5.
+  - All together: -5.8..-6.5 model, about -5.1..-5.8 on the PSP timers, i.e. -12..-13.5% of 43.
+- -15% would need about -6.5 us a group on the timers. The -30% target is not reachable by exact skips.
+- What remains is about 93 I-misses a group on a ~16 KB code path, plus state work.
+- Options for a next build, each its own design:
+  - (A) F1 alone: exact by gl36's proof, about -4 us model a group in every scene with ship groups;
+  - (B) one fused df0 path, so the per-group code fits the ME's I-cache: about -4..-6 us model [I];
+  - (C) a run processed stage by stage: I-misses -50..-70% [I], but the order of effects changes, so it needs a dependency proof.
+
+5. Units note (affects every "PSP/model 0.5" figure)
+Facts [C]:
+- steps.csv has one row a vblank. full and lite alternate, so there is one picture every two rows (emu_n2/steps.csv).
+- The model scripts (mtot35.py, pairmean36.py) divide a window by 40 pictures (80 vblanks).
+- gl36's report reads "ms a picture over 40 pictures = 80 vblanks = ms a step".
+- natsplit_summary's "native ms/step d" column is us a group x groups / 100 vblanks.
+- The PSP's "ms a step" is a vblank: split36pc.py reads the 'window vb B: N steps, mean X ms' lines, and a window of 100 vblanks has
+  100 steps (emu_n2/log.txt 'window vb 200: 100 steps'); its ME figures are turn ms / 100.
+So the model's "ms a step" is a picture, which is two PSP steps [C].
+Inference [I]: the observed PSP/model ~0.5 is mostly this factor, not a model overrate:
+- cull 0.55 and reuse 0.5;
+- per group the reuse agrees: PSP -5.4 us, model -4.7 us.
+Basis: the units above, and both levers giving the same ratio. The model's own error is then small for these ME-side levers.
+UNSURE only in how much of the 0.5 is units and how much is model error; the units part is [C].
+
+6. Files
+In build_gl37:
+- fix_design.md (= attic copy), report.txt (= attic copy);
+- nrsim.py, sim_*.txt;
+- runs37a.sh, cmp37a.sh, cmp37a.out, rrscene.out, runs37b.sh, rrturns_n2.out, rrturns_n2_1536.out;
+- tools/rrscene.py, tools/rrturns.py, tools/callers.py;
+- split_wait_me.txt, pcl_*.txt;
+- cfg/mgs2_gl37.cfg, cfg_emu/mgs2_gl37_rchk.cfg, cfg_emu/mgs2_m37_rc.cfg, cfg_emu/mgs2_m37_rc0.cfg;
+- nopgo/ (no-PGO build), pk_n37/ (test package, NOT a delivery), em37.sh, em37a.sh, emu_n2, emu_n5 (logs);
+- model37a.sh, score37a.out, model/ (n37c, n37rc, n37rc0, b36p, b36n4).
+In t37: the 6 changed files above.

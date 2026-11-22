@@ -1,0 +1,55 @@
+MGS2T_v29, PspProf cost model of free play (2026-10-25; psp_harness.md "Build v29", recomp/lean_plan.md step 3)
+ms per step = (1.4 x instructions + 70 x (I-misses + D-misses)) / 333,000, per step, as since v16. v25f's four windows of 100 steps,
+everything on, MGS2_HASH_EVERY=500, PPSSPP_VFPU_RN=1; the harness's state hash at vb 33000 taken off the crawl window as in v25f.
+Dumps: container /home/claude/v29/model/mf, mf.1-3 (model.sh, cfg_mf.txt, log_mf.txt; build d, without the ME layer, as v28's model
+ran on v28's d); link map /home/claude/v29/me/base/MGS2T.map (d's own link, redone by psp/v29me.sh). v28's figures:
+prof/model_v28_free.txt. Tool: tools/dev/prof_regions.py <map> 08b90000 460000 0 mf mf.1 mf.2 mf.3 --ex-hash mf.
+
+1. Windows (v28 in brackets)
+  window                 steps         instr              I-miss          D-miss          ms
+  free: walk the deck    31501-31600   10.076 M (11.451)  56.7 k (63.9)   68.1 k (68.7)   68.60 (76.01)   -7.41
+  free: crawl            32901-33000   10.407 M (11.847)  61.4 k (69.1)   68.4 k (68.8)   71.03 (78.82)   -7.79
+  free: first person     33801-33900    9.686 M (11.051)  57.7 k (65.8)   64.0 k (64.6)   66.31 (73.87)   -7.56
+  free: alert            35501-35600   10.242 M (11.719)  60.2 k (68.3)   68.4 k (68.9)   70.09 (78.11)   -8.02
+  mean                                                                                    69.01 (76.70)   -7.69 (-10.0%)
+  Instructions -12.0 to -12.6% in every window, I-misses -11.1 to -12.3%, D-misses -0.6 to -0.9%.
+  PSP [I]: v28's 83.55 x 69.01 / 76.70 = about 75.2 ms per step (told to Ffm as "about 75"); the walk window alone 82.25 x 68.60 /
+  76.01 = 74.2 (v28's model read 7.6% low there, its gain within 0.2 ms of the PSP's).
+
+2. Exactness of the windows. Against prof/hashes_x86_free_v28.txt: ee 63 / 71, iop 71 / 71, vfb 71 / 71; first ee difference at vb
+  32000 (05be84df16481e37, reference 50ebc7e6f02db911), as in v28's model run (the interpreted profile windows change the state from
+  there; the JIT runs are exact on every hash, prof/emu_v29). The walk window starts from the exact state: the clean comparison.
+
+3. By code region, walk window (ms per step)
+  region                       v29                                  v28
+  game ELF code (gen.o)        3.676 M  24.0 k I  31.3 k D  27.07   4.449 M  28.1 k I  30.4 k D  31.01
+  runtime (boot_rt.o)          3.956 M  10.1 k I  17.1 k D  22.35   3.943 M  10.9 k I  17.1 k D  22.46
+  stage w00a (reduced part)    1.893 M  18.3 k I  13.4 k D  14.63   2.192 M  20.6 k I  13.3 k D  16.35
+  IOP + sound                  0.242 M   2.2 k I   2.5 k D   2.01   0.242 M   2.2 k I   2.5 k D   2.01
+  libraries                    0.222 M   1.0 k I   2.8 k D   1.74   0.222 M   0.7 k I   2.8 k D   1.68
+  dispatch (gen_dispatch.o)    0.071 M   0.6 k I   0.8 k D   0.59   0.388 M   0.9 k I   2.3 k D   2.30
+  harness                      0.015 M   0.4 k I   0.2 k D   0.21   0.015 M   0.4 k I   0.3 k D   0.21
+  The generated code (gen.o + stage): 5.569 M instructions, 42.3 k I-misses, 44.7 k D-misses = 41.70 ms (v28 6.641 M, 48.7 k,
+  43.7 k = 47.36 ms): -5.66 ms, instructions -16.1%, I-misses -13.1%. The dispatch region -1.71 ms: the out-of-line helpers it held,
+  GSDU 1.09 ms, GLDU 0.60, gen_mm 0.56 (per-function diff, scratch fndiff.py), are inline code in v29 (the plan's unaligned pairs and
+  base forms). The runtime's code is the same (-0.11 ms).
+
+4. Code size (bytes) and why the profiled units grew. EBOOT text 3,691,084 (v28 3,515,036, +5.0%); overlays w00a 3,703,408
+  (3,246,112, +14.1%), w01a 2,277,760 (2,060,384, +10.6%), d00t 2,377,760 (2,595,744, -8.4%), d01t 2,459,984 (2,677,888, -8.1%).
+  Without profiles step 3 shrinks every unit (plain builds: gen.o -7.2%, w00a -6.4%, lean_plan.md step 3), and the overlays built
+  without a profile (d00t, d01t, n_title) shrink here too. The profiled units grow because psp-gcc's hot / cold choice follows the
+  profile's largest counter: a block counts as hot when it runs at least sum_max / 10,000 times (param hot-bb-count-fraction).
+  v28's w00a profile had sum_max 428,148,079, in one of the stage unit's out-of-line helpers that step 3 replaces with inline code
+  (gen_mm, RDF, WRF, VLQC2, VSQC2, FDIV are gone from v29's gen_s_w00a.o); v29's has 22,963,360 (w01a 28,012,275 -> 1,359,274), so
+  the threshold fell from about 42,800 to 2,300 executions and code run between those counts is now compiled for speed instead of
+  size. In w00a the profile made 858 functions smaller (-619 KB) and 225 larger (+45 KB) against the plain compile in v28, 439
+  smaller (-76 KB) and 332 larger (+205 KB) in v29. The ELF's units share one program summary (sum_max 2.30 G v28, 2.21 G v29), so
+  gen.o's growth (+7.8%) has another cause, not looked at yet. Exact candidate for later: a per-unit hot-bb-count-fraction that
+  gives back v28's threshold (about 536 for w00a), modeled on v29's d like the runtime items.
+
+5. PSP check (Ffm's run, files 2026-10-25 22:11, prof/hw_v29/; speed_notes §55). Free play 78.25 ms per step against v28's 83.55
+  (-5.30, -6.3%), not the 75.2 of §1. In these four windows the PSP gave 77.03 against 82.20 (-5.17; walk -5.26) where this model
+  said -7.69 (walk -7.41): the PSP got about 0.67 of the model's gain, and the model now reads 10.4% low (v28 6.7% in the same
+  windows). Reading [I]: the 1.4 cycles per instruction overcharges the removed single-cycle ALU work (address check srl / ext /
+  addu / li, a well-predicted branch); about 0.9 cycles each if the miss part held. Rule for the next estimates [I]: a change that
+  removes ALU instructions gets about 0.7 of its model gain.

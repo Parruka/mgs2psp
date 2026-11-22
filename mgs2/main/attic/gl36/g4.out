@@ -1,0 +1,17 @@
+gl36 G4: undefined symbols of each object against gl35's object (psp-nm -u); < only gl35's, > only gl36's
+  ge_xconv.o: > vc_df0_pv > vc_df0_xf_k > xl_nr_n > xl_nr_ok 
+  ge_xlme.o: > xl_nr_begin > xl_nr_cap > xl_nr_end > xl_nr_group 
+  xl_psp.o: > g_nat_rcfg > g_nat_rchk > rt_nat_reuse_at > xl_nr_cap > xl_nr_n > xl_nr_table 
+objects: 45; byte-identical to gl35's objects: 34
+new names and where the ELF defines them: vc_df0_pv(T) vc_df0_xf_k(T) xl_nr_n(B) xl_nr_ok(D) xl_nr_begin(T) xl_nr_cap(B) xl_nr_end(T) xl_nr_group(T) g_nat_rcfg(B) g_nat_rchk(B) rt_nat_reuse_at(T) xl_nr_cap(B) xl_nr_n(B) xl_nr_table(T)
+imports of the ELF (sce* names) against gl35's: 133 / 133 names; differences: 0
+  section .lib.stub: gl35 00000154 bytes, gl36 00000154 bytes
+  section .lib.ent: gl35 00000010 bytes, gl36 00000010 bytes
+  section .rodata.sceResident: gl35 0000015c bytes, gl36 0000015c bytes
+  section .rodata.sceNid: gl35 000001c4 bytes, gl36 000001c4 bytes
+  section .sceStub.text: gl35 00000388 bytes, gl36 00000388 bytes
+ge_xme_me.o: gl35 4d964c8c, gl36 4d964c8c; instruction lines differing: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

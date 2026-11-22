@@ -1,0 +1,15 @@
+== base (rb) vs gl33's base (build_gl33/xt33/out_rb.log)
+/home/claude/main/build_gl33/xt33/out_rb.log: 31399 vblanks (0..31398); xt34/out_rb.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl33's native + in place in every turn (build_gl33/xt33/out_r1.log) vs gl34's same keys (r1)
+/home/claude/main/build_gl33/xt33/out_r1.log: 31399 vblanks (0..31398); xt34/out_r1.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl34 plain (r1) vs the fast key in every turn (rf: MGS2_NAT_FAST=1)
+xt34/out_r1.log: 31399 vblanks (0..31398); xt34/out_rf.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl34 plain (r1) vs the fast key by turns (rfc: MGS2_NAT_FAST_CYCLE=1,1,0,0)
+xt34/out_r1.log: 31399 vblanks (0..31398); xt34/out_rfc.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== base (rb) vs gl34 plain (r1)
+xt34/out_rb.log: 31399 vblanks (0..31398); xt34/out_r1.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 2 [25944, 25974]
+rc 1

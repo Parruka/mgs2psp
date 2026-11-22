@@ -1,0 +1,18 @@
+psp.sh rc 0
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+4401856 ovl_w00a.bin
+3497168 ovl_w01a.bin
+956c41864d3a1a4d4c411a0fe17cb98e  EBOOT.PBP
+a2691d2a1a8ae0d7da034db7d21b92e9  ovl_d00t.bin
+c65348285886216955953373649656f8  ovl_d01t.bin
+0fb6d6a1871fbd7eb8e1144e9bc6891f  ovl_init.bin
+bad9269a080705e8fa817e693969b706  ovl_n_title.bin
+2490a10013fda2e49dce81010bebf1fc  ovl_r_title.bin
+7afc3a4fdf7c4b633088b959d359f9b8  ovl_r_tnk0.bin
+f6817d2339a9b39b41d0bbf4be054ded  ovl_w00a.bin
+f6ac5b668c2cc741e90c8b03b342c13e  ovl_w01a.bin
+psp.sh: done 4 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

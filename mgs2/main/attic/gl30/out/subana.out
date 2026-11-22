@@ -1,0 +1,25 @@
+exact 3242
+sub gap 10 63
+sub gap 11 36
+sub gap 12 37
+sub gap 13 53
+sub gap 14 70
+sub gap 15 127
+sub gap 16 110
+sub gap 17 113
+sub gap 18 52
+sub gap 19 13
+sub gap 20 8
+sub gap 3 3
+sub gap 4 31
+sub gap 5 10
+sub gap 6 68
+sub gap 7 57
+sub gap 8 57
+sub gap 9 67
+sub off (0, 5, 0) 975
+sub offsets 1 975
+subset 975
+targets 4217
+candidates past the cheap reject per decal: [(1, 2952), (2, 1168), (3, 97)]
+their vertex counts: [(3, 80), (4, 814), (6, 579), (7, 146), (8, 1135), (11, 287), (12, 914), (13, 68), (15, 1039), (16, 182), (17, 106), (18, 82), (21, 147)]

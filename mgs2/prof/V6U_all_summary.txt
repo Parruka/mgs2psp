@@ -1,0 +1,71 @@
+# total 2148110336 imiss 12187515 dmiss 8420262 dacc 706766302 fa_imiss 0
+per step (100 steps): 21.48 M instructions, 121.9 k I-miss, 84.2 k D-miss; estimate 141.9 ms at 333 MHz (instructions alone 64.5 ms)
+
+by group:
+  game code (ELF)               9.62 M instr   55.7 k imiss   32.3 k dmiss   61.95 ms  43.7%
+  other runtime                 5.16 M instr   41.9 k imiss   31.1 k dmiss   42.88 ms  30.2%
+  game code (stage)             2.89 M instr   18.9 k imiss    9.7 k dmiss   19.39 ms  13.7%
+  DMA / GS walk                 3.26 M instr    0.6 k imiss    7.3 k dmiss   12.74 ms   9.0%
+  kernel / poll / syscalls      0.14 M instr    2.0 k imiss    1.3 k dmiss    1.67 ms   1.2%
+  VU0 / VIF0 model              0.25 M instr    1.1 k imiss    1.1 k dmiss    1.55 ms   1.1%
+  libc / libgcc                 0.11 M instr    1.2 k imiss    0.6 k dmiss    1.04 ms   0.7%
+  IOP / SIF / sound             0.04 M instr    0.5 k imiss    0.9 k dmiss    0.65 ms   0.5%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+io_flush                               1416.7    3.85   17.78   12.37   8.7%
+P12dbc0                                3099.4    1.09    4.08   11.25   7.9%
+vup_8baafbc3_0.isra.0                  1494.9   16.23    0.43   10.74   7.6%
+P11fa58                                 686.2   11.43    2.11    7.14   5.0%
+rt_idiom_qcopy                          804.5    0.31    8.29    5.64   4.0%
+P1214a0                                1049.8    0.42    3.84    4.75   3.4%
+vif1_word                              1407.7    0.02    0.08    4.26   3.0%
+dma_feed                                653.8    0.27    4.41    3.72   2.6%
+P120860                                 394.2    1.81    2.06    2.64   1.9%
+dma_vif1_block                          682.9    0.03    1.38    2.58   1.8%
+P12dc90                                 363.8    1.56    1.76    2.34   1.6%
+S_w00a_P333380                          630.5    0.25    0.67    2.24   1.6%
+P120538                                 158.9    3.59    0.50    2.01   1.4%
+P13bf78                                 267.8    1.23    1.74    1.92   1.4%
+dma_run.isra.0                          433.0    0.18    1.35    1.87   1.3%
+vup_8baafbc3_6.isra.0                   113.2    3.21    0.04    1.56   1.1%
+P121c30                                 266.3    0.29    1.68    1.54   1.1%
+P11f968                                  96.1    3.10    0.23    1.54   1.1%
+P11fde8                                  75.5    2.84    0.38    1.43   1.0%
+S_w00a_P3b89e0                          233.0    1.09    0.77    1.40   1.0%
+vup_33268338_0.isra.0                   259.3    1.54    0.09    1.39   1.0%
+P12e8b8                                 236.5    0.14    0.87    1.09   0.8%
+vuc_dispatch                            110.1    1.91    0.08    1.08   0.8%
+vup_43da1f40_0.isra.0                    47.9    2.09    0.39    1.07   0.8%
+P12d910                                 227.1    0.28    0.58    1.00   0.7%
+S_w00a_P31af28                          280.2    0.21    0.19    0.99   0.7%
+P13bd00                                  87.6    1.75    0.13    0.97   0.7%
+rt_store                                184.5    0.92    0.16    0.96   0.7%
+S_w00a_P2ec188                           72.6    1.54    0.44    0.96   0.7%
+P14d860                                  33.0    1.72    0.40    0.90   0.6%
+
+most called (calls per step):
+  vif1_word                                43949
+  gen_mm                                   19221
+  dma_run.isra.0                           15650
+  memcpy                                    2909
+  rt_store                                  2883
+  rt_st32                                   2873
+  __fpclassifyf                             2453
+  vuc_entry                                 1567
+  vuc_dispatch                              1567
+  vu_run_shared                             1523
+  WRF                                       1492
+  gif_qw                                    1359
+  P165de0                                   1249
+  vup_8baafbc3_0.isra.0                     1038
+  enter_block                                890
+  rt_mm                                      793
+  VLQC2                                      745
+  fminf                                      677
+  rt_idiom_qcopy                             602
+  fmaxf                                      549
+  P165f60                                    532
+  P11f968                                    504
+  VSQC2                                      501
+  P12d910                                    484
+  P12dbc0                                    484

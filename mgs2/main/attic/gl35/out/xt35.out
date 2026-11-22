@@ -1,0 +1,3 @@
+boot_rt.o rc 0
+gen_nat.o: 00000000000e10f1 W P1214a0;00000000000e10f1 T P1214a0_orig;
+boot link rc 0

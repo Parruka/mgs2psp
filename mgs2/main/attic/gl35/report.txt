@@ -1,0 +1,339 @@
+gl35 build report (build agent, 2026-11-21). gl35 = gl34's tree + (a) gl34's fast native front end in EVERY turn, (b) "keeps":
+per-group work kept across the ship's fast native groups, behind its own cfg key, in turns, on (c) a FRESH profile-guided build
+and code order trained on that tree with both arms, with main-turn windows in the order search and two inlining pins.
+Built and gated in the container; NOT delivered (the thread that started this agent delivers). This agent took over at
+about 17:40 UTC from an agent stopped at 17:35 UTC by a usage limit; its tree, design and scripts were kept (nothing was
+broken) and finished. Marks: [C] measured in the container (x86 twin, PPSSPP 1.20.4 headless with PPSSPP_VFPU_RN=1, or read
+in code), [C model] PspProf cost model (ms = (1.65 x instructions + 68 x I-misses + 86 x D-misses) / 333,000; a picture = a
+window's total / 40), [I] inferred (basis named), UNKNOWN. Nothing below is a gl35 PSP figure. The model has overrated Media
+Engine savings on the PSP about 4x before (gl34: the lever modelled -5.9 ms a picture in the rain wait's ME turns, the PSP
+read about -2 ms a step [I, psp_harness.md "Build gl34"]); read every [C model] saving below with that in mind.
+
+RESULT IN ONE PARAGRAPH
+Every EXACTNESS gate passes and the package is build_gl35/deliver, EBOOT 956c41864d3a1a4d4c411a0fe17cb98e, hashref c9ddb593
+(gl33's and gl34's file) [C]. The keeps are exact: on the twin the GE words (list digest), frame digest, decal text, the
+translator's state and every counter are equal in all 17,664 frames with the keeps off, on, by turns in both orders and with
+each bit alone; the check mode compared 4,217,774 keeps (twin) and 1,272,144 (emulator) with the full step: 0 differing; the
+emulator gives 62/62 hashes and 916/916 digests equal to the twin, and 454 of 455 dense pictures byte-identical to gl34's
+emulator pictures (the one other is the known noise frame shot_24784). THE RETRAIN PAYS: gl35 without keeps against gl34's
+fast path (the same code path on gl34's ELF) -4.0 / -5.1 ms a picture in the rain wait (ME / main turn), -2.4 / -3.9 in the
+rain walk, -1.6 / +0.1 on the steady deck, -1.7 / 0.0 in the opening; 10 to 13 percent fewer I-misses in every window [C
+model]. Against gl33 the ME turns are now ahead everywhere (-0.5 to -7.9 ms), the main turns ahead in the rain (-5.8, -2.8)
+but still +2.6 / +2.1 ms on the deck and in the opening, where 8 percent more D-misses eat the I-miss gain [C model]. THE
+KEEPS DO NOT PAY in the model: keeps 15 against none, same ELF, -0.54 / -0.01 ms a picture in the rain wait, +1.33 / +0.92 in
+the rain walk (SLOWER), -0.12 / +0.09 on the steady deck and +0.38 / +0.35 in the opening, where no fast group exists (so 0.4
+ms is what two model runs of one code path can differ by) [C model]. That is -0.9 us a native group in the rain wait's ME turn
+(about 1.4 percent of gl34's PSP 63.3 us), against the plan's target of -35 percent (63 -> about 40 us) and the design's
+expectation of about -10 ms a picture: THE TARGET IS NOT REACHED, and BY THE PLAN'S DELIVERY RULE ("the lever ahead in the
+rain ME windows") THE PACKAGE DOES NOT QUALIFY: the keeps are ahead in the rain wait's ME window (-0.54) but behind in the
+rain walk's (+1.33, beyond the 0.2 to 0.4 ms the model's runs of one path differ by). The second half of the rule passes: the
+build is not behind gl34 anywhere by more than that noise (worst +0.13 ms, deck main turn). Section 9 gives the lead's
+options; my recommendation is to run it as a MEASUREMENT build as delivered (the keep-off turns measure the retrain cleanly
+against gl34's fast turns, and the PSP settles whether the keeps' model loss is real), or, if the rule is to hold strictly,
+the same package with the keep line commented out (cfg_emu/mgs2_gl35_nokeep.cfg, md5 134e29b3, gated on the emulator: e5,
+62/62 hashes, 916/916 digests equal to the twin and to e2, 51 of 52 pictures byte-identical to e2's, the other the noise
+frame).
+
+1. WHAT WAS BUILT
+Tree /home/claude/t35 = copy of t34 (100 files; 14 differ from t34; build_gl35/gl35_vs_t34.diff, 693 lines, md5 a3e53da7;
+md5, lines added / removed against t34) [C]:
+  boot/nat_stub.h e0ec7186 (+25 -2: keys MGS2_NAT_KEEP, MGS2_NAT_KEEP_CYCLE, MGS2_NAT_KCHK; rt_nat_keep_at; the keep bits
+    put into the fast group's flags)
+  ge/natsnap.h 6e6cf535 (+3 -1: NATG_KEEP = 0xf0, the keep bits in a group's flags >> 4)
+  ge/natp04.h 48bfeb0c (+1 -1: the group's keep bits to the fast front end)
+  ge/xlate.h 02af96a4 (+10 -1), ge/xlate.c 5ba9cbe6 (+36 -5): xl_keep_bits / xl_keep_nf / xl_keep_chk, xl_gs_gen (the GS
+    traffic token), K2 in xl_p04_fast (PRIM in line, the CLUT-load call only where it can load), K1's call from the fast
+    path, the counters xl_nk_n; ent_index pinned always_inline (gl33 had it in line; gl34's build had put it out of line)
+  ge/lw_lanes.h 620c3809 (+1 -1: lw_p07 pinned always_inline, as gl33)
+  ge/gsup.h aded0f40 (+10), ge/gsup2.c 36537523 (+25 -3): K1, GuMap.dgen (the drawn-areas token), the record of a gf_drew
+    whose gu_drawn calls all took the kept return, gu_drawn_again (the replay)
+  ge/texcache.h 4485695b (+10), ge/texcache.c d2982c57 (+55 -13): K3, TkCache.kgen, the per-picture record table,
+    tk_keep_ok (the guard) and tk_keep_again (the replay next to the full path)
+  ge/gelive.h aa2dbf0f (+3), ge/gelive.c e4f4d8b0 (+17 -1): gl_tex takes the replay when bit 8, or bit 4 inside a fast
+    group's call, is set
+  psp/xl_psp.c 623311de (+12: the 'nat keep' line per turn and the totals)
+  twin only: boot/nat_x86.c cb4780e8 (+9: the 'natkeep:' lines)
+The design (attic/gl35/keep_design.txt, written by the first agent before the code) holds: every keep is a REPLAY that leaves
+every byte of state the full step would leave (counters, stamps, LRU links), taken only when tokens show that nothing the
+full step reads has changed; K2 is the same statements with calls taken out where the call can do nothing. Code read by
+this agent: no defect found; the shadow path's "skipped" flag 0x80 cannot collide with keep bit 8 (it is set only on the
+!stub path); gu_clut_id, which the texture guard calls for real, is idempotent, so a failed guard followed by the full
+look-up is exact. My changes to the tree: removed a leftover '#if 0 }; #endif' in natsnap.h (the enum is now closed
+normally), and the two pins. The tree was frozen at 17:43 UTC before the training; build_gl35/t35_files_pgo.md5 re-checked
+at the end: unchanged [C].
+
+Keys: MGS2_NAT_KEEP=<bits> in every turn, or MGS2_NAT_KEEP_CYCLE=a,b,c,d by turns of 100 vblanks from vb 24,001 (absent = 0
+= gl34's fast path); bits 1 drawn areas (K1), 2 the A+D packet (K2), 4 the texture of the fast groups' own look-ups, 8 the
+texture of every look-up (K3); MGS2_NAT_KCHK=1 runs the full step anyway and counts what a keep would have done differently.
+Keeps act only on fast groups (NATG_FAST), so they need MGS2_NAT_FAST on in that turn.
+Delivered cfg (deliver/mgs2.cfg db69cc6a = gl34's eafa8c28 with a gl35 header and two marked changes) [C]:
+  MGS2_NAT_FAST=1 (was MGS2_NAT_FAST_CYCLE=0,0,1,1); MGS2_NAT_KEEP_CYCLE=15,15,0,0 (new). hashref.txt = c9ddb593 byte for
+  byte. Why 15,15,0,0 and not the plan's example 0,0,1,1 (section 8): gl34's fast turns were cycle places 2 and 3, so the
+  keep-off turns fall on gl34's fast turns and "gl35 keep 0 against gl34 on the same vblanks" is the retrain alone.
+
+Counts [C]: twin, keeps 15 in every turn, to vb 37,800: groups flagged 2,233,651; drawn areas replayed 1,894,537; textures
+replayed 2,323,237 (records 804,840); CLUT-load calls not made 1,921,823; PRIM writes in line 0. Bit 4 alone replays only
+36,522 textures (records 139,819): almost all texture keeps come from bit 8, i.e. from look-ups outside the ship's own
+calls. Twin, delivered keys (dx): drawn areas 856,788, textures 1,486,293. Emulator, delivered package (e2), to vb 31,400:
+flagged 379,186, drawn areas 329,029, textures 943,115 (records 231,250), CLUT calls not made 330,823, differing 0; per
+rain ME turn with keep 15: about 30,000 groups flagged, 28,000 drawn areas and 20,300 textures replayed.
+Two findings on the counts [C]:
+  - K2's PRIM part never runs ('PRIM writes in line 0' in every run): the fast groups' material packets have no A+D write
+    to register 0 that reaches that branch, so the design's "two data quadwords written to PRIM" did not hold for the
+    groups that are flagged; K2's other part (the CLUT-load call left out) runs (1.92 M calls on the twin). No effect on
+    exactness; UNKNOWN which of the packet's registers the design's sample read as PRIM.
+  - xl_keep_bits (the bits bit 8 acts on) is set by each fast group and left standing until the next one. So in a turn
+    with no fast groups it keeps the last fast group's bits: on the deck before the rain (vb 26,200-28,700, no native
+    groups) EVERY turn, keep 0 or 15, replays 24,100 textures (e2 'nat keep' lines), and the first picture of a keep-0
+    turn in the rain still replays a few hundred. This is exact (all twin runs, dx included) and changes only what a turn
+    measures: on the deck both arms run with bit 8 on, so the deck is not a keep-off reference. The model runs below use
+    MGS2_NAT_KEEP for the whole run and do not have this effect.
+
+2. THE FRESH PROFILE AND ORDER (gl34's method on t35)
+Five instrumented builds and training runs (game, rtb, pic, w00a, w01a) with the training cfg cfg/mgs2_gl35pgo.cfg = the
+delivered keys without the shots (so both keep arms are in the training, in equal shares) [C]:
+  - training runs' hashes: game 124/124, rtb 124/124, pic 124/124, w00a 63/63, w01a 124/124 (0 differ); profiles: 20
+    .gcda (gcda/md5.txt); pgochk: 20 objects, 0 profile warnings.
+  - use build u: ELF text 4,407,676 B (gl34 4,402,316: +5.4 KB; gl33 4,378,420), EBOOT 4,417,268 B. The pins hold: the u
+    ELF has no ent_index or lw_p07 symbol (gl34's has both). xme_rest_chk, mesec_chk, me_call_chk PASS; the native wrapper
+    P1214a0 is whole.
+  - lost profiles (pgo_lost over the eight rain windows of the model, keeps off and on): 1 function, 1,008 instructions of
+    13.8 billion (0.000 percent), as gl33 and gl34; GCC dropped 0; hot sections hold 94.05 percent of the instructions.
+  - traces: t0 (deck and rain to 31,400) 62/62 hashes; t1 (the inside route past 31,800): 19 of 117 hash lines differ
+    (vb 32,000-32,400 and 34,200-34,600), the profiler's known pattern on that route (gl34: 10, gl33: 14); its windows are
+    used for the order as before.
+  - order [C model, layout_sim; I-misses over the training windows / the held-out windows]: as linked 7,504,005 / 599,434;
+    hot packed 7,221,911 / 598,620; gl33's order as seed 7,174,275 / 583,966; search 4,871,986 / 400,549 (-35.1 / -33.2
+    percent against as linked). Seed: hot functions 1014 / 482 / 454 (main / w00a / w01a), 13 / 1 / 0 newly hot. The
+    relinked ELF gives the search's figures exactly (new_f.out). layout_elf.ld 9c0fccaf, layout_w00a.ld 9eb34613,
+    layout_w01a.ld ca70770e.
+  - ONE DEVIATION in the order step (pgo2.sh; pgo.sh untouched): the training windows are 16,001, 17,501, 26,501, 29,601
+    (keep ME), 29,801 (plain ME), 30,101 (keep main), 31,101 (plain main), i.e. three main-turn windows as the plan asks,
+    and only 27,801 (and t1's last window) is held out (-test 1; gl34 held out two). So the held-out figures above are not
+    comparable with gl34's (1,917,300 over other windows); the model runs (section 3) are the comparison.
+  - final build psp: relink gates PASS; deliver = psp byte for byte.
+
+3. THE MODEL [C model] (PspProf; windows of 80 vblanks = 40 pictures; ms a picture)
+Runs on gl35's final ELF, native, in place and fast in every turn, timers on: keeps off in the whole run (g35p), keeps 15
+(g35k), keeps 7 (g35k7: no bit 8); the steady deck (g35pc2, g35kc2) and the opening (g35pc1, g35kc1); the not-drawn arm
+for the split (g35n4). gl33's and gl34's figures are their own model files (g33i = gl33 in place, g34f = gl34 fast in every
+turn, g34p = gl34 plain). The model runs' hash lines differ from the reference at 2-3 vblanks after the profiled windows
+(30,000, 30,500, 31,000; 27,500 in the deck runs), the profiler's own pattern, as in gl33's and gl34's model runs.
+Noise: two runs of one code path differ by about 0.2 ms a picture in gl34's pairs (deck and opening, where its lever could
+not act) and by up to 0.38 ms in gl35's opening pair (g35kc1 against g35pc1: no fast group, so no keep, in that window;
+the extra instructions are spread over the picture path) [C model].
+
+3.1 The retrain: gl35 keeps off (g35p) against gl34 fast (g34f, the same path on gl34's ELF)
+  window                              g34f      g35p      g35p - g34f    instr      I-miss    D-miss    against gl33 (g35p - g33)
+  rain wait, ME turn 29,810-29,890    356.85    352.88    -3.97           +160,256  -32,300    +7,106   -7.90
+  rain wait, main turn 29,910-29,990  320.20    315.06    -5.14           +190,259  -25,368    -3,478   -5.81
+  rain walk, ME turn 31,010-31,090    344.20    341.77    -2.43            +27,238  -20,675    +6,424   -4.84
+  rain walk, main turn 31,110-31,190  294.70    290.78    -3.92            +85,094  -19,606    -1,299   -2.76
+  steady deck d01t, ME 27,410-27,490  141.57    140.02    -1.55            +94,106  -11,633    +1,373   -0.50
+  steady deck d01t, main 27,510-590   122.63    122.75    +0.13            +79,770  -11,846    +8,324   +2.55
+  opening, ME 16,010-16,090           136.61    134.90    -1.71            +55,296  -11,283    +1,236   -0.85
+  opening, main 16,110-16,190         120.93    120.97    +0.04            +31,437  -11,399    +8,553   +2.11
+gl34 for comparison against gl33: fast -3.93 / -0.67 / -2.41 / +1.16 (rain), +1.05 / +2.43 (deck), +0.86 / +2.07 (opening);
+plain +1.95 / +1.70 / -1.04 / +1.42, +0.99 / +2.53, +0.76 / +1.86.
+So the pins and the main-turn windows gave back gl34's I-miss loss and more (I-misses -9.5 to -13.4 percent against gl34
+in every window; gl34 was +5 to +8 percent against gl33 before the rain), with 0.1 to 0.5 percent more instructions (the
+pins inline ent_index and lw_p07, as gl33's build did). The main turns on the deck and in the opening do not gain: their
+D-misses rose 8 percent (+8,324 and +8,553 a picture) and eat the I-miss gain; they stay +2.6 / +2.1 ms behind gl33, as
+gl34 was. Cause UNKNOWN [I: the code order also moves the data the main CPU's picture code reads through the cache's
+sets, or the new fields in TkCache / GuMap shift hot data; not split here].
+
+3.2 The lever: gl35 keeps 15 (g35k) and keeps 7 (g35k7) against keeps off (g35p), same ELF
+  window                              g35p      g35k      k - p           instr      I-miss    D-miss    g35k7 - g35p
+  rain wait, ME turn 29,810-29,890    352.88    352.34    -0.54 (-0.2%)   -193,126   +3,420    -1,073   -0.60
+  rain wait, main turn 29,910-29,990  315.06    315.05    -0.01            -136,192   +4,080      -668   -1.45
+  rain walk, ME turn 31,010-31,090    341.77    343.09    +1.33 (+0.4%)    -31,539   +6,706      +441   +0.34
+  rain walk, main turn 31,110-31,190  290.78    291.69    +0.92            -44,544   +5,903      -270   -0.22
+  steady deck d01t, ME 27,410-27,490  140.02    139.90    -0.12            -79,564   +1,523      -151   (not run)
+  steady deck d01t, main 27,510-590   122.75    122.84    +0.09            -63,385   +1,807      +105
+  opening, ME 16,010-16,090           134.90    135.28    +0.38             +42,701     +404      +344   (no fast groups:
+  opening, main 16,110-16,190         120.97    121.32    +0.35             +48,435     +235      +229    two runs of one path)
+Where fast groups exist the keeps cut instructions (-0.4 percent in the rain wait's ME turn, -0.07 to -0.4 percent in the
+other rain and deck windows) and add I-misses (+3,400 to +6,700 a picture in the rain), so the model calls them level in the
+rain wait and behind in the walk. The fully associative I-misses fall with the keeps (by 4,200 to 19,600 a picture in the
+four rain windows: the hot code is smaller), so the extra I-misses are placement conflicts of the new and the changed code
+under an order trained with the keeps in half of the turns [C model for the counts, I for the cause].
+By part, rain wait ME turn, keeps 15 - keeps off (split35.py; 609 groups, 11,545 vertices a picture; model_lever.out):
+  GS model tracking (part 7)     -1.09 ms: gu_drawn -1.34, drew_ctx -0.34, gf_drew -0.13, the replay gu_drawn_again +0.40,
+                                 the token gu_dgen +0.19 (K1 does what the design expected of it, net about -1.2)
+  converter per group (part 8)   +0.51 ms: tk_get_um -1.41 and tk_pal -0.23 saved, but gl_tex +1.08, tk_keep_again +0.79,
+                                 tk_keep_ok +0.53, tk_keep_last +0.07 (K3 costs more than it saves: a guarded replay of the
+                                 look-up's every effect is nearly as long as the look-up's pure path)
+  front end plain / fast (5, 6)  -0.29 / +0.28 (K2: gf_reg -0.28 saved, the fast function +0.28 with its new branches)
+  everything else (part 14)      +0.19 (I-misses elsewhere); other parts within +-0.07
+  all                            -0.54 ms a picture; -317 instructions, +5.6 I-misses, -1.8 D-misses = -0.9 us a group
+In the walk's ME turn the same parts give 7: -0.21, 8: +0.53, 14: +0.99 (I-misses); in the main turns 7: -0.94 / -0.17,
+8: +0.63 / +0.39, 14: +0.29 / +0.70.
+Against the design's expectation [C model against I]: K1 about -3 expected, about -1.2 got; K2 about -3 expected, about 0
+got (its PRIM part never runs, section 1; the CLUT-call part is cheap to skip); K3 about -4 expected, about +0.8 got.
+Keeps 7 (no bit 8) is better than 15 in three of four rain windows but still behind in the walk's ME turn (+0.34).
+
+3.3 The split of the native path (drawn - not drawn, g35n4) [C model]: the ship's native work in the rain wait
+(model_split.out):
+  ME turn:   no keeps 60.83 ms a picture (99.9 us a group of 609), keeps 15 60.29 (99.0 us): keeps -0.54 (-0.9 percent);
+  main turn: no keeps 51.86 (85.2 us), keeps 15 51.84 (85.1 us): -0.02.
+  gl34's same split (its report): plain 71.58, fast 65.70 ms a picture in the ME turn. So against gl34's fast arm the
+  ship's native ME work is -7.4 percent without keeps (the retrain) and -8.2 percent with them, against the plan's -35
+  percent (65.7 -> about 42.7 ms a picture in the model's terms; 63 -> about 40 us a group on the PSP). The model's
+  per-group us (99 a group) are not the PSP's 63 (the PSP timers hold only the ME's stages); only the ratios carry over [I].
+
+3.4 What the PSP run's turns stand for, against gl34's log on the same vblanks [C model, ms a picture]
+  gl35 keep-0 turns = gl34's fast turns: the retrain alone: rain wait -4.0 / -5.1, walk -2.4 / -3.9 (table 3.1).
+  gl35 keep-15 turns = gl34's plain turns: fast + keeps + retrain: g35k - g34p = -10.4 / -7.5 (rain wait), -2.5 / -3.3
+  (walk).
+  The steady deck's turns: all with bit 8 on (section 1): g35kc2 - g34fc2 = -1.7 / +0.2.
+  Emulator timers (host time, NOT a PSP figure; only the direction): e2's rain ME turns, keep 15 against gl34's same turns
+  (its plain turns) -0.6 ms a step; keep 0 against gl34's fast turns +0.1 [C, emulator; rd35pc_e2_vs_gl34e2.out].
+
+4. GATES
+G1 twin (x86, to vb 37,800), every run 685/685 hash lines against hashref c9ddb593 (g31k against gl31's hashref) [C]:
+  f (fast, no keeps), k (keeps 15), kc (keeps 15 with MGS2_NAT_KCHK=1), dx (the delivered keys 15,15,0,0, DZ X in the
+  whole run), dxp (no keeps, DZ X), dx2 (the other order 0,0,15,15, DZ X), k1, k2, k4, k8 (each bit alone), lw2p / lw2k
+  (the PSP's late walk MGS2_NAT_LW=2, keeps off / 15), needp / needk (MGS2_SB_NEED=1 as the PSP's cfg, off / 15), fk
+  (MGS2_NAT_FAST_CYCLE=1,1,0,0 with MGS2_NAT_KEEP=15: keep bits standing in turns with no fast group), g31k (gl31's
+  MGS2_NAT_CYCLE=0,0,3,3 with keeps).
+  Per frame (g1cmp35.py: list digest, frame digest, counts, decal text, content, natb / natz / natq, the translator's
+  state 'nats'): f against k, kc, k1, k2, k4, k8; needp against needk; lw2p against lw2k; dxp against dx and dx2: 17,664
+  frames, 0 differences in every column, and 0 other log lines differing (f against fk: only the cfg echo line). gl34's
+  dx2 (its delivered keys) against gl35's dx: all 17,664 frames equal. THE HARD GATE (GE words identical with the keeps
+  on and off) PASSES.
+  Check mode (kc): drawn areas checked 1,894,537, textures checked 2,323,237, DIFFERING 0 and 0.
+G2 read hash (the game's reads of the picture path's outputs; g2_rhcmp.out) [C]: gl35 base = gl34's base; gl34's fast in
+  every turn = gl35's (rf); rf = keeps in every turn (rk) = keeps by turns (rkc) in all 31,399 vblanks; base against
+  native differs in the 2 known vblanks (25,944, 25,974) as in gl33 and gl34.
+G3 emulator, the package (deliver, EBOOT 956c4186) [C]:
+  e2 (the delivered cfg; 726 s): 62/62 hashes; 916/916 digests equal to the twin dx (455 in ME turns, 461 in main turns)
+  and to gl34's e2; 52 pictures, 51 byte-identical to gl34's emulator pictures, shot_24784 the known noise frame (191
+  pixels with a channel different, 1 by 2+ in luma, largest 3); live captures 0 pixels differing against gl34's e3
+  shots of the same frames; nat problems none; keeps' check differing 0; 75 'nat turn' (all arm 3), 'nat inpl', 'nat
+  fast' (all fast 1) and 'nat keep' lines (38 keep 15, 37 keep 0), 38 'nat split' and 38 'me chains' lines; 16 'the flip
+  wait kept', 0 'GAVE UP'; fast totals: flagged 993,411, taken 872,659, declined entry 116,682, tables full 103, every
+  other reason 0.
+  e3 (dense: a digest at every frame to 31,400, a picture every 2 vblanks in the walk): 62/62; 14,592 digests, all equal
+  to gl34's emulator e3 (list, frame, decal text); against the twin LIST 0 differ, FRAME 1,154 (vb 536-3,021: 1,153, the
+  title frames that differ from the twin in every profile-built emulator run since gl31; and vb 26,007, the known one),
+  exactly gl34's figures; 455 pictures, 454 byte-identical to gl34's, shot_24784 the noise frame (115 pixels, 1 by 2+,
+  largest 3).
+  e6 (the delivered cfg with MGS2_NAT_KCHK=1; cfg_emu/mgs2_gl35_kchk.cfg; not delivered): 62/62; 916/916 digests equal
+  to the twin; 52 pictures, 51 byte-identical to e2's (shot_24784 the noise frame); every keep checked instead of taken:
+  drawn areas checked 329,029, textures checked 943,115 (exactly e2's replays), DIFFERING 0 in the totals and in all 75
+  'nat keep' lines. The plan's "checked mode on the twin and the emulator: 0 differing" PASSES.
+  e5 (the variant cfg_emu/mgs2_gl35_nokeep.cfg: the keeps off in every turn; not delivered): 62/62; 916/916 digests equal
+  to the twin and to e2; 52 pictures, 51 byte-identical to e2's, shot_24784 the noise frame (104 pixels, 1 by 2+, largest
+  3); keeps' totals 0; rd35pc.py on it: HASHES EQUAL, DIGESTS EQUAL (the same fingerprints), NAT PROBLEMS none.
+G4 imports and the ME's code [C]: the ELF's sce* names 133 / 133, 0 differences against gl33's and gl34's; stub sections
+  the same sizes; ge_xme_me.o 4d964c8c = gl33's (and gl34's), 0 instruction lines differing; xme_me_chk, xme_rest_chk,
+  mesec_chk, me_call_chk PASS for the use build and the final build. 35 of 45 objects byte-identical to gl34's, 33 to
+  gl33's. New symbols all defined in the ELF.
+G5 memory on the emulator [C]: 'free memory now: heap headroom 64 KB; outside the heap: largest block 116 KB, total 216 KB'
+  (gl34 and gl33: the same three figures); at the end malloc can still give 64 KB in 1 block (gl34: 80 KB in 2; gl33: 128
+  KB in 4), arena 12,539 KB with 12,463 KB in use (gl34 12,540 / 12,463); the heap block starts 17 KB higher than gl34's
+  (0b239300 against 0b234f00: the larger code). The emulator has less memory than the PSP (gl30's PSP run had about 2.7
+  MB free at its lowest), so this is a margin check, not the PSP's figure.
+G6 readers [C]:
+  build_gl35/rd35.py (rd34 + the 'nat keep' lines: turn table by arm, inpl, fast and keep; the keeps' totals and per-turn
+  means by turn kind and keep; KEEP PROBLEM flag; split and chains means by (fast, keep) with differences): run on e2
+  (rc 0, nothing unparsed; 62/62, 916/916, keeps differing 0) and e3 (rc 0; the figures in G3).
+  build_gl35/rd35pc.py (one file, standard library only; fingerprints from e2: 62 hash lines 66499cdb584a, 916 digest lines
+  b4bf989fb1d6 / with dz 7d2f93ab5f56): tested with python3 -I on a PC-style folder pair (gl35 e2's log.txt, battery.txt
+  and 52 BMPs against gl34 e2's): rc 0, HASHES EQUAL, DIGESTS EQUAL, NAT PROBLEMS none, keeps' check differing 0, 51 of 52
+  pictures byte-equal gl34's; the MEANS tables print the lever, the retrain and keep-against-gl34 lines per window. Also
+  run earlier on gl34's own e2 / e4 folders: rc 0.
+G7 reproducible [C]: a second use build (u2) from the tree and the profiles and a second relink with ord/final (psp2):
+  EBOOT.PBP, MGS2T.elf (0bad724d) and the 8 overlays byte-identical to the first build; 53 objects of the use build, 0
+  differing; deliver = psp byte for byte. PASS (g7.out).
+
+5. WHAT THE PSP RUN WOULD MEASURE
+  (a) the keeps: 'keep 15' turns against the 'keep 0' turns next to them, ME and main turns apart (rd35pc.py's MEANS
+      tables, "the lever" line); the model says about 0 in the rain wait and +1 ms a picture in the walk; with the model's
+      past overrating of ME savings the PSP may show a small loss or nothing;
+  (b) the retrain: gl35's 'keep 0' turns against gl34's log on the same vblanks (gl34's fast turns; "the retrain" line);
+      the model says -4.0 / -5.1 ms a picture in the rain wait and -2.4 / -3.9 in the walk;
+  (c) 'nat split' by keep arm: the PSP's per-stage us a group, keep 15 against 0 (rd35pc.py's split by keep), to check
+      the model's part 7 (drawn areas) and part 8 (texture) stage by stage;
+  (d) the deck before the rain (26,200-28,700): both arms run with bit 8 on there (section 1), so (a) is 0 by
+      construction there; against gl34 it is the retrain plus bit 8.
+
+6. UNKNOWN UNTIL THE PSP RUN
+  - every speed above;
+  - whether the keeps' extra I-misses (the model's whole reason for their loss) are as large on the PSP's cache;
+  - the heap margin on the PSP with 5 KB more code (expected ample: 2.7 MB in gl30);
+  - nothing new is touched on the ME's side beyond plain C in the translator, the GS model and the texture cache: no new
+    call, no new memory block, no write outside what the full step writes [C, code].
+
+7. OPEN ITEMS
+  - K2's PRIM part never runs (section 1): either find which register the design took for PRIM, or drop the branch.
+  - xl_keep_bits stands across turns with no fast group (section 1): for a clean keep-off reference it should be reset at
+    each turn's start (or at gl_begin); left as it is in gl35 because the tree was frozen and trained; exact either way.
+  - The texture keep loses in the model: a cheaper guard (one generation compare instead of the full record) or bit 4
+    only (36,522 replays on the twin: nearly nothing to gain) for gl36's people; or drop K3.
+  - The keeps' I-misses: an order trained with the keeps in every turn could give some back [I, from the fully
+    associative counts in 3.2].
+  - The main turns on the deck and in the opening: +8 percent D-misses against gl34 (3.1); worth a look at what moved.
+  - mvse35.py (the model's split next to the emulator's stage timers) was not run; the emulator's timers are host time.
+
+8. DEVIATIONS FROM THE PLAN, AND WHAT WAS LEFT OUT
+  - DELIVERED TURN ORDER: MGS2_NAT_KEEP_CYCLE=15,15,0,0 instead of the plan's example 0,0,1,1 (section 1, keys): so the
+    keep-off turns fall on gl34's fast turns. One cfg line flips it; the twin ran both orders (dx, dx2).
+  - THE TARGET (-35 percent of the ship's native ME time a group in the rain wait, 63 -> about 40 us): not reached; the
+    model gives -0.9 us a group (-1.4 percent of gl34's PSP 63.3 us) [C model].
+  - THE DELIVERY RULE: not met for the lever (rain walk ME +1.33); met for "not behind gl34 elsewhere" (the result paragraph).
+  - The order step's held-out windows: one per trace instead of two (section 2).
+  - Left out of gl35 (keep_design.txt section 4): batching the groups of one mesh / material into one GE batch (the GE
+    words change: fails the hard gate by definition); the CLUT load itself; a cheaper register stage; the host call's GS
+    decode; the walk and the hand-off. Each is described there with what it would need.
+  - keep_design.txt says "2026-11-21 17:50 UTC" in its first line, but the file's time is 17:26 UTC: the first agent's
+    clock note, not a later edit (left as it is).
+  - The first agent's probe logs tw/x86/out_probe.log and out_probe2.log (counters only, the figures in keep_design.txt
+    section 1) were deleted for disk space; their summaries probe.out and probe2.out are kept.
+
+9. WHAT THE LEAD CAN DECIDE
+  - Run gl35 as built, as a measurement build (my recommendation): exact, the retrain is the model's clearest gain since
+    gl33 (-2.4 to -5.1 ms a picture in the rain), the keep-off turns measure it cleanly against gl34's fast turns, and
+    the keep turns tell whether the keeps' model loss is real before gl36 builds on them for the people.
+  - Or hold the plan's rule strictly: deliver the same files with the keep line commented out
+    (cfg_emu/mgs2_gl35_nokeep.cfg, md5 134e29b3): the retrain alone, fast in every turn (README_gl35.txt's 'keep'
+    paragraphs would then need rewording; mgs2.cfg's md5 in the manifest changes); the twin's f and dxp runs and the
+    emulator's e5 run gate it; rd35pc.py's fingerprints are the same (the keeps change no digest).
+  - Or MGS2_NAT_KEEP_CYCLE=7,7,0,0 (no bit 8; the model's better arm, still +0.34 in the walk's ME turn): bits 1, 2 and 4
+    were each gated alone on the twin, not together; it would need a twin run and an emulator run first.
+  - For gl36 [I]: reset the keep bits at each turn (exact either way, cleaner measurement); keep K1 (it works as
+    designed); rethink K3 before the people use it; retrain the order with the delivered keep share.
+
+10. FILES
+/home/claude/main/build_gl35/ (the container):
+  deliver/   EBOOT.PBP 956c41864d3a1a4d4c411a0fe17cb98e, ovl_d00t.bin a2691d2a, ovl_d01t.bin c6534828, ovl_init.bin
+             0fb6d6a1, ovl_n_title.bin bad9269a, ovl_r_title.bin 2490a100, ovl_r_tnk0.bin 7afc3a4f, ovl_w00a.bin
+             f6817d23, ovl_w01a.bin f6ac5b66, mgs2.cfg db69cc6a, hashref.txt c9ddb593, pad.txt 7bc72ace,
+             README_gl35.txt 4690dbe2 (for the owner), MANIFEST_gl35.md5 d209a7d6 (these plus SLES_503.83 e3f4c0df and
+             mgs2disc.pak 189ca53f, which stay on the stick)
+  psp/ (the final build; deliver = psp byte for byte), u/ (the use build), gcda/ (20 profiles), ord/final/ (the order),
+  pgochk_u/, tw/x86/ (the twin and its logs, gzipped but out_dx.log), xt35/ (the read-hash twin and its logs)
+  emu_e2/ (the delivered cfg), emu_e3/ (dense), emu_e5/ (keeps off), emu_e6/ (check mode),
+  model/ (PspProf files and logs), model_tot4.out,
+  model_totc.out, model_split.out, model_lever.out, cfg/, cfg_emu/, the scripts (*.sh, m/scripts/), the tools (*.py),
+  gl35_vs_t34.diff, the gates' outputs (*.out)
+Readers:
+  container:  python3 -I /home/claude/main/build_gl35/rd35.py <log.txt> --bat <battery.txt> [--live <folder with the bmp>]
+  PC:         python -I rd35pc.py <LOGS\gl35> <LOGS\gl34>
+Copies under /mnt/project-files/mgs2/main/attic/gl35/ (text only, read back after the copy): report.txt, README_gl35.txt,
+  MANIFEST_gl35.md5, rd35.py, rd35pc.py, gl35_vs_t34.diff, cfg/ (the delivered, training, model, test and variant cfgs),
+  scripts/ (the scripts and tools), out/ (the gates' and the model's text outputs; the readers' outputs for e2 and e3 as
+  their first 330 lines). gl35_plan.md and keep_design.txt were already there and are unchanged.
+Deleted, all inside build_gl35 after a look, by literal path: the merged traces lay/t0m.it and lay/t1m.it and the raw
+  lay/t0.it and lay/t1.it (their figures are in order35.out and fa35.out); the training runs' and finished runs' emulator
+  game folders (ms/game, ms/pic, ms/rtb, ms/w00a, ms/w01a, ms/g_*, ms/em_e2, ms/em_e3, ms/g35p, ms/g35k, ms/g35k7, ms/g35pc2,
+  ms/g35kc2, ms/g35pc1, ms/g35kc1, ms/g35n4, ms/em_e5, ms/em_e6; their logs and pictures are in pg/,
+  emu_* and model/), the second build u2/ and psp2/ after G7;
+  the first agent's probe logs (section 8). Twin logs gzipped in place. Nothing outside build_gl35 and attic/gl35 was
+  written or deleted; build_gl30, build_gl30n and build_gl32 were looked at (no emulator game folders in them) and not
+  touched. Free disk at the end: about 1.1 GB.
+Limits kept: no PSP, nothing on the owner's PC, game data and pictures stay in the container, t33, t34, build_gl33 and
+build_gl34 read only.
+
+md5 of the delivered files: see deliver/ above and MANIFEST_gl35.md5.
+

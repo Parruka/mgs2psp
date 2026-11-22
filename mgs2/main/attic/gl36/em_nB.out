@@ -1,0 +1,6 @@
+em36.sh: nB 520 s
+em36.sh: pictures 52
+em36.sh: split dumps in the game folder: 0
+/home/claude/main/build_gl36/emu_nB/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl36/pk_nopgoB/hashref.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0

@@ -1,0 +1,393 @@
+== rd31: psp/log.txt (md5 8b6af3b6, 3895 lines); window vb 29400..31500
+  gl28 battery recorder (MGS2_BAT_REC 1): every battery.txt line adds the battery thread's lateness and the picture loop's and the ME's state (reads only)
+  gl28 eye (MGS2_EYE 1): on: the R trigger peeked once a vblank hook, outside the step's time (sceCtrlPeekBufferPositive: the game plays pad.txt and never reads the pad; a peek takes nothing from the end screen's or the cr ...
+  gl28 live (MGS2_GL_LIVE 30500:31400:25:8): the buffer on the screen copied as it is (no drain, no wait for the GE) to live_<vb>.bmp next to the EBOOT, outside the step's time: at vb 30500 + k*25 + 12 up to 31400; at R pr ...
+  gl29 dz (MGS2_GL_DZ): the 0x42 shadow decals' depth arm by frame (its last vblank), O elsewhere: 3 entries: 0-29489 X 29490-31400 X 31401-999999999 X; 4 windows (a 'gl29 dz window' line each once the screen has left it)
+  gl28 me rest (MGS2_ME_REST 1): the ME rests in HALT (psp/xme_rest.S) through the main CPU's turns, woken by the main CPU's interrupt (0xBC100044) when its own turn begins; never inside its turns; a 'main turn vb A-B gl28 ...
+  gl28 fbchk (MGS2_GL_FBCHK 30500): on from vb 30500: at each list given to the GE, the display's answers (sceDisplayGetFrameBuf IMMEDIATE and NEXTFRAME) against the list's target buffer and the display vblanks since the f ...
+  gl28 shot flip wait (MGS2_GL_SHOT_FLIPWAIT 1): on: from MGS2_GL_FLIPWAIT_FROM on, a shot's drained path keeps the flip wait and gives the GE every list made (the last frame made saved; no list drawn into the buffer still ...
+  gl28 ge2 a/b (MGS2_ME_PIC_GE2_AB 30500): from vb 30500 GE2 only in every other ME turn: on when vb / (2 * MGS2_ME_PIC_TURN) is odd (it needs MGS2_ME_PIC_GE2 for the second frame memory); a 'gl28 ge2 a/b' line at each ME  ...
+  end: end of the run
+
+== hashes and digests
+  psp/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl31/deliver/hashref.txt: 685 lines
+  compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+  frames: 916 vblanks with digests, 916 equal to the twin; 916 distinct
+  vuh: 0 lines, 0 equal to the twin
+  digests in me turns (by the frame's vblank): 455, equal to the twin 455 (list, frame and the dz text)
+  digests in main turns (by the frame's vblank): 461, equal to the twin 461 (list, frame and the dz text)
+  by arm (frames with digests; ME turns; equal to the twin; 0x42 batches; other kinds; paired; gl30 subset pairs; fallbacks base/matrix/vertex set/triangles/uv-colour/room; biased; W; the largest copy in bytes):
+    X    frames  916 (ME  455), = twin  916; 0x42  12247, other 149236; paired  10306; subset   1941; fallbacks 0/0/0/0/0/0; biased 0; W 0; copy at most 2480
+
+== gl29 dz windows (frames by turn, counts, list build time, R held)
+       0-29489 X   frames 13676 (ME 6803, main 6873); 0x42  4875 paired  4239 subset   444 fb 87,0,105,0,0,0; bias 0 W 0; copy   4864 B; list ms ME 18746.6 (avg 2.76, max 32.83), main 18556.4 (avg 2.70, max 21.72); R held   2 (ME 2, main 0), from the 10th vb 2
+   29490-31400 X   frames 916 (ME 455, main 461); 0x42 12247 paired 10306 subset  1941 fb 0,0,0,0,0,0; bias 0 W 0; copy   2480 B; list ms ME 20667.9 (avg 45.42, max 54.26), main 20747.3 (avg 45.00, max 54.77); R held   3 (ME 2, main 1), from the 10th vb 3
+   31401-999999999 X   frames   0 (ME   0, main   0); 0x42     0 paired     0 subset     0 fb 0,0,0,0,0,0; bias 0 W 0; copy      0 B; list ms ME     0.0 (avg 0.00, max 0.00), main     0.0 (avg 0.00, max 0.00); R held   0 (ME 0, main 0), from the 10th vb 0
+  1000000000-end   O   frames   0 (ME   0, main   0); 0x42     0 paired     0 subset     0 fb 0,0,0,0,0,0; bias 0 W 0; copy      0 B; list ms ME     0.0 (avg 0.00, max 0.00), main     0.0 (avg 0.00, max 0.00); R held   0 (ME 0, main 0), from the 10th vb 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 4/1
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 0-29489 X 2 (2) 29490-31400 X 3 (3) 31401-999999999 X 0 (0) 1000000000-end O 0 (0)
+
+== gl29 shots (arm, last list = shot frame, depth files, VRAM read)
+  shot vb 29502 (SHOT, main turn): frame 29500 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 30502 (SHOT, main turn): frame 30500 arm X; last list = shot frame yes; colour 18.4 ms; no depth
+  shot vb 30548 (SHOT, main turn): frame 30546 arm X; last list = shot frame yes; colour 18.3 ms; no depth
+  shot vb 30646 (SHOT, me turn): frame 30644 arm X; last list = shot frame yes; colour 18.5 ms; no depth
+  shot vb 30724 (SHOT, main turn): frame 30722 arm X; last list = shot frame yes; colour 18.5 ms; no depth
+  shot vb 30826 (SHOT, me turn): frame 30824 arm X; last list = shot frame yes; colour 18.7 ms; no depth
+  shot vb 30926 (SHOT, main turn): frame 30924 arm X; last list = shot frame yes; colour 18.4 ms; no depth
+  shot vb 31048 (SHOT, me turn): frame 31046 arm X; last list = shot frame yes; colour 18.6 ms; no depth
+  shot vb 31114 (SHOT, main turn): frame 31112 arm X; last list = shot frame yes; colour 18.4 ms; no depth
+  shot vb 31264 (SHOT, me turn): frame 31262 arm X; last list = shot frame yes; colour 18.5 ms; no depth
+  gl29 shot lines 16; with a problem (not saved, last list not the shot frame, depth not saved) 0; GAVE UP lines 0
+
+== native step 1 (MGS2_NAT / MGS2_NAT_CYCLE)
+  native step 1: the groups' arrays: 2304 groups of 48 B a packet buffer, 216 KB of the system's memory outside newlib's heap: made, an array each (0bdc8000, 0bec0000); that memory before: largest block 224 KB, total 432 KB; after: 116 KB, 216 KB; the merge runs timed on the ME (MGS2_NAT_T): yes
+  nat turn lines 75 (parsed 75)
+  per turn (vb; ME or main picture turn; arm; the harness window of the same 100 vblanks: mean ms a step = logic + draw pipeline + GS walk + picture + GE wait + IOP; in ME turns the ME's walks / records / fills ms; nat: calls, groups, pictures, bytes a picture mean/most; fallbacks; early fills; dropped; native ms; holds: fills / copies ms):
+  24000-24100 me   arm 0 builder   | step  104.76 (logic  50.28 dp  42.95 gsw  3.94 pic  0.15 gew   3.15) max  614.18 | ME walks  3478.3 rec  352.3 fills   4.9 idle  6509.1, waits copy    0.0 fill    29.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills    29.5 copies    0.0
+  24100-24200 main arm 0 builder   | step  142.74 (logic  96.86 dp  28.61 gsw  6.03 pic  4.13 gew   3.56) max  220.78 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  24200-24300 me   arm 3 native    | step  111.68 (logic  69.19 dp  32.73 gsw  5.83 pic  0.20 gew   0.15) max  169.01 | ME walks  5870.9 rec  481.6 fills   5.6 idle  4833.7, waits copy    0.0 fill    15.0 | calls  1758 groups   7186 pics  50 bytes  6898/ 7536 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  353.57 ms | hold fills    15.0 copies    0.0
+  24300-24400 main arm 3 native    | step  143.08 (logic  95.69 dp  22.90 gsw  4.36 pic  4.38 gew  12.85) max  282.60 | calls  1108 groups   5332 pics  49 bytes  5223/ 8208 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  24400-24500 me   arm 0 builder   | step   90.16 (logic  52.44 dp  27.78 gsw  5.88 pic  0.15 gew   0.34) max  155.25 | ME walks  5087.7 rec  437.1 fills   5.9 idle  3486.8, waits copy    0.0 fill    33.4 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    7.91 ms | hold fills    33.4 copies    0.0
+  24500-24600 main arm 0 builder   | step  143.21 (logic 101.33 dp  27.59 gsw  5.20 pic  4.49 gew   0.96) max  269.78 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  24600-24700 me   arm 3 native    | step   93.87 (logic  56.65 dp  28.60 gsw  5.02 pic  0.15 gew   0.45) max  143.79 | ME walks  5899.5 rec  511.2 fills   6.1 idle  2585.7, waits copy    0.0 fill    36.2 | calls  2274 groups  12493 pics  50 bytes 11993/13920 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  740.06 ms | hold fills    36.2 copies    0.0
+  24700-24800 main arm 3 native    | step  155.30 (logic 111.47 dp  29.30 gsw  5.85 pic  4.94 gew   0.23) max  297.36 | calls  2944 groups  14406 pics  50 bytes 13829/15312 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  24800-24900 me   arm 0 builder   | step   89.98 (logic  53.43 dp  26.60 gsw  6.02 pic  0.15 gew   0.17) max  150.98 | ME walks  5418.1 rec  469.3 fills   6.1 idle  2719.5, waits copy    0.0 fill    16.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   12.56 ms | hold fills    16.5 copies    0.0
+  24900-25000 main arm 0 builder   | step  136.82 (logic  92.36 dp  24.90 gsw  5.93 pic  4.40 gew   6.29) max  197.04 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  25000-25100 me   arm 3 native    | step   46.58 (logic  27.54 dp  12.31 gsw  2.07 pic  0.09 gew   0.15) max  232.88 | ME walks  1814.5 rec  396.9 fills   4.5 idle  1908.2, waits copy    0.0 fill    13.9 | calls  3349 groups  13577 pics  45 bytes 14482/15984 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  320.05 ms | hold fills    13.9 copies    0.0
+  25100-25200 main arm 3 native    | step   48.36 (logic  30.98 dp  12.05 gsw  2.19 pic  0.13 gew   0.11) max  146.08 | calls  4231 groups  16673 pics  50 bytes 16006/16032 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  25200-25300 me   arm 0 builder   | step   42.82 (logic  24.10 dp  12.87 gsw  2.67 pic  0.10 gew   0.17) max  140.83 | ME walks  2048.8 rec  492.6 fills   5.3 idle  1771.1, waits copy    0.0 fill    16.7 | calls    85 groups    334 pics   1 bytes 16032/16032 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   16.05 ms | hold fills    16.7 copies    0.0
+  25300-25400 main arm 0 builder   | step   51.43 (logic  32.83 dp  12.94 gsw  2.44 pic  0.16 gew   0.16) max  153.98 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  25400-25500 me   arm 3 native    | step   42.49 (logic  23.90 dp  12.63 gsw  2.13 pic  0.11 gew   0.17) max  140.93 | ME walks  1676.1 rec  444.5 fills   5.2 idle  2500.0, waits copy    0.0 fill    16.4 | calls  2982 groups   8422 pics  49 bytes  8250/ 8544 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  192.65 ms | hold fills    16.4 copies    0.0
+  25500-25600 main arm 3 native    | step   45.94 (logic  28.98 dp  11.95 gsw  1.98 pic  0.13 gew   0.00) max  143.19 | calls  3146 groups   8872 pics  50 bytes  8517/ 8544 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  25600-25700 me   arm 0 builder   | step   39.16 (logic  21.37 dp  12.35 gsw  2.22 pic  0.10 gew   0.17) max  128.25 | ME walks  1643.5 rec  413.0 fills   5.2 idle  1877.9, waits copy    0.0 fill    16.4 | calls    61 groups    170 pics   1 bytes  8160/ 8160 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    8.06 ms | hold fills    16.4 copies    0.0
+  25700-25800 main arm 0 builder   | step   44.76 (logic  27.20 dp  11.76 gsw  2.14 pic  0.13 gew   0.04) max  147.69 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  25800-25900 me   arm 3 native    | step   99.04 (logic  41.44 dp  14.44 gsw  2.33 pic  0.09 gew  37.76) max  255.55 | ME walks  4040.4 rec  851.8 fills   5.3 idle  5078.3, waits copy    0.0 fill    15.3 | calls 26882 groups 101716 pics  49 bytes 99640/99792 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native 2300.26 ms | hold fills    15.3 copies    0.0
+  25900-26000 main arm 3 native    | step   70.58 (logic  50.60 dp  14.13 gsw  2.20 pic  0.14 gew   0.56) max  199.50 | calls 27448 groups 103098 pics  50 bytes 98974/99168 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  26000-26100 me   arm 0 builder   | step   27.38 (logic  13.63 dp   2.50 gsw  0.48 pic  0.05 gew   8.61) max  327.19 | ME walks   924.0 rec   96.0 fills   0.6 idle  1167.4, waits copy    0.0 fill   166.8 | calls   551 groups   2064 pics   1 bytes 99072/99072 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   94.21 ms | hold fills   166.8 copies    0.0
+  26100-26200 main arm 0 builder   | step   23.20 (logic  14.62 dp   1.02 gsw  0.89 pic  0.71 gew   0.29) max  334.28 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  26200-26300 me   arm 3 native    | step   43.61 (logic  12.03 dp   6.38 gsw  4.33 pic  0.07 gew  18.25) max   78.45 | ME walks  3686.8 rec  246.9 fills  13.5 idle    38.8, waits copy    0.0 fill   682.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   682.8 copies    0.0
+  26300-26400 main arm 3 native    | step   61.00 (logic  43.52 dp   6.11 gsw  4.20 pic  4.60 gew   0.35) max  160.54 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  26400-26500 me   arm 0 builder   | step   43.71 (logic  12.20 dp   6.40 gsw  4.32 pic  0.07 gew  18.18) max   91.29 | ME walks  3693.7 rec  247.1 fills  13.2 idle   360.0, waits copy    0.0 fill   688.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   688.8 copies    0.0
+  26500-26600 main arm 0 builder   | step   60.00 (logic  43.10 dp   6.13 gsw  4.17 pic  4.46 gew   0.00) max   96.91 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  26600-26700 me   arm 3 native    | step   43.14 (logic  12.24 dp   6.39 gsw  4.31 pic  0.08 gew  17.59) max   62.47 | ME walks  3648.9 rec  247.4 fills   3.9 idle    41.2, waits copy    0.0 fill   673.6 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   673.6 copies    0.0
+  26700-26800 main arm 3 native    | step   61.00 (logic  43.57 dp   6.12 gsw  4.18 pic  4.52 gew   0.29) max  126.72 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  26800-26900 me   arm 0 builder   | step   43.16 (logic  12.08 dp   6.39 gsw  4.31 pic  0.07 gew  17.86) max   74.89 | ME walks  3645.7 rec  247.2 fills   3.9 idle    41.2, waits copy    0.0 fill   679.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   679.8 copies    0.0
+  26900-27000 main arm 0 builder   | step   60.87 (logic  43.36 dp   6.13 gsw  4.17 pic  4.50 gew   0.37) max  131.65 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  27000-27100 me   arm 3 native    | step   43.16 (logic  12.12 dp   6.40 gsw  4.33 pic  0.07 gew  17.80) max   76.06 | ME walks  3647.3 rec  247.9 fills   3.9 idle    39.8, waits copy    0.0 fill   678.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   678.8 copies    0.0
+  27100-27200 main arm 3 native    | step   60.89 (logic  43.46 dp   6.14 gsw  4.18 pic  4.53 gew   0.36) max  130.98 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  27200-27300 me   arm 0 builder   | step   43.46 (logic  12.09 dp   6.39 gsw  4.32 pic  0.07 gew  18.08) max   92.74 | ME walks  3675.9 rec  247.2 fills   8.5 idle    38.0, waits copy    0.0 fill   680.8 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   680.8 copies    0.0
+  27300-27400 main arm 0 builder   | step   60.74 (logic  43.34 dp   6.18 gsw  4.18 pic  4.46 gew   0.37) max  131.66 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  27400-27500 me   arm 3 native    | step   43.22 (logic  12.03 dp   6.39 gsw  4.32 pic  0.07 gew  17.83) max   80.11 | ME walks  3653.9 rec  247.4 fills   3.9 idle   367.1, waits copy    0.0 fill   675.7 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   675.7 copies    0.0
+  27500-27600 main arm 3 native    | step   60.42 (logic  43.38 dp   6.12 gsw  4.22 pic  4.52 gew   0.00) max  119.34 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  27600-27700 me   arm 0 builder   | step   43.16 (logic  12.09 dp   6.46 gsw  4.32 pic  0.07 gew  17.65) max   86.65 | ME walks  3648.3 rec  247.8 fills   3.9 idle    39.8, waits copy    0.0 fill   675.2 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   675.2 copies    0.0
+  27700-27800 main arm 0 builder   | step   60.95 (logic  43.45 dp   6.19 gsw  4.31 pic  4.48 gew   0.37) max  131.13 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  27800-27900 me   arm 3 native    | step   43.59 (logic  12.14 dp   6.39 gsw  4.31 pic  0.07 gew  18.24) max   92.03 | ME walks  3684.9 rec  247.2 fills  13.5 idle    40.0, waits copy    0.0 fill   685.9 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   685.9 copies    0.0
+  27900-28000 main arm 3 native    | step   60.76 (logic  43.21 dp   6.13 gsw  4.18 pic  4.52 gew   0.37) max  131.63 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  28000-28100 me   arm 0 builder   | step   43.18 (logic  12.16 dp   6.46 gsw  4.32 pic  0.07 gew  17.71) max   78.58 | ME walks  3648.9 rec  247.4 fills   3.9 idle    40.1, waits copy    0.0 fill   679.1 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   679.1 copies    0.0
+  28100-28200 main arm 0 builder   | step   61.11 (logic  43.50 dp   6.12 gsw  4.24 pic  4.51 gew   0.36) max  131.21 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  28200-28300 me   arm 3 native    | step   43.59 (logic  12.21 dp   6.39 gsw  4.31 pic  0.07 gew  18.29) max   91.82 | ME walks  3680.3 rec  247.4 fills  13.3 idle    42.0, waits copy    0.0 fill   688.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   688.5 copies    0.0
+  28300-28400 main arm 3 native    | step   61.21 (logic  43.71 dp   6.11 gsw  4.17 pic  4.48 gew   0.37) max  131.62 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  28400-28500 me   arm 0 builder   | step   43.16 (logic  12.05 dp   6.39 gsw  4.32 pic  0.07 gew  17.76) max   88.83 | ME walks  3648.6 rec  247.9 fills   3.9 idle   361.9, waits copy    0.0 fill   676.3 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   676.3 copies    0.0
+  28500-28600 main arm 0 builder   | step   59.67 (logic  42.85 dp   6.20 gsw  4.18 pic  4.49 gew   0.00) max   93.83 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  28600-28700 me   arm 3 native    | step   43.44 (logic  11.92 dp   6.40 gsw  4.33 pic  0.07 gew  18.62) max   83.83 | ME walks  3679.3 rec  247.3 fills   8.7 idle    38.4, waits copy    0.0 fill   675.7 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills   675.7 copies    0.0
+  28700-28800 main arm 3 native    | step   13.84 (logic   8.72 dp   1.23 gsw  0.73 pic  0.56 gew   0.70) max  129.78 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  28800-28900 me   arm 0 builder   | step   18.15 (logic  11.21 dp   0.10 gsw  0.03 pic  0.03 gew   0.01) max   62.58 | ME walks    17.9 rec    3.1 fills   0.1 idle  1793.2, waits copy    0.0 fill     0.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.5 copies    0.0
+  28900-29000 main arm 0 builder   | step   22.92 (logic  13.66 dp   0.00 gsw  0.00 pic  0.01 gew   0.00) max   57.90 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  29000-29100 me   arm 3 native    | step   62.16 (logic  44.95 dp   9.53 gsw  1.47 pic  0.06 gew   2.85) max  866.51 | ME walks  2538.5 rec  132.6 fills   1.7 idle  3472.2, waits copy    0.0 fill    26.7 | calls  2500 groups  10218 pics  16 bytes 30654/34080 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  793.57 ms | hold fills    26.7 copies    0.0
+  29100-29200 main arm 3 native    | step  156.66 (logic 113.39 dp  29.00 gsw  4.97 pic  5.89 gew   0.62) max  290.58 | calls  7683 groups  31831 pics  50 bytes 30557/30672 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  29200-29300 me   arm 0 builder   | step   93.76 (logic  52.19 dp  30.74 gsw  5.95 pic  0.14 gew   2.14) max  111.90 | ME walks  8271.6 rec  493.3 fills   6.2 idle   130.8, waits copy    0.0 fill   213.5 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   49.02 ms | hold fills   213.5 copies    0.0
+  29300-29400 main arm 0 builder   | step  155.80 (logic 111.90 dp  29.22 gsw  5.77 pic  5.73 gew   0.70) max  302.26 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  29400-29500 me   arm 3 native    | step   87.82 (logic  50.05 dp  29.00 gsw  4.59 pic  0.13 gew   1.45) max  106.94 | ME walks  7352.9 rec  431.0 fills   5.9 idle   682.4, waits copy    0.0 fill   145.2 | calls  7346 groups  30040 pics  50 bytes 28838/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native 2339.37 ms | hold fills   145.2 copies    0.0
+  29500-29600 main arm 3 native    | step  162.42 (logic 104.53 dp  27.97 gsw  4.48 pic 22.98 gew   0.00) max  237.72 | calls  7353 groups  30103 pics  50 bytes 28898/28944 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  29600-29700 me   arm 0 builder   | step  104.26 (logic  48.12 dp  29.32 gsw  5.14 pic  0.14 gew  18.92) max  117.56 | ME walks  7627.5 rec  475.2 fills   5.9 idle   111.7, waits copy    0.0 fill  1892.1 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   47.91 ms | hold fills  1892.1 copies    0.0
+  29700-29800 main arm 0 builder   | step  166.33 (logic 105.67 dp  28.38 gsw  5.30 pic 23.53 gew   0.99) max  317.83 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  29800-29900 me   arm 3 native    | step  100.71 (logic  47.70 dp  28.62 gsw  4.34 pic  0.14 gew  17.29) max  118.18 | ME walks  7308.4 rec  459.3 fills   5.9 idle   113.2, waits copy    0.0 fill  1728.8 | calls  7423 groups  30417 pics  50 bytes 29200/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native 2377.71 ms | hold fills  1728.8 copies    0.0
+  29900-30000 main arm 3 native    | step  161.44 (logic 103.28 dp  27.59 gsw  4.41 pic 22.86 gew   0.83) max  298.13 | calls  7324 groups  29710 pics  50 bytes 28521/28896 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  30000-30100 me   arm 0 builder   | step  102.83 (logic  48.31 dp  29.20 gsw  5.12 pic  0.14 gew  17.45) max  117.54 | ME walks  7548.2 rec  473.0 fills   5.9 idle   113.8, waits copy    0.0 fill  1744.6 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   47.45 ms | hold fills  1744.6 copies    0.0
+  30100-30200 main arm 0 builder   | step  166.93 (logic 106.19 dp  28.50 gsw  5.27 pic 23.53 gew   0.96) max  315.11 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  30200-30300 me   arm 3 native    | step  101.05 (logic  47.77 dp  29.12 gsw  4.35 pic  0.14 gew  16.91) max  112.87 | ME walks  7333.9 rec  459.9 fills   6.0 idle   113.8, waits copy    0.0 fill  1691.2 | calls  7452 groups  30514 pics  50 bytes 29293/29616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native 2395.26 ms | hold fills  1691.2 copies    0.0
+  30300-30400 main arm 3 native    | step  163.62 (logic 104.24 dp  28.06 gsw  4.45 pic 23.43 gew   0.90) max  303.50 | calls  7418 groups  30306 pics  50 bytes 29093/29280 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  30400-30500 me   arm 0 builder   | step  102.13 (logic  48.16 dp  29.90 gsw  5.12 pic  0.14 gew  16.21) max  143.35 | ME walks  7498.3 rec  470.0 fills   5.9 idle   377.1, waits copy    0.0 fill  1621.3 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   47.78 ms | hold fills  1621.3 copies    0.0
+  30500-30600 main arm 0 builder   | step  166.06 (logic 106.57 dp  28.61 gsw  5.30 pic 22.99 gew   0.00) max  222.30 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  30600-30700 me   arm 3 native    | step  107.99 (logic  51.75 dp  30.26 gsw  4.94 pic  0.14 gew  18.17) max  126.15 | ME walks  7933.8 rec  504.6 fills   5.9 idle  1549.4, waits copy    0.0 fill  1816.7 | calls  7662 groups  31819 pics  50 bytes 30546/32448 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native 2408.42 ms | hold fills  1816.7 copies    0.0
+  30700-30800 main arm 3 native    | step  178.19 (logic 113.31 dp  29.42 gsw  5.19 pic 26.64 gew   1.03) max  330.47 | calls  7453 groups  35614 pics  50 bytes 34189/36576 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  30800-30900 me   arm 0 builder   | step  104.50 (logic  47.04 dp  30.11 gsw  5.19 pic  0.13 gew  19.28) max  154.61 | ME walks  6841.4 rec  407.1 fills   5.8 idle  1181.8, waits copy    0.0 fill  1928.0 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   52.79 ms | hold fills  1928.0 copies    0.0
+  30900-31000 main arm 0 builder   | step  142.64 (logic  87.33 dp  27.71 gsw  4.60 pic 19.37 gew   0.93) max  283.82 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  31000-31100 me   arm 3 native    | step   88.67 (logic  48.91 dp  29.30 gsw  4.95 pic  0.14 gew   2.47) max  128.04 | ME walks  6181.1 rec  388.6 fills   6.0 idle  2087.9, waits copy    0.0 fill   246.6 | calls  3282 groups  14893 pics  50 bytes 14297/17616 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native  986.11 ms | hold fills   246.6 copies    0.0
+  31100-31200 main arm 3 native    | step  147.80 (logic  90.87 dp  28.39 gsw  4.55 pic 20.60 gew   0.64) max  258.53 | calls  2321 groups  14417 pics  50 bytes 13840/14736 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  31200-31300 me   arm 0 builder   | step   96.56 (logic  44.37 dp  29.72 gsw  4.66 pic  0.13 gew  14.72) max  136.68 | ME walks  6045.1 rec  377.3 fills   5.6 idle   988.4, waits copy    0.0 fill  1471.6 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native   20.85 ms | hold fills  1471.6 copies    0.0
+  31300-31400 main arm 0 builder   | step   45.30 (logic  27.00 dp   5.19 gsw  0.79 pic  4.11 gew   0.85) max  249.26 | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  31400-31400 me   arm 3 native    | a cut turn (the run ends): not in the means | calls     0 groups      0 pics   0 bytes     0/    0 | fb 0 early 0 dropped 0 noarr 0 partly 0 | native    0.00 ms | hold fills     0.0 copies    0.0
+  turns with a fallback, an early fill, a dropped group, a record with no array, a partly read group or an undone plan: 0
+  note: 3 builder-arm turns have records (a turn's first step still runs the arm before): 25200-25300, 25600-25700, 26000-26100
+  by picture turn and arm, all nat turns (vb 24000-31400):
+    me   turns, arm 0 builder  : 19 turns; step mean   67.17 ms (logic  30.91, draw pipeline  18.03, GS walk  4.12, picture  0.10, GE wait  10.98); ME a turn: walks  4442.7, records  339.2, fills   5.3, idle  1216.3 ms; waits: copies    0.0, fills   696.4; nat a turn: calls 37, groups 135, pictures 0.2, native 21.29 ms, hold fills 696.4, copies 0.0 ms
+    me   turns, arm 3 native   : 18 turns; step mean   69.21 ms (logic  33.03, draw pipeline  16.74, GS walk  4.01, picture  0.11, GE wait  12.47); ME a turn: walks  4646.2, records  377.4, fills   6.6, idle  1418.4 ms; waits: copies    0.0, fills   584.1; nat a turn: calls 4051, groups 16183, pictures 28.3, native 844.84 ms, hold fills 584.1, copies 0.0 ms
+    main turns, arm 0 builder  : 19 turns; step mean   93.24 ms (logic  62.27, draw pipeline  15.34, GS walk  3.94, picture  7.38, GE wait   0.91); nat a turn: calls 0, groups 0, pictures 0.0, native 0.00 ms, hold fills 0.0, copies 0.0 ms
+    main turns, arm 3 native   : 18 turns; step mean  100.69 ms (logic  67.61, draw pipeline  16.60, GS walk  3.92, picture  8.88, GE wait   1.12); nat a turn: calls 4357, groups 17798, pictures 30.5, native 0.00 ms, hold fills 0.0, copies 0.0 ms
+  by picture turn and arm, the turns inside vb 29500-31400 (--natfrom / --natto):
+    me   turns, arm 0 builder  :  5 turns; step mean  102.06 ms (logic  47.20, draw pipeline  29.65, GS walk  5.05, picture  0.14, GE wait  17.32); ME a turn: walks  7112.1, records  440.5, fills   5.8, idle   554.6 ms; waits: copies    0.0, fills  1731.5; nat a turn: calls 0, groups 0, pictures 0.0, native 43.36 ms, hold fills 1731.5, copies 0.0 ms
+    me   turns, arm 3 native   :  4 turns; step mean   99.60 ms (logic  49.03, draw pipeline  29.33, GS walk  4.64, picture  0.14, GE wait  13.71); ME a turn: walks  7189.3, records  453.1, fills   6.0, idle   966.1 ms; waits: copies    0.0, fills  1370.8; nat a turn: calls 6455, groups 26911, pictures 50.0, native 2041.88 ms, hold fills 1370.8, copies 0.0 ms
+    main turns, arm 0 builder  :  5 turns; step mean  137.45 ms (logic  86.55, draw pipeline  23.68, GS walk  4.25, picture 18.71, GE wait   0.75); nat a turn: calls 0, groups 0, pictures 0.0, native 0.00 ms, hold fills 0.0, copies 0.0 ms
+    main turns, arm 3 native   :  5 turns; step mean  162.69 ms (logic 103.25, draw pipeline  28.29, GS walk  4.62, picture 23.30, GE wait   0.68); nat a turn: calls 6374, groups 28030, pictures 50.0, native 0.00 ms, hold fills 0.0, copies 0.0 ms
+  (the emulator has no ME: its "ME" times are the loop thread's on the one CPU; only a PSP log gives a speed)
+  native step 1 totals: arrays made, one a buffer; calls recorded 152036, groups 614225, pictures with records 1061; stubbed with no record 0; calls with no group 0; the builder run instead: array full 0, key order 0, near the buffer's end 0, other 0; recorded with no array 0; groups left untaken 423 (pictures 3); transfers planned with groups 620 (292670 groups), groups taken by walks from RAM 320422, plans undone for the groups' room 0, early fills for an array's reuse 0; records' groups copied 620 (292670 groups, 14048160 bytes); merge runs 7601, groups to the core 612892, fed word by word 200, dropped 0, drawn at a walk's end 0, run lanes stopped at a key 1810; the groups' data in the copy 1277104, read from RAM 0, partly (dropped) 0
+
+== gl28 me rest
+  main-turn rest lines 157: rests 157, woken in HALT 157, kicks 157, ME asleep 1067.0 s
+  ME-turn notes (a rest held over the switch) 0
+  gl28 me rest totals: MGS2_ME_REST 1; main turns with a rest line 157; rests 157 (woken in HALT 157, before HALT 0, no interrupt 0, given up 0); kicks 157 + rekicks 0 (134.2 us mean, 172.0 max, 0.021 s in all); stray wakes at least 0 (the handler's wakes 157; turns with more handler wakes than kicks 0, 0 wakes beyond: 1 in a turn can be a kick left pending from before it); ME asleep 1067.0 s (main  ...
+
+== GE2 per ME turn (window)
+  me turn 29400-29500: 9177 ms; GE2 1, lists 49, GE drawing 1323.8 ms, frames begun while the GE drew 50; TWO 1
+  me turn 29600-29700: 10555 ms; GE2 1, lists 49, GE drawing 1237.3 ms, frames begun while the GE drew 50; TWO 1
+  me turn 29800-29900: 10193 ms; GE2 1, lists 49, GE drawing 1199.4 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30000-30100: 10414 ms; GE2 1, lists 49, GE drawing 1181.2 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30200-30300: 10227 ms; GE2 1, lists 49, GE drawing 1221.5 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30400-30500: 10604 ms; GE2 1, lists 49, GE drawing 1208.7 ms, frames begun while the GE drew 50; TWO 1
+  me turn 30600-30700: 12554 ms; GE2 1 (a/b line: on), lists 49, GE drawing 1298.0 ms, frames begun while the GE drew 49; TWO 1
+  me turn 30800-30900: 12422 ms; GE2 0 (a/b line: off), lists 49, GE drawing 1077.1 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31000-31100: 10767 ms; GE2 1 (a/b line: on), lists 49, GE drawing 1146.6 ms, frames begun while the GE drew 49; TWO 1
+  me turn 31200-31300: 11311 ms; GE2 0 (a/b line: off), lists 50, GE drawing 1054.8 ms, frames begun while the GE drew 0; TWO 1
+  me turn 31400-31400: 35 ms; GE2 1 (a/b line: on), lists 0, GE drawing 0.0 ms, frames begun while the GE drew 0; TWO 1
+  ge2 a/b lines: 30600 on, 30800 off, 31000 on, 31200 off, 31400 on
+
+== display (gl27 lines with the gl28 fbchk counts), turns in the window
+  me   29400-29500 flip on: held 1 (1.5 ms), drawn into the shown buffer 0
+  main 29500-29600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29600-29700 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29700-29800 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   29800-29900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 29900-30000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30000-30100 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30100-30200 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30200-30300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  main 30300-30400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0
+  me   30400-30500 flip on: held 1 (1.7 ms), drawn into the shown buffer 0
+  main 30500-30600 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 51, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 34 vblanks after the show
+  me   30600-30700 flip on: held 2 (29.6 ms), drawn into the shown buffer 0; fbchk lists 49, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 35 vblanks after the show
+  main 30700-30800 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 51, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 36 vblanks after the show
+  me   30800-30900 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 34 vblanks after the show
+  main 30900-31000 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 30 vblanks after the show
+  me   31000-31100 flip on: held 3 (39.4 ms), drawn into the shown buffer 0; fbchk lists 49, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 32 vblanks after the show
+  main 31100-31200 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 51, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 33 vblanks after the show
+  me   31200-31300 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 50, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 31 vblanks after the show
+  main 31300-31400 flip on: held 1 (18.8 ms), drawn into the shown buffer 0; fbchk lists 11, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 13 vblanks after the show
+  me   31400-31400 flip on: held 0 (0.0 ms), drawn into the shown buffer 0; fbchk lists 0, IMMEDIATE 0, NEXTFRAME 0, in the show's vblank 0, at most 0 vblanks after the show
+  end: MGS2_GL_FLIPWAIT 2 (from vb 0): ME turns: lists held for the screen 554 (9.33 s), lists drawn into the shown buffer 0; main CPU turns: held 331 (3.15 s), drawn into the shown buffer 0; gl28 fbchk from vb 30500: ME turns: lists 198, into the buffer the display shows now (IMMEDIATE) 0, into the buffer it shows next (NEXTFRAME) 0, in the display vblank of the show 0, display vblanks since the show at most 35; main CPU turns: lists 214, IMMEDIATE 0, NEXTFRAME 0, in the vblank of the show 0, at most 36; answers refused 0; answers naming neither buffer 0
+  fbchk detail lines 1 (the first check, then lists into the buffer on the screen or shown next, and the first answer that names neither buffer; 50 at most)
+    vb 30500 (main turn): the list of frame vb 30498 into buffer 0; the display's answers: IMMEDIATE 44088000 (buffer 1, rc 0), NEXTFRAME 44088000 (buffer 1, rc 0); 3 display vblanks after the show of frame vb 30496
+  the first fbchk line's answers name buffer 1 (IMMEDIATE) and buffer 1 (NEXTFRAME): the counts can match
+  fbchk end: answers refused 0, answers naming neither buffer 0
+
+== eye (R trigger)
+  eye: t 0 at vb 1 (t: ms from this hook)
+  R down vb 10435 t 483.4 s: me turn (TWO 1, GE2 1), flip on, shown frame 10433 in buffer 1, arm X
+  R up   vb 10437 t 483.6 s: me turn (TWO 1, GE2 1), flip on, shown frame 10435 in buffer 0, arm X; held 0.2 s (vb 10435-10437)
+  R down vb 30810 t 1969.4 s: me turn (TWO 1, GE2 0, a/b off), flip on, shown frame 30806 in buffer 0, arm X
+  R up   vb 30811 t 1969.8 s: me turn (TWO 1, GE2 0, a/b off), flip on, shown frame 30808 in buffer 1, arm X; held 0.4 s (vb 30810-30811)
+  R down vb 30945 t 1987.9 s: main turn (TWO 0, GE2 0), flip on, shown frame 30942 in buffer 0, arm X
+  R up   vb 30946 t 1988.3 s: main turn (TWO 0, GE2 0), flip on, shown frame 30942 in buffer 0, arm X; held 0.4 s (vb 30945-30946)
+  R down vb 31004 t 1997.2 s: me turn (TWO 1, GE2 1, a/b on), flip on, shown frame 30998 in buffer 0, arm X
+  R up   vb 31005 t 1997.5 s: me turn (TWO 1, GE2 1, a/b on), flip on, shown frame 31000 in buffer 1, arm X; held 0.4 s (vb 31004-31005)
+  gl28 eye: R pressed 4 times, let go 4 times (from vb 1)
+  gl28 live: captures 36 periodic, 3 at R presses (of 8 at most); not saved 0
+  gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns): O 0/0 X 4/1
+  gl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on): 0-29489 X 2 (2) 29490-31400 X 3 (3) 31401-999999999 X 0 (0) 1000000000-end O 0 (0)
+
+== shots that kept the flip wait: 16
+  vb 8762 (main turn): the flip wait kept: 76.8 ms, 0 rounds of 200 us
+  vb 10518 (main turn): the flip wait kept: 57.3 ms, 0 rounds of 200 us
+  vb 15763 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 23265 (me turn): the flip wait kept: 104.7 ms, 0 rounds of 200 us
+  vb 24246 (me turn): the flip wait kept: 124.3 ms, 0 rounds of 200 us
+  vb 24786 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 29502 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30502 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30548 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30646 (me turn): the flip wait kept: 155.2 ms, 0 rounds of 200 us
+  vb 30724 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 30826 (me turn): the flip wait kept: 142.7 ms, 0 rounds of 200 us
+  vb 30926 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31048 (me turn): the flip wait kept: 105.5 ms, 0 rounds of 200 us
+  vb 31114 (main turn): the flip wait kept: 0.0 ms, 0 rounds of 200 us
+  vb 31264 (me turn): the flip wait kept: 107.9 ms, 0 rounds of 200 us
+
+== live captures
+  references (emulator frames by their vblank) in /home/claude/main/build_gl31/emu_e3/pic: 8760, 10516, 15761, 23263, 24244, 24784, 29500, 30498, 30500, 30502, 30504, 30506, 30508, 30510, 30512, 30514, 30516, 30518, 30520, 30522, 30524, 30526, 30528, 30530, 30532, 30534, 30536, 30538, 30540, 30542, 30544, 30546, 30548, 30550, 30552, 30554, 30556, 30558, 30560, 30562, 30564, 30566, 30568, 30570, 30572, 30574, 30576, 30578, 30580, 30582, 30584, 30586, 30588, 30590, 30592, 30594, 30596, 30598, 30600, 30602, 30604, 30606, 30608, 30610, 30612, 30614, 30616, 30618, 30620, 30622, 30624, 30626, 30628, 30630, 30632, 30634, 30636, 30638, 30640, 30642, 30644, 30646, 30648, 30650, 30652, 30654, 30656, 30658, 30660, 30662, 30664, 30666, 30668, 30670, 30672, 30674, 30676, 30678, 30680, 30682, 30684, 30686, 30688, 30690, 30692, 30694, 30696, 30698, 30700, 30702, 30704, 30706, 30708, 30710, 30712, 30714, 30716, 30718, 30720, 30722, 30724, 30726, 30728, 30730, 30732, 30734, 30736, 30738, 30740, 30742, 30744, 30746, 30748, 30750, 30752, 30754, 30756, 30758, 30760, 30762, 30764, 30766, 30768, 30770, 30772, 30774, 30776, 30778, 30780, 30782, 30784, 30786, 30788, 30790, 30792, 30794, 30796, 30798, 30800, 30802, 30804, 30806, 30808, 30810, 30812, 30814, 30816, 30818, 30820, 30822, 30824, 30826, 30828, 30830, 30832, 30834, 30836, 30838, 30840, 30842, 30844, 30846, 30848, 30850, 30852, 30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868, 30870, 30872, 30874, 30876, 30878, 30880, 30882, 30884, 30886, 30888, 30890, 30892, 30894, 30896, 30898, 30900, 30902, 30904, 30906, 30908, 30910, 30912, 30914, 30916, 30918, 30920, 30922, 30924, 30926, 30928, 30930, 30932, 30934, 30936, 30938, 30940, 30942, 30944, 30946, 30948, 30950, 30952, 30954, 30956, 30958, 30960, 30962, 30964, 30966, 30968, 30970, 30972, 30974, 30976, 30978, 30980, 30982, 30984, 30986, 30988, 30990, 30992, 30994, 30996, 30998, 31000, 31002, 31004, 31006, 31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022, 31024, 31026, 31028, 31030, 31032, 31034, 31036, 31038, 31040, 31042, 31044, 31046, 31048, 31050, 31052, 31054, 31056, 31058, 31060, 31062, 31064, 31066, 31068, 31070, 31072, 31074, 31076, 31078, 31080, 31082, 31084, 31086, 31088, 31090, 31092, 31094, 31096, 31098, 31100, 31102, 31104, 31106, 31108, 31110, 31112, 31114, 31116, 31118, 31120, 31122, 31124, 31126, 31128, 31130, 31132, 31134, 31136, 31138, 31140, 31142, 31144, 31146, 31148, 31150, 31152, 31154, 31156, 31158, 31160, 31162, 31164, 31166, 31168, 31170, 31172, 31174, 31176, 31178, 31180, 31182, 31184, 31186, 31188, 31190, 31192, 31194, 31196, 31198, 31200, 31202, 31204, 31206, 31208, 31210, 31212, 31214, 31216, 31218, 31220, 31222, 31224, 31226, 31228, 31230, 31232, 31234, 31236, 31238, 31240, 31242, 31244, 31246, 31248, 31250, 31252, 31254, 31256, 31258, 31260, 31262, 31264, 31266, 31268, 31270, 31272, 31274, 31276, 31278, 31280, 31282, 31284, 31286, 31288, 31290, 31292, 31294, 31296, 31298, 31300, 31302, 31304, 31306, 31308, 31310, 31312, 31314, 31316, 31318, 31320
+  live 30512 (periodic, main turn): buffer 1 frame vb 30508 arm X (20 vblanks after its show; display scans 1; other buffer frame 30506; GE draws 30510 into the other buffer; lists waiting 0); VRAM 18.4 ms, all 275.5 ms
+    black px 1427; outside the HUD boxes 132: 0 clusters (0 of 12 px or more); and 1 one-pixel lines on the screen's edge (132 px); mean level 30.3
+    against the emulator's frame 30508 (shot_30508.bmp): pixels differing 93894, by more than 32 15, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 523
+  live 30537 (periodic, main turn): buffer 0 frame vb 30534 arm X (13 vblanks after its show; display scans 0; other buffer frame 30532; GE idle; lists waiting 0); VRAM 18.4 ms, all 276.5 ms
+    black px 1448; outside the HUD boxes 148: 0 clusters (0 of 12 px or more); and 1 one-pixel lines on the screen's edge (148 px); mean level 30.0
+    against the emulator's frame 30534 (shot_30534.bmp): pixels differing 94631, by more than 32 245, black here and not there (outside the HUD) 1; PSP lighter by 6 or more in luma (outside the HUD) 479
+  live 30562 (periodic, main turn): buffer 0 frame vb 30558 arm X (20 vblanks after its show; display scans 0; other buffer frame 30556; GE draws 30560 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 275.1 ms
+    black px 1309; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.7
+    against the emulator's frame 30558 (shot_30558.bmp): pixels differing 101605, by more than 32 267, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 591
+  live 30587 (periodic, main turn): buffer 1 frame vb 30584 arm X (13 vblanks after its show; display scans 1; other buffer frame 30582; GE idle; lists waiting 0); VRAM 20.8 ms, all 317.8 ms
+    black px 1276; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.5
+    against the emulator's frame 30584 (shot_30584.bmp): pixels differing 101251, by more than 32 41, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 639
+  live 30612 (periodic, me turn): buffer 0 frame vb 30606 arm X (13 vblanks after its show; display scans 0; other buffer frame 30604; GE draws 30608 into the other buffer; lists waiting 1); VRAM 18.4 ms, all 283.3 ms
+    black px 1273; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.0
+    against the emulator's frame 30606 (shot_30606.bmp): pixels differing 101269, by more than 32 295, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 680
+  live 30637 (periodic, me turn): buffer 1 frame vb 30632 arm X (6 vblanks after its show; display scans 1; other buffer frame 30630; GE idle; lists waiting 1); VRAM 18.4 ms, all 282.8 ms
+    black px 1290; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.3
+    against the emulator's frame 30632 (shot_30632.bmp): pixels differing 99540, by more than 32 25, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 648
+  live 30662 (periodic, me turn): buffer 1 frame vb 30656 arm X (14 vblanks after its show; display scans 1; other buffer frame 30654; GE draws 30658 into the other buffer; lists waiting 1); VRAM 18.9 ms, all 326.1 ms
+    black px 1291; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.9
+    against the emulator's frame 30656 (shot_30656.bmp): pixels differing 99612, by more than 32 31, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 563
+  live 30687 (periodic, me turn): buffer 0 frame vb 30682 arm X (6 vblanks after its show; display scans 0; other buffer frame 30680; GE idle; lists waiting 1); VRAM 18.6 ms, all 293.1 ms
+    black px 1307; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.4
+    against the emulator's frame 30682 (shot_30682.bmp): pixels differing 93532, by more than 32 254, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 572
+  live 30712 (periodic, main turn): buffer 1 frame vb 30708 arm X (20 vblanks after its show; display scans 1; other buffer frame 30706; GE draws 30710 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 278.1 ms
+    black px 1310; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.2
+    against the emulator's frame 30708 (shot_30708.bmp): pixels differing 91795, by more than 32 62, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 597
+  live 30737 (periodic, main turn): buffer 0 frame vb 30734 arm X (14 vblanks after its show; display scans 0; other buffer frame 30732; GE idle; lists waiting 0); VRAM 18.3 ms, all 275.0 ms
+    black px 1342; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 33.8
+    against the emulator's frame 30734 (shot_30734.bmp): pixels differing 94921, by more than 32 276, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 626
+  live 30762 (periodic, main turn): buffer 0 frame vb 30758 arm X (21 vblanks after its show; display scans 0; other buffer frame 30756; GE draws 30760 into the other buffer; lists waiting 0); VRAM 18.6 ms, all 281.3 ms
+    black px 1281; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 33.7
+    against the emulator's frame 30758 (shot_30758.bmp): pixels differing 92890, by more than 32 295, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 517
+  live 30787 (periodic, main turn): buffer 1 frame vb 30784 arm X (13 vblanks after its show; display scans 1; other buffer frame 30782; GE idle; lists waiting 0); VRAM 18.3 ms, all 274.8 ms
+    black px 1317; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 34.6
+    against the emulator's frame 30784 (shot_30784.bmp): pixels differing 94287, by more than 32 110, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 674
+  live 30810 (R, me turn): buffer 0 frame vb 30806 arm X (5 vblanks after its show; display scans 0; other buffer frame 30804; GE idle; lists waiting 1); VRAM 18.7 ms, all 311.2 ms
+    black px 1312; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 36.9
+    against the emulator's frame 30806 (shot_30806.bmp): pixels differing 96750, by more than 32 333, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 740
+  live 30812 (periodic, me turn): buffer 1 frame vb 30808 arm X (9 vblanks after its show; display scans 1; other buffer frame 30806; GE idle; lists waiting 1); VRAM 18.4 ms, all 278.1 ms
+    black px 1288; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 36.7
+    against the emulator's frame 30808 (shot_30808.bmp): pixels differing 95855, by more than 32 143, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 734
+  live 30837 (periodic, me turn): buffer 1 frame vb 30832 arm X (11 vblanks after its show; display scans 1; other buffer frame 30830; GE idle; lists waiting 1); VRAM 18.4 ms, all 278.0 ms
+    black px 1291; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 38.8
+    against the emulator's frame 30832 (shot_30832.bmp): pixels differing 96273, by more than 32 135, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 774
+  live 30862 (periodic, me turn): buffer 0 frame vb 30858 arm X (5 vblanks after its show; display scans 0; other buffer frame 30856; GE idle; lists waiting 1); VRAM 18.5 ms, all 278.6 ms
+    black px 1227; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 44.8
+    against the emulator's frame 30858 (shot_30858.bmp): pixels differing 98913, by more than 32 475, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 948
+  live 30887 (periodic, me turn): buffer 0 frame vb 30882 arm X (10 vblanks after its show; display scans 0; other buffer frame 30880; GE idle; lists waiting 1); VRAM 18.3 ms, all 280.2 ms
+    black px 1263; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 41.1
+    against the emulator's frame 30882 (shot_30882.bmp): pixels differing 96800, by more than 32 515, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1001
+  live 30912 (periodic, main turn): buffer 1 frame vb 30908 arm X (18 vblanks after its show; display scans 1; other buffer frame 30906; GE draws 30910 into the other buffer; lists waiting 0); VRAM 18.4 ms, all 280.0 ms
+    black px 1292; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 32.4
+    against the emulator's frame 30908 (shot_30908.bmp): pixels differing 82351, by more than 32 141, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 680
+  live 30937 (periodic, main turn): buffer 0 frame vb 30934 arm X (10 vblanks after its show; display scans 0; other buffer frame 30932; GE idle; lists waiting 0); VRAM 18.3 ms, all 279.3 ms
+    black px 1301; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.7
+    against the emulator's frame 30934 (shot_30934.bmp): pixels differing 81895, by more than 32 306, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 598
+  live 30945 (R, main turn): buffer 0 frame vb 30942 arm X (10 vblanks after its show; display scans 0; other buffer frame 30940; GE idle; lists waiting 0); VRAM 18.4 ms, all 277.7 ms
+    black px 1359; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 30.9
+    against the emulator's frame 30942 (shot_30942.bmp): pixels differing 78319, by more than 32 312, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 618
+  live 30962 (periodic, main turn): buffer 0 frame vb 30958 arm X (16 vblanks after its show; display scans 0; other buffer frame 30956; GE draws 30960 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 283.7 ms
+    black px 1263; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.6
+    against the emulator's frame 30958 (shot_30958.bmp): pixels differing 80147, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 556
+  live 30987 (periodic, main turn): buffer 1 frame vb 30984 arm X (10 vblanks after its show; display scans 1; other buffer frame 30982; GE idle; lists waiting 0); VRAM 18.3 ms, all 279.5 ms
+    black px 1298; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 31.1
+    against the emulator's frame 30984 (shot_30984.bmp): pixels differing 85025, by more than 32 96, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 519
+  live 31004 (R, me turn): buffer 0 frame vb 30998 arm X (20 vblanks after its show; display scans 0; other buffer frame 30996; GE draws 31000 into the other buffer; lists waiting 1); VRAM 18.4 ms, all 282.8 ms
+    black px 1330; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 28.8 (a fade: dark picture)
+    against the emulator's frame 30998 (shot_30998.bmp): pixels differing 76487, by more than 32 259, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 382
+  live 31012 (periodic, me turn): buffer 0 frame vb 31006 arm X (11 vblanks after its show; display scans 0; other buffer frame 31004; GE draws 31008 into the other buffer; lists waiting 1); VRAM 18.5 ms, all 282.0 ms
+    black px 1360; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 29.0 (a fade: dark picture)
+    against the emulator's frame 31006 (shot_31006.bmp): pixels differing 75565, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 418
+  live 31037 (periodic, me turn): buffer 1 frame vb 31032 arm X (6 vblanks after its show; display scans 1; other buffer frame 31030; GE idle; lists waiting 1); VRAM 18.5 ms, all 282.9 ms
+    black px 1339; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 35.8
+    against the emulator's frame 31032 (shot_31032.bmp): pixels differing 85571, by more than 32 268, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 690
+  live 31062 (periodic, me turn): buffer 1 frame vb 31056 arm X (11 vblanks after its show; display scans 1; other buffer frame 31054; GE draws 31058 into the other buffer; lists waiting 1); VRAM 18.5 ms, all 281.4 ms
+    black px 1270; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 44.0
+    against the emulator's frame 31056 (shot_31056.bmp): pixels differing 93209, by more than 32 94, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1376
+  live 31087 (periodic, me turn): buffer 0 frame vb 31082 arm X (5 vblanks after its show; display scans 0; other buffer frame 31080; GE idle; lists waiting 1); VRAM 18.6 ms, all 284.5 ms
+    black px 1030; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 54.9
+    against the emulator's frame 31082 (shot_31082.bmp): pixels differing 106985, by more than 32 452, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 873
+  live 31112 (periodic, main turn): buffer 1 frame vb 31108 arm X (18 vblanks after its show; display scans 1; other buffer frame 31106; GE draws 31110 into the other buffer; lists waiting 0); VRAM 18.7 ms, all 319.9 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 75.1
+    against the emulator's frame 31108 (shot_31108.bmp): pixels differing 115666, by more than 32 401, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1052
+  live 31137 (periodic, main turn): buffer 0 frame vb 31134 arm X (10 vblanks after its show; display scans 0; other buffer frame 31132; GE idle; lists waiting 0); VRAM 18.3 ms, all 288.1 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.3
+    against the emulator's frame 31134 (shot_31134.bmp): pixels differing 115254, by more than 32 623, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1067
+  live 31162 (periodic, main turn): buffer 0 frame vb 31158 arm X (17 vblanks after its show; display scans 0; other buffer frame 31156; GE draws 31160 into the other buffer; lists waiting 0); VRAM 18.3 ms, all 295.0 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.5
+    against the emulator's frame 31158 (shot_31158.bmp): pixels differing 115798, by more than 32 640, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 982
+  live 31187 (periodic, main turn): buffer 1 frame vb 31184 arm X (11 vblanks after its show; display scans 1; other buffer frame 31182; GE idle; lists waiting 0); VRAM 18.4 ms, all 285.6 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 75.0
+    against the emulator's frame 31184 (shot_31184.bmp): pixels differing 116086, by more than 32 403, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1059
+  live 31212 (periodic, me turn): buffer 1 frame vb 31208 arm X (4 vblanks after its show; display scans 1; other buffer frame 31206; GE idle; lists waiting 1); VRAM 18.6 ms, all 284.9 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 74.9
+    against the emulator's frame 31208 (shot_31208.bmp): pixels differing 115397, by more than 32 384, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1119
+  live 31237 (periodic, me turn): buffer 1 frame vb 31232 arm X (11 vblanks after its show; display scans 1; other buffer frame 31230; GE idle; lists waiting 1); VRAM 18.5 ms, all 288.6 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 71.9
+    against the emulator's frame 31232 (shot_31232.bmp): pixels differing 118432, by more than 32 282, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1054
+  live 31262 (periodic, me turn): buffer 0 frame vb 31258 arm X (5 vblanks after its show; display scans 0; other buffer frame 31256; GE idle; lists waiting 1); VRAM 18.5 ms, all 290.2 ms
+    black px 354; outside the HUD boxes 0: 0 clusters (0 of 12 px or more); mean level 56.1
+    against the emulator's frame 31258 (shot_31258.bmp): pixels differing 110989, by more than 32 574, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 1037
+  live 31287 (periodic, me turn): buffer 0 frame vb 31282 arm X (10 vblanks after its show; display scans 0; other buffer frame 31280; GE idle; lists waiting 1); VRAM 18.4 ms, all 293.8 ms
+    black px 882; outside the HUD boxes 882: 20 clusters (5 of 12 px or more): largest (n, x0, y0, x1, y1) [(355, 230, 60, 268, 79), (348, 232, 39, 270, 56), (73, 258, 31, 272, 40), (49, 277, 27, 282, 41)]; mean level 50.9
+    against the emulator's frame 31282 (shot_31282.bmp): pixels differing 110113, by more than 32 174, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 774
+  live 31312 (periodic, main turn): buffer 1 frame vb 31308 arm X (17 vblanks after its show; display scans 1; other buffer frame 31306; GE draws 31310 into the other buffer; lists waiting 0); VRAM 18.4 ms, all 293.1 ms
+    black px 30180; outside the HUD boxes 30140: 166 clusters (54 of 12 px or more): largest (n, x0, y0, x1, y1) [(5289, 185, 138, 364, 270), (5096, 0, 139, 179, 233), (4361, 184, 19, 298, 102), (3741, 0, 186, 119, 243)]; mean level 10.7 (a fade: dark picture)
+    against the emulator's frame 31308 (shot_31308.bmp): pixels differing 54259, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 53
+  live 31337 (periodic, main turn): buffer 1 frame vb 31320 arm X (17 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 18.3 ms, all 290.2 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0
+  live 31362 (periodic, main turn): buffer 1 frame vb 31320 arm X (67 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 18.3 ms, all 290.1 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0
+  live 31387 (periodic, main turn): buffer 1 frame vb 31320 arm X (112 vblanks after its show; display scans 1; other buffer frame 31318; GE idle; lists waiting 0); VRAM 18.4 ms, all 291.0 ms
+    black px 130560; outside the HUD boxes 130560: 1 clusters (1 of 12 px or more): largest (n, x0, y0, x1, y1) [(130560, 0, 0, 479, 271)]; mean level 0.0 (a fade: dark picture)
+    against the emulator's frame 31320 (shot_31320.bmp): pixels differing 0, by more than 32 0, black here and not there (outside the HUD) 0; PSP lighter by 6 or more in luma (outside the HUD) 0
+
+== battery.txt in the window (psp/battery.txt, md5 89035dad)
+  every 5 s t 1793 s vb 29445: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 126448 tail 126446
+  every 5 s t 1798 s vb 29500: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 126907 tail 126907
+  every 5 s t 1803 s vb 29527: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1808 s vb 29558: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1814 s vb 29589: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1819 s vb 29632: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 127194 tail 127178
+  every 5 s t 1824 s vb 29680: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 127602 tail 127586
+  every 5 s t 1829 s vb 29716: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1834 s vb 29747: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1839 s vb 29778: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1844 s vb 29813: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 127878 tail 127876
+  every 5 s t 1849 s vb 29863: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 128301 tail 128285
+  every 5 s t 1854 s vb 29907: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1859 s vb 29938: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1864 s vb 29970: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1869 s vb 30000: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1874 s vb 30047: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 129016 tail 129008
+  every 5 s t 1879 s vb 30095: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 129426 tail 129424
+  every 5 s t 1884 s vb 30126: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1889 s vb 30157: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1894 s vb 30187: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1899 s vb 30228: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 129713 tail 129698
+  every 5 s t 1904 s vb 30278: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 130138 tail 130122
+  every 5 s t 1909 s vb 30316: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1914 s vb 30347: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1919 s vb 30378: 87%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 1924 s vb 30414: 87%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 130445 tail 130429
+  every 5 s t 1929 s vb 30463: 87%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 130856 tail 130854
+  every 5 s t 1934 s vb 30504: 87%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1939 s vb 30532: 87%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1944 s vb 30559: 87%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1949 s vb 30587: 87%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1954 s vb 30623: 87%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 131367 tail 131365
+  every 5 s t 1959 s vb 30662: 87%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 131690 tail 131689
+  every 5 s t 1964 s vb 30701: 87%, 4128 mV, 20 C, ext 0, chg 0
+  power event 000000d6: battery, level 86 t 1969 s vb 30724: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1969 s vb 30726: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1974 s vb 30753: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1979 s vb 30780: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 1984 s vb 30810: 86%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 132099 tail 132097
+  every 5 s t 1990 s vb 30845: 86%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 132403 tail 132402
+  every 5 s t 1995 s vb 30890: 86%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 132793 tail 132778
+  every 5 s t 2000 s vb 30924: 86%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 2005 s vb 30954: 86%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 2010 s vb 30987: 86%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 2015 s vb 31025: 86%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 133086 tail 133084
+  every 5 s t 2020 s vb 31072: 86%, 4134 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 133481 tail 133475
+  every 5 s t 2025 s vb 31112: 86%, 4134 mV, 20 C, ext 0, chg 0
+  every 5 s t 2030 s vb 31141: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 2035 s vb 31173: 86%, 4128 mV, 20 C, ext 0, chg 0
+  every 5 s t 2040 s vb 31209: 86%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 133801 tail 133799
+  every 5 s t 2045 s vb 31253: 86%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 134175 tail 134173
+  every 5 s t 2050 s vb 31297: 86%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 134549 tail 134547
+  every 5 s t 2055 s vb 31371: 86%, 4128 mV, 20 C, ext 0, chg 0
+  end t 2056 s vb 31400: 86%, 4128 mV, 20 C, ext 0, chg 0; the ME's turn (loop on the ME), queue head 134568 tail 134568
+  HOME t 2058 s vb 31400: 86%, 4128 mV, 20 C, ext 0, chg 0; main CPU's turn (the ME stopped at the end), queue head 134569 tail 134569

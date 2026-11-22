@@ -1,0 +1,11 @@
+--- /home/claude/me13/runtime/sif.h.orig
++++ /home/claude/me13/runtime/sif.h
+@@ -31,7 +31,7 @@
+ #define SIF_DMA_INT_O 0x4u
+ 
+ static uint32_t ee_rd32(uint32_t a) { return RD32(a); }
+-static void ee_copy_to(uint32_t ee, const uint8_t *src, uint32_t n) { uint32_t i; for (i = 0; i < n; i++) WR8(ee + i, src[i]); }
++static void ee_copy_to(uint32_t ee, const uint8_t *src, uint32_t n) { uint32_t i; DGT_PRE(ee, n); for (i = 0; i < n; i++) WR8(ee + i, src[i]); }   /* me13: DGT_PRE, the ME hand-off's guard (ee_io.h ME_GUARD_RT) */
+ static void ee_copy_from(uint8_t *dst, uint32_t ee, uint32_t n) { uint32_t i; for (i = 0; i < n; i++) dst[i] = RD8(ee + i); }
+ static uint8_t *iop_p(uint32_t a) { return g_iop->mem + (a & IOP_MEM_MASK); }
+ 

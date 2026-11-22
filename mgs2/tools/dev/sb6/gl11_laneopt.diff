@@ -1,0 +1,30 @@
+--- a/boot/xlive_chk.c
++++ b/boot/xlive_chk.c
+@@ -117,6 +117,8 @@
+ extern int g_xl_one;                    /* runtime/ee_io.h: the exact walk feeds the translator (MGS2_XLIVE_ONE) */
+ extern int g_xl_lane;                   /* sb1, sb2 runtime/ee_io.h: Stage B lanes (MGS2_SB_LANE: bit 0 lane 1, bit 1 lane 2, sb5 bit 3 lane 4,
+                                            sb6 bit 2 lane 3; MGS2_SB_CHK=1 checks the lanes' df0, P06, P07 and effect input) */
++static int lane_opt, lane_base;           /* gl11 MGS2_SB_LANE_OPT=1: the lanes follow g_opt's lane bits at each transfer, as psp/xl_psp.c's do
++                                           (MGS2_OPT_CYCLE's turns switch them; lane_base = MGS2_SB_LANE's mask) */
+ extern long lane7_miss[8];              /* sb5 runtime/ee_io.h lane_p07: tags with STCYCL 7 / 1 where no slot was taken, by the failed test */
+ extern long lane3_miss[8], lane3_gen[8];   /* sb6 runtime/ee_io.h lane_fx: tags that start an effect prim where it took none, by the failed
+                                            test; such tags the generic walk took, by why the lane did not look (vif1_chain_fast) */
+@@ -731,6 +733,9 @@
+ {
+   if (from == -2) setup();
+   if (!on) return;
++  if (lane_opt) { int m = lane_base & (((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) |
++                                     ((g_opt & OPT_XL_LANE4) ? 8 : 0));   /* gl11: as psp/xl_psp.c xlive_chk_dma's first lines */
++    if (m != g_xl_lane) { xl_lane(m != 0); g_xl_lane = m; } }
+   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
+   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
+@@ -918,6 +923,8 @@
+       xc_rec_chk = getenv("MGS2_SB_CHK") && atoi(getenv("MGS2_SB_CHK"));
+       fprintf(stderr, "xlive mode: Stage B lanes%s%s%s%s (MGS2_SB_LANE)%s\n", (g_xl_lane & 1) ? " 1" : "", (g_xl_lane & 2) ? " 2" : "",
+               (g_xl_lane & 4) ? " 3" : "", (g_xl_lane & 8) ? " 4" : "", xc_rec_chk ? ", their df0, P06, P07 and effect input checked (MGS2_SB_CHK)" : ""); }
++    if (getenv("MGS2_SB_LANE_OPT") && atoi(getenv("MGS2_SB_LANE_OPT"))) { lane_opt = 1; lane_base = g_xl_lane;
++      fprintf(stderr, "xlive mode: the lanes follow g_opt's lane bits at each transfer (MGS2_SB_LANE_OPT), within mask %d\n", lane_base); }
+     xc_held_force = getenv("MGS2_SB_FORCE") && atoi(getenv("MGS2_SB_FORCE")); xc_held_poison = getenv("MGS2_SB_POISON") && atoi(getenv("MGS2_SB_POISON"));
+     vc_p06_exact = getenv("MGS2_SB_P6EXACT") && atoi(getenv("MGS2_SB_P6EXACT"));
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "

@@ -1,0 +1,15 @@
+second build (sh rl32.sh build_gl32/rb2) against the first:
+  same psp/EBOOT.PBP 5646bcec3d8eb832c17910d21543dba8
+  same psp/MGS2T.elf 1d18489166312f72b6bba2d7ea537ad0
+  same psp/ovl_d00t.bin 0ef55c2ffb30160b87b11938abc7664a
+  same psp/ovl_d01t.bin 67fb5be5e7d9fb685c5246584733df16
+  same psp/ovl_init.bin 920a1a7282503a4241c4c6c5ef4abbe0
+  same psp/ovl_n_title.bin 326a23045fba66bf6363ff86e464230f
+  same psp/ovl_r_title.bin f49971f4737211f84e706cd43ed26b27
+  same psp/ovl_r_tnk0.bin a4073237850e3e60ec908d591db22d43
+  same psp/ovl_w00a.bin 5d91fd39fe8f82397f126e545bfce1c9
+  same psp/ovl_w01a.bin 471abd40d36a9e05b81c91b6380eeffc
+  stage objects: 45, differing 0
+  deliver/EBOOT.PBP = psp/EBOOT.PBP
+  deliver/ovl_d00t.bin = psp/ovl_d00t.bin
+  deliver/ovl_w01a.bin = psp/ovl_w01a.bin

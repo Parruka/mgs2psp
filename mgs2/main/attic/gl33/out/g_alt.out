@@ -1,0 +1,34 @@
+gl33, the alternative order MGS2_NAT_INPL_CYCLE=1,1,0,0 (cfg/mgs2_gl33_alt.cfg, md5 13028543): twin run dxa (MGS2_NAT_STCHK=8) against the delivered order's twin run dx, and the emulator run e4 (the package with this cfg)
+compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log
+wrote hashref_dxa.txt
+twin.sh: hashref_dxa.txt equals hashref_gl33.txt byte for byte
+tw/x86/out_dx.log: 17664 picture lines, 17664 content; tw/x86/out_dxa.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 11070; arm 3: 0 of 6593; first picture of a turn: 0 of 1
+natinpl: totals: groups flagged static 872529 (drawn 869645)
+/home/claude/main/build_gl33/emu_e4/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl33/deliver/hashref.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0
+emulator e4: 916 vblanks with digests; equal to twin dxa (list, frame, dz text) 916; equal to emulator e2 916
+   me turns inpl 0: 19 lines, groups flagged static 1992
+   me turns inpl 1: 19 lines, groups flagged static 182349
+   main turns inpl 0: 18 lines, groups flagged static 0
+   main turns inpl 1: 19 lines, groups flagged static 148881
+   static streams in place totals: 1 lines; static streams in place totals (gl33): groups flagged static 333222
+   the flip wait kept: 16 lines
+   GAVE UP: 0 lines
+   headroom was: 1 lines; memory: the break's highest point 0be5c000 at vb 23677, 0 KB above the break now: the headroom was about 64 KB at its lowest
+  shot  arm 0, outside 29490-31400                                 pictures                         4
+  shot  arm 3, in 29490-31400                                      byte-identical                   10
+  shot  arm 3, in 29490-31400                                      pictures                         10
+  shot  arm 3, outside 29490-31400                                 byte-identical                   1
+  shot  arm 3, outside 29490-31400                                 differing                        1
+  shot  arm 3, outside 29490-31400                                 pictures                         2
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_24784.bmp', 24784, 'arm 3, outside 29490-31400', 343, 4, 0, 0, 2)
+natst: static groups drawn 869645, each hashed again at every vblank's start for 8 vblanks: CHANGED 126; by the vblanks since the draw: 8: 126; left the window unchanged or counted 868017, not followed (ring full) 0
+natst: the same by pipeline calls: each hashed again at the start of each of the next 6 calls: CHANGED 0; by the calls since the group's own: 1: 0 2: 0 3: 0 4: 0 5: 0 6: 0 (the PSP's ME may read a group until call + 3 starts)

@@ -1,0 +1,33 @@
+# Split build of the x86 probe (run from the container work dir /home/claude/mgs2/boot, with gen_*.h and stages.h in ..):
+#   make -f /mnt/project-files/mgs2/boot/Makefile.probe -j4
+# gen.o (ELF) and one gen_s_<stage>.o per stage image are compiled once; a runtime change rebuilds boot_rt.o only.
+MG := /mnt/project-files/mgs2
+RT := $(MG)/third_party/ps2rc/ps2rc/iop/rt
+CC := gcc
+W := $(abspath $(CURDIR)/..)
+CF := -O1 -g0 -w -I$(MG)/runtime -I$(MG)/boot -fwrapv -fno-strict-aliasing
+STAGE_HDRS := $(shell grep -o 'gen_s_[a-z0-9_]*\.h' ../stages.h | sort -u)
+STAGE_OBJS := $(STAGE_HDRS:.h=.o)
+IOP_OBJS := iop_rt.o iop_rt_libs.o iop_rt_ucontext.o jsifman.o cdbios.o iop_main.o spu2_lite.o
+AU := $(MG)/third_party/ps2rc/audio
+RT_DEPS := $(wildcard $(MG)/runtime/*.h) $(MG)/boot/boot.c
+GEN_DEPS := $(MG)/boot/gen_pre.h $(MG)/runtime/guest.h $(MG)/runtime/mmi.h $(MG)/runtime/vu0.h $(MG)/runtime/vif.h
+boot: boot_rt.o gen.o gen_dispatch.o $(STAGE_OBJS) $(IOP_OBJS)
+	$(CC) -o $@ $^ -lm
+# RTX: flags for the runtime unit only, e.g. RTX='-DMGS2_GEN_VU="<dir>/gen_vu.h"' (the AOT VU0 programs, recomp/vurecomp.py) [-DVU_CHECK]
+RTX :=
+boot_rt.o: $(RT_DEPS) $(RTX_DEPS)
+	$(CC) $(CF) $(RTX) -I$(RT) -I$(AU) -DGUEST_SPLIT_RT -c $(MG)/boot/boot.c -o $@
+gen.o: $(W)/gen_elf.h $(MG)/boot/gen.c $(GEN_DEPS)
+	$(CC) $(CF) -DGEN='"$(W)/gen_elf.h"' -c $(MG)/boot/gen.c -o $@
+# dev: boot_hook calls boot.c's ELF function-entry hook (MGS2_FN_TRACE); only gen_hook.o differs from boot
+boot_hook: boot_rt.o gen_hook.o gen_dispatch.o $(STAGE_OBJS) $(IOP_OBJS)
+	$(CC) -o $@ $^ -lm
+gen_hook.o: $(W)/gen_elf.h $(MG)/boot/gen.c $(GEN_DEPS)
+	$(CC) $(CF) -DGEN_FN_HOOK -DGEN='"$(W)/gen_elf.h"' -c $(MG)/boot/gen.c -o $@
+gen_dispatch.o: $(W)/stages.h $(MG)/boot/gen_dispatch.c $(MG)/boot/dispatch.h $(GEN_DEPS)
+	$(CC) $(CF) -DSTAGES='"$(W)/stages.h"' -c $(MG)/boot/gen_dispatch.c -o $@
+gen_s_%.o: $(W)/gen_s_%.h $(MG)/boot/gen_stage.c $(GEN_DEPS)
+	$(CC) $(CF) -DSTAGE_GEN='"$(W)/$(notdir $<)"' -c $(MG)/boot/gen_stage.c -o $@
+spu2_lite.o: $(AU)/spu2_lite.c $(AU)/spu2_lite.h
+	$(CC) -O2 -g0 -w -c $< -o $@

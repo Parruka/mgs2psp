@@ -1,0 +1,67 @@
+Route i (play/pad_w01af.txt) to vb 37,800, x86 twin, every guest load and COP0 read counted by its site; lc: 132 sites; pad areas 001e6d00 00000000 status 00000000
+
+(a) loads of 0x18db60-0x18db77: 20 functions, 318723 reads
+  function                                          reads  first vb  last vb  what
+  P11d9d0 (Act1)                                    83056         2    37799  018db64 w4, 018db68 w4, 018db74 w4
+  P11d930                                           75598         1    37799  018db60 w4, 018db64 w4
+  P104f10                                           27685         2    37799  018db6c w4
+  P11ed20 (DG_StartFrame)                           27442         2    37799  018db70 w4
+  P123f18 (DG_DmaStart)                             27442         2    37799  018db64 w4
+  S_d00t_P2191b0                                    22506      4252    15504  018db64 w4
+  S_w01a_P2d09c8                                    18545     31660    37799  018db64 w4
+  P11d7f8 (WaitVSync)                               16334      4254    26007  018db60 w4
+  S_d01t_P218c88                                    12166     20141    26006  018db64 w4
+  S_w00a_P2d16b0                                     7435     23259    31317  018db64 w4
+  P124118 (DG_DmaSkip)                                243        34    31661  018db64 w4
+  S_w01a_P2b4238                                      233     37498    37799  018db64 w4
+  P1186f8                                              17      1037    37634  018db64 w4
+  P118480                                               6      1038    25008  018db64 w4
+  S_w00a_P2d2468                                        4     23256    29064  018db64 w4
+  S_d01t_P219058                                        4     20137    25014  018db74 w4
+  S_d01t_P2615a8                                        3     20142    25019  018db74 w4
+  S_w01a_P2d1780                                        2     31658    31658  018db64 w4
+  S_d00t_P219580                                        1      4246     4246  018db74 w4
+  S_d00t_P25e5c0                                        1      4252     4252  018db74 w4
+
+(b) timer registers, COP0 Count and performance counters: 19 functions, 71076136 reads
+  function                                          reads  first vb  last vb  what
+  P1159d0                                        65383015        44    31658  T1 COUNT (10000800)
+  P11ed20 (DG_StartFrame)                         4171770         2    37799  T1 COUNT (10000800)
+  P11e5e0 (DG_SortChanlSystem)                     891117        30    37799  T1 COUNT (10000800)
+  P1238e8                                          377709         2    37799  T1 COUNT (10000800)
+  S_w01a_P3ab1f0                                    63580     31658    37799  COP0 perf counter PCR0 (sel 1)
+  P11d9d0 (Act1)                                    55371         2    37799  T1 COUNT (10000800)
+  S_w00a_P3beee8 (MT_ActMotion)                     35877     23259    31317  COP0 perf counter PCR0 (sel 1)
+  P121060 (DG_ScreenChanl)                          30586      4256    37799  COP0 perf counter PCR0 (sel 1)
+  P128d90 (DG_LightReshadeChanl)                    27685        30    37799  COP0 perf counter PCR0 (sel 1)
+  S_d01t_P323a28                                    21504     20142    26008  COP0 perf counter PCR0 (sel 1)
+  S_w00a_P3af278                                    17234     23259    31317  COP0 perf counter PCR0 (sel 1)
+  S_d00t_P32c308                                      419     15738    19896  COP0 perf counter PCR0 (sel 1)
+  P12cb58 (DG_MakePreshade)                           226      4249    31660  COP0 perf counter PCR0 (sel 1)
+  S_d01t_P331750                                       31     26165    26183  COP0 perf counter PCR0 (sel 1)
+  S_d01t_P336ca8                                        5     20137    26013  T1 COUNT (10000800)
+  S_d00t_P331860                                        3      3555    15547  T1 COUNT (10000800)
+  S_w00a_P3c4440                                        2     23245    29053  T1 COUNT (10000800)
+  S_w01a_P3b0748                                        1     31560    31560  T1 COUNT (10000800)
+  P174490                                               1         0        0  T3 MODE (10001810)
+
+(b) alarm sets (K_READ): 4 functions, 35352 reads
+  function                                          reads  first vb  last vb  what
+  P11d720 (WaitAllDone)+38                          18979        30    37799  syscall fc
+  P11d7f8 (WaitVSync)+68                            16334      4253    26006  syscall fc
+  P11d9d0 (Act1)+48                                    35         2    31660  syscall fc
+  S_d00t_P166300+9a428 or S_d01t_P166300+9a428 or S_init_P2006e0+48 or S_n_title_P2006e0+48 or S_r_title_P1f2100+e628 or S_r_tnk0_P1f2320+e408 or S_w00a_P166300+9a428 or S_w01a_P166300+9a428          4      1037     1040  syscall fc
+
+(c) loads of the pad area (padArea, both 128-byte records): 9 functions, 361187 reads
+  function                                          reads  first vb  last vb  what
+  P164fd0                                          111594         2    37799  01e6d58 w4, 01e6dd8 w4
+  P16cff8 (memcpy)                                 110720        34    37799  01e6d00 w8, 01e6d08 w8, 01e6d10 w8, 01e6d18 w8, 01e6d80 w8, 01e6d88 w8, 01e6d90 w8, 01e6d98 w8
+  P165100                                           83055         2    37799  01e6d70 w1, 01e6d71 w1, 01e6df0 w1, 01e6df1 w1
+  P165080                                           55360        34    37799  01e6d60 w4, 01e6de0 w4
+  P1656d0                                             419      8750    37777  01e6d72 w1, 01e6df2 w1
+  P1652a0                                              27        32       32  01e6d30 w1, 01e6d31 w1, 01e6d32 w1, 01e6d34 w1, 01e6d35 w1, 01e6d36 w1, 01e6d64 w1, 01e6d6a w1, ... (9 in all)
+  P165860                                               7        32       32  01e6d64 w1, 01e6d66 w1, 01e6d72 w1, 01e6d79 w1, 01e6d7a w1, 01e6d7b w1, 01e6d7c w1
+  P1654e0                                               3        31       31  01e6de5 w1, 01e6df1 w1, 01e6df2 w1
+  P165218                                               2        30       33  01e6d71 w1, 01e6df1 w1
+
+(c) loads of padman's status buffer: none

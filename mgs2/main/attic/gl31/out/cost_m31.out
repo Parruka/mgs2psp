@@ -1,0 +1,224 @@
+n0me (model/m31n): # total 1993781248 imiss 14895182 dmiss 13386927 dacc 520291049 fa_imiss 11483996 cde 807304 pref 0 cinv 0 dskip 0 dst 4199571 dwb 6379233
+n0me: instructions 1993779824, I-misses 14894747, D-misses 13386927 = 16377.9 ms in the window, 409.45 ms a frame over 40 frames [C model]
+   hw                                  241547772 i     124 im  838011 dm   35.333 ms a frame
+   (not in the ELF's functions)        133561084 i 1384312 im  999937 dm   30.068 ms a frame
+   me_memcpy                            57412065 i   49943 im 1938591 dm   19.883 ms a frame
+   xm_walk                              61428758 i 1318761 im  359268 dm   16.661 ms a frame
+   io_dma_start                         97710639 i  105820 im  312750 dm   14.663 ms a frame
+   xc_call                              68385281 i  426300 im  253152 dm   12.282 ms a frame
+   gif_qw                               51007980 i  473561 im  137566 dm    9.624 ms a frame
+   xc_merge                             53921333 i    4813 im  441341 dm    9.554 ms a frame
+   vupv_96936c0f_0                      65108400 i  281227 im    1600 dm    9.511 ms a frame
+   gx_batch                             45071000 i  123898 im  188379 dm    7.432 ms a frame
+   ud_new                               33229680 i  375689 im  215319 dm    7.424 ms a frame
+   vc_p06_rec                           41091196 i   91250 im  269137 dm    7.294 ms a frame
+n0main (model/m31n.1): # total 1751453696 imiss 13759678 dmiss 10170867 dacc 439417774 fa_imiss 10268542 cde 819572 pref 0 cinv 0 dskip 0 dst 2905803 dwb 4927923
+n0main: instructions 1751452548, I-misses 13759284, D-misses 10170867 = 14114.8 ms in the window, 352.87 ms a frame over 40 frames [C model]
+   hw                                  238496214 i     120 im  827424 dm   34.886 ms a frame
+   (not in the ELF's functions)        133555829 i 1385970 im  998641 dm   30.067 ms a frame
+   io_dma_start                         97813774 i  110281 im  314794 dm   14.712 ms a frame
+   xc_call                              68072898 i  419655 im  244043 dm   12.150 ms a frame
+   xm_walk                              35444577 i 1039914 im  231218 dm   11.192 ms a frame
+   vupv_96936c0f_0                      64770300 i  281123 im    1600 dm    9.469 ms a frame
+   gif_qw                               50763429 i  460812 im  119309 dm    9.411 ms a frame
+   gx_batch                             44704051 i  119050 im  176305 dm    7.284 ms a frame
+   vc_p06_rec                           41091250 i   89031 im  239480 dm    7.091 ms a frame
+   ud_new                               33033480 i  294516 im  230432 dm    7.083 ms a frame
+   rt_qcopy_nov                         16200111 i   60603 im  654844 dm    6.544 ms a frame
+   call                                 27041058 i  275497 im  106527 dm    5.444 ms a frame
+n3me (model/m31n.2): # total 1937326080 imiss 13888712 dmiss 13084051 dacc 506960731 fa_imiss 10893310 cde 794379 pref 0 cinv 0 dskip 0 dst 4119120 dwb 6273652
+n3me: instructions 1937324659, I-misses 13888283, D-misses 13084051 = 15814.5 ms in the window, 395.36 ms a frame over 40 frames [C model]
+   hw                                  238207215 i     122 im  826422 dm   34.844 ms a frame
+   (not in the ELF's functions)        124127747 i 1390385 im  934224 dm   28.506 ms a frame
+   me_memcpy                            55833533 i   56555 im 1867319 dm   19.261 ms a frame
+   xm_walk                              53484797 i  929080 im  397931 dm   13.938 ms a frame
+   io_dma_start                         81423041 i  104486 im  260779 dm   12.303 ms a frame
+   xc_call                              68488122 i  392104 im  246725 dm   12.079 ms a frame
+   gif_qw                               50733116 i  470732 im  146466 dm    9.633 ms a frame
+   vupv_96936c0f_0                      64601250 i  281109 im    1600 dm    9.448 ms a frame
+   xc_merge                             52509687 i    4738 im  427179 dm    9.287 ms a frame
+   gx_batch                             44627733 i  123276 im  183255 dm    7.341 ms a frame
+   vc_p06_rec                           41091258 i   91211 im  269140 dm    7.293 ms a frame
+   ud_new                               33064168 i  238651 im  212064 dm    6.683 ms a frame
+n3main (model/m31n.3): # total 1706455040 imiss 12856803 dmiss 9963361 dacc 429030728 fa_imiss 9862457 cde 793094 pref 0 cinv 0 dskip 0 dst 2852257 dwb 4840544
+n3main: instructions 1706453925, I-misses 12856420, D-misses 9963361 = 13653.9 ms in the window, 341.35 ms a frame over 40 frames [C model]
+   hw                                  231029778 i     120 im  801544 dm   33.794 ms a frame
+   (not in the ELF's functions)        124296598 i 1393783 im  935829 dm   28.555 ms a frame
+   io_dma_start                         81770054 i  108754 im  261654 dm   12.374 ms a frame
+   xc_call                              67563239 i  379767 im  236558 dm   11.835 ms a frame
+   gif_qw                               50351615 i  455326 im  127291 dm    9.384 ms a frame
+   vupv_96936c0f_0                      63713335 i  280523 im    1600 dm    9.335 ms a frame
+   xm_walk                              28437015 i  682841 im  211153 dm    8.372 ms a frame
+   gx_batch                             44006856 i  117113 im  175526 dm    7.182 ms a frame
+   vc_p06_rec                           41091218 i   89088 im  239480 dm    7.091 ms a frame
+   ud_new                               32727973 i  195290 im  224081 dm    6.498 ms a frame
+   rt_qcopy_nov                         15841964 i   59214 im  655550 dm    6.497 ms a frame
+   call                                 26791652 i  225491 im  104779 dm    5.146 ms a frame
+b0me (model/m31b): # total 1989517312 imiss 14886354 dmiss 13353369 dacc 518997295 fa_imiss 11477759 cde 807304 pref 0 cinv 0 dskip 0 dst 4189994 dwb 6368112
+b0me: instructions 1989515885, I-misses 14885918, D-misses 13353369 = 16346.3 ms in the window, 408.66 ms a frame over 40 frames [C model]
+   hw                                  241557528 i     125 im  838046 dm   35.334 ms a frame
+   (not in the ELF's functions)        133530908 i 1383663 im  999576 dm   30.058 ms a frame
+   me_memcpy                            57111931 i   49910 im 1930092 dm   19.791 ms a frame
+   xm_walk                              61428673 i 1318721 im  359290 dm   16.661 ms a frame
+   io_dma_start                         97053733 i  105572 im  310715 dm   14.567 ms a frame
+   xc_call                              68385585 i  426214 im  253319 dm   12.283 ms a frame
+   gif_qw                               50946894 i  473477 im  137302 dm    9.615 ms a frame
+   vupv_96936c0f_0                      65108400 i  281226 im    1600 dm    9.511 ms a frame
+   xc_merge                             52856853 i    4719 im  432174 dm    9.362 ms a frame
+   ud_new                               33229680 i  375734 im  215338 dm    7.425 ms a frame
+   gx_batch                             44836898 i  123898 im  184007 dm    7.375 ms a frame
+   vc_p06_rec                           41091196 i   91145 im  269152 dm    7.293 ms a frame
+b0main (model/m31b.1): # total 1750106112 imiss 13747149 dmiss 10159617 dacc 438933308 fa_imiss 10257706 cde 819572 pref 0 cinv 0 dskip 0 dst 2903053 dwb 4922977
+b0main: instructions 1750104964, I-misses 13746755, D-misses 10159617 = 14102.6 ms in the window, 352.57 ms a frame over 40 frames [C model]
+   hw                                  238504458 i     120 im  827452 dm   34.887 ms a frame
+   (not in the ELF's functions)        133554921 i 1385923 im  998474 dm   30.066 ms a frame
+   io_dma_start                         97556560 i  110267 im  314053 dm   14.675 ms a frame
+   xc_call                              68073130 i  419671 im  244080 dm   12.151 ms a frame
+   xm_walk                              35373141 i 1038176 im  230724 dm   11.171 ms a frame
+   vupv_96936c0f_0                      64770300 i  281125 im    1600 dm    9.469 ms a frame
+   gif_qw                               50643853 i  459636 im  119000 dm    9.388 ms a frame
+   gx_batch                             44706181 i  119048 im  176142 dm    7.283 ms a frame
+   vc_p06_rec                           41091250 i   89087 im  239480 dm    7.091 ms a frame
+   ud_new                               32974182 i  294310 im  229908 dm    7.072 ms a frame
+   rt_qcopy_nov                         16200111 i   60603 im  654485 dm    6.542 ms a frame
+   call                                 26977205 i  274536 im  106401 dm    5.430 ms a frame
+b3me (model/m31b.2): # total 1984655360 imiss 14777297 dmiss 13328844 dacc 518296168 fa_imiss 11357837 cde 838743 pref 0 cinv 0 dskip 0 dst 4174623 dwb 6372513
+b3me: instructions 1984653939, I-misses 14776862, D-misses 13328844 = 16293.7 ms in the window, 407.34 ms a frame over 40 frames [C model]
+   hw                                  238202499 i     123 im  826405 dm   34.843 ms a frame
+   (not in the ELF's functions)        134426771 i 1396095 im  995623 dm   30.207 ms a frame
+   me_memcpy                            57374993 i   49380 im 1930504 dm   19.824 ms a frame
+   xm_walk                              61068652 i 1308057 im  364661 dm   16.597 ms a frame
+   io_dma_start                         97736325 i  105396 im  313176 dm   14.667 ms a frame
+   xc_call                              68487904 i  419492 im  252753 dm   12.257 ms a frame
+   gif_qw                               50801630 i  470856 im  138439 dm    9.591 ms a frame
+   xc_merge                             53848383 i    4824 im  438426 dm    9.526 ms a frame
+   vupv_96936c0f_0                      64601250 i  281109 im    1600 dm    9.448 ms a frame
+   ud_new                               33064168 i  372159 im  214023 dm    7.378 ms a frame
+   gx_batch                             44555680 i  123374 im  180773 dm    7.316 ms a frame
+   vc_p06_rec                           41091258 i   91192 im  269135 dm    7.293 ms a frame
+b3main (model/m31b.3): # total 1734090752 imiss 13583398 dmiss 10072915 dacc 435200435 fa_imiss 10046616 cde 836410 pref 0 cinv 0 dskip 0 dst 2867044 dwb 4889318
+b3main: instructions 1734089613, I-misses 13583006, D-misses 10072915 = 13967.5 ms in the window, 349.19 ms a frame over 40 frames [C model]
+   hw                                  231034926 i     120 im  801562 dm   33.795 ms a frame
+   (not in the ELF's functions)        134359589 i 1398768 im  995681 dm   30.213 ms a frame
+   io_dma_start                         97078320 i  109795 im  313325 dm   14.609 ms a frame
+   xc_call                              67563487 i  406015 im  237908 dm   11.978 ms a frame
+   xm_walk                              34999837 i 1018631 im  230613 dm   11.025 ms a frame
+   vupv_96936c0f_0                      63713335 i  280522 im    1600 dm    9.335 ms a frame
+   gif_qw                               50188576 i  453305 im  117579 dm    9.290 ms a frame
+   gx_batch                             44109982 i  117026 im  177842 dm    7.210 ms a frame
+   vc_p06_rec                           41091218 i   89072 im  239480 dm    7.091 ms a frame
+   ud_new                               32640635 i  288392 im  226727 dm    6.979 ms a frame
+   rt_qcopy_nov                         16468113 i   60456 im  666208 dm    6.650 ms a frame
+   call                                 26696109 i  266682 im  106248 dm    5.354 ms a frame
+
+n3main - b3main, per frame [C model]: instructions -690892, I-misses -18164.7, D-misses -2738.9 = -7.840 ms a frame (349.19 -> 341.35)
+   xl_lane_p04                          -2.748 ms a frame (i   -238866, im -6800.9, dm  -681.5 a frame)
+   xm_walk                              -2.653 ms a frame (i   -164071, im -8394.8, dm  -486.5 a frame)
+   io_dma_start                         -2.235 ms a frame (i   -382707, im   -26.0, dm -1291.8 a frame)
+   xl_p04_core                          +1.950 ms a frame (i   +225748, im +3314.7, dm  +600.1 a frame)
+   (not in the ELF's functions)         -1.658 ms a frame (i   -251575, im  -124.6, dm -1496.3 a frame)
+   rt_nat_p04                           +0.895 ms a frame (i   +136895, im   +32.0, dm  +812.0 a frame)
+   ud_kind                              +0.497 ms a frame (i    +26719, im +1781.2, dm    +4.7 a frame)
+   ud_new                               -0.482 ms a frame (i     +2183, im -2327.6, dm   -66.2 a frame)
+   lw_q                                 -0.444 ms a frame (i    -41103, im -1176.2, dm    +0.0 a frame)
+   xc_hold_test                         -0.331 ms a frame (i      +376, im -1635.3, dm    +5.8 a frame)
+   vc_xform                             +0.307 ms a frame (i        -9, im +1542.3, dm   -32.3 a frame)
+   gf_reg                               -0.235 ms a frame (i      +864, im -1162.3, dm    -6.8 a frame)
+
+n3me - b3me, per frame [C model]: instructions -1183232, I-misses -22214.5, D-misses -6119.8 = -11.980 ms a frame (407.34 -> 395.36)
+   xl_lane_p04                          -3.135 ms a frame (i   -245019, im -7983.3, dm -1126.0 a frame)
+   xm_walk                              -2.659 ms a frame (i   -189596, im -9474.4, dm  +831.8 a frame)
+   io_dma_start                         -2.364 ms a frame (i   -407832, im   -22.8, dm -1309.9 a frame)
+   lw_q                                 -2.190 ms a frame (i   -215199, im -3062.0, dm -1928.6 a frame)
+   xl_p04_core                          +2.010 ms a frame (i   +231540, im +2853.2, dm +1083.5 a frame)
+   (not in the ELF's functions)         -1.701 ms a frame (i   -257476, im  -142.8, dm -1535.0 a frame)
+   rt_nat_p04                           +0.914 ms a frame (i   +139850, im   +32.0, dm  +831.0 a frame)
+   ud_new                               -0.694 ms a frame (i        +0, im -3337.7, dm   -49.0 a frame)
+   xc_add                               -0.679 ms a frame (i   -135222, im    -0.9, dm   -33.1 a frame)
+   me_memcpy                            -0.562 ms a frame (i    -38536, im  +179.4, dm -1579.6 a frame)
+   ud_kind                              +0.510 ms a frame (i    +27413, im +1832.3, dm    +0.0 a frame)
+   vc_xform                             +0.471 ms a frame (i       -10, im +2369.0, dm   -50.9 a frame)
+
+n0main - b0main, per frame [C model]: instructions +33690, I-misses +313.2, D-misses +281.2 = +0.304 ms a frame (352.57 -> 352.87)
+   io_dma_start                         +0.037 ms a frame (i     +6430, im    +0.3, dm   +18.5 a frame)
+   rt_nat_p04                           +0.030 ms a frame (i     +4785, im    +6.0, dm   +20.9 a frame)
+   gif_qw                               +0.023 ms a frame (i     +2989, im   +29.4, dm    +7.7 a frame)
+   xm_walk                              +0.021 ms a frame (i     +1786, im   +43.4, dm   +12.3 a frame)
+   tk_get_um                            +0.016 ms a frame (i     +1194, im   +20.3, dm   +23.7 a frame)
+   xc_hold                              +0.015 ms a frame (i      +822, im   +21.1, dm   +23.8 a frame)
+   P1214a0                              +0.014 ms a frame (i     +2230, im    +0.0, dm   +12.8 a frame)
+   call                                 +0.014 ms a frame (i     +1596, im   +24.0, dm    +3.2 a frame)
+   xl_lane_p06                          +0.012 ms a frame (i     +1147, im   +26.2, dm    +4.3 a frame)
+   ud_new                               +0.012 ms a frame (i     +1482, im    +5.1, dm   +13.1 a frame)
+   me_memset                            +0.010 ms a frame (i      +856, im   +17.9, dm    +9.8 a frame)
+   gu_clut_load                         +0.010 ms a frame (i     +1148, im    +6.6, dm   +11.0 a frame)
+
+n0me - b0me, per frame [C model]: instructions +106598, I-misses +220.7, D-misses +839.0 = +0.790 ms a frame (408.66 -> 409.45)
+   xc_merge                             +0.192 ms a frame (i    +26612, im    +2.4, dm  +229.2 a frame)
+   io_dma_start                         +0.096 ms a frame (i    +16423, im    +6.2, dm   +50.9 a frame)
+   me_memcpy                            +0.092 ms a frame (i     +7503, im    +0.8, dm  +212.5 a frame)
+   xm_plan                              +0.072 ms a frame (i    +10682, im    +3.8, dm   +71.7 a frame)
+   xc_add                               +0.059 ms a frame (i    +10992, im    +0.9, dm   +15.4 a frame)
+   gx_batch                             +0.057 ms a frame (i     +5853, im    +0.0, dm  +109.3 a frame)
+   xc_run                               +0.042 ms a frame (i     +8404, im    +0.3, dm    +0.1 a frame)
+   rt_nat_p04                           +0.031 ms a frame (i     +4826, im    +6.0, dm   +24.1 a frame)
+   P1214a0                              +0.015 ms a frame (i     +2250, im    +0.0, dm   +13.9 a frame)
+   nat_pend                             +0.013 ms a frame (i      +596, im   +23.9, dm   +19.4 a frame)
+   mp_mark                              +0.010 ms a frame (i     +1736, im    +2.4, dm    +2.9 a frame)
+   gif_qw                               +0.010 ms a frame (i     +1527, im    +2.1, dm    +6.6 a frame)
+
+n3main - n0main, per frame [C model]: instructions -1124966, I-misses -22571.6, D-misses -5187.6 = -11.523 ms a frame (352.87 -> 341.35)
+   xm_walk                              -2.820 ms a frame (i   -175189, im -8926.8, dm  -501.6 a frame)
+   xl_lane_p04                          -2.816 ms a frame (i   -244444, im -6973.2, dm  -699.5 a frame)
+   io_dma_start                         -2.338 ms a frame (i   -401093, im   -38.2, dm -1328.5 a frame)
+   xl_p04_core                          +1.950 ms a frame (i   +225748, im +3314.7, dm  +600.1 a frame)
+   (not in the ELF's functions)         -1.513 ms a frame (i   -231481, im  +195.3, dm -1570.3 a frame)
+   hw                                   -1.092 ms a frame (i   -186661, im    +0.0, dm  -647.0 a frame)
+   rt_nat_p04                           +0.864 ms a frame (i   +132111, im   +26.0, dm  +791.1 a frame)
+   ud_new                               -0.585 ms a frame (i     -7638, im -2480.6, dm  -158.8 a frame)
+   ud_kind                              +0.497 ms a frame (i    +26719, im +1781.2, dm    +4.7 a frame)
+   lw_q                                 -0.459 ms a frame (i    -42698, im -1209.5, dm    +0.0 a frame)
+   xc_hold_test                         -0.350 ms a frame (i      -375, im -1704.1, dm    -0.3 a frame)
+   xc_call                              -0.315 ms a frame (i    -12741, im  -997.2, dm  -187.1 a frame)
+
+n3me - n0me, per frame [C model]: instructions -1411379, I-misses -25161.6, D-misses -7571.9 = -14.087 ms a frame (409.45 -> 395.36)
+   xl_lane_p04                          -3.178 ms a frame (i   -247947, im -8078.8, dm -1161.3 a frame)
+   xm_walk                              -2.724 ms a frame (i   -198599, im -9742.0, dm  +966.6 a frame)
+   io_dma_start                         -2.360 ms a frame (i   -407190, im   -33.3, dm -1299.3 a frame)
+   lw_q                                 -2.235 ms a frame (i   -218518, im -3114.6, dm -1997.3 a frame)
+   xl_p04_core                          +2.010 ms a frame (i   +231540, im +2853.2, dm +1083.5 a frame)
+   (not in the ELF's functions)         -1.562 ms a frame (i   -235833, im  +151.8, dm -1642.8 a frame)
+   rt_nat_p04                           +0.883 ms a frame (i   +135024, im   +26.0, dm  +806.9 a frame)
+   ud_new                               -0.741 ms a frame (i     -4138, im -3426.0, dm   -81.4 a frame)
+   xc_add                               -0.677 ms a frame (i   -134735, im    -0.7, dm   -35.5 a frame)
+   me_memcpy                            -0.622 ms a frame (i    -39463, im  +165.3, dm -1781.8 a frame)
+   ud_kind                              +0.510 ms a frame (i    +27413, im +1832.3, dm    +0.0 a frame)
+   hw                                   -0.489 ms a frame (i    -83514, im    -0.1, dm  -289.7 a frame)
+
+b3main - b0main, per frame [C model]: instructions -400384, I-misses -4093.7, D-misses -2167.5 = -3.380 ms a frame (352.57 -> 349.19)
+   hw                                   -1.092 ms a frame (i   -186738, im    +0.0, dm  -647.2 a frame)
+   xc_call                              -0.173 ms a frame (i    -12741, im  -341.4, dm  -154.3 a frame)
+   (not in the ELF's functions)         +0.147 ms a frame (i    +20117, im  +321.1, dm   -69.8 a frame)
+   xm_walk                              -0.147 ms a frame (i     -9333, im  -488.6, dm    -2.8 a frame)
+   vupv_96936c0f_0                      -0.134 ms a frame (i    -26424, im   -15.1, dm    +0.0 a frame)
+   tk_get_um                            -0.110 ms a frame (i     -5267, im  -166.1, dm  -192.1 a frame)
+   rt_qcopy_nov                         +0.108 ms a frame (i     +6700, im    -3.7, dm  +293.1 a frame)
+   xf_setup                             -0.107 ms a frame (i    -19480, im    -5.2, dm   -37.3 a frame)
+   gif_qw                               -0.098 ms a frame (i    -11382, im  -158.3, dm   -35.5 a frame)
+   gc_maybe                             +0.098 ms a frame (i    +12872, im    +0.5, dm  +131.6 a frame)
+   ud_new                               -0.092 ms a frame (i     -8339, im  -147.9, dm   -79.5 a frame)
+   put_sym                              -0.087 ms a frame (i    -16896, im    +0.0, dm   -11.9 a frame)
+
+b3me - b0me, per frame [C model]: instructions -121549, I-misses -2726.4, D-misses -613.1 = -1.317 ms a frame (408.66 -> 407.34)
+   hw                                   -0.491 ms a frame (i    -83876, im    -0.0, dm  -291.0 a frame)
+   rt_qcopy_nov                         +0.197 ms a frame (i    +12552, im    -1.6, dm  +522.3 a frame)
+   xc_merge                             +0.164 ms a frame (i    +24788, im    +2.6, dm  +156.3 a frame)
+   (not in the ELF's functions)         +0.149 ms a frame (i    +22397, im  +310.8, dm   -98.8 a frame)
+   io_dma_start                         +0.100 ms a frame (i    +17065, im    -4.4, dm   +61.5 a frame)
+   P14ecf8                              -0.095 ms a frame (i    -10138, im   -63.0, dm  -124.6 a frame)
+   vup_33268338_0.isra.0                -0.086 ms a frame (i    -19605, im   +53.1, dm    +1.7 a frame)
+   xm_plan                              +0.084 ms a frame (i    +11991, im    +4.8, dm   +93.1 a frame)
+   P14fe30                              -0.081 ms a frame (i     -3615, im  -253.9, dm   -42.4 a frame)
+   rt_idiom_qcopy                       +0.073 ms a frame (i    +12291, im   +56.0, dm    +1.5 a frame)
+   P14f820                              -0.069 ms a frame (i     -3287, im  -214.4, dm   -33.7 a frame)
+   P14e530                              -0.067 ms a frame (i     -5216, im  -188.9, dm   -11.6 a frame)

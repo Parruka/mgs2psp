@@ -1,0 +1,15 @@
+gl33 G4: undefined symbols of each object against gl31's stage object (psp-nm -u); < only gl31's, > only gl33's
+  xl_psp.o: > g_nat_stc > rt_nat_inpl_at 
+objects: 45; byte-identical to gl31's stage objects: 28
+new names and where the ELF defines them: g_nat_stc(B) rt_nat_inpl_at(T)
+imports of the ELF (sce* names) against gl31's: 133 / 133 names; differences: 0
+  section .lib.stub: gl31 00000154 bytes, gl33 00000154 bytes
+  section .lib.ent: gl31 00000010 bytes, gl33 00000010 bytes
+  section .rodata.sceResident: gl31 0000015c bytes, gl33 0000015c bytes
+  section .rodata.sceNid: gl31 000001c4 bytes, gl33 000001c4 bytes
+  section .sceStub.text: gl31 00000388 bytes, gl33 00000388 bytes
+ge_xme_me.o: gl31 4d964c8c, gl33 4d964c8c; instruction lines differing: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

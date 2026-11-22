@@ -1,0 +1,208 @@
+gl32 arm A -> vc 1, waiting ME turn 29,810-29,890: B model/g32v1 - A model/g32v0, 40 pictures
+  A: 48603101 instructions, 393706 I-misses, 343952 D-misses = 410.05 ms a picture;  B: 48289450, 385941, 340399 = 405.99 ms;  B - A: -313651, -7765, -3553 = -4.06 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: -4.06 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   vc_df0_pos                      -3.066 ms  (  -248808   -2912   -4797)  size 628 / 628
+   me_memcpy                       +1.070 ms  (   +60871    +415   +2647)  size 328 / 328
+   vc_df0_att                      -1.022 ms  (  -112001    -790   -1183)  size 300 / -
+   xc_call                         +0.494 ms  (   +43929    +360    +786)  size 15796 / 15796
+   vc_strips                       -0.462 ms  (   -59456    -528    -229)  size 160 / 160
+   drew_ctx                        -0.446 ms  (       +0   -2175      -7)  size 228 / 228
+   xc_off.constprop.0              -0.430 ms  (       +0   -2163     +44)  size 860 / 860
+   vc_df0_head                     +0.259 ms  (   +12544    +238    +574)  size - / 100
+   gf_reg                          +0.258 ms  (       +0   +1284     -18)  size 552 / 552
+   xc_merge                        -0.184 ms  (   -23690      -1    -257)  size 696 / 696
+   ud_new                          +0.179 ms  (       +0    +929     -40)  size 1696 / 1696
+   rt_nat_p04                      +0.173 ms  (   +34813      +3      +0)  size 2688 / 2688
+   xc_zr_df0d.isra.0               -0.166 ms  (    +1330    -825     -16)  size 1328 / 1328
+   xc_dpos                         -0.148 ms  (    -1401    -690      +0)  size 184 / 184
+   ud_eager                        -0.137 ms  (       +0    -574     -74)  size 440 / 440
+   gu_clut_load                    +0.106 ms  (       +0    +578     -46)  size 2724 / 2724
+   (all the others)                -0.537 ms  (   -21781    -914    -937)
+gl32 arm A -> vc 1, waiting main turn 29,910-29,990: B model/g32v1.1 - A model/g32v0.1, 40 pictures
+  A: 42632574 instructions, 360959 I-misses, 253097 D-misses = 350.32 ms a picture;  B: 42400842, 354276, 250662 = 347.17 ms;  B - A: -231731, -6683, -2435 = -3.14 ms a picture [C model]
+  of it the waits (hw): -0.00 ms; the work: -3.14 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   vc_df0_pos                      -2.697 ms  (  -235896   -2603   -3860)  size 628 / 628
+   me_memcpy                       +1.075 ms  (   +62970    +387   +2649)  size 328 / 328
+   vc_df0_att                      -0.920 ms  (  -101823    -719   -1040)  size 300 / 300
+   xc_call                         +0.432 ms  (   +43559    +293    +605)  size 15796 / 15796
+   drew_ctx                        -0.429 ms  (       +0   -2047     -42)  size 228 / 228
+   vc_strips                       -0.421 ms  (   -54226    -481    -210)  size 160 / 160
+   xc_off.constprop.0              -0.410 ms  (       +0   -2003      -5)  size 860 / 860
+   gf_reg                          +0.254 ms  (       +0   +1270     -20)  size 552 / 552
+   ud_new                          +0.186 ms  (       +0    +946     -28)  size 1696 / 1696
+   xc_zr_df0d.isra.0               -0.180 ms  (      -94    -835     -34)  size 1328 / 1328
+   rt_nat_p04                      +0.169 ms  (   +33941      +3      +0)  size 2688 / 2688
+   gu_clut_load                    +0.167 ms  (       +0    +868     -38)  size 2724 / 2724
+   ud_eager                        -0.145 ms  (       +0    -576    -107)  size 440 / 440
+   xc_dpos                         -0.132 ms  (    -1159    -620      +0)  size 184 / 184
+   vc_df0_head                     +0.119 ms  (   +12204    +229     +45)  size - / 100
+   xm_walk                         +0.099 ms  (    +2774    +444     -22)  size 12440 / 12440
+   (all the others)                -0.307 ms  (    +6020   -1237    -327)
+gl32 arm A -> vc 3, waiting ME turn 29,810-29,890: B model/g32v3 - A model/g32v0, 40 pictures
+  A: 48603101 instructions, 393706 I-misses, 343952 D-misses = 410.05 ms a picture;  B: 47347473, 388618, 310939 = 394.26 ms;  B - A: -1255628, -5088, -33013 = -15.79 ms a picture [C model]
+  of it the waits (hw): -0.00 ms; the work: -15.78 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   xc_merge                        -4.386 ms  (  -459641      -1   -8165)  size 696 / 696
+   me_memcpy                       -4.016 ms  (  -214741    +674  -11963)  size 328 / 328
+   vc_df0_pos                      -3.064 ms  (  -248480   -2909   -4795)  size 628 / 628
+   vc_df0_att                      -1.022 ms  (  -112001    -790   -1183)  size 300 / -
+   xc_run                          -0.464 ms  (   -93605      -1      -0)  size 252 / 252
+   vc_strips                       -0.462 ms  (   -59456    -528    -229)  size 160 / 160
+   xc_call                         +0.413 ms  (   +43921    +357    +473)  size 15796 / 15796
+   xm_walk                         -0.398 ms  (    -6378   +1547   -2641)  size 12440 / 12440
+   xc_add                          -0.360 ms  (   -61055      -1    -223)  size 368 / 368
+   drew_ctx                        -0.339 ms  (       +0   -1634     -22)  size 228 / 228
+   xc_off.constprop.0              -0.319 ms  (       +0   -1619     +47)  size 860 / 860
+   xm_plan                         -0.299 ms  (   -52403      -3    -149)  size 2984 / 2984
+   gf_reg                          +0.290 ms  (       +0   +1283    +110)  size 552 / 552
+   xc_zr_df0d.isra.0               -0.264 ms  (    -1406    -842    -329)  size 1328 / 1328
+   vc_df0_head                     +0.258 ms  (   +12544    +235    +574)  size - / 100
+   ud_eager                        -0.245 ms  (       +0    -574    -495)  size 440 / 440
+   gu_drawn                        -0.219 ms  (       +0      -0    -846)  size 2768 / 2768
+   rt_nat_p04                      +0.173 ms  (   +34813      +3      +0)  size 2688 / 2688
+   ud_new                          +0.162 ms  (       +0    +927    -107)  size 1696 / 1696
+   call                            -0.154 ms  (       +0    -125    -497)  size 3620 / 3620
+   xc_dpos                         -0.150 ms  (    -1413    -700      +1)  size 184 / 184
+   mp_mark                         -0.140 ms  (   -24924      -1     -62)  size 736 / 736
+   lw_q                            -0.129 ms  (     -192      -0    -495)  size 484 / 484
+   gf_packed                       -0.105 ms  (       +0    -515      +0)  size 584 / 584
+   (all the others)                -0.550 ms  (   -11210    +129   -2016)
+gl32 arm A -> vc 2 (in place only), waiting ME turn 29,810-29,890: B model/g32v2 - A model/g32v0, 40 pictures
+  A: 48603101 instructions, 393706 I-misses, 343952 D-misses = 410.05 ms a picture;  B: 47646788, 396381, 313992 = 398.12 ms;  B - A: -956313, +2676, -29961 = -11.93 ms a picture [C model]
+  of it the waits (hw): -0.00 ms; the work: -11.93 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   me_memcpy                       -5.182 ms  (  -282170    +259  -14858)  size 328 / 328
+   xc_merge                        -4.382 ms  (  -458911      -1   -8164)  size 696 / 696
+   xc_run                          -0.462 ms  (   -93247      -0      -0)  size 252 / 252
+   xm_walk                         -0.405 ms  (    -6378   +1317   -2488)  size 12440 / 12440
+   xc_add                          -0.358 ms  (   -60571      -0    -222)  size 368 / 368
+   xm_plan                         -0.296 ms  (   -52002      -3    -147)  size 2984 / 2984
+   gu_drawn                        -0.203 ms  (       +0      +0    -785)  size 2768 / 2768
+   rt_nat_p04                      +0.173 ms  (   +34813      +3      +0)  size 2688 / 2688
+   mp_mark                         -0.140 ms  (   -24924      -1     -62)  size 736 / 736
+   lw_q                            -0.129 ms  (     -192      +1    -495)  size 484 / 484
+   ud_eager                        -0.104 ms  (       +0      -0    -403)  size 440 / 440
+   xc_gs                           -0.100 ms  (       +0      +0    -389)  size 364 / 364
+   vc_xform                        +0.098 ms  (       +5    +180    +238)  size 1696 / 1696
+   xc_call                         -0.085 ms  (       -6      -2    -326)  size 15796 / 15796
+   xc_zr_df0d.isra.0               -0.084 ms  (     -379      -3    -314)  size 1328 / 1328
+   call                            -0.082 ms  (       +0      +0    -318)  size 3620 / 3620
+   (all the others)                -0.189 ms  (   -12350    +927   -1228)
+gl31 arm 3 -> gl32 arm A, waiting ME turn 29,810-29,890: B model/g32v0 - A model/m32n3, 40 pictures
+  A: 48458717 instructions, 347252 I-misses, 332263 D-misses = 396.83 ms a picture;  B: 48603101, 393706, 343952 = 410.05 ms;  B - A: +144384, +46454, +11690 = +13.22 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: +13.22 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   xc_call                         +2.592 ms  (    -3112   +9223   +2803)  size 13524 / 15796
+   gl_tex                          +1.167 ms  (       +0   +6134    -333)  size 1536 / 1536
+   ud_eager                        +1.030 ms  (       +0   +3982    +841)  size 440 / 440
+   tk_get_um                       +0.762 ms  (       +0   +2837    +705)  size 3996 / 3996
+   gx_batch                        +0.733 ms  (     -398   +3016    +460)  size 13300 / 13300
+   xl_p04_core                     +0.681 ms  (    +6701   +1137   +1610)  size 980 / 1024
+   vc_xform                        -0.646 ms  (      -17   -2148    -803)  size 1696 / 1696
+   gf_drew                         +0.545 ms  (       +0   +1925    +590)  size 124 / 124
+   xm_walk                         +0.496 ms  (   +17007   +2217    -157)  size 12216 / 12440
+   drew_ctx                        +0.443 ms  (       +0   +2409    -189)  size 228 / 228
+   xf_rest                         +0.412 ms  (      -10   +2023      -4)  size 956 / 956
+   xm_call.part.0                  -0.385 ms  (       +0   -1896      +8)  size 408 / 408
+   ud_ok                           +0.371 ms  (       +0   +1815      +0)  size 280 / 280
+   P120538                         +0.356 ms  (       +0   +1783     -30)  size 6688 / 6688
+   call                            +0.315 ms  (       +0   +2043    -397)  size 3620 / 3620
+   texture                         +0.310 ms  (       +0    +863    +518)  size 1876 / 1876
+   xl_lane_fx                      +0.300 ms  (       +0    +910    +442)  size 884 / 884
+   xc_hold_test                    +0.299 ms  (       +0   +1878    -326)  size 1384 / 1384
+   rows                            +0.298 ms  (       +0   +1102    +281)  size 256 / 256
+   gu_clut_load                    +0.297 ms  (       +0   +2473    -805)  size 2724 / 2724
+   xc_xform                        +0.296 ms  (       +0    +840    +483)  size 588 / 588
+   xm_plan                         +0.272 ms  (   +49020     +87     +45)  size 2948 / 2984
+   rt_mm                           -0.272 ms  (       +5   -1351     +15)  size 480 / 480
+   addr_cmd                        +0.272 ms  (       +7   +1048    +225)  size 400 / 400
+   io_dma_start                    +0.256 ms  (    +8987   +1314    -218)  size 13080 / 13080
+   rt_qcopy_nov                    -0.256 ms  (       +0   -1158     -75)  size 284 / 284
+   xc_state                        +0.242 ms  (       +3   +1189      -3)  size 576 / 576
+   gf_packed                       +0.242 ms  (       +0   +1184      +0)  size 584 / 584
+   vc_p06_rec                      +0.241 ms  (       +0   +1617    -347)  size 25988 / 25988
+   vupv_96936c0f_0                 +0.219 ms  (       +0    +957     +92)  size 3460 / 3460
+   vuc_entry                       -0.215 ms  (       +0   -1054      +0)  size 752 / 752
+   xc_held_run                     +0.209 ms  (       +0    +977     +38)  size 1208 / 1208
+   gif_qw                          -0.208 ms  (     +377    -101    -733)  size 1084 / 1084
+   add_tex                         +0.193 ms  (       +0    +960     -11)  size 396 / 396
+   (all the others)                +1.354 ms  (   +65815   -3777   +6965)
+gl31 arm 3 -> gl32 arm A, waiting main turn 29,910-29,990: B model/g32v0.1 - A model/m32n3.1, 40 pictures
+  A: 42663089 instructions, 321374 I-misses, 251721 D-misses = 342.03 ms a picture;  B: 42632574, 360959, 253097 = 350.32 ms;  B - A: -30515, +39585, +1375 = +8.29 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: +8.28 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   xc_call                         +1.584 ms  (    -3408   +7704    +109)  size 13524 / 15796
+   gl_tex                          +1.236 ms  (    -2273   +6480    -293)  size 1536 / 1536
+   ud_eager                        +0.789 ms  (    -1926   +3894     +14)  size 440 / 440
+   tk_get_um                       +0.700 ms  (    -3175   +2636    +685)  size 3996 / 3996
+   call                            +0.631 ms  (    -4482   +1890   +1036)  size 3620 / 3620
+   xm_call.part.0                  -0.592 ms  (     -137   -2153    -589)  size 408 / 408
+   gx_batch                        +0.561 ms  (    -3169   +2790     +27)  size 13300 / 13300
+   vc_xform                        -0.560 ms  (     -376   -2425    -246)  size 1696 / 1696
+   drew_ctx                        +0.503 ms  (     -339   +2331    +112)  size 228 / 228
+   xf_rest                         +0.424 ms  (      +22   +2068      +5)  size 956 / 956
+   xc_hold_test                    +0.376 ms  (     -699   +1831     +21)  size 1384 / 1384
+   ud_ok                           +0.359 ms  (     -914   +1782      +0)  size 280 / 280
+   P120538                         +0.355 ms  (       +0   +1779     -30)  size 6688 / 6688
+   gif_qw                          -0.347 ms  (    -7790     +96   -1269)  size 1084 / 1084
+   gf_drew                         +0.328 ms  (     -113   +1638     -22)  size 124 / 124
+   gf_reg                          +0.322 ms  (    -1655    +560    +836)  size 552 / 552
+   rt_mm                           -0.273 ms  (       +0   -1356     +14)  size 480 / 480
+   rows                            +0.265 ms  (    -1243   +1071    +203)  size 256 / 256
+   rt_qcopy_nov                    -0.263 ms  (       +0   -1155    -106)  size 284 / 284
+   gu_clut_load                    +0.259 ms  (    -2807   +1412     -61)  size 2724 / 2724
+   addr_cmd                        +0.258 ms  (      +11   +1030    +186)  size 400 / 400
+   xm_on_call                      +0.245 ms  (      -42    +689    +404)  size 36 / 36
+   xc_state                        +0.240 ms  (     -298   +1210     -21)  size 576 / 576
+   gf_packed                       +0.233 ms  (     -783   +1158      +0)  size 584 / 584
+   (all the others)                +0.655 ms  (    +5080   +2627    +361)
+gl31 arm 3 -> variant i (gl31's converter, gl32's stub and front end) arm A, waiting ME turn: B model/g32i0 - A model/m32n3, 40 pictures
+  A: 48458717 instructions, 347252 I-misses, 332263 D-misses = 396.83 ms a picture;  B: 48491383, 366684, 338764 = 402.64 ms;  B - A: +32666, +19431, +6502 = +5.81 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: +5.81 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   xc_call                         +0.977 ms  (      +12   +1600   +2518)  size 13524 / 13524
+   gif_qw                          -0.811 ms  (    -1326   -3134    -635)  size 1084 / 1084
+   xm_walk                         +0.699 ms  (   +17007   +2548    +365)  size 12216 / 12440
+   xl_p04_core                     +0.687 ms  (    +6701   +2955    +195)  size 980 / 1024
+   xm_call.part.0                  -0.531 ms  (       +0   -3036    +345)  size 408 / 408
+   gx_batch                        +0.525 ms  (     -329   +2560     +15)  size 13300 / 13300
+   gf_drew                         +0.471 ms  (       +0   +1361    +747)  size 124 / 124
+   tk_get_um                       +0.407 ms  (       +0   +1053    +742)  size 3996 / 3996
+   xf_rest                         +0.398 ms  (      -28   +1987     -31)  size 956 / 956
+   call                            +0.382 ms  (       +0   +2763    -705)  size 3620 / 3620
+   lw_tp                           +0.362 ms  (       +0    +839    +740)  size 464 / 464
+   P120538                         +0.355 ms  (       +0   +1783     -36)  size 6688 / 6688
+   xc_xform                        +0.337 ms  (       +0   +1389    +207)  size 588 / 588
+   rt_qcopy_nov                    -0.293 ms  (       +0   -1277    -123)  size 284 / 284
+   ud_eager                        +0.291 ms  (       +0     +90   +1054)  size 440 / 440
+   addr_cmd                        +0.275 ms  (      +23   +1095    +197)  size 400 / 400
+   rt_mm                           -0.268 ms  (      -11   -1356     +36)  size 480 / 480
+   xc_state                        +0.261 ms  (       +6   +1279      -3)  size 576 / 576
+   rows                            +0.224 ms  (       +0    +742    +281)  size 256 / 256
+   vc_p06_rec                      +0.218 ms  (       +0   +1616    -433)  size 25988 / 25988
+   vuc_entry                       -0.215 ms  (      -46   -1054      +0)  size 752 / 752
+   vc_xform                        -0.209 ms  (      -21     +61    -856)  size 1696 / 1696
+   xm_on_call                      +0.203 ms  (       +0   +1004     -10)  size 36 / 36
+   vupv_96936c0f_0                 +0.200 ms  (       +0    +956     +18)  size 3460 / 3460
+   (all the others)                +0.865 ms  (   +10679   +1607   +1874)
+variant i: arm A -> vc 2, waiting ME turn: B model/g32i2 - A model/g32i0, 40 pictures
+  A: 48491383 instructions, 366684 I-misses, 338764 D-misses = 402.64 ms a picture;  B: 47639313, 369076, 309184 = 391.27 ms;  B - A: -852070, +2393, -29580 = -11.37 ms a picture [C model]
+  of it the waits (hw): +0.00 ms; the work: -11.37 ms
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   me_memcpy                       -5.097 ms  (  -272567    +128  -14608)  size 328 / 328
+   xc_merge                        -4.143 ms  (  -425048      +1   -7887)  size 696 / 696
+   xm_walk                         -0.542 ms  (    -6378    +820   -2626)  size 12440 / 12440
+   xc_run                          -0.408 ms  (   -82317      +1      +0)  size 252 / 252
+   xc_add                          -0.288 ms  (   -47620      +1    -201)  size 368 / 368
+   gu_drawn                        -0.203 ms  (       +0      +0    -787)  size 2768 / 2768
+   xm_plan                         -0.189 ms  (   -34877      +3     -67)  size 2984 / 2984
+   rt_nat_p04                      +0.173 ms  (   +34813      +3      +0)  size 2688 / 2688
+   call                            -0.146 ms  (       +0      -3    -562)  size 3620 / 3620
+   mp_mark                         -0.129 ms  (   -23113      +1     -59)  size 736 / 736
+   lw_q                            -0.128 ms  (     -192      +0    -491)  size 484 / 484
+   vc_xform                        +0.108 ms  (       -0    +179    +275)  size 1696 / 1696
+   xc_gs                           -0.101 ms  (       +0      -0    -391)  size 364 / 364
+   xc_call                         -0.089 ms  (       -0      -4    -342)  size 13524 / 13524
+   (all the others)                -0.190 ms  (    +5229   +1264   -1835)

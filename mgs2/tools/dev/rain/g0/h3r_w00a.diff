@@ -1,0 +1,111 @@
+--- wpl/gen_s_w00a.h.cs
++++ wpl/gen_s_w00a.h
+@@ -38,6 +38,70 @@
+ #else
+ #define CS_M3() ((void)0)
+ #endif
++/* sbg0 H3R (task #167, rain_study.md section 10): rain.c's streak prims hidden from the draw pipeline when g_opt2 has OPT2_H3R (65536).
++   Its act (0x31af28) shows the first set (+392 entries from +432, each prim at the entry's +16) at 0x31afd8 by ANDing the hide bits
++   (0x3000) off its +164: with H3R that store keeps them on (H3R_WR), as the act's hide path (0x31af90) stores them.  The second set (the
++   prims of entries +392 to +396 - 1) keeps what the init (0x31bc44) gives it, 0xe000 (shown in screen 0 only), in the translation: with
++   H3R each act call sets bit 12 (screen 0) in their +164 where it is clear (h3r_second), and with H3R off it clears the bits it set (a
++   record per act: the prim of each entry it set the bit on).  The init masks each prim's +164 for the game-state hash in both modes.
++   Trace builds mark the words hidden (H3_MARK) and leave h3r_second's own loads out of the read hash. */
++#define OPT2_H3R_W 65536u
++#define H3R_WR(b, v) do { H3_MASK(b); if (g_opt2 & OPT2_H3R_W) { WR32B(b, 164, (int64_t)((v) | 12288)); H3_MARK(b); } else WR32B(b, 164, v); } while (0)
++#define H3R_ACTS 8
++uint32_t h3r_act[H3R_ACTS], h3r_prm[H3R_ACTS][64];   /* acts whose second set h3r_second hid, and the prims it set bit 12 on (0: none) */
++#if !defined(__psp__)
++long h3r_n[10];   /* calls with H3R on, off; second-set prims hidden, given back; calls with sizes out of range; acts over H3R_ACTS;
++                     prims already with bit 12 when found (on), prims with bit 12 in calls with H3R off and no record (both: the game's own);
++                     the second set's +164 & 0xf000 seen first: 0xe000, other */
++#define H3R_CNT(i) ((void)h3r_n[i]++)
++__attribute__((destructor)) void h3r_report(void)
++{
++  fprintf(stderr, "h3r rain: calls %ld on, %ld off; second-set prims hidden %ld, given back %ld; sizes out of range %ld, acts over %d: %ld; "
++          "bit 12 already set %ld (on), %ld (off, no record); second set's +164 first seen 0xe000 %ld, other %ld\n", h3r_n[0], h3r_n[1],
++          h3r_n[2], h3r_n[3], h3r_n[4], H3R_ACTS, h3r_n[5], h3r_n[6], h3r_n[7], h3r_n[8], h3r_n[9]);
++}
++#else
++#define H3R_CNT(i) ((void)0)
++#endif
++void h3r_second(uint32_t a)
++{
++  int32_t n, m, j; int k, on = (g_opt2 & OPT2_H3R_W) != 0;
++#ifdef GEN_DG_TRACE
++  int o_ = g_rh_off; g_rh_off = 1;
++#endif
++  H3R_CNT(on ? 0 : 1);
++  for (k = 0; k < H3R_ACTS && h3r_act[k] != a; k++) ;
++  n = (int32_t)RD32B(a, 392); m = (int32_t)RD32B(a, 396);
++  if (n < 0 || n > m || m > 64) H3R_CNT(4);
++  else if (on) {
++    if (k == H3R_ACTS) { for (k = 0; k < H3R_ACTS && h3r_act[k]; k++) ;
++                         if (k < H3R_ACTS) { h3r_act[k] = a; for (j = 0; j < 64; j++) h3r_prm[k][j] = 0; } else H3R_CNT(5); }
++    if (k < H3R_ACTS) for (j = n; j < m; j++) {
++      uint32_t p = RD32B(a, 448 + 32 * j), v;
++      if (!p) continue;
++      v = RD32B(p, 164);
++#if !defined(__psp__)
++      if (h3r_prm[k][j] != p && !(v & 4096u)) H3R_CNT((v & 0xf000u) == 0xe000u ? 8 : 9);
++#endif
++      if (!(v & 4096u)) { WR32B(p, 164, (int64_t)(v | 4096u)); H3_MARK(p); h3r_prm[k][j] = p; H3R_CNT(2); }
++      else if (h3r_prm[k][j] != p) H3R_CNT(6);
++    }
++  } else if (k < H3R_ACTS) {
++    for (j = n; j < m; j++) {
++      uint32_t p = RD32B(a, 448 + 32 * j), v;
++      if (!p || h3r_prm[k][j] != p) continue;
++      v = RD32B(p, 164);
++      if (v & 4096u) { WR32B(p, 164, (int64_t)(v & ~4096u)); H3R_CNT(3); }
++    }
++    h3r_act[k] = 0;
++  }
++#if !defined(__psp__)
++  else for (j = n; j < m; j++) { uint32_t p = RD32B(a, 448 + 32 * j); if (p && (RD32B(p, 164) & 4096u)) H3R_CNT(7); }
++#endif
++#ifdef GEN_DG_TRACE
++  g_rh_off = o_;
++#endif
++}
+ #line 1 "/home/claude/v30/WP/gen_s_w00a.h"
+ static void S_w00a_P106020(void);
+ static void S_w00a_P108230(void);
+@@ -126757,14 +126821,14 @@
+ /*31af58*/ WRFS(r29, 272, f22);
+ /*31af5c*/ WRFS(r29, 264, f21);
+ /*31af60*/ { r31 = 0x31af68; WRFS(r29, 256, f20); (R[17] = r17, R[29] = r29, R[31] = r31, (S_w00a_P31ade8()), r3 = (int32_t)R[3], r4 = R[4], r6 = (int32_t)R[6], r8 = R[8]); }
+-/*31af68*/ r2 = (int32_t)RD32B(r17, 424);
++/*31af68*/ h3r_second((uint32_t)r17); r2 = (int32_t)RD32B(r17, 424);
+ /*31af6c*/ { int c_ = (r2 == r0); r16 = (int64_t)(int32_t)(r17 + 432); if (c_) goto L31afb0; }
+ /*31af74*/ r2 = (int32_t)RD32B(r17, 392);
+ /*31af78*/ { int c_ = (r2 <= 0); r18 = r0 + r0; if (c_) goto L31b734; }
+ L31af80:;
+ /*31af80*/ r2 = (int32_t)RD32B(r16, 16);
+ /*31af84*/ r18 = (int64_t)(int32_t)(r18 + 1);
+-/*31af88*/ r3 = (int32_t)RD32B(r2, 164);
++/*31af88*/ H3_RD(r3 = (int32_t)RD32B(r2, 164));
+ /*31af8c*/ r3 = r3 | 12288;
+ /*31af90*/ WR32B(r2, 164, r3);
+ /*31af94*/ r4 = (int32_t)RD32B(r17, 392);
+@@ -126781,9 +126845,9 @@
+ L31afc8:;
+ /*31afc8*/ r2 = (int32_t)RD32B(r16, 16);
+ /*31afcc*/ r18 = (int64_t)(int32_t)(r18 + 1);
+-/*31afd0*/ r3 = (int32_t)RD32B(r2, 164);
++/*31afd0*/ H3_RD(r3 = (int32_t)RD32B(r2, 164));
+ /*31afd4*/ r3 = r3 & r5;
+-/*31afd8*/ WR32B(r2, 164, r3);
++/*31afd8*/ H3R_WR(r2, r3);
+ /*31afdc*/ r4 = (int32_t)RD32B(r17, 392);
+ /*31afe0*/ r4 = (r18 < r4);
+ /*31afe4*/ { int c_ = (r4 != r0); r16 = (int64_t)(int32_t)(r16 + 32); if (c_) { IRQ_POLLF((void)0); goto L31afc8; } }
+@@ -127514,7 +127578,7 @@
+ /*31bc38*/ r5 = r17 + r0;
+ /*31bc3c*/ r4 = r16 + r0;
+ /*31bc40*/ r2 = r2 | 57344;
+-/*31bc44*/ { r31 = 0x31bc4c; WR32B(r16, 164, r2); (R[2] = r2, R[4] = r4, R[5] = r5, (P12e680())); }
++/*31bc44*/ { r31 = 0x31bc4c; H3_MASK(r16); WR32B(r16, 164, r2); (R[2] = r2, R[4] = r4, R[5] = r5, (P12e680())); }
+ /*31bc4c*/ r2 = (int64_t)(int32_t)(r0 + 72);
+ /*31bc50*/ r3 = 2097152;
+ /*31bc54*/ r7 = 1566048256;

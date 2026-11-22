@@ -1,0 +1,5 @@
+# gl16: gl15 with Stage C step 3's exact trims for the rooms' meshes (the PSP's own work for each mesh call: reading the game's data
+# into GE vertices, the scissor cut's box, the depth range, the copy into the frame), the trims off in some turns to time them. C1 on,
+# C2 off (Ffm's choice, 2026-11-02 23:22). The picture code's profile and code order are made again with the trims in them. README.txt
+# has the details.
+# Below: the indoor route's settings (v30's, as in gl4), then gl16's own at the end.

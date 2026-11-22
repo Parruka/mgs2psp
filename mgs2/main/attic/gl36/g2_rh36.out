@@ -1,0 +1,16 @@
+== gl35 rf vs gl36 rp
+/home/claude/main/build_gl35/xt35/out_rf.log: 31399 vblanks (0..31398); xt36/out_rp.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== rp vs rr (reuse in every turn)
+xt36/out_rp.log: 31399 vblanks (0..31398); xt36/out_rr.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== rp vs rrc (reuse by turns)
+xt36/out_rp.log: 31399 vblanks (0..31398); xt36/out_rrc.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+== gl35 rkc vs gl36 rrc
+/home/claude/main/build_gl35/xt35/out_rkc.log: 31399 vblanks (0..31398); xt36/out_rrc.log: 31399; in one only 0; read counts differ in 0 []; counts equal but values differ in 0 []
+rc 0
+rp rc 0 760 s
+rr rc 0 763 s
+rrc rc 0 367 s
+done

@@ -1,0 +1,35 @@
+# M1 standing check on the v25f free route (x86, 2026-10-23; speed_notes §40 "Use for a new route"). Build A = the v25f x86 reference's units (W25 without the natives) with every lwc1 / mtc1 site recorded (tools/dev/m1den, -DM1DEN), build B = the same binary with MGS2_M1_PS2=1. Route: pad_v25f.txt (play/pad_v25f.txt), the v25f pack, to vb 36500, MGS2_PKT_HASH=1:36501 (VIF1 + GIF data hashed every vblank).
+
+## result
+A against the reference (prof/hashes_x86_free_v25f.txt, hashref_x86_free_v25f.txt): every 100 vblanks 365 / 365 equal (ee iop vfb), dense 672 / 672 (ee vfb vuh).
+B against A, every 100 vblanks: ee differ 0, iop differ 0, vfb differ 208 of 365
+B against A, dense: ee differ 0, vfb differ 422 of 672; vuh differ 0 of 311
+B against A, VIF1 + GIF data per vblank: 0 of 36499 vblanks differ
+vfb at vb 36500: A 586351, B 619767 (first vfb difference at vb 15794, dense)
+So B equals A in everything the game keeps or sends, as on the v21 routes; only the count of VFPU group fallbacks differs (B 33,416 more by vb 36500). [I] From the same arctangent as on the v21 routes (speed_notes §40: lane z = +Fmax under DAZ): the zero rule acts only in P11cf88 here too (A's four rule lines map to P11cf88 +0x141 / +0x1a0 / +0x273 / +0x2ce through nm on A's binary), not traced again.
+
+## m1 report lines (A, then the lines where B differs)
+m1: mode PSP rule; float loads 1080868910, mtc1 532383619; denormal loads 20681950 (stack 4218), denormal mtc1 71705218; sites 1466 (dropped 0); zero-rule uses 81478 at 4 places
+m1: rule add at 0x55a423e614df n 6636 vb 15785-28477 first 00000000 0015def4
+m1: rule sub at 0x55a423e6153e n 6636 vb 15785-28477 first 00000000 0015def4
+m1: rule add at 0x55a423e61611 n 34103 vb 15793-28678 first 00000000 0031685c
+m1: rule sub at 0x55a423e6166c n 34103 vb 15793-28678 first 00000000 0031685c
+m1: mode PS2 (DAZ); float loads 1080868910, mtc1 532383619; denormal loads 20681950 (stack 4218), denormal mtc1 71705218; sites 1466 (dropped 0); zero-rule uses 81478 at 2 places
+m1: rule add at 0x564ac543e4df n 40739 vb 15785-28678 first 00000000 0015def4
+m1: rule sub at 0x564ac543e53e n 40739 vb 15785-28678 first 00000000 0015def4
+
+## sites A (tools/dev/m1den/sites.py, W = the v25f m1 headers)
+sites 1466, uses 92387168
+  int    mtc1  sites  1180  uses    71705218
+  int    lwc1  sites   216  uses    20600026
+  float  lwc1  sites     3  uses       77706
+  int    lwc1s sites    65  uses        4105
+  float  lwc1s sites     2  uses         113
+float-operand sites: 5, uses 77819; functions 3
+  by function: elf P11cf88 43603, elf P11ce30 34103, d00t P28dd68 113
+  elf P11cf88 pc 11cfa8 lwc1: n 34103 vb 15793-28678 a 001b47c8 u 0031685c (last 001b47c8 0031d90c) | CC = f0 < f3
+  elf P11ce30 pc 11ce70 lwc1: n 34103 vb 15793-28678 a 001b47c8 u 0031685c (last 001b47c8 0031d90c) | CC = f4 < f0
+  elf P11cf88 pc 11cfa0 lwc1: n 9500 vb 15765-28618 a 001b47d8 u 0000000b (last 001b47d8 0000000b) | CC = f2 < f3
+  d00t P28dd68 pc 28e338 lwc1s: n 65 vb 4258-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f29
+  d00t P28dd68 pc 28e38c lwc1s: n 48 vb 4260-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f28
+The same 5 float-operand sites as the v21 routes (P11cf88 0x11cfa8 / 0x11cfa0, P11ce30 0x11ce70, d00t P28dd68 0x28e338 / 0x28e38c); none in free play's extra functions, none after vb 28678.

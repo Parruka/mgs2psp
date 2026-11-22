@@ -1,0 +1,17 @@
+== GER frames in build_gl29/ger (gl29 out.bin vs gl30 out.bin)
+differing batches                        975
+differing batches as expected            975
+frames                                   433
+frames equal                             101
+frames with differing batches            332
+offsets of the copies: {(0, 5, 0): 975}
+== GER frames in build_gl30/ger
+differing batches                        966
+differing batches as expected            966
+frames                                   483
+frames with differing batches            483
+offsets of the copies: {(0, 5, 0): 966}
+== XS off (v30o) against gl29, both sets
+out.bin identical
+gerl/v30o/outw.bin
+outw.bin identical

@@ -1,0 +1,66 @@
+# total 2059378688 imiss 13303086 dmiss 8742388 dacc 677131493 fa_imiss 0
+per step (100 steps): 20.59 M instructions, 133.0 k I-miss, 87.4 k D-miss; estimate 144.6 ms at 333 MHz (instructions alone 61.8 ms)
+
+by group:
+  game code (ELF)               9.47 M instr   58.4 k imiss   33.0 k dmiss   62.73 ms  43.4%
+  other runtime                 4.53 M instr   51.4 k imiss   32.2 k dmiss   44.98 ms  31.1%
+  game code (stage)             2.81 M instr   19.2 k imiss   11.0 k dmiss   19.78 ms  13.7%
+  DMA / GS walk                 3.24 M instr    0.7 k imiss    7.0 k dmiss   12.57 ms   8.7%
+  kernel / poll / syscalls      0.14 M instr    1.9 k imiss    1.4 k dmiss    1.69 ms   1.2%
+  VU0 / VIF0 model              0.25 M instr    0.4 k imiss    1.2 k dmiss    1.34 ms   0.9%
+  libc / libgcc                 0.11 M instr    0.5 k imiss    0.8 k dmiss    0.84 ms   0.6%
+  IOP / SIF / sound             0.04 M instr    0.6 k imiss    0.8 k dmiss    0.67 ms   0.5%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+vup_8baafbc3_0.isra.0                  1494.9   20.89    0.59   12.55   8.7%
+io_flush                               1415.7    3.87   17.68   12.34   8.5%
+P12dbc0                                3099.4    1.16    4.19   11.32   7.8%
+P11fa58                                 673.2   12.09    2.25    7.40   5.1%
+P1214a0                                1012.2    0.32    3.87    4.61   3.2%
+rt_idiom_qcopy                          247.0    0.43    8.86    4.23   2.9%
+vif1_word                              1397.9    0.03    0.03    4.22   2.9%
+dma_feed                                649.3    0.24    4.35    3.67   2.5%
+dma_vif1_block                          678.3    0.06    1.38    2.58   1.8%
+P13bf78                                 267.6    2.79    1.78    2.52   1.7%
+P12dc90                                 363.7    1.77    1.89    2.47   1.7%
+S_w00a_P333380                          629.4    0.22    0.79    2.27   1.6%
+P120538                                 154.9    3.96    0.63    2.19   1.5%
+vup_8baafbc3_6.isra.0                   113.2    4.90    0.02    2.19   1.5%
+vuc_dispatch                            109.8    4.83    0.06    2.17   1.5%
+P120860                                 378.9    0.55    2.09    2.13   1.5%
+P11fde8                                  74.2    4.63    0.41    2.11   1.5%
+P11f968                                  96.1    4.45    0.24    2.05   1.4%
+dma_run.isra.0                          430.3    0.19    1.16    1.80   1.2%
+vup_33268338_0.isra.0                   256.9    1.89    0.49    1.67   1.2%
+P121c30                                 268.3    0.35    1.68    1.57   1.1%
+S_w00a_P3b89e0                          220.2    1.01    0.75    1.32   0.9%
+S_w00a_P31af28                          278.9    0.20    0.47    1.09   0.8%
+vup_43da1f40_0.isra.0                    47.9    2.07    0.43    1.08   0.7%
+P12e8b8                                 229.9    0.13    0.88    1.07   0.7%
+
+most called (calls per step):
+  vif1_word                                43638
+  dma_run.isra.0                           15541
+  gen_mm                                   10008
+  memcpy                                    2908
+  rt_store                                  2882
+  rt_st32                                   2872
+  __fpclassifyf                             2453
+  vuc_entry                                 1565
+  vuc_dispatch                              1565
+  vu_run_shared                             1521
+  gif_qw                                    1345
+  P165de0                                   1249
+  vup_8baafbc3_0.isra.0                     1038
+  enter_block                                890
+  rt_mm                                      885
+  VLQC2                                      740
+  fminf                                      677
+  WRF                                        625
+  rt_idiom_qcopy                             601
+  fmaxf                                      549
+  P165f60                                    532
+  P11f968                                    504
+  VSQC2                                      499
+  P12d910                                    484
+  P12dbc0                                    484

@@ -1,0 +1,17 @@
+#!/bin/sh
+# mk.sh <out dir> [ge flags]: (sb15: sb14 + Stage C step 4, the sprites, quads and streaks behind OPT2_C4 512, task #152) the x86 twin (as codec68/build_xlive_ge.sh, GU=lean, v31's game objects) from this private tree:
+# runtime/ee_io.h ahead of the shared runtime, boot/xlive_chk.c and ge/ from here.  sb14: sb13 + Stage C step 3's exact trims 3v (df0 in two passes) and 3z (its depth range by the box), g_opt2 64 and 128, MGS2_C3_CHK (task #144).  sb13: sb12 + the census of the rooms' meshes (ge/c3model.c, task #144).  sb12: sb11 + C2 for the people, the x86 census and GE model (ge/c2model.c, task #140).  sb11: sb10 + C1 for the faces, the x86 census and GE model (ge/c1model.c, task #134).  sb10: sb9 + Stage C step 1 (stagec_notes.md, task #133).  sb9: sb8 + Stage C step 0 (stagec_notes.md, task #128):
+# boot/boot.c from here too (g_opt2), rebuilt when it or runtime/host_time.h is newer than boot_rt.o.  sb6: sb5 + lane 3 (the effects, P12d910's sort-pass prims; renderer_notes 11.33, task #118).  sb5: sb4 + lane 4 (the codec faces, P07; renderer_notes 11.32, task #117).  sb4: sb3 (gl9's Stage B lanes and the exact trims, renderer_notes 11.28) + step c (11.29, task #112) + the thinned rain and splash (task #114, ge/fxthin.c).
+O=$1; shift; T=/home/claude/sbr; R=/home/claude/v31/x86; VP=/home/claude/psp/vp22; MG=/mnt/project-files/mgs2
+CF="-O1 -g0 -w -I$T/runtime -I$MG/runtime -I$MG/boot -fwrapv -fno-strict-aliasing -DGEN_MM_FAST -DGUEST_SPR0"
+mkdir -p $O && cd $O || exit 1
+for o in gen gen_dispatch gen_s_d00t gen_s_d01t gen_s_init gen_s_n_title gen_s_r_title gen_s_r_tnk0 gen_s_w00a gen_s_w01a iop_main iop_rt iop_rt_libs iop_rt_ucontext jsifman cdbios spu2_lite; do
+  ln -sf $R/$o.o $o.o; done
+if [ ! -f boot_rt.o ] || [ $T/runtime/ee_io.h -nt boot_rt.o ] || [ $T/boot/boot.c -nt boot_rt.o ] || [ $T/runtime/host_time.h -nt boot_rt.o ]; then
+gcc $CF -DMGS2_XLIVE "-DMGS2_GEN_VU=\"$VP/gen_vu.h\"" -DVP_FAST -DVP_VFPU -I$MG/third_party/ps2rc/ps2rc/iop/rt -I$MG/third_party/ps2rc/audio -DGUEST_SPLIT_RT -c $T/boot/boot.c -o boot_rt.o || exit 1; fi
+GF="-O2 -g0 -ffp-contract=off -Wall -Wextra -Wno-missing-field-initializers -DGU_SENT -DXL_CENSUS $*"
+for f in xlive xlate gsfront xldig texconv texcache gelive gebatch xconv vu1conv gelist fxthin c1model c2model c3model; do gcc $GF -c $T/ge/$f.c -o ge_$f.o || exit 1; done
+gcc $GF -c $T/ge/gsup2.c -o ge_gsup.o || exit 1
+gcc -O2 -g0 -Wall -Wextra -DGU_SENT -c $T/boot/xlive_chk.c -o xlive_chk.o || exit 1
+gcc -o boot boot_rt.o gen.o gen_dispatch.o gen_s_d00t.o gen_s_d01t.o gen_s_init.o gen_s_n_title.o gen_s_r_title.o gen_s_r_tnk0.o gen_s_w00a.o gen_s_w01a.o iop_main.o iop_rt.o iop_rt_libs.o iop_rt_ucontext.o jsifman.o cdbios.o spu2_lite.o xlive_chk.o ge_xlive.o ge_xlate.o ge_gsfront.o ge_gsup.o ge_xldig.o ge_texconv.o ge_texcache.o ge_gelive.o ge_gebatch.o ge_xconv.o ge_vu1conv.o ge_gelist.o ge_fxthin.o ge_c1model.o ge_c2model.o ge_c3model.o -lm || exit 1
+echo built $O

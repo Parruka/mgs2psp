@@ -1,0 +1,27 @@
+psp.sh: profiles: boot_rt.gcda ge_fxthin.gcda ge_gebatch.gcda ge_gelist.gcda ge_gelive.gcda ge_gsfront.gcda ge_gsup2.gcda ge_texcache.gcda ge_texconv.gcda ge_vu1conv.gcda ge_xconv.gcda ge_xlate.gcda ge_xlive.gcda ge_xlme.gcda ge_xme.gcda gen.gcda gen_dispatch.gcda gen_s_w00a.gcda gen_s_w01a.gcda xl_psp.gcda 
+psp.sh: code order: layout_elf.ld layout_w00a.ld layout_w01a.ld 
+psp.sh: objects of /home/claude/main/build_gl30/stage reused
+xme_rest_chk: PASS
+make rc 0
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS
+undefined memcpy/memset/memcmp/malloc family left in the ME-safe objects:
+4315284	   7396	39820376	44143056	2a191d0	MGS2T.elf
+2377808 ovl_d00t.bin
+2460096 ovl_d01t.bin
+61216 ovl_init.bin
+465008 ovl_n_title.bin
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+4401856 ovl_w00a.bin
+3497168 ovl_w01a.bin
+9d2e688c5d4f7bf127a64a8d7cad0363  EBOOT.PBP
+3989459e7c1b3aa1a79c22e111d4d8a3  ovl_d00t.bin
+8310b32b1e6ef97d011405b2b8bb0b00  ovl_d01t.bin
+98d8db9a783f30e0f05a23a20f0e7e98  ovl_init.bin
+181e5ea3603945478aef2cbe715c1a3f  ovl_n_title.bin
+28239a87c260b032e093e5e675324a32  ovl_r_title.bin
+b9867759a1042e9c7d2a54d8639579ba  ovl_r_tnk0.bin
+8b0507bc065e5a22e7a2950c870c933e  ovl_w00a.bin
+e10b88587bc21b979366ba5afe746fed  ovl_w01a.bin
+psp.sh: done 4 s

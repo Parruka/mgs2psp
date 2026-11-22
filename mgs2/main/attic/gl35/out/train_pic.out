@@ -1,0 +1,21 @@
+pgo.sh: pic 1330 s
+1028 ge_fxthin.gcda
+2512 ge_gebatch.gcda
+9216 ge_gelist.gcda
+4500 ge_gelive.gcda
+1460 ge_gsfront.gcda
+15136 ge_gsup2.gcda
+5612 ge_texcache.gcda
+2856 ge_texconv.gcda
+8024 ge_vu1conv.gcda
+13732 ge_xconv.gcda
+10552 ge_xlate.gcda
+260 ge_xlive.gcda
+14788 ge_xlme.gcda
+3736 ge_xme.gcda
+1272 gen_dispatch.gcda
+18976 xl_psp.gcda
+pgo: counts zeroed at vb 15000
+pgo: profile written to ms0:/pgo at vb 37790 in 382 ms (see stderr for libgcov errors)
+/home/claude/main/build_gl35/pg/log_pic.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)

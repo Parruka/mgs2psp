@@ -1,0 +1,28 @@
+ELF 2.31 MB (969 functions, 2.31 used), w00a 6.27 MB (2275, 6.27 used): interpreted per step: tutorial      0, free play mean      0, max      0 (rand1)
+ELF 2.00 MB (726 functions, 2.00 used), w00a 4.20 MB (1152, 4.20 used): interpreted per step: tutorial      8, free play mean     22, max     83 (rand1)
+ELF 2.31 MB (969 functions, 2.31 used), w00a 4.20 MB (1152, 4.20 used): interpreted per step: tutorial      8, free play mean     21, max     76 (rand1)
+ELF 2.64 MB (972 functions, 2.31 used), w00a 4.20 MB (1152, 4.20 used): interpreted per step: tutorial      8, free play mean     21, max     76 (rand1)
+ELF 2.31 MB (969 functions, 2.31 used), w00a 3.50 MB (926, 3.50 used): interpreted per step: tutorial     95, free play mean    108, max    276 (rand1)
+ELF 2.31 MB (969 functions, 2.31 used), w00a 3.00 MB (803, 3.00 used): interpreted per step: tutorial    349, free play mean    427, max    803 (tour2)
+ELF 1.80 MB (621 functions, 1.80 used), w00a 3.50 MB (926, 3.50 used): interpreted per step: tutorial    106, free play mean    118, max    304 (rand1)
+ELF 1.50 MB (528 functions, 1.50 used), w00a 3.00 MB (803, 3.00 used): interpreted per step: tutorial    560, free play mean    566, max    991 (tour2)
+  tut    steps 1200: logic   923331 (ELF  281618, w00a  641713), draw pipeline  750553
+  idle   steps 2999: logic  1201932 (ELF  434510, w00a  767421), draw pipeline  839102
+  tour1  steps 2999: logic  1216646 (ELF  466319, w00a  750326), draw pipeline  770558
+  tour2  steps 2999: logic  1266700 (ELF  528110, w00a  738590), draw pipeline  823670
+  tour3  steps 2999: logic  1065772 (ELF  456184, w00a  609587), draw pipeline  700622
+  crawl  steps 2999: logic  1248153 (ELF  480550, w00a  767603), draw pipeline  779309
+  fpv    steps 2999: logic  1191627 (ELF  459199, w00a  732428), draw pipeline  727847
+  fire   steps 2999: logic  1219871 (ELF  451222, w00a  768649), draw pipeline  822273
+  punch  steps 2999: logic  1224119 (ELF  465922, w00a  758196), draw pipeline  782188
+  menus  steps 2999: logic  1049340 (ELF  404580, w00a  644759), draw pipeline  770473
+  codec  steps 2999: logic   173482 (ELF   94137, w00a   79345), draw pipeline  300764
+  pause  steps 2999: logic   908223 (ELF  354828, w00a  553395), draw pipeline  753575
+  roll   steps 2999: logic  1194661 (ELF  461522, w00a  733139), draw pipeline  756947
+  rand1  steps 2999: logic   938343 (ELF  354594, w00a  583750), draw pipeline  606950
+  rand2  steps 2999: logic  1200350 (ELF  453603, w00a  746746), draw pipeline  766994
+  rand3  steps 2999: logic  1209008 (ELF  459160, w00a  749848), draw pipeline  817198
+  rand4  steps 2999: logic  1201437 (ELF  452527, w00a  748911), draw pipeline  790825
+  rand5  steps 5999: logic  1129690 (ELF  462144, w00a  667546), draw pipeline  728083
+  rand6  steps 5999: logic  1235286 (ELF  491180, w00a  744106), draw pipeline  755462
+  death  steps 5999: logic   983699 (ELF  397726, w00a  585973), draw pipeline  658616

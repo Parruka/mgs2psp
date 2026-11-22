@@ -1,0 +1,5 @@
+pgo.sh: g35kc1 225 s
+g35kc1: # total 689393664 imiss 3326904 dmiss 5095305 dacc 222665144 fa_imiss 3533774 cde 154000 pref 0 cinv 0 dskip 0 dst 1825408 dwb 2496494
+g35kc1.1: # total 617746432 imiss 3126239 dmiss 4466051 dacc 194168436 fa_imiss 3218745 cde 154000 pref 0 cinv 0 dskip 0 dst 1596454 dwb 2328335
+/home/claude/main/build_gl35/model/log_g35kc1.txt: 32 hash lines, 0 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 32 reference lines (0 with vuh): 0 differ; 653 reference lines not in the log (first 100, last 37800)

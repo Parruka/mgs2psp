@@ -1,0 +1,70 @@
+# total 63912905 imiss 855623 dmiss 311119 dacc 24412559 fa_imiss 0
+per step (100 steps): 0.64 M instructions, 8.6 k I-miss, 3.1 k D-miss; estimate 6.3 ms at 333 MHz (instructions alone 1.9 ms)
+
+by group:
+  game code (ELF)               0.32 M instr    4.9 k imiss    1.7 k dmiss    3.42 ms  54.4%
+  other runtime                 0.18 M instr    1.5 k imiss    0.4 k dmiss    1.28 ms  20.3%
+  game code (stage)             0.08 M instr    1.9 k imiss    0.6 k dmiss    1.19 ms  18.8%
+  DMA / GS walk                 0.02 M instr    0.1 k imiss    0.3 k dmiss    0.19 ms   3.0%
+  VU0 / VIF0 model              0.03 M instr    0.0 k imiss    0.2 k dmiss    0.18 ms   2.9%
+  kernel / poll / syscalls      0.00 M instr    0.1 k imiss    0.0 k dmiss    0.03 ms   0.6%
+  libc / libgcc                 0.00 M instr    0.0 k imiss    0.0 k dmiss    0.01 ms   0.2%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+io_flush                                 49.7    0.20    0.21    0.30   4.8%
+vup_33268338_0.isra.0                    70.9    0.08    0.01    0.25   3.9%
+P14fe30                                   6.7    0.44    0.06    0.21   3.3%
+P14ecf8                                  31.5    0.09    0.19    0.20   3.2%
+P1451a0                                  25.8    0.02    0.23    0.17   2.7%
+P14b008                                  18.8    0.09    0.16    0.15   2.4%
+P14f820                                   5.1    0.32    0.04    0.15   2.4%
+dma_run.isra.0                           13.9    0.03    0.25    0.15   2.3%
+vup_43da1f40_0.isra.0                     5.9    0.28    0.04    0.14   2.2%
+vif0_mscal                               26.9    0.02    0.13    0.14   2.2%
+P14e530                                   8.2    0.27    0.02    0.13   2.1%
+S_w00a_P3bf860                           19.0    0.09    0.10    0.13   2.0%
+P152ef0                                  27.0    0.06    0.03    0.12   1.9%
+P14d860                                   4.2    0.22    0.05    0.11   1.8%
+S_w00a_P290ce0                            3.2    0.21    0.06    0.11   1.7%
+P166090                                   9.8    0.16    0.04    0.10   1.6%
+S_w00a_P3beee8                            7.3    0.12    0.06    0.09   1.5%
+vuc_dispatch                              8.4    0.13    0.03    0.09   1.4%
+P166258                                   5.6    0.18    0.00    0.08   1.3%
+S_w00a_P2e59b0                            2.7    0.17    0.03    0.08   1.3%
+P148628                                  10.1    0.11    0.02    0.08   1.3%
+P14a3b0                                   6.4    0.04    0.12    0.08   1.3%
+P1661b0                                   5.5    0.17    0.00    0.08   1.3%
+P14efb8                                   5.0    0.06    0.11    0.08   1.3%
+P1499f8                                  12.8    0.03    0.07    0.07   1.2%
+P166108                                   4.8    0.15    0.00    0.07   1.1%
+P106d70                                   2.0    0.14    0.04    0.07   1.1%
+gen_mm                                   19.8    0.02    0.00    0.07   1.1%
+P126f58                                   4.3    0.07    0.05    0.06   0.9%
+P165d78                                  15.2    0.03    0.00    0.06   0.9%
+
+most called (calls per step):
+  gen_mm                                    2827
+  P1451a0                                    236
+  VLQC2                                      164
+  WRF                                        162
+  P152ef0                                    152
+  VSQC2                                       97
+  P11cd68                                     84
+  vuc_dispatch                                71
+  vuc_entry                                   71
+  rt_mm                                       69
+  S_w00a_P3bec20                              63
+  S_w00a_P3bebf0                              63
+  vu_run_shared                               63
+  vup_33268338_0.isra.0                       63
+  S_w00a_P294bd8                              50
+  dma_vif0_qw                                 46
+  dma_run.isra.0                              42
+  S_w00a_P294c20                              37
+  VQMTC2                                      31
+  GSDR                                        30
+  GSDL                                        30
+  GLDR                                        30
+  GLDL                                        30
+  P11c828                                     29
+  P141e28                                     25

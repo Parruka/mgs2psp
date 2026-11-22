@@ -1,0 +1,56 @@
+MGS2T_v26, PspProf cost model of free play (2026-10-23; speed_notes §45, psp_harness.md "Build v26")
+ms per step = (1.4 x instructions + 70 x (I-misses + D-misses)) / 333,000, per step, as since v16. v25f's four windows of 100 steps,
+everything on, MGS2_HASH_EVERY=500, PPSSPP_VFPU_RN=1; the harness's state hash at vb 33000 taken off the crawl window as in v25f.
+Dumps: container /home/claude/v26/model2/mf, mf.1-3 (model.sh, cfg_mf.txt, log_mf.txt); link map of the delivered build
+(/home/claude/v26me/b26/base/MGS2T.map = v26 d's). v25f's figures: prof/model_v25f_free.txt.
+
+1. Windows (v25f in brackets)
+  window                 steps         instr              I-miss          D-miss          ms
+  free: walk the deck    31501-31600   12.082 M (12.225)  75.4 k (93.2)   69.9 k (68.4)   81.34 (85.36)   -4.02
+  free: crawl            32901-33000   12.416 M (12.526)  80.8 k (98.3)   69.9 k (68.2)   83.87 (87.66)   -3.79
+  free: first person     33801-33900   11.763 M (11.660)  77.2 k (94.2)   67.4 k (63.8)   79.84 (82.24)   -2.40
+  free: alert            35501-35600   12.474 M (12.407)  80.4 k (97.8)   71.9 k (68.4)   84.45 (87.10)   -2.65
+  mean                                                                                    82.38 (85.59)   -3.21 (-3.8%)
+  I-misses -18 to -19% in every window, D-misses +2 to +6%, instructions -1.2 to +0.9%.
+  PSP, with v25f's ratios for the same steps (speed_notes §44: 1.0678 / 1.0638 / 1.0647 / 1.0591): 86.9 / 89.2 / 85.0 / 89.4 ms [I].
+  The whole timed run (v25f 92.42 on the PSP) about 92.42 x 82.38 / 85.59 = 89.0 ms per step [I].
+
+2. Exactness of the windows. The profiled windows run in PPSSPP's interpreter (PSPPROF_SWITCH), the rest in the JIT. Against the PC
+  reference: ee 63 / 71, iop 66 / 71, vfb 71 / 71; first ee difference at vb 32000 (2add5aa583016da8, reference bb9b4751e520927f),
+  first iop difference at vb 33500. v25f's model run also differs from vb 32000 on (ee 63 / 71, iop 71 / 71), with other values
+  (vb 32000 ee 67093ede389c91bc). The walk window starts from the exact state (vb 31500 equal) and the JIT runs are exact on every
+  hash (prof/emu_v26), so the difference comes from the interpreted window or the switch into it: some instruction the interpreter
+  runs gives another result than the JIT and the PSP, and v26's code is not v25f's, so it lands elsewhere. The crawl, first-person
+  and alert windows therefore run on a slightly different state in each build; the walk window is the clean comparison (-4.02 ms).
+  Not found yet (the interpreter already has the add/sub, FCR31 and VecDo3 rules: tools/ppsspp_mgs2.diff).
+
+3. By code region, walk window (ms per step)
+  region                       v26                                  v25f
+  game ELF code (gen.o)        4.784 M  32.1 k I  30.8 k D  33.33   4.802 M  34.5 k I  30.3 k D  33.81
+  runtime (boot_rt.o)          3.937 M  14.1 k I  17.6 k D  23.21   3.988 M  12.8 k I  17.0 k D  23.01
+  stage w00a (one part now)    2.493 M  24.6 k I  13.5 k D  18.49   2.552 M  40.1 k I  13.3 k D  21.95  (reduced + extra part)
+  dispatch (gen_dispatch.o)    0.389 M   1.1 k I   2.4 k D   2.37   0.389 M   1.2 k I   2.3 k D   2.38
+  IOP + sound                  0.242 M   2.2 k I   2.5 k D   2.01   0.242 M   2.3 k I   2.5 k D   2.02
+  libraries                    0.222 M   0.8 k I   2.8 k D   1.70   0.229 M   1.2 k I   2.7 k D   1.80
+  harness (v25f: + hook)       0.015 M   0.5 k I   0.2 k D   0.23   0.022 M   1.0 k I   0.4 k D   0.39
+  The other windows: game ELF code 31.1-34.0, runtime 24.9-26.4 (v25f 24.4-25.8), stage 17.5-17.7 ms.
+
+4. The call path into the stage, walk window, per step (the other three windows: 1.01 / 1.00 / 0.98 ms)
+  function            v26: instr  I-miss  D-miss  ms        v25f: instr  I-miss  D-miss  ms
+  gen_jalr                29,756     426     564  0.33            30,317     516     588  0.36
+  guest_call              41,002     297     367  0.31            40,424     415     247  0.31
+  gen_call                 1,107      57       8  0.02            19,081     856      14  0.26
+  stage_ovl_call           9,000     312      86  0.12             7,719     284      43  0.10
+  S_w00a_call             11,682     234     461  0.20            72,245  12,725       0  2.98
+  __wrap_rt_missing            -                                   7,585     493     193  0.18
+  strcmp                   3,118      51      11  0.03             9,551     351     119  0.14
+  total                                           1.01                                    4.33
+  S_w00a_call is now the table lookup (the cache in the overlay's bss: its D-misses); gen_call is no longer searched for stage
+  addresses, the overlay's name is no longer compared, and the hook is gone (free play's functions are compiled in).
+  Of the walk window's -4.02 ms: the path -3.32 (instructions -91 k, I-misses -14.3 k, D-misses +0.3 k per step); the rest of the
+  code -0.71 (instructions -52 k, I-misses -3.5 k = -4.6%, D-misses +1.2 k).
+
+5. The code order against layout_sim. layout_sim gave the new order -37% simulated I-misses against build c (v26's program and
+  profiles with v24's order). Build c in the model, walk window (/home/claude/v26/model_c/mc): 12.052 M instr, 111.1 k I-miss,
+  69.7 k D-miss = 88.67 ms per step (call path 1.09 ms). So the order cut I-misses by 32% in the model (111.1 -> 75.4 k): the sim's
+  estimate holds; c itself misses more than v25f (111.1 k against 93.2 k), and the order more than makes that up.

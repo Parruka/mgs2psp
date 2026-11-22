@@ -1,0 +1,134 @@
+--- sb17/ge/gelive.c	2026-11-03 14:07:39.337519882 +0000
++++ sb17k/ge/gelive.c	2026-11-03 16:50:12.255436926 +0000
+@@ -10,6 +10,11 @@
+ #include "vu1conv.h"
+ #include "gelist.h"
+ #include "fxthin.h"   /* task #114 */
++#ifdef FX_BUCKET
++#include "fxbk.h"
++extern volatile uint32_t g_emuactor;
++static uint32_t bk_held[GL_HOLD];
++#endif
+ 
+ static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
+ {
+@@ -303,7 +308,7 @@
+     if (r->line && src - r->lo < r->hi - r->lo && (!r->keep || (r->kcall > 1 && (src - r->lo) / FX_STREAK_BLOCK % (uint32_t)r->kcall))) return 1; }
+   return 0;
+ }
+-void gl_call(GlFrame *f, const XlCall *c)
++static void gl_call_in(GlFrame *f, const XlCall *c)
+ {
+   f->lit_ok = 0; f->held_cur = -1; f->held_gone = 0;
+   if ((!gl_conv_entry(c->entry) && !(f->h.c4 && gl_c4_entry(c->entry))) || c->cont) { f->n.other++; return; }   /* (sb15: step 4's) */
+@@ -326,6 +331,9 @@
+     uint32_t left = gb_left(&f->o), need = (bound + 63) & ~63u;
+     if (left >= f->pend && left - f->pend >= need && (!f->o.fixed || f->o.nb + 1 + npd <= f->o.cap_b)) {
+       XcHeld *r = &f->held[f->nheld];
++#ifdef FX_BUCKET
++      bk_held[f->nheld] = g_emuactor;   /* task #160: the held call counts under its own key when it runs */
++#endif
+       xc_hold(c, &f->h, r);
+       r->slot = gb_slot(&f->o);
+       f->pend += need; f->held_cur = f->nheld++; f->held_n++; f->held7_n += c->rec->lane == 4;
+@@ -361,8 +369,31 @@
+   f->n.conv++;
+   if (b.kind == GERK_LIT) { f->lit_ok = 1; f->lit_base = f->o.room; f->n.lit_calls++; }
+ }
++/* task #160 (measurement builds, -DFX_BUCKET): each converter call counts under its kind and owner (ge/fxbk.h), the owner look-up under
++   0xfd000000; the profiler's bucket is g_emuactor */
++void gl_call(GlFrame *f, const XlCall *c)
++{
++#ifdef FX_BUCKET
++  if (!((!gl_conv_entry(c->entry) && !(f->h.c4 && gl_c4_entry(c->entry))) || c->cont)) {
++    const uint32_t o = g_emuactor, e = c->entry;
++    const int fx = e == XL_FX || e == XL_FX2 || e == VC_SPR || e == VC_QUAD || e == VC_LINE;
++    g_emuactor = 0xfd000000u; const uint32_t k = fxbk_key(f->ram, e, c->src, fx);
++    g_emuactor = k; gl_call_in(f, c); g_emuactor = o; return; }
++#endif
++  gl_call_in(f, c);
++}
++#ifdef FX_BUCKET
++static void gl_pass_in(GlFrame *f, const XlCall *c, int pass);
++#endif
+ void gl_pass(GlFrame *f, const XlCall *c, int pass)
+ {
++#ifdef FX_BUCKET
++  const uint32_t bko = g_emuactor; g_emuactor = fxbk_ekey(c->entry) | 0xfffeu;
++  gl_pass_in(f, c, pass); g_emuactor = bko;
++}
++static void gl_pass_in(GlFrame *f, const XlCall *c, int pass)
++{
++#endif
+   if (f->held_gone) { f->held_late++; return; }   /* sb4: a pass of a held call that has run (none expected) */
+   if (f->held_cur >= 0) {   /* sb4: a held call's pass: its look-up now, its batch slot where gb_xform_at would put it */
+     XcHeld *r = &f->held[f->held_cur];
+@@ -382,8 +413,14 @@
+ {
+   if (!f->nheld) return;
+   xc_held_begin();
++#ifdef FX_BUCKET
++  const uint32_t bko = g_emuactor;
++#endif
+   for (int i = 0; i < f->nheld; i++) {
+     const XcHeld *r = &f->held[i];
++#ifdef FX_BUCKET
++    g_emuactor = bk_held[i];
++#endif
+     uint32_t left = gb_left(&f->o), cap = left < GL_XCAP ? left : GL_XCAP, size = 0;
+     uint8_t *blob = gb_room(&f->o, cap);
+     GerBatch b;
+@@ -391,6 +428,9 @@
+     uint32_t base = f->o.room;
+     for (int k = 0; k < r->np; k++) { GerBatch pb; xc_held_pass(r, k, &pb, f->o.d + base); if (gb_fill_at(&f->o, r->pslot[k], &pb, base)) f->held_bad++; }
+   }
++#ifdef FX_BUCKET
++  g_emuactor = bko;
++#endif
+   xc_held_end();
+   f->nheld = 0; f->pend = 0;
+   if (f->held_cur >= 0) { f->held_cur = -1; f->held_gone = 1; }
+--- sb17/psp/main_psp.c	2026-11-03 13:06:59.739917847 +0000
++++ sb17k/psp/main_psp.c	2026-11-03 16:50:22.492067483 +0000
+@@ -177,8 +177,18 @@
+     if (g_prof_xl) { g_emuprof = top == HOST_XL || (g_prof_xl == 2 && top == HOST_GS) ? 1 : 2; return; }
+ #endif
+     g_emuprof = !g_prof_all && (top == HOST_DG || top == HOST_GS) ? 2 : 1; } }
+-void host_enter(int k) { uint64_t t = now(); if (reg_sp) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp < 16) reg_stk[reg_sp] = k; reg_sp++; reg_since = t; prof_mark(); }
+-void host_leave(int k) { uint64_t t = now(); (void)k; if (reg_sp > 0 && reg_sp <= 16) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp > 0) reg_sp--; reg_since = t; prof_mark(); }
++#ifdef HOST_BUCKET
++/* task #160 (measurement builds): a timed region counts in the emulator profiler's bucket g_emuactor as 0xff000000 | k << 16 while it
++   runs (the key before it comes back at its end); the actors' act functions (GEN_ACTOR_PROF) and the picture's calls (ge/fxbk.h) nest */
++static uint32_t hb_stk[16]; static int hb_sp;
++#define HB_ENTER(k) do { if (hb_sp < 16) hb_stk[hb_sp] = g_emuactor; hb_sp++; g_emuactor = 0xff000000u | ((uint32_t)(k) << 16); } while (0)
++#define HB_LEAVE() do { if (hb_sp > 0) { hb_sp--; if (hb_sp < 16) g_emuactor = hb_stk[hb_sp]; } } while (0)
++#else
++#define HB_ENTER(k) ((void)0)
++#define HB_LEAVE() ((void)0)
++#endif
++void host_enter(int k) { uint64_t t = now(); if (reg_sp) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp < 16) reg_stk[reg_sp] = k; reg_sp++; reg_since = t; prof_mark(); HB_ENTER(k); }
++void host_leave(int k) { uint64_t t = now(); (void)k; if (reg_sp > 0 && reg_sp <= 16) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp > 0) reg_sp--; reg_since = t; prof_mark(); HB_LEAVE(); }
+ static long g_deck_from = 24000, g_win = 100;
+ #if defined(MGS2_GL)
+ typedef struct { long n, over20, over40; uint64_t sum, max, iop, gs, dg, xl, gl, gw; } Win;
+--- sb17/psp/xl_psp.c	2026-11-03 14:07:39.340037884 +0000
++++ sb17k/psp/xl_psp.c	2026-11-03 16:50:35.785124843 +0000
+@@ -47,6 +47,9 @@
+ #include "../ge/gelive.h"
+ #include "../ge/gelist.h"
+ #include "../ge/fxthin.h"   /* task #114 */
++#ifdef FX_BUCKET
++#include "../ge/fxbk.h"   /* task #160 */
++#endif
+ #endif
+ 
+ #define XL_GSZ (32u << 20)                /* guest RAM (runtime GUEST_SIZE) */
+@@ -466,5 +469,8 @@
+         fprintf(f, "picture: thinned streaks (1 in %d, calls 1 in %d): actors %ld; their tables' blocks %ld, entries 0 %ld, blocks not right %ld; ranges %ld; "
+                 "calls thinned %ld, their strips %ld, left out %ld (%ld segments); calls left out whole %ld\n", t->keep[2], t->keep_calls, t->found[2], t->tab_blocks, t->tab_empty,
+                 t->tab_bad, t->tab_ranges, x->thin_lcalls, x->thin_lstrips, x->thin_ldrop, x->thin_lseg, t->line_none); } }
++#ifdef FX_BUCKET
++    fxbk_print(f, M.mem);   /* task #160 */
++#endif
+ #endif
+ }

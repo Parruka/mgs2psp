@@ -1,0 +1,15 @@
+gl30X model/m30x: gelist functions 27 found in the ELF (not found or not unique: [])
+gl30X window total: # total 1926909952 imiss 14723481 dmiss 11319532 dacc 482353176 fa_imiss 11017419 cde 941821 pref 0 cinv 0 dskip 0 dst 3150485 dwb 5452542
+gl30X gelist: instructions 145685049, I-misses 820831, D-misses 408828 = 995.06 ms in the window, 24.877 ms a frame over 40 frames [C model]
+   gx_batch       instr  52798088  I-miss  283094  D-miss  272627  9.746 ms/frame
+   put_sym        instr  23302280  I-miss     200  D-miss   11941  2.965 ms/frame
+   put            instr  19071502  I-miss   94779  D-miss   17429  2.959 ms/frame
+   texture        instr  17379207  I-miss   88709  D-miss   21943  2.747 ms/frame
+   xf_rest        instr   5853291  I-miss  190562  D-miss    8647  1.754 ms/frame
+   xf_setup       instr  10492745  I-miss   20986  D-miss   20184  1.537 ms/frame
+   addr_cmd       instr   3510038  I-miss  128036  D-miss    1571  1.099 ms/frame
+   blend          instr   5237536  I-miss    2049  D-miss    3601  0.683 ms/frame
+   xf_draw        instr   1955256  I-miss     280  D-miss   25741  0.410 ms/frame
+   cut_draw       instr   1863360  I-miss    1080  D-miss   18882  0.358 ms/frame
+   dz_sortk       instr   1416612  I-miss     160  D-miss     208  0.178 ms/frame
+   gx_frame       instr    803102  I-miss    1000  D-miss    3977  0.130 ms/frame

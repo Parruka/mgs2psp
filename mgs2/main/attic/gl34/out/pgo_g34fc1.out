@@ -1,0 +1,5 @@
+pgo.sh: g34fc1 226 s
+g34fc1: # total 685473792 imiss 3762051 dmiss 5032089 dacc 221349611 fa_imiss 3465927 cde 154000 pref 0 cinv 0 dskip 0 dst 1828543 dwb 2520461
+g34fc1.1: # total 614551552 imiss 3572825 dmiss 4114775 dacc 193114129 fa_imiss 3220831 cde 154000 pref 0 cinv 0 dskip 0 dst 1456793 dwb 2112147
+/home/claude/main/build_gl34/model/log_g34fc1.txt: 32 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 32 reference lines (0 with vuh): 0 differ; 653 reference lines not in the log (first 100, last 37800)

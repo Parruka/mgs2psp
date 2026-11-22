@@ -1,0 +1,5 @@
+twin.sh: needp rc 0, 235 s; split lines: 0
+out_needp.log: 685 hash lines, 311 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log
+wrote hashref_needp.txt
+twin.sh: hashref_needp.txt equals hashref_gl35.txt byte for byte

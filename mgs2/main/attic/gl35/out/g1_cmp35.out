@@ -1,0 +1,179 @@
+=== f against k
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against kc
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against k1
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against k2
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against k4
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against k8
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== f against fk
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 2
+16084c16084
+< nat: gl34 fast native front end: MGS2_NAT_FAST 1, MGS2_NAT_FAST_CYCLE none (1: arm 3's groups go to the translator's fast front end; by the same turns)
+---
+> nat: gl34 fast native front end: MGS2_NAT_FAST 0, MGS2_NAT_FAST_CYCLE 1,1,0,0 (1: arm 3's groups go to the translator's fast front end; by the same turns)
+=== f against needk
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 3
+163932a163933
+> sb need: 1031255 converter calls, 5781 descriptors decoded for them; checked 0, differing 0
+163936c163937
+< xlive lazy: 54501170 UNPACKs (1643075844 vectors) left to decode later; quadwords decoded later: 825166 when read, 0 before an UNPACK wrote over them, 21397325 at 85645 flushes (1070 for a full tabl
+---
+> xlive lazy: 54501170 UNPACKs (1643075844 vectors) left to decode later; quadwords decoded later: 825166 when read, 0 before an UNPACK wrote over them, 21374357 at 85578 flushes (1072 for a full tabl
+=== needp against needk
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== lw2p against lw2k
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== dxp against dx
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== dxp against dx2
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14364; arm 15: 0 of 3233; first picture of a turn: 0 of 67
+alllines: lines differing (but the keeps' own lines, natst and times) 0
+=== /home/claude/main/build_gl34/tw/x86/out_dx2 against dx
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14303; arm 15: 0 of 3293; first picture of a turn: 0 of 68
+alllines: lines differing (but the keeps' own lines, natst and times) 4
+632c632
+< split: 685 reference hashes from /home/claude/main/build_gl34/cfg/hashref_gl34.txt
+---
+> split: 685 reference hashes from /home/claude/main/build_gl35/cfg/hashref_gl35.txt
+16084c16084
+< nat: gl34 fast native front end: MGS2_NAT_FAST 0, MGS2_NAT_FAST_CYCLE 0,0,1,1 (1: arm 3's groups go to the translator's fast front end; by the same turns)
+=== the keeps' totals and the fast totals by run
+f:  groups flagged 0; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+f:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 1461744, DIFFERING 0
+k:  groups flagged 2233651; drawn areas replayed 1894537, checked 0, DIFFERING 0; textures replayed 2323237, checked 0, DIFFERING 0, records 804840; CLUT calls not made 1921823, PRIM writes in line 0
+k:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+kc:  groups flagged 2233651; drawn areas replayed 0, checked 1894537, DIFFERING 0; textures replayed 0, checked 2323237, DIFFERING 0, records 804840; CLUT calls not made 1921823, PRIM writes in line 0
+kc:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+k1:  groups flagged 2233651; drawn areas replayed 1894537, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+k1:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+k2:  groups flagged 2233651; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 1921823, PRIM writes in line 0
+k2:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+k4:  groups flagged 2233651; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 36522, checked 0, DIFFERING 0, records 139819; CLUT calls not made 0, PRIM writes in line 0
+k4:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+k8:  groups flagged 2233651; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 2323237, checked 0, DIFFERING 0, records 804840; CLUT calls not made 0, PRIM writes in line 0
+k8:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+fk:  groups flagged 1017822; drawn areas replayed 856788, checked 0, DIFFERING 0; textures replayed 2323237, checked 0, DIFFERING 0, records 804840; CLUT calls not made 869642, PRIM writes in line 0
+fk:  groups flagged 1017822; taken 869642, declined 0 144996 0 0 0 3 0; transforms taken 738808, kept 97012, checked 0, DIFFERING 0
+dx:  groups flagged 1017822; drawn areas replayed 856788, checked 0, DIFFERING 0; textures replayed 1486293, checked 0, DIFFERING 0, records 459374; CLUT calls not made 869642, PRIM writes in line 0
+dx:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+dx2:  groups flagged 1215829; drawn areas replayed 1037749, checked 0, DIFFERING 0; textures replayed 836944, checked 0, DIFFERING 0, records 345466; CLUT calls not made 1052181, PRIM writes in line 0
+dx2:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+dxp:  groups flagged 0; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+dxp:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+lw2p:  groups flagged 0; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+lw2p:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+lw2k:  groups flagged 2233651; drawn areas replayed 1894537, checked 0, DIFFERING 0; textures replayed 2323237, checked 0, DIFFERING 0, records 804840; CLUT calls not made 1921823, PRIM writes in line 0
+lw2k:  groups flagged 2233651; taken 1921823, declined 0 307211 0 0 0 103 0; transforms taken 1464252, kept 194147, checked 0, DIFFERING 0
+needp:  groups flagged 0; drawn areas replayed 0, checked 0, DIFFERING 0; textures replayed 0, checked 0, DIFFERING 0, records 0; CLUT calls not made 0, PRIM writes in line 0
+needp:  groups flagged 2233651; taken 1921822, declined 0 307211 0 0 0 104 0; transforms taken 1464225, kept 194147, checked 0, DIFFERING 0
+needk:  groups flagged 2233651; drawn areas replayed 1894535, checked 0, DIFFERING 0; textures replayed 2323237, checked 0, DIFFERING 0, records 804840; CLUT calls not made 1921822, PRIM writes in line 0
+needk:  groups flagged 2233651; taken 1921822, declined 0 307211 0 0 0 104 0; transforms taken 1464225, kept 194147, checked 0, DIFFERING 0
+g31k:  groups flagged 1215829; drawn areas replayed 1037749, checked 0, DIFFERING 0; textures replayed 2297950, checked 0, DIFFERING 0, records 798269; CLUT calls not made 1052181, PRIM writes in line 0
+g31k:  groups flagged 1215829; taken 1052181, declined 0 162215 0 0 0 100 0; transforms taken 725444, kept 97135, checked 0, DIFFERING 0

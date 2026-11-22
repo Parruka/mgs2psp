@@ -1,0 +1,10 @@
+pgo.sh: g35p 937 s
+g35p: # total 1854660608 imiss 8533545 dmiss 12324163 dacc 482019704 fa_imiss 9792615 cde 793814 pref 0 cinv 0 dskip 0 dst 3782954 dwb 5944003
+g35p.1: # total 1678053376 imiss 7907669 dmiss 10350447 dacc 423193398 fa_imiss 9091196 cde 793094 pref 0 cinv 0 dskip 0 dst 2887986 dwb 5032439
+g35p.2: # total 1817677824 imiss 7900300 dmiss 11813479 dacc 463376562 fa_imiss 8184868 cde 671551 pref 0 cinv 0 dskip 0 dst 3645946 dwb 5594031
+g35p.3: # total 1572683776 imiss 6848916 dmiss 9447781 dacc 385455980 fa_imiss 7259327 cde 622110 pref 0 cinv 0 dskip 0 dst 2639941 dwb 4528457
+/home/claude/main/build_gl35/model/log_g35p.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 62 reference lines (0 with vuh): 3 differ; 623 reference lines not in the log (first 100, last 37800)
+  vb 30000: ee 2f667c7d1b5a98a2 (ref 64892c084c8807d7)
+  vb 30500: ee 8ffbe74a2c9e4288 (ref 251627c7a663a167)
+  vb 31000: ee 2e8d8a3b8ea397b9 (ref 8b46ec034d2ee932)

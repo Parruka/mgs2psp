@@ -1,0 +1,15 @@
+gl30O model/m30o: gelist functions 27 found in the ELF (not found or not unique: [])
+gl30O window total: # total 1914527744 imiss 14623879 dmiss 11181598 dacc 478865397 fa_imiss 10991309 cde 941821 pref 0 cinv 0 dskip 0 dst 3137866 dwb 5434399
+gl30O gelist: instructions 136142024, I-misses 752967, D-misses 290593 = 903.38 ms in the window, 22.585 ms a frame over 40 frames [C model]
+   gx_batch       instr  46648299  I-miss  253270  D-miss  155172  8.073 ms/frame
+   put_sym        instr  23302280  I-miss     200  D-miss   11813  2.964 ms/frame
+   put            instr  19041680  I-miss   90431  D-miss   17604  2.934 ms/frame
+   texture        instr  17379207  I-miss   81565  D-miss   21343  2.707 ms/frame
+   xf_rest        instr   5853247  I-miss  176601  D-miss    8604  1.682 ms/frame
+   xf_setup       instr  10492745  I-miss   19958  D-miss   20655  1.535 ms/frame
+   addr_cmd       instr   3508712  I-miss  127274  D-miss    1437  1.094 ms/frame
+   blend          instr   5237536  I-miss     680  D-miss    3541  0.675 ms/frame
+   xf_draw        instr   1947342  I-miss     280  D-miss   27197  0.418 ms/frame
+   cut_draw       instr   1863360  I-miss    1080  D-miss   18987  0.359 ms/frame
+   gx_frame       instr    803102  I-miss    1000  D-miss    3987  0.130 ms/frame
+   aux_get        instr     30400  I-miss     120  D-miss      34  0.005 ms/frame

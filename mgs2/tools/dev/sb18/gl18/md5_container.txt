@@ -1,0 +1,12 @@
+e4f4062c5e9436dc07c4a37b6f007599  EBOOT.PBP
+139d7ca2c09b4938acbc6f125c8efb07  README.txt
+7f877e6c2722768e336ff7bbe3a4a4aa  hashref.txt
+830778b964af39f42d818686014e8c02  mgs2.cfg
+c14eaeb50ed3d7ed2e830c66513c06f7  ovl_d00t.bin
+9645213b0e7127dcd315bdca931117e9  ovl_d01t.bin
+068b3e2b54f086411e20824d45b9ad90  ovl_init.bin
+7759cb619d5dc7eed0110451f533b007  ovl_n_title.bin
+4c61b3d539bbf660efd44a504e3178bd  ovl_r_title.bin
+ae01fa49b5e17a2bed6b272873b66437  ovl_r_tnk0.bin
+2705b24f5519dc968f32d4dc6bb1ce0a  ovl_w00a.bin
+46defd43a3b6f0e1550353bebc1c5c6d  ovl_w01a.bin

@@ -1,0 +1,53 @@
+# total 1956646912 imiss 8075541 dmiss 8441657 dacc 677058219 fa_imiss 0
+per step (100 steps): 19.57 M instructions, 80.8 k I-miss, 84.4 k D-miss; estimate 120.8 ms at 333 MHz (instructions alone 58.8 ms)
+
+by group:
+  game code (ELF)               8.41 M instr   35.4 k imiss   32.6 k dmiss   50.79 ms  42.1%
+  other runtime                 4.54 M instr   25.0 k imiss   30.6 k dmiss   34.52 ms  28.6%
+  game code (stage)             2.81 M instr   16.1 k imiss   10.1 k dmiss   18.30 ms  15.2%
+  DMA / GS walk                 3.25 M instr    0.6 k imiss    7.1 k dmiss   12.63 ms  10.5%
+  kernel / poll / syscalls      0.15 M instr    2.2 k imiss    1.2 k dmiss    1.71 ms   1.4%
+  VU0 / VIF0 model              0.25 M instr    0.2 k imiss    1.2 k dmiss    1.28 ms   1.1%
+  libc / libgcc                 0.11 M instr    0.7 k imiss    0.7 k dmiss    0.87 ms   0.7%
+  IOP / SIF / sound             0.04 M instr    0.5 k imiss    0.9 k dmiss    0.65 ms   0.5%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+io_flush                               1416.6    3.40   17.35   12.05  10.0%
+P12dbc0                                2194.9    0.03    4.10    8.14   6.7%
+vup_8baafbc3_0.isra.0                  1494.9    6.49    0.45    7.09   5.9%
+P11fa58                                 673.2    5.39    2.12    4.84   4.0%
+P1214a0                                1012.2    0.24    3.98    4.62   3.8%
+vif1_word                              1402.4    0.01    0.07    4.24   3.5%
+rt_idiom_qcopy                          247.1    0.22    8.30    3.94   3.3%
+dma_feed                                651.2    0.31    4.33    3.70   3.1%
+P120538                                 154.9    5.06    0.58    2.58   2.1%
+dma_vif1_block                          680.6    0.01    1.38    2.56   2.1%
+S_w00a_P333380                          629.9    0.16    0.70    2.21   1.8%
+P120860                                 364.1    0.50    2.22    2.11   1.8%
+
+most called (calls per step):
+  vif1_word                                43779
+  dma_run.isra.0                           15587
+  gen_mm                                   10043
+  memcpy                                    2909
+  rt_store                                  2883
+  rt_st32                                   2873
+  __fpclassifyf                             2453
+  vuc_dispatch                              1567
+  vuc_entry                                 1567
+  vu_run_shared                             1523
+  gif_qw                                    1357
+  P165de0                                   1249
+  vup_8baafbc3_0.isra.0                     1038
+  enter_block                                890
+  rt_mm                                      886
+  VLQC2                                      742
+  fminf                                      677
+  WRF                                        626
+  rt_idiom_qcopy                             601
+  fmaxf                                      549
+  P165f60                                    532
+  P11f968                                    504
+  VSQC2                                      498
+  P12d910                                    484
+  P12dbc0                                    484

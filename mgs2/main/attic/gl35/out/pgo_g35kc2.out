@@ -1,0 +1,6 @@
+pgo.sh: g35kc2 446 s
+g35kc2: # total 709177344 imiss 3340708 dmiss 5419682 dacc 225941195 fa_imiss 3427495 cde 154560 pref 0 cinv 0 dskip 0 dst 1948002 dwb 2613139
+g35kc2.1: # total 626184192 imiss 3130873 dmiss 4535768 dacc 192727453 fa_imiss 2604756 cde 154560 pref 0 cinv 0 dskip 0 dst 1525645 dwb 2298435
+/home/claude/main/build_gl35/model/log_g35kc2.txt: 55 hash lines, 0 vuh lines; reference /home/claude/main/build_gl35/cfg/hashref_gl35.txt: 685 lines
+compared 55 reference lines (0 with vuh): 1 differ; 630 reference lines not in the log (first 100, last 37800)
+  vb 27500: ee 061cf74c15960021 (ref 81b0fc828f605ad1)

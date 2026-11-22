@@ -1,0 +1,53 @@
+# total 666347709 imiss 4878668 dmiss 3645748 dacc 254851593 fa_imiss 0
+per step (100 steps): 6.66 M instructions, 48.8 k I-miss, 36.5 k D-miss; estimate 52.0 ms at 333 MHz (instructions alone 20.0 ms)
+
+by group:
+  game code (stage)             2.81 M instr   16.1 k imiss   10.1 k dmiss   18.30 ms  35.2%
+  game code (ELF)               1.97 M instr   18.5 k imiss    6.8 k dmiss   15.43 ms  29.7%
+  other runtime                 1.46 M instr   11.9 k imiss   15.4 k dmiss   14.64 ms  28.2%
+  VU0 / VIF0 model              0.21 M instr    0.1 k imiss    1.0 k dmiss    1.04 ms   2.0%
+  DMA / GS walk                 0.09 M instr    0.5 k imiss    1.2 k dmiss    0.87 ms   1.7%
+  kernel / poll / syscalls      0.05 M instr    0.6 k imiss    0.8 k dmiss    0.68 ms   1.3%
+  IOP / SIF / sound             0.04 M instr    0.5 k imiss    0.9 k dmiss    0.65 ms   1.3%
+  libc / libgcc                 0.03 M instr    0.4 k imiss    0.4 k dmiss    0.40 ms   0.8%
+
+function                               kinstr  kimiss  kdmiss      ms      %
+rt_idiom_qcopy                          247.1    0.22    8.30    3.94   7.6%
+io_flush                                357.5    1.09    3.14    2.66   5.1%
+S_w00a_P333380                          629.9    0.16    0.70    2.21   4.3%
+S_w00a_P3b89e0                          220.3    0.86    0.81    1.29   2.5%
+vup_33268338_0.isra.0                   259.3    0.93    0.12    1.17   2.3%
+S_w00a_P2ec188                           71.9    1.64    0.46    1.00   1.9%
+vup_43da1f40_0.isra.0                    47.9    1.98    0.30    1.00   1.9%
+S_w00a_P31af28                          279.0    0.20    0.19    0.99   1.9%
+P14d860                                  29.8    1.47    0.36    0.78   1.5%
+vif0_mscal                              139.2    0.11    0.66    0.71   1.4%
+S_w00a_P3bf860                           78.9    0.86    0.36    0.70   1.3%
+P125f18                                 142.5    0.49    0.21    0.69   1.3%
+
+most called (calls per step):
+  gen_mm                                    8382
+  P165de0                                   1249
+  enter_block                                890
+  VLQC2                                      630
+  rt_idiom_qcopy                             601
+  WRF                                        601
+  P165f60                                    532
+  P125f18                                    458
+  P11cd68                                    455
+  rt_mm                                      447
+  VSQC2                                      420
+  rt_cop0r                                   419
+  S_w00a_P33bd38                             326
+  vuc_dispatch                               296
+  vuc_entry                                  296
+  GSDR                                       271
+  GSDL                                       271
+  GLDL                                       271
+  GLDR                                       271
+  S_w00a_P33bd58                             266
+  strcmp                                     259
+  P1418b8                                    257
+  __fpclassifyf                              256
+  S_w00a_P3bec20                             252
+  S_w00a_P3bebf0                             252

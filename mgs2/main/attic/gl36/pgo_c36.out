@@ -1,0 +1,44 @@
+u rc 0 02:40:35
+pgochk rc 0
+gen_dispatch.o rc 0 0 s, 0 profile lines, object equal to the build's
+ge_xme.o rc 0 0 s, 0 profile lines, object (renamed after compile in the build: not compared)
+pgochk.sh: done
+relink rc 0 02:51:02
+92b0eadeec8f98a4531be0a2d3acc811  ovl_w00a.bin
+c485623ca2dbef6fb3ec39e722ac9237  ovl_w01a.bin
+psp.sh: done 5 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS
+  object differs from u_a: boot_rt.o
+objects of u: 53, differing from u_a: 1
+ELF functions (name address size): psp_a 4180, psp 4180; lines differing: 6470
+< F_00010000 08ba1f00 0000033c
+> F_00010000 08ba1fc4 0000033c
+< F_00010234 08ba223c 0000063c
+< F_00010398 08ba2878 000000f4
+< F_000103d8 08ba296c 000000f4
+< F_00010418 08ba2a60 000003e0
+> F_00010234 08ba2300 0000063c
+> F_00010398 08ba293c 000000f4
+> F_000103d8 08ba2a30 000000f4
+> F_00010418 08ba2b24 000003e0
+< F_000106c4 08ba2e40 000001ac
+< F_00010744 08ba3124 00000120
+> F_000106c4 08ba2f04 000001ac
+> F_00010744 08ba31e8 00000120
+< F_0001085c 08ba2fec 00000138
+> F_0001085c 08ba30b0 00000138
+< F_00010948 08a02ad0 000000a4
+< F_00010974 08ba3244 000000d4
+< F_000109bc 08ba3318 000000d4
+> F_00010948 08a02ac4 000000a4
+  ovl_d00t.bin differs from psp_a's
+  ovl_d01t.bin differs from psp_a's
+  ovl_init.bin differs from psp_a's
+  ovl_n_title.bin differs from psp_a's
+  ovl_r_title.bin differs from psp_a's
+  ovl_r_tnk0.bin differs from psp_a's
+  ovl_w00a.bin differs from psp_a's
+  ovl_w01a.bin differs from psp_a's
+pgo_c36.sh: done 02:51:02

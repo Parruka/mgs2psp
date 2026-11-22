@@ -1,2 +1,67 @@
 # mgs2psp
 MGS2 psp port
+
+Our own work on a personal PSP port of Metal Gear Solid 2 (PAL disc SLES-50383) for a PSP-3000 on ARK-4: a static recompile of the
+game's code plus a new renderer for the PSP's graphics chip. Personal use only.
+
+## What is here
+- `mgs2/`: a copy of the project folder's `mgs2/` (recompiler, runtime, renderer, PSP harness, tools, scripts, notes, plans, build
+  reports and PSP run logs). `mgs2/main/` is the current build tree; the top-level `boot/`, `ge/`, `psp/` and `runtime/` folders are
+  older versions kept for history. Start with `mgs2/NOTES.md`, `mgs2/roadmap.md` and `mgs2/psp_harness.md`.
+- `sync_from_project.py`: copies the project folder into `mgs2/` again, with the rules below.
+
+## Map of `mgs2/`
+The folder mirrors the project folder one to one, so paths in the notes stay valid; it is kept organized by these groups.
+
+**Start here**
+- `NOTES.md`: charter, where we stand, decisions. `roadmap.md`: now, next, later (`roadmap_history.md`: the old ones).
+- `plan_deck_25fps.md`: the lead plan for the Tanker deck. `plan_20fps_2026-11-22.md`: what 20 fps in the rain costs.
+- `psp_harness.md`: one `## Build <name>` entry per build: what changed, the checks, the PSP run's results.
+- `DEVIATIONS.md`: every difference from the original game a player could see or feel, with its reason.
+
+**Code**
+- `main/`: the current tree: `recomp/` (the recompiler), `rt/` and `runtime/` (the runtime), `ge/` (the PSP renderer), `psp/` (the
+  PSP harness), `boot/`, `cfg/`, `scripts/`, `tools/`, `build_all.sh`; `main/attic/glNN/`: each build's plan, report and log reader.
+- `recomp/`, `tools/`, `play/`: the recompiler's studies and widths, our tools, the scripted pad runs.
+- `boot/`, `ge/`, `psp/`, `runtime/` at the top: older versions, kept for history.
+
+**Measurements**
+- `prof/`: PSP run logs (`hw_<build>/`), emulator runs (`emu_<build>/`), state hashes and profiles.
+- `deck_costs.md`, `speed_notes.md`, `outlook_25fps.md`, `codec_speed.md`.
+
+**Renderer and Media Engine**
+- `renderer_notes.md`, `native_renderer_design.md`, `native_draw_study.md`, `native_step0_report.md`, `native_step1_report.md`,
+  `native_port_answer.md`; `me_*.md`: the Media Engine's probes, steps and designs.
+
+**The game, in our own words**
+- `stage_notes.md`, `stagec_notes.md`, `elf_notes.md`, `decomp_names_sles.md`, `rain_study.md`, `rain_options_2026-11-21.md`,
+  `sound_notes.md`, `logic_timing.md`, `halfrate_study.md`, `h1_notes.md`, `b_proof_notes.md`.
+
+**Studies, reviews and audits**
+- Other ports and tools: `android_port_study.md`, `peacewalker_notes.md`, `psp_ports_survey.md`, `sandstone_review.md`,
+  `vme2_study.md`, `ark4_options.md`, `ark5_study.md`.
+- Research: `feasibility.md`, `research_review.md`, `research2_port_plan.md`, `web_research.md`, `web_research_2.md`.
+- Audits and logs: `audit_2026-10-23.md`, `audit_v30.md`, `overnight_2026-11-22.md`, `memory_status_archive_2026-11-22.md`.
+
+## Latest builds
+| Build | What it was | PSP result |
+|---|---|---|
+| gl38 | measurement: one kind of drawing left out per turn, new timers | exact; rain wait 85.0 ms a step, of it 13.6 the test's own picture check; costs per kind in `prof/hw_gl38/gl38_psp_read.md` |
+| gl36 | cull of hidden effect calls, re-use of the ship's pieces | exact; rain wait 85.1 ms a step (5.9 fps), 3.4 faster than gl35 |
+| gl35 | the fast native path for the ship's pieces in every turn, per-piece keeps in turns | exact; rain wait 88.6 ms a step |
+
+Every build, older ones too: `mgs2/psp_harness.md`. A step is 1/50 s; the game shows a picture every 2 steps, so fps = 500 / (ms a step).
+
+## What is not here, on purpose
+Nothing taken from the game is in this repository: no disc or HD files, no game binaries or modules, no code generated from the
+game's code (or written by hand from it), no pictures, and no built programs. `.gitignore` and `sync_from_project.py` hold the full list.
+So the tree does not build on its own: a build needs the owner's disc and the generated code, made in the project's container.
+
+The builds also use parts of other projects, kept in the project folder under their own licences: PS2RC by SandstoneDev
+(https://github.com/SandstoneDev/PS2RC; sound, movie and Media Engine bring-up code) and mcidclan's Media Engine samples (MIT).
+
+## Updating
+```
+python3 -I sync_from_project.py            # copies /mnt/project-files/mgs2/ into mgs2/, skipping the files listed above
+git add -A && git status                    # look before committing
+```

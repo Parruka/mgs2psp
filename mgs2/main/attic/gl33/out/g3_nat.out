@@ -1,0 +1,12 @@
+emu_e2: 'nat inpl' lines 75, whole turns 74; arm, inpl and 'groups flagged static' equal to the twin's natinpl line of the same turn in 43; sum flagged (whole turns) emulator 543036, twin 543036
+   me   turns inpl 0: 19 turns; groups flagged static    2321; the groups' data in the copy   877809, read from RAM    23793, partly 0
+   me   turns inpl 1: 18 turns; groups flagged static  256419; the groups' data in the copy   513589, read from RAM   749226, partly 0
+   main turns inpl 0: 19 turns; groups flagged static       0; the groups' data in the copy        0, read from RAM        0, partly 0
+   main turns inpl 1: 18 turns; groups flagged static  284296; the groups' data in the copy        0, read from RAM        0, partly 0
+   rain wait 29,600-30,500 by turn (vb kind inpl: flagged, in the copy, from RAM): 29600 me 0: 0, 132228, 1692; 29700 main 0: 0, 0, 0; 29800 me 1: 28467, 48753, 83757; 29900 main 1: 27760, 0, 0; 30000 me 0: 0, 129311, 1689; 30100 main 0: 0, 0, 0; 30200 me 1: 28564, 48870, 84000; 30300 main 1: 28356, 0, 0; 30400 me 0: 0, 127451, 1689
+emu_e3: 'nat inpl' lines 75, whole turns 74; arm, inpl and 'groups flagged static' equal to the twin's natinpl line of the same turn in 43; sum flagged (whole turns) emulator 543036, twin 543036
+   me   turns inpl 0: 19 turns; groups flagged static    2321; the groups' data in the copy   877809, read from RAM    23793, partly 0
+   me   turns inpl 1: 18 turns; groups flagged static  256419; the groups' data in the copy   513589, read from RAM   749226, partly 0
+   main turns inpl 0: 19 turns; groups flagged static       0; the groups' data in the copy        0, read from RAM        0, partly 0
+   main turns inpl 1: 18 turns; groups flagged static  284296; the groups' data in the copy        0, read from RAM        0, partly 0
+   rain wait 29,600-30,500 by turn (vb kind inpl: flagged, in the copy, from RAM): 29600 me 0: 0, 132228, 1692; 29700 main 0: 0, 0, 0; 29800 me 1: 28467, 48753, 83757; 29900 main 1: 27760, 0, 0; 30000 me 0: 0, 129311, 1689; 30100 main 0: 0, 0, 0; 30200 me 1: 28564, 48870, 84000; 30300 main 1: 28356, 0, 0; 30400 me 0: 0, 127451, 1689

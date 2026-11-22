@@ -1,0 +1,342 @@
+--- nat/native_w00a.c.nbs (NBS: md5 1d2db06d)
++++ nat/native_w00a.c (G0C: md5 d8dc9a23)
+@@ -672,5 +672,325 @@
+ { fprintf(stderr, "native body_sph: %ld parts native, translated %ld (off / not plain / ranges / count), %ld (NaN / infinity), %ld (poll due)\n",
+           nat_bs_n[0], nat_bs_n[1], nat_bs_n[2], nat_bs_n[3]); }
+ #endif
++/* ---- charaspread (0x2d30c8): the sparks off the bodies in the rain (task #165, rain_study.md section 9) ----
++   P2d2858, the act's particle work, runs S sets of N particles (S = (short)+132, N = (short)+134; its set loop 0x2d2980-0x2d304c).  Per
++   set it copies the positions (16 bytes each) and both prims' packets (32 each) from the old buffers to the new ones (P16cff8), then per
++   particle: alive (life > 0) it moves it (P165f60, VU0), adds gravity to its velocity's y and counts its life down; dead, unless the game
++   is paused (0x1ed040 & 3), the act is stopping (+84, +76) or the emitters are spent, it is born from emitter e while e has births left:
++   8 draws of the stage seed (a time along the emitter's last move for its position and one for its velocity, each placed by the lerp
++   P2d47a8 with VU0, and a jitter per axis), a life from the game's random routine P16d358 (+160 + rand % (+164 - +160 + 1)), and its
++   packets' +6.  With OPT2_G0C (and OPT2_H3 with both prims hidden, so only their drawing would read the positions, velocities and
++   packets) nat_cs_sets does the sets without that drawing data: the lives, the births (the draws and P16d358's calls in order), the
++   emitter counts and index, the seed, the registers, the frame words, the stack below sp (the last birth's velocity lerp frame, P16d358's
++   frame) and the time as the translation leaves them at 0x2d304c.  Left as they are: the seven drawing buffers (positions old and new,
++   velocities, both prims' packets old and new) and what a live particle's move leaves when it is the last such work: VU0's VF4-VF6, the
++   float registers f0 / f1 (P2d2858's caller reads back none of its registers) and, after its move's fallback, VN4 / VN5.  It takes the
++   translation (returns 0) when G0C or H3 is off, a prim is shown, an access is not plain RAM, a range it writes meets one it reads or
++   writes, a drawing buffer meets game data, S or N is out of range or N is odd, a buffer is not quadword aligned, a lerp result is a NaN
++   or infinity, the life range is 0, or a poll in the sets would be due. */
++#define NAT_G0C 32768u
++#define NAT_H3 8192u
++#define NAT_CS_MAXB 64                    /* births a call (8 emitters, each at most 6: count = rand % 2 + len x 5 / 72 with len <= 72) */
++#define NAT_CS_MAXQ 4096                  /* particles a call (S x N) */
++long nat_cs_n[8];                         /* dev: calls native; translated: G0C or H3 off; a prim shown; not plain / sizes / ranges meet; a drawing
++                                             buffer meets game data; a NaN or infinity; a poll due; life range 0 / births */
++#if defined(__psp__)
++/* P2d47a8's VU0 work (0x2d47d8-0x2d47fc) as the translation runs it: o = a x u (P165fa8), b x t (P165fa8), their sum (P165f60), with the
++   same VFPU instructions; 0 = a lane of one of them NaN / infinity (the translation then takes its model's fallback) */
++static inline int nat_cs_lerp(const uint32_t *a, const uint32_t *b, uint32_t u, uint32_t t, uint32_t *o)
++{
++  uint32_t cc, s[8] __attribute__((aligned(16))) = { u, 0, 0, 0, t, 0, 0, 0 };
++  __asm__ volatile(".set push\n\t.set noreorder\n\tmove %[cc], $0\n\tlv.q C000, 0(%[a])\n\tlv.q C010, 0(%[s])\n\tvpfxt x,x,x,x\n\t"
++                   "vmul.q C020, C000, C010\n\tvcmp.q ES, C020, C020\n\tbvtl 4, 1f\n\tori %[cc], %[cc], 0x10\n\t1:\n\tsv.q C020, 0(%[o])\n\t"
++                   "lv.q C000, 0(%[b])\n\tlv.q C010, 16(%[s])\n\tvpfxt x,x,x,x\n\tvmul.q C030, C000, C010\n\tvcmp.q ES, C030, C030\n\t"
++                   "bvtl 4, 2f\n\tori %[cc], %[cc], 0x10\n\t2:\n\tsv.q C030, 16(%[o])\n\tvadd.q C100, C020, C030\n\tvcmp.q ES, C100, C100\n\t"
++                   "bvtl 4, 3f\n\tori %[cc], %[cc], 0x10\n\t3:\n\tsv.q C100, 32(%[o])\n\t.set pop"
++                   : [cc] "=&r"(cc) : [a] "r"(a), [b] "r"(b), [s] "r"(s), [o] "r"(o) : "memory");
++  return !(cc & 0x10u);
++}
++#else
++static inline int nat_cs_lerp(const uint32_t *a, const uint32_t *b, uint32_t u, uint32_t t, uint32_t *o)
++{
++  for (int k = 0; k < 4; k++) { o[k] = nat_vm(a[k], u); o[4 + k] = nat_vm(b[k], t); }
++  if (!NAT_FIN4(o) || !NAT_FIN4(o + 4)) return 0;
++  for (int k = 0; k < 4; k++) o[8 + k] = nat_va(o[k], o[4 + k]);
++  return NAT_FIN4(o + 8);
++}
++#endif
++static inline uint32_t nat_cs_rd32(uint32_t a) { return *(const uint32_t *)GEN_RAM(a); }
++static inline uint16_t nat_cs_rd16(uint32_t a) { return *(const uint16_t *)GEN_RAM(a); }
++static inline int nat_cs_meet(uint32_t a, uint32_t n, const uint32_t (*r)[2], int m)   /* [a, a + n) meets one of the m ranges r */
++{ for (int i = 0; i < m; i++) if (nat_ovl(a, n, r[i][0], r[i][1])) return 1; return 0; }
++#ifdef NAT_CHECK
++static void nat_cc_pre(const uint32_t (*sk)[2], int lft, int lvn);
++#endif
++/* the sets, 0x2d2980 up to 0x2d304c; l: P2d2858's locals (r1, r7-r10, r16, r18, r23, r29, f0-f3 in; r1, r7-r9, f0-f3 out); 1 = done:
++   registers, VU0, memory (but the drawing buffers) and time as the translation leaves them at 0x2d304c; 0 = translate */
++int nat_cs_sets(struct nat_bs_l *l)
++{
++  const uint32_t sp = (uint32_t)l->r[29], ac = (uint32_t)l->r[18], vb = (uint32_t)l->r[16], lb = (uint32_t)l->r[23];
++  const int32_t S = (int32_t)l->r[10];
++  int32_t N, Q, e = 0, nb = 0, qL = -1, qB, qLs, qBs, k, rng = 0;
++  uint32_t d16, d32, p168, p172, emit, cnt, a100, a104, a108, par, bb, st, v72, s;
++  uint32_t D[7][2], G[19][2];   /* the drawing buffers; the game data the sets write (G[0..5]) and read (G[6..18]) */
++  uint16_t em[8], ct[8]; uint8_t bq_e[NAT_CS_MAXB]; int32_t bq[NAT_CS_MAXB]; uint32_t bs[NAT_CS_MAXB];
++  uint32_t lv[12] __attribute__((aligned(16))), A[4] __attribute__((aligned(16))), B[4] __attribute__((aligned(16)));
++  int64_t P;
++#if defined(__psp__)
++  if (!(g_opt2 & NAT_G0C) || !(g_opt2 & NAT_H3)) goto off;          /* nothing more when off: the PSP's turns time the translation */
++#endif
++  if ((sp & 15u) || (ac & 3u) || (lb & 1u) || !nat_plain(sp - 80u, 132) || !nat_plain(ac + 72u, 104)) goto bad;
++  N = (int16_t)nat_cs_rd16(ac + 134u);
++  if (S < 1 || N < 2 || (N & 1) || S > NAT_CS_MAXQ / N) goto bad;
++  Q = S * N; d16 = 16u * (uint32_t)Q; d32 = 32u * (uint32_t)Q;
++  /* the drawing buffers: the velocities, the positions old and new (16 bytes a particle), prim +168's and prim +172's packets old and new
++     (32); quadword aligned (P16cff8's quadword copies, the quadword loads and stores of the moves and lerps) */
++  D[0][0] = vb; D[1][0] = nat_cs_rd32(sp + 24u); D[2][0] = nat_cs_rd32(sp + 36u);
++  D[3][0] = nat_cs_rd32(sp + 28u); D[4][0] = nat_cs_rd32(sp + 40u); D[5][0] = nat_cs_rd32(sp + 32u); D[6][0] = nat_cs_rd32(sp + 44u);
++  for (k = 0; k < 7; k++) { D[k][1] = k < 3 ? d16 : d32; if ((D[k][0] & 15u) || !nat_plain(D[k][0], D[k][1])) goto bad; }
++  emit = nat_cs_rd32(ac + 112u); cnt = nat_cs_rd32(ac + 116u); a100 = nat_cs_rd32(ac + 100u); a104 = nat_cs_rd32(ac + 104u); a108 = nat_cs_rd32(ac + 108u);
++  p168 = nat_cs_rd32(ac + 168u); p172 = nat_cs_rd32(ac + 172u); par = nat_cs_rd32(sp + 48u); v72 = nat_cs_rd32(ac + 72u);
++  if ((emit & 1u) || (cnt & 1u) || (par & 3u) || (p168 & 3u) || (p172 & 3u) || !nat_plain(lb, 2u * (uint32_t)Q) || !nat_plain(emit, 16)
++      || !nat_plain(cnt, 16) || !nat_plain(a100 & ~15u, 128) || !nat_plain(a104 & ~15u, 128) || !nat_plain(a108 & ~15u, 128)
++      || !nat_plain(0x1ed040u, 8) || !nat_plain(NAT_SEED, 4) || !nat_plain(0x193148u, 4) || !nat_plain(par + 208u, 4)
++      || !nat_plain(p168 + 164u, 4) || !nat_plain(p172 + 164u, 4)) goto bad;
++  st = nat_cs_rd32(0x193148u) + 168u; bb = nat_cs_rd32(par + 208u);
++  if ((st & 7u) || !nat_plain(st, 8) || (bb & 3u) || !nat_plain(bb, 4)) goto bad;
++  {   /* what the sets write (the lives, the emitter counts, the seed, P16d358's state, the stack below sp, the frame words) meets nothing
++         else they write or read; no drawing buffer meets any of it; the last copy's source quadwords (the registers' upper halves) meet
++         no buffer the sets write */
++    const uint32_t g[19][2] = { { lb, 2u * (uint32_t)Q }, { emit, 16 }, { NAT_SEED, 4 }, { st, 8 }, { sp - 80u, 80 }, { sp + 8u, 40 },
++      { sp, 8 }, { sp + 48u, 4 }, { ac + 72u, 104 }, { p168 + 164u, 4 }, { p172 + 164u, 4 }, { cnt, 16 }, { a100 & ~15u, 128 },
++      { a104 & ~15u, 128 }, { a108 & ~15u, 128 }, { 0x1ed040u, 8 }, { 0x193148u, 4 }, { par + 208u, 4 }, { bb, 4 } };
++    memcpy(G, g, sizeof G);
++    for (int a = 0; a < 6; a++) for (int b = a + 1; b < 19; b++) if (nat_ovl(G[a][0], G[a][1], G[b][0], G[b][1])) goto bad;
++    for (k = 0; k < 7; k++) if (nat_cs_meet(D[k][0], D[k][1], G, 19)) goto dmeet;
++    for (k = 0; k < 7; k += 2) if (nat_ovl(D[5][0] + d32 - 32u, 32, D[k][0], D[k][1])) goto bad;   /* D[0], D[2], D[4], D[6]: written */
++  }
++  for (k = 0; k < 7; k++) NAT_MASK(D[k][0], D[k][1]);   /* x86 dev, both modes: the drawing buffers leave the game-state hash */
++#if !defined(__psp__)
++  if (!(g_opt2 & NAT_G0C) || !(g_opt2 & NAT_H3)) goto off;
++#endif
++  if ((nat_cs_rd32(p168 + 164u) & 0x3000u) != 0x3000u || (nat_cs_rd32(p172 + 164u) & 0x3000u) != 0x3000u) goto shown;
++  if ((int32_t)nat_cs_rd32(sp + 16u) != 0 || (int32_t)nat_cs_rd32(sp + 8u) != 0) goto bad;
++  /* the plan: which particles live and which are born from which emitter, as the loop decides it (each particle is visited once, and
++     nothing decides on a random value) */
++  for (k = 0; k < 8; k++) { em[k] = nat_cs_rd16(emit + 2u * (uint32_t)k); ct[k] = nat_cs_rd16(cnt + 2u * (uint32_t)k); }
++  {
++    const int stop = (nat_cs_rd32(0x1ed040u) & 3u) || nat_cs_rd32(ac + 84u) || nat_cs_rd32(ac + 76u);
++    const int16_t *lives = (const int16_t *)GEN_RAM(lb);
++    for (int32_t q = 0; q < Q; q++) {
++      if (lives[q] > 0) { qL = q; continue; }
++      if (stop || e >= 8) continue;                                     /* its packets' +6 get 0 */
++      if (!((int16_t)em[e] < (int16_t)ct[e])) { e++; continue; }       /* emitter e spent: the next one, this particle stays dead */
++      if (nb == NAT_CS_MAXB) goto range;
++      bq[nb] = q; bq_e[nb] = (uint8_t)e; nb++;
++      em[e] = (uint16_t)(em[e] + 1u);
++      if (!((int16_t)em[e] < (int16_t)ct[e])) e++;
++    }
++  }
++  if (nb) {
++    rng = (int32_t)(nat_cs_rd32(ac + 164u) - nat_cs_rd32(ac + 160u) + 1u);
++    if (!rng) goto range;                                               /* the translation's division by 0 */
++  }
++  /* the births' draws and lerps (each lerp for its NaN / infinity check, the last velocity lerp for what it leaves) */
++  s = nat_cs_rd32(NAT_SEED);
++  for (k = 0; k < nb; k++) {
++    const uint32_t eo = 16u * (uint32_t)bq_e[k], ix = 0x1f7ba8u + 2u * (v72 * 8u + (uint32_t)bq_e[k]);   /* the part's index */
++    uint32_t tb, ub, bp;
++    if (!nat_plain(ix, 2) || nat_cs_meet(ix, 2, G, 6)) goto bad;
++    if (nat_cs_meet(ix, 2, D, 7)) goto dmeet;
++    bp = (nat_cs_rd32(bb) + (uint32_t)nat_cs_rd16(ix) * 304u + 240u) & ~15u;   /* the part's position */
++    if (!nat_plain(bp, 16) || nat_cs_meet(bp, 16, G, 6)) goto bad;
++    if (nat_cs_meet(bp, 16, D, 7)) goto dmeet;
++    s = s * 0x5d588b65u + 1u;                                           /* draw 1: the position's time */
++    tb = F2I(nat_u2fs(s, 0x2f800000u)); ub = F2I(FSUB(I2F(0x3f800000u), I2F(tb)));
++    memcpy(A, GEN_RAM(bp), 16); memcpy(B, GEN_RAM((a104 + eo) & ~15u), 16);
++    if (!nat_cs_lerp(A, B, ub, tb, lv)) goto nan;
++    s = s * 0x5d588b65u + 1u; s = s * 0x5d588b65u + 1u; s = s * 0x5d588b65u + 1u;   /* draws 2-4: the position's jitter */
++    s = s * 0x5d588b65u + 1u;                                           /* draw 5: the velocity's time */
++    bs[k] = s;
++    tb = F2I(nat_u2fs(s, 0x2f800000u)); ub = F2I(FSUB(I2F(0x3f800000u), I2F(tb)));
++    memcpy(A, GEN_RAM((a100 + eo) & ~15u), 16); memcpy(B, GEN_RAM((a108 + eo) & ~15u), 16);
++    if (!nat_cs_lerp(A, B, ub, tb, lv)) goto nan;                      /* the last birth's stays in lv */
++    s = s * 0x5d588b65u + 1u; s = s * 0x5d588b65u + 1u; s = s * 0x5d588b65u + 1u;   /* draws 6-8: the velocity's jitter */
++  }
++  P = (int64_t)S * (7 * N / 2 - 3) - 1;   /* the polls: per set the copies' (N/2 - 1, N - 1, N - 1) and the particle loop's (N - 1); the set loop's */
++  if (NAT_NOW() + (uint64_t)P * K_POLL_CYCLES >= k_poll_at) goto poll;
++  qB = nb ? bq[nb - 1] : -1;
++#ifdef NAT_CHECK
++  nat_cc_pre((const uint32_t (*)[2])D, qL > qB, qL >= 0);
++#endif
++  /* the commit, in the translation's order where it matters: the lives counted down, the births with P16d358's calls in order */
++  {
++    int16_t *lives = (int16_t *)GEN_RAM(lb);
++    const uint16_t h160 = nat_cs_rd16(ac + 160u);
++    int64_t r9 = l->r[9];
++    for (int32_t q = 0; q < Q; q++) if (lives[q] > 0) lives[q] = (int16_t)(uint16_t)((uint16_t)lives[q] - 1u);
++    for (k = 0; k < nb; k++) {
++      const int32_t q = bq[k];
++      int32_t a;
++      R[9] = r9; R[16] = (int32_t)(vb + 16u * (uint32_t)q); R[17] = (int32_t)(D[2][0] + 16u * (uint32_t)q); R[29] = (int32_t)sp; R[31] = 0x2d2f04;
++      P16d358();
++      r9 = R[9]; a = (int32_t)R[2];                                     /* rand: 0 .. 0x7fffffff */
++      LO = a / rng; HI = a % rng;
++      lives[q] = (int16_t)(uint16_t)((uint32_t)h160 + (uint32_t)(int32_t)HI);
++    }
++    l->r[9] = r9;
++  }
++  *(uint32_t *)GEN_RAM(NAT_SEED) = s;
++  for (k = 0; k < 8; k++) *(uint16_t *)GEN_RAM(emit + 2u * (uint32_t)k) = em[k];
++  /* the frame words as the loop leaves them */
++  *(int32_t *)GEN_RAM(sp + 8u) = S; *(int32_t *)GEN_RAM(sp + 12u) = N; *(int32_t *)GEN_RAM(sp + 16u) = e;
++  *(uint32_t *)GEN_RAM(sp + 20u) = D[6][0] + d32;
++  *(uint32_t *)GEN_RAM(sp + 24u) = D[1][0] + d16; *(uint32_t *)GEN_RAM(sp + 28u) = D[3][0] + d32; *(uint32_t *)GEN_RAM(sp + 32u) = D[5][0] + d32;
++  *(uint32_t *)GEN_RAM(sp + 36u) = D[2][0] + d16; *(uint32_t *)GEN_RAM(sp + 40u) = D[4][0] + d32; *(uint32_t *)GEN_RAM(sp + 44u) = D[6][0] + d32;
++  {   /* the registers: the last set's third copy (P16cff8 of prim +172's packets), its last calls, the last birth */
++    const uint32_t src = D[5][0] + d32, dst = D[6][0] + d32, d3 = dst - 32u * (uint32_t)N;   /* that copy's source end, its destination */
++    uint64_t x; int64_t f;
++    qLs = qL >= (S - 1) * N ? qL : -1; qBs = qB >= (S - 1) * N ? qB : -1;   /* the last set's last live particle, last birth */
++    memcpy(&x, GEN_RAM(src - 24u), 8); RH[3] = (int64_t)x;            /* the copy's last two quadwords' upper halves */
++    memcpy(&x, GEN_RAM(src - 8u), 8); RH[2] = (int64_t)x;
++    if (qBs < 0) { R[2] = (int32_t)d3; R[3] = (int32_t)dst; R[7] = (int32_t)dst; R[8] = (int32_t)d3; }   /* else P16d358's (called above) */
++    if (qLs > qBs) { R[4] = R[5] = (int32_t)(D[2][0] + 16u * (uint32_t)qLs); R[6] = (int32_t)(vb + 16u * (uint32_t)qLs); }   /* P165f60's */
++    else if (qBs < 0) { R[4] = -1; R[5] = (int32_t)src; R[6] = -1; }
++    l->r[7] = R[7]; l->r[8] = R[8];
++    l->r[1] = qLs > qBs ? (int32_t)0xbfc8b43au : qBs >= 0 ? 0x3f800000 : 0x40a00000;
++    if (nb) {
++      const uint32_t eo = 16u * (uint32_t)bq_e[nb - 1];
++      uint32_t s8 = bs[nb - 1];
++      s8 = s8 * 0x5d588b65u + 1u; s8 = s8 * 0x5d588b65u + 1u; s8 = s8 * 0x5d588b65u + 1u;
++      R[1] = 0x3f800000; F[12] = nat_u2fs(bs[nb - 1], 0x2f800000u); F[20] = I2F(0x3f800000u);   /* P2d47a8's */
++      memcpy(&x, GEN_RAM(((a100 + eo) & ~15u) + 8u), 8); RH[6] = (int64_t)x;   /* P165ff0's quadword through r6 */
++      if (qB > qL) {                                                    /* the last VU0 and float work: the birth's */
++        const float j8 = FSUB(nat_u2fs(s8, 0x30000000u), I2F(0x3f800000u)) * I2F(0x40a00000u);
++        memcpy(VF[4].u, lv, 16); memcpy(VF[5].u, lv + 4, 16); memcpy(VF[6].u, lv + 8, 16);
++        l->f[0] = j8; l->f[1] = FADD(I2F(lv[10]), j8);
++      }
++      /* P2d47a8's frame of the last birth's velocity lerp below sp (its f20 word at sp - 16 is P16d358's since) */
++      memcpy(GEN_RAM(sp - 80u), lv, 32);
++      f = (int32_t)(vb + 16u * (uint32_t)qB); memcpy(GEN_RAM(sp - 48u), &f, 8);
++      f = (int32_t)(D[2][0] + 16u * (uint32_t)qB); memcpy(GEN_RAM(sp - 40u), &f, 8);
++      f = R[18]; memcpy(GEN_RAM(sp - 32u), &f, 8);
++      f = 0x2d2d9c; memcpy(GEN_RAM(sp - 24u), &f, 8);
++    }
++    if (qL >= 0) { l->f[2] = I2F(nat_cs_rd32(ac + 144u)); l->f[3] = I2F(0xbfc8b43au); }
++  }
++  NAT_ADV((uint64_t)P * K_POLL_CYCLES);
++  nat_cs_n[0]++;
++  return 1;
++off:
++  nat_cs_n[1]++; return 0;
++shown:
++  nat_cs_n[2]++; return 0;
++bad:
++  nat_cs_n[3]++; return 0;
++dmeet:
++  nat_cs_n[4]++; return 0;
++nan:
++  nat_cs_n[5]++; return 0;
++poll:
++  nat_cs_n[6]++; return 0;
++range:
++  nat_cs_n[7]++; return 0;
++}
++#ifdef NAT_CHECK
++/* x86 dev, charaspread: the whole state before the native sets (every register, VU0's, the time and all 32 MB) is kept and restored
++   after them, so the translation runs from it; at 0x2d304c both results are compared: every register but the leftovers (VF4-VF6 and the
++   locals f0 / f1 when a live particle's move is the last such work, VN4 / VN5 when a particle lives), the act's locals, the time and all
++   RAM but the seven drawing buffers */
++struct nat_cc { int64_t R[32], RH[32], LO, HI, LO1, HI1; float F[32], ACC; int CC; uint64_t t; VQ vf[32], vn[32];
++                uint32_t vi[16], vacc[4], vq, vp, vireg, vr, vmac, vstat, vclip, vcms, gvmac; struct nat_bs_l l; };
++static struct nat_cc ncc_pre, ncc_fast; static uint32_t ncc_sk[7][2]; static int ncc_armed, ncc_lft, ncc_lvn; static uint8_t *ncc_ram0, *ncc_ram1;
++static long ncc_n, ncc_bad, ncc_lftn, ncc_lftd, ncc_lvnn, ncc_lvnd;
++static void ncc_save(struct nat_cc *s)
++{
++  memcpy(s->R, R, sizeof s->R); memcpy(s->RH, RH, sizeof s->RH); s->LO = LO; s->HI = HI; s->LO1 = LO1; s->HI1 = HI1;
++  memcpy(s->F, F, sizeof s->F); s->ACC = ACC; s->CC = CC; s->t = NAT_NOW();
++  memcpy(s->vf, VF, sizeof s->vf); memcpy(s->vn, VN, sizeof s->vn); memcpy(s->vi, VIr, sizeof s->vi); memcpy(s->vacc, VACC, 16);
++  s->vq = VQr; s->vp = VPr; s->vireg = VIreg; s->vr = VRr; s->vmac = VMAC; s->vstat = VSTAT; s->vclip = VCLIP; s->vcms = VCMSAR0; s->gvmac = g_vmac;
++}
++static void ncc_load(const struct nat_cc *s)
++{
++  memcpy(R, s->R, sizeof s->R); memcpy(RH, s->RH, sizeof s->RH); LO = s->LO; HI = s->HI; LO1 = s->LO1; HI1 = s->HI1;
++  memcpy(F, s->F, sizeof s->F); ACC = s->ACC; CC = s->CC; k_time = s->t;
++  memcpy(VF, s->vf, sizeof s->vf); memcpy(VN, s->vn, sizeof s->vn); memcpy(VIr, s->vi, sizeof s->vi); memcpy(VACC, s->vacc, 16);
++  VQr = s->vq; VPr = s->vp; VIreg = s->vireg; VRr = s->vr; VMAC = s->vmac; VSTAT = s->vstat; VCLIP = s->vclip; VCMSAR0 = s->vcms; g_vmac = s->gvmac;
++}
++static void nat_cc_pre(const uint32_t (*sk)[2], int lft, int lvn)
++{
++  for (int i = 0; i < 7; i++) { ncc_sk[i][0] = sk[i][0] & (GUEST_SIZE - 1); ncc_sk[i][1] = sk[i][1]; }
++  ncc_lft = lft; ncc_lvn = lvn; ncc_save(&ncc_pre);
++  if (!ncc_ram0) { ncc_ram0 = malloc(GUEST_SIZE); ncc_ram1 = malloc(GUEST_SIZE); }
++  memcpy(ncc_ram0, GEN_BASE, GUEST_SIZE);
++}
++void nat_cs_chk_swap(const struct nat_bs_l *l)
++{
++  ncc_save(&ncc_fast); ncc_fast.l = *l;
++  memcpy(ncc_ram1, GEN_BASE, GUEST_SIZE); memcpy(GEN_BASE, ncc_ram0, GUEST_SIZE);
++  ncc_load(&ncc_pre); ncc_armed = 1;
++}
++static int ncc_skip(uint32_t a) { for (int i = 0; i < 7; i++) if (a - ncc_sk[i][0] < ncc_sk[i][1]) return 1; return 0; }
++static void ncc_bad_at(const char *what, int i, uint64_t got, uint64_t want)
++{
++  extern long g_hash_vb;
++  if (ncc_bad < 40) fprintf(stderr, "natchk charaspread: check %ld (after the hash of vb %ld): %s[%d] translation %016llx native %016llx\n", ncc_n,
++                            g_hash_vb, what, i, (unsigned long long)got, (unsigned long long)want);
++  ncc_bad++;
++}
++void nat_cs_chk_cmp(const struct nat_bs_l *lc)   /* lc: the translation's locals at 0x2d304c */
++{
++  static const int ln[] = { 1, 7, 8, 9, 10 }, lf[] = { 2, 3 };
++  struct nat_cc *g = &ncc_pre; long bad0 = ncc_bad; uint32_t u, v; int lfd = 0, lvd = 0;
++  if (!ncc_armed) return;
++  ncc_armed = 0;
++  ncc_save(g);                                        /* ncc_pre is free again: the translation's state */
++  for (int i = 0; i < 32; i++) { if (g->R[i] != ncc_fast.R[i]) ncc_bad_at("R", i, g->R[i], ncc_fast.R[i]); if (g->RH[i] != ncc_fast.RH[i]) ncc_bad_at("RH", i, g->RH[i], ncc_fast.RH[i]); }
++  for (int i = 0; i < 32; i++) { memcpy(&u, &g->F[i], 4); memcpy(&v, &ncc_fast.F[i], 4); if (u != v) ncc_bad_at("F", i, u, v); }
++  memcpy(&u, &g->ACC, 4); memcpy(&v, &ncc_fast.ACC, 4); if (u != v) ncc_bad_at("ACC", 0, u, v);
++  if (g->LO != ncc_fast.LO) ncc_bad_at("LO", 0, g->LO, ncc_fast.LO);
++  if (g->HI != ncc_fast.HI) ncc_bad_at("HI", 0, g->HI, ncc_fast.HI);
++  if (g->LO1 != ncc_fast.LO1) ncc_bad_at("LO1", 0, g->LO1, ncc_fast.LO1);
++  if (g->HI1 != ncc_fast.HI1) ncc_bad_at("HI1", 0, g->HI1, ncc_fast.HI1);
++  if (g->CC != ncc_fast.CC) ncc_bad_at("CC", 0, g->CC, ncc_fast.CC);
++  if (g->t != ncc_fast.t) ncc_bad_at("time", 0, g->t, ncc_fast.t);
++  for (int i = 0; i < 32; i++) for (int k = 0; k < 4; k++) {
++    if (g->vf[i].u[k] != ncc_fast.vf[i].u[k]) { if (ncc_lft && i >= 4 && i <= 6) lfd = 1; else ncc_bad_at("VF", 4 * i + k, g->vf[i].u[k], ncc_fast.vf[i].u[k]); }
++    if (g->vn[i].u[k] != ncc_fast.vn[i].u[k]) { if (ncc_lvn && (i == 4 || i == 5)) lvd = 1; else ncc_bad_at("VN", 4 * i + k, g->vn[i].u[k], ncc_fast.vn[i].u[k]); }
++  }
++  for (int i = 0; i < 16; i++) if (g->vi[i] != ncc_fast.vi[i]) ncc_bad_at("VI", i, g->vi[i], ncc_fast.vi[i]);
++  for (int k = 0; k < 4; k++) if (g->vacc[k] != ncc_fast.vacc[k]) ncc_bad_at("ACC", k, g->vacc[k], ncc_fast.vacc[k]);
++  if (g->vq != ncc_fast.vq || g->vp != ncc_fast.vp || g->vireg != ncc_fast.vireg || g->vr != ncc_fast.vr) ncc_bad_at("Q / P / I / R", 0, g->vq, ncc_fast.vq);
++  if (g->vmac != ncc_fast.vmac || g->vstat != ncc_fast.vstat || g->vclip != ncc_fast.vclip || g->vcms != ncc_fast.vcms || g->gvmac != ncc_fast.gvmac)
++    ncc_bad_at("VU0 flags", 0, g->vstat, ncc_fast.vstat);
++  for (unsigned i = 0; i < sizeof ln / sizeof ln[0]; i++) if (lc->r[ln[i]] != ncc_fast.l.r[ln[i]]) ncc_bad_at("local r", ln[i], lc->r[ln[i]], ncc_fast.l.r[ln[i]]);
++  for (unsigned i = 0; i < sizeof lf / sizeof lf[0]; i++) { memcpy(&u, &lc->f[lf[i]], 4); memcpy(&v, &ncc_fast.l.f[lf[i]], 4); if (u != v) ncc_bad_at("local f", lf[i], u, v); }
++  for (int i = 0; i < 2; i++) {
++    memcpy(&u, &lc->f[i], 4); memcpy(&v, &ncc_fast.l.f[i], 4);
++    if (u != v) { if (ncc_lft) lfd = 1; else ncc_bad_at("local f", i, u, v); }
++  }
++  for (uint32_t c = 0; c < GUEST_SIZE; c += 4096) if (memcmp(GEN_BASE + c, ncc_ram1 + c, 4096))
++    for (uint32_t i = c; i < c + 4096; i++) if (GEN_BASE[i] != ncc_ram1[i] && !ncc_skip(i)) { ncc_bad_at("RAM byte", (int)i, GEN_BASE[i], ncc_ram1[i]); break; }
++  ncc_n++; ncc_lftn += ncc_lft; ncc_lftd += lfd; ncc_lvnn += ncc_lvn; ncc_lvnd += lvd;
++  if (ncc_bad != bad0) ncc_bad = bad0 + 1;   /* count calls, not fields */
++}
++__attribute__((destructor)) static void ncc_report(void)
++{
++  extern long g_cs_m3;
++  fprintf(stderr, "natchk charaspread: %ld calls checked, %ld different; a live particle's move last in %ld (its leftovers differed in %ld), a "
++          "particle alive in %ld (VN4 / VN5 differed in %ld); calls native %ld, translated %ld (G0C or H3 off), %ld (a prim shown), %ld (not plain "
++          "/ sizes / ranges meet), %ld (a drawing buffer meets game data), %ld (NaN / infinity), %ld (poll due), %ld (life range 0 / births); "
++          "message 3 %ld\n", ncc_n, ncc_bad, ncc_lftn, ncc_lftd, ncc_lvnn, ncc_lvnd, nat_cs_n[0], nat_cs_n[1], nat_cs_n[2], nat_cs_n[3], nat_cs_n[4],
++          nat_cs_n[5], nat_cs_n[6], nat_cs_n[7], g_cs_m3);
++}
++#elif !defined(__psp__)
++__attribute__((destructor)) static void nat_cs_report(void)
++{
++  extern long g_cs_m3;
++  fprintf(stderr, "native charaspread: %ld calls native, translated %ld (G0C or H3 off), %ld (a prim shown), %ld (not plain / sizes / ranges "
++          "meet), %ld (a drawing buffer meets game data), %ld (NaN / infinity), %ld (poll due), %ld (life range 0 / births); message 3 %ld\n",
++          nat_cs_n[0], nat_cs_n[1], nat_cs_n[2], nat_cs_n[3], nat_cs_n[4], nat_cs_n[5], nat_cs_n[6], nat_cs_n[7], g_cs_m3);
++}
++#endif
+ #define static
+ #endif
+--- nat/native_w00a.h.nbs (NBS: md5 9a9a62ec)
++++ nat/native_w00a.h (G0C: md5 2ac3bab5)
+@@ -33,6 +33,11 @@
+ #ifdef NAT_CHECK
+ void nat_bs_chk_swap(const struct nat_bs_l *l); void nat_bs_chk_cmp(const struct nat_bs_l *l);
+ #endif
++/* charaspread (0x2d30c8, task #165): its particle sets natively (OPT2_G0C, with OPT2_H3 and both prims hidden); the act's locals in and out */
++int nat_cs_sets(struct nat_bs_l *l);
++#ifdef NAT_CHECK
++void nat_cs_chk_swap(const struct nat_bs_l *l); void nat_cs_chk_cmp(const struct nat_bs_l *l);
++#endif
+ #else
+ #define NAT_LS_GUARD(prim, r16, r23) ((void)0)
+ #define NAT_LS_FLUSH() ((void)0)

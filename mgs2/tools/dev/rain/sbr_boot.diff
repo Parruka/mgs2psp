@@ -1,0 +1,44 @@
+--- sb17/boot/boot.c	2026-11-03 13:06:59.738411351 +0000
++++ sbr/boot/boot.c	2026-11-03 19:44:19.285772995 +0000
+@@ -111,6 +111,32 @@
+   if (k_vblanks < from || (every > 0 && (k_vblanks - from) % every) || (every <= 0 && k_vblanks != from)) return;
+   snprintf(fn, sizeof fn, "%s.%ld", pre, k_vblanks); if ((f = fopen(fn, "wb"))) { fwrite(g_mem, 1, GUEST_SIZE, f); fclose(f); }
+ }
++/* dev (task #164, the rain study): MGS2_KILL_ACT=<from vb>[-<to vb>]:<name>[,<name>...] (up to 8 file names, as each actor names itself
++   at +0x28) destroys every actor so named, from that vblank on (to that vblank, when given), the game's own way: its act (+4) becomes GV_DestroyActor (0x13f668), so at its
++   next turn the scheduler (0x13f140) calls GV_DestroyActor(actor) as an actor ending itself does (its children signalled, unlinked from
++   its parent, then the deferred destroy 0x13f578: unlink, die, free).  The first kill of each name goes to stderr, and every 100
++   vblanks the kills so far. */
++static void act_kill(void)
++{
++  static long from = -2, to = 0x7fffffff; static char nm[8][32]; static int nn; static long nk[8];
++  uint32_t a, act, np;
++  if (from == -2) { const char *e = getenv("MGS2_KILL_ACT"); from = -1;
++    if (e) { char *p; from = strtol(e, &p, 10); if (*p == '-') to = strtol(p + 1, &p, 10);
++      if (*p == ':') { p++; while (*p && nn < 8) { int k = 0; while (*p && *p != ',' && k < 31) nm[nn][k++] = *p++; nm[nn][k] = 0; nn++; if (*p != ',') break; p++; } }
++      if (!nn) from = -1; } }
++  if (from < 0 || k_vblanks < from || k_vblanks > to) return;
++  for (int l = 0; l < 12; l++) {
++    int guard = 0; memcpy(&a, g_mem + 0x1b9d30 + 0x64 * l, 4);
++    while (a && guard++ < 8192) {
++      a &= GUEST_SIZE - 4; memcpy(&act, g_mem + a + 4, 4); memcpy(&np, g_mem + a + 0x28, 4);
++      if (act && act != 0x13f668u && act != 0x13f578u && np >= 0x100000u && np < GUEST_SIZE - 32)
++        for (int i = 0; i < nn; i++) if (!strncmp((const char *)g_mem + np, nm[i], 32)) { uint32_t d = 0x13f668u; memcpy(g_mem + a + 4, &d, 4);
++            if (!nk[i]++) fprintf(stderr, "kill: vb %ld the first %s (actor %06x, act %06x)\n", k_vblanks, nm[i], (unsigned)a, (unsigned)act); break; }
++      memcpy(&a, g_mem + a, 4);
++    }
++  }
++  if (!(k_vblanks % 100)) { fprintf(stderr, "kill: vb %ld so far", k_vblanks); for (int i = 0; i < nn; i++) fprintf(stderr, " %s %ld", nm[i], nk[i]); fprintf(stderr, "\n"); }
++}
+ static void ee_poke(void)               /* dev: MGS2_POKE=<vb>:<addr>:<word>[,...] stores a 32-bit word into EE RAM at the start of that vblank
+                                            (measurement only, e.g. another stage's name in the script that loads the next stage) */
+ {
+@@ -150,7 +176,7 @@
+   if (start) { void gi_window(long vb); gi_window(k_vblanks); }
+ #endif
+ #endif
+-  if (start) { opt_window(k_vblanks); sif_vblank(); host_vb_begin(k_vblanks); iop_watch(); state_hash(); ee_dump(); ee_poke(); host_vb_end(); }
++  if (start) { opt_window(k_vblanks); sif_vblank(); host_vb_begin(k_vblanks); iop_watch(); state_hash(); ee_dump(); ee_poke(); act_kill(); host_vb_end(); }
+   if (k_vblanks >= max_vblanks) {
+     int t; fprintf(stderr, "stop: %ld vblanks\n", k_vblanks);
+     stack_report();

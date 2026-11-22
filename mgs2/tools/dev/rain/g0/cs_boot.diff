@@ -1,0 +1,21 @@
+--- boot/boot.c.nbs (H3 and NBS: md5 4d59dd16)
++++ boot/boot.c (G0C: md5 4435c7b9)
+@@ -694,6 +694,9 @@
+    (wpl/gen_s_w00a.h H3_WR, which marks the word); their own read-modify-write loads of +164 (H3_RD) set g_h3_allow, and a marked word
+    they load is hashed with the two bits clear like line_sph's; a load anywhere else is reported as above. */
+ int g_h3_allow;
++/* G0C (OPT2_G0C 32768): charaspread's particle sets (wpl/gen_s_w00a.h, 0x2d2980 up to 0x2d304c, the translation or nat_cs_sets) set g_rh_off,
++   so their loads (and those of the routines they call) are left out of the read hash in both modes; every other load is hashed */
++int g_rh_off;
+ void rt_g0h_mark(uint32_t a) { if (!g0h_mk) g0h_mk = calloc(GUEST_SIZE / 4, 1); g0h_mk[(a & (GUEST_SIZE - 1)) >> 2] = 1; g0h_set++; }
+ static void dgt_wr(uint32_t a, int n, uintptr_t ra)
+ {
+@@ -746,7 +749,7 @@
+     if (dgt_rh_vb >= 0) fprintf(stderr, "rh: vb %ld %016llx %llu\n", dgt_rh_vb, (unsigned long long)dgt_rh, (unsigned long long)dgt_rh_n);
+     dgt_rh_vb = k_vblanks; dgt_rh = 0xcbf29ce484222325ull; dgt_rh_n = 0;
+     for (dgt_rl_on = 0, k = 0; k < dgt_rl_n; k++) if (k_vblanks >= dgt_rl_r[k][0] && k_vblanks <= dgt_rl_r[k][1]) dgt_rl_on = 1; }
+-  if (n < 0) return;                    /* a partial store's merge read */
++  if (n < 0 || g_rh_off) return;        /* a partial store's merge read; G0C's particle sets */
+   for (i = 0; i < dgt_rs_n; i++) if ((unsigned long)(ra - b) >= dgt_rs[i][0] && (unsigned long)(ra - b) < dgt_rs[i][1]) return;
+   if (!n) n = 4;
+   if (n > 16) n = 16;

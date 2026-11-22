@@ -1,0 +1,1588 @@
+--- sb14/ge/gelist.c	2026-11-02 18:32:41.519859633 +0000
++++ sb15/ge/gelist.c	2026-11-03 10:34:49.845766418 +0000
+@@ -27,7 +27,7 @@
+ enum {   /* pspgu.h values */
+   G_NEVER = 0, G_ALWAYS = 1, G_EQUAL = 2, G_NOTEQUAL = 3, G_LESS = 4, G_LEQUAL = 5, G_GREATER = 6, G_GEQUAL = 7,
+   G_ADD = 0, G_REVSUB = 2, G_SRC_ALPHA = 2, G_ONE_MINUS_SRC_ALPHA = 3, G_DST_ALPHA = 4, G_ONE_MINUS_DST_ALPHA = 5, G_FIX = 10,
+-  G_TRIANGLES = 3, G_TRIANGLE_STRIP = 4, G_SPRITES = 6, G_PSM_5551 = 1, G_PSM_8888 = 3, G_PSM_T4 = 4, G_PSM_T8 = 5
++  G_LINES = 1, G_LINE_STRIP = 2, G_TRIANGLES = 3, G_TRIANGLE_STRIP = 4, G_SPRITES = 6, G_PSM_5551 = 1, G_PSM_8888 = 3, G_PSM_T4 = 4, G_PSM_T8 = 5
+ };
+ #define VT_THROUGH 0x80019fu   /* GU_TEXTURE_32BITF | GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D (GerVert) */
+ #define VT_DF0 0x11eu          /* GU_TEXTURE_16BIT | GU_COLOR_8888 | GU_VERTEX_16BIT | GU_TRANSFORM_3D (VcVert) */
+@@ -186,6 +186,24 @@
+   uint32_t nv = x->nv, nfv = x->nfv;
+   const VcVertF *v = (const VcVertF *)(x + 1);
+   const uint8_t *cls = (const uint8_t *)(v + nv + nfv); const uint16_t *fan = (const uint16_t *)(cls + ((nv + 3) & ~3u));
++  if (b->prim == G_SPRITES || b->prim == G_LINE_STRIP) {   /* sb15, Stage C step 4 (ge/xconv.c xc_c4), no classes: P04+3740's sprites,
++                                                               the corner pairs in one PRIM; P04+2b60's streaks, the strip's pairs and
++                                                               the clipper's in GU_LINES, each run of joined segments a line strip */
++    const uint32_t nst = b->prim == G_LINE_STRIP ? x->nst : 0, tot = nv + nfv;
++    if (room() < BATCH_WORDS + 2 * nst + 8 + RESERVE) return -1;
++    float ts[4] = { x->su, x->sv, x->tu, x->tv };
++    xf_setup(x, (b->flags & GERF_FOG) != 0, tex ? ts : 0);
++    vtype(VT_FX);
++    addr_cmd(C_VADDR, v);
++    if (b->prim == G_SPRITES) { put(C_PRIM, (uint32_t)G_SPRITES << 16 | nv); L->c.prims++; L->c.fx_spr += nv / 2; return 0; }
++    const uint16_t *run = (const uint16_t *)(v + tot);
++    for (uint32_t r = 0, at = 0; r <= nst; r++) {   /* the GE's vertex address follows each PRIM's last vertex */
++      const uint32_t next = r < nst ? run[2 * r] : tot;
++      if (next > at) { put(C_PRIM, (uint32_t)G_LINES << 16 | (next - at)); L->c.prims++; L->c.fx_lines += (next - at) / 2; at = next; }
++      if (r < nst) { put(C_PRIM, (uint32_t)G_LINE_STRIP << 16 | run[2 * r + 1]); L->c.prims++; L->c.fx_lruns++; at += run[2 * r + 1]; }
++    }
++    return 0;
++  }
+   uint32_t nruns = 0, ni = 0, p = 0;   /* the index list: 3 a class 3 triangle and 3 x (polygon vertices - 2) a class 4 one */
+   for (uint32_t k = 2; k < nv; k++) {
+     uint32_t cnt = 0;
+--- sb14/ge/gelist.h	2026-11-02 18:32:41.518814298 +0000
++++ sb15/ge/gelist.h	2026-11-03 10:35:19.822195514 +0000
+@@ -42,6 +42,7 @@
+ 
+ typedef struct {                              /* one frame's */
+   long words, aux, batches, prims, passes2, tex_set, vaddr, cuts, fx_runs, fx_tris, xf_strips;
++  long fx_spr, fx_lruns, fx_lines;   /* sb15 step 4: sprites; line strips (runs of joined streak segments, a PRIM each) and lines (GU_LINES) */
+   long blend_other;                           /* blend equations not in the table (drawn as (Cs - Cd) As + Cd, as the player) */
+   long tex_none;                              /* textured batches whose texture is missing (drawn untextured) */
+   long dropped;                               /* batches left out: no room in the list or aux */
+--- sb14/ge/gelive.c	2026-11-02 18:37:02.015483106 +0000
++++ sb15/ge/gelive.c	2026-11-03 12:39:21.760786886 +0000
+@@ -196,7 +196,7 @@
+           }
+           if (out) { if (wr) f->n.out_w++; else f->n.out_o++; }
+         }
+-    } else if (b->kind == GERK_XFORMF) {
++    } else if (b->kind == GERK_XFORMF && b->prim != 6 && b->prim != 2) {   /* (sb15: the sprites' and streaks' batches carry no classes) */
+       const VcVertF *v = (const VcVertF *)(x + 1); const uint8_t *cls = (const uint8_t *)(v + x->nv + x->nfv);
+       for (uint32_t k = 2; k < x->nv; k++) {
+         if (cls[k] != 3) continue;
+@@ -297,10 +297,14 @@
+ void gl_call(GlFrame *f, const XlCall *c)
+ {
+   f->lit_ok = 0; f->held_cur = -1; f->held_gone = 0;
+-  if (!gl_conv_entry(c->entry) || c->cont) { f->n.other++; return; }
++  if ((!gl_conv_entry(c->entry) && !(f->h.c4 && gl_c4_entry(c->entry))) || c->cont) { f->n.other++; return; }   /* (sb15: step 4's) */
+   f->n.calls++;
+-  if (f->ft && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2)) {   /* task #114: the frame's thinned effects, as they are now */
+-    f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram); f->h.thin = f->ft->r; }
++#ifndef __psp__
++  fx_who_note(f->ram, c->entry, c->src);   /* sb15 x86 census (MGS2_FX_WHO=1) */
++#endif
++  if (f->ft && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2 || c->entry == VC_LINE)) {   /* task #114: the frame's thinned
++                                                                     effects, as they are now (task #154: the streaks too, C4 on) */
++    f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram, f->h.c4); f->h.thin = f->ft->r; }
+   /* sb4, step c (renderer_notes 11.29): a call xc_hold_test takes is held when the frame has a record, its batch slots and data room
+      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
+   uint32_t bound; int npd;
+--- sb14/ge/gelive.h	2026-11-02 02:21:07.017353169 +0000
++++ sb15/ge/gelive.h	2026-11-03 10:14:20.133785316 +0000
+@@ -103,6 +103,9 @@
+ {
+   return e == XL_DF0 || e == XL_FX || e == XL_FX2 || e == 0x19fe08u || e == 0x1a0160u || e == 0x1a0540u || e == 0x1a08c0u || e == 0x1a31e0u;
+ }
++/* sb15, Stage C step 4: the entries with a converter while XcHost.c4 is on (ge/vu1conv.h VC_SPR, VC_QUAD, VC_LINE: P04+3740's sprites,
++   +3a38's quads, +2b60's streaks) */
++static inline int gl_c4_entry(uint32_t e) { return e == 0x19bb50u || e == 0x19be50u || e == 0x19af68u; }
+ int gl_write(const GlFrame *f, FILE *fp, uint32_t vb);   /* the frame as a replay file, 480 x 272; 0, or -1 */
+ 
+ /* the PSP harness's frame memory (psp/xl_psp.c, MGS2_GL; boot/xlive_chk.c MGS2_XLIVE_GX makes the same frames with the same sizes) */
+--- sb14/ge/vu1conv.c	2026-11-02 23:09:05.171518132 +0000
++++ sb15/ge/vu1conv.c	2026-11-03 11:14:44.060326444 +0000
+@@ -155,7 +155,7 @@
+   }
+ }
+ 
+-int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max)
++int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max, int tme)
+ {
+   const uint32_t *h = vq(vm, top + 0x14);
+   int n = (int)(h[0] & 0xffff);
+@@ -166,7 +166,7 @@
+   for (int i = 0; i < n; i++) {
+     const uint32_t *p = vq(vm, top + 0x100 + 3 * i), *c = vq(vm, top + 0x101 + 3 * i), *t = vq(vm, top + 0x102 + 3 * i);
+     for (int k = 0; k < 4; k++) if (c[k] > 255) bad = 1;
+-    if (t[2] != 0x1000) bad = 1;
++    if (tme && t[2] != 0x1000) bad = 1;   /* (sb15 4x: untextured, the GS takes no ST or Q from it) */
+     v[i].x = vfl(p[0]); v[i].y = vfl(p[1]); v[i].z = vfl(p[2]);
+     v[i].u = (float)(int32_t)t[0] / 4096.0f; v[i].v = (float)(int32_t)t[1] / 4096.0f;
+     v[i].c = (c[0] & 0xffu) | (c[1] & 0xffu) << 8 | (c[2] & 0xffu) << 16 | vc_a2((int)(c[3] & 0xffu)) << 24;
+@@ -178,7 +178,7 @@
+ /* sb6, Stage B lane 3 (vu1conv.h): vc_fpos's loop on the streams, K the attributes' kind (2: V4-16 signed, 3: plus ROW), each quadword
+    as the translator decodes it (ge/xlate.c ud_dec), then vc_fpos's arithmetic in its order */
+ static inline __attribute__((always_inline)) int fpos_rec_loop(const uint32_t *P, const vc_h16 *A, const uint32_t *row, VcVertF *v, uint16_t *flags,
+-                                                               int n, const int K)
++                                                               int n, const int K, const int tme)
+ {
+   const uint32_t r0 = K == 3 ? row[0] : 0, r1 = K == 3 ? row[1] : 0, r2 = K == 3 ? row[2] : 0, r3 = K == 3 ? row[3] : 0;
+   int bad = 0;
+@@ -187,7 +187,7 @@
+     uint32_t c[4] = { (uint32_t)(int32_t)a[0] + r0, (uint32_t)(int32_t)a[1] + r1, (uint32_t)(int32_t)a[2] + r2, (uint32_t)(int32_t)a[3] + r3 };
+     uint32_t t[4] = { (uint32_t)(int32_t)a[4] + r0, (uint32_t)(int32_t)a[5] + r1, (uint32_t)(int32_t)a[6] + r2, (uint32_t)(int32_t)a[7] + r3 };
+     for (int k = 0; k < 4; k++) if (c[k] > 255) bad = 1;
+-    if (t[2] != 0x1000) bad = 1;
++    if (tme && t[2] != 0x1000) bad = 1;   /* (as vc_fpos) */
+     v[i].x = vfl(p[0]); v[i].y = vfl(p[1]); v[i].z = vfl(p[2]);
+     v[i].u = (float)(int32_t)t[0] / 4096.0f; v[i].v = (float)(int32_t)t[1] / 4096.0f;
+     v[i].c = (c[0] & 0xffu) | (c[1] & 0xffu) << 8 | (c[2] & 0xffu) << 16 | vc_a2((int)(c[3] & 0xffu)) << 24;
+@@ -196,7 +196,7 @@
+   return bad;
+ }
+ int vc_fpos_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint16_t *num, const uint8_t *kind, const uint32_t *row, VcXform *x,
+-                VcVertF *v, uint16_t *flags, int max)
++                VcVertF *v, uint16_t *flags, int max, int tme)
+ {
+   const uint32_t *h = vq(vm, top + 0x14);
+   int n = (int)(h[0] & 0xffff);
+@@ -204,8 +204,8 @@
+   if (!vc_fpos_rec_ok(p, num, kind, n)) return -8;
+   vc_xform(vm, top, 0x10, 1.0f, x);
+   x->n = n; x->clip = 1;   /* (as vc_fpos) */
+-  int bad = kind[1] == 2 ? fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 2) :
+-                           fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 3);
++  int bad = kind[1] == 2 ? fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 2, tme) :
++                           fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 3, tme);
+   return bad ? -4 : n;
+ }
+ 
+@@ -1455,3 +1455,161 @@
+     default: return p6_c2loop(p, L, k, v, flags, zr, zw, zn, 1, 1);
+   }
+ }
++
++/* ---- Stage C step 4 (vu1conv.h): P04+0x3740, the sprites ---- */
++static float vdiv(float a, float b)   /* the VU's DIV as the interpreters model it: b = 0 gives the largest value of a's sign times b's */
++{
++  if (b == 0.0f) { uint32_t ua, ub, u; memcpy(&ua, &a, 4); memcpy(&ub, &b, 4); u = ((ua ^ ub) & 0x80000000u) | 0x7f7fffffu; float r; memcpy(&r, &u, 4); return r; }
++  return vc_vu(a / b);
++}
++int vc_spr(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint8_t *drop, int max)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  vc_xform(vm, top, 0x10, 1.0f, x);
++  static const float ID[12] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
++  memcpy(x->world, ID, sizeof ID);
++  x->n = n; x->clip = 1;
++  const uint32_t *k7 = vq(vm, 0x07);
++  const float fx = vfl(k7[0]), fy = vfl(k7[1]);
++  int bad = 0, m = 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t *P = vq(vm, top + 0x100 + 6 * i), *C = vq(vm, top + 0x101 + 6 * i), *U0 = vq(vm, top + 0x102 + 6 * i),
++                   *S = vq(vm, top + 0x104 + 6 * i), *U1 = vq(vm, top + 0x105 + 6 * i);
++    for (int k = 0; k < 4; k++) if (C[k] > 255) bad = 1;
++    if (U0[2] != 0x1000) bad = 1;
++    const float p[3] = { vfl(P[0]), vfl(P[1]), vfl(P[2]) };
++    float c[4]; vc_vu_clip(x->m, p, c);
++    /* MSUB / MADD: corner = ACC (= c) -+ size f, the product rounded, then the sum (z: c.z -+ 0 f.z = c.z; w: c.w) */
++    const float px = vc_vu((float)(int32_t)S[0] * fx), py = vc_vu((float)(int32_t)S[1] * fy);
++    float x0 = vc_vu(c[0] - px), y0 = vc_vu(c[1] - py), x1 = vc_vu(c[0] + px), y1 = vc_vu(c[1] + py);
++    const float aw = fabs_(c[3]), z = c[2];
++    const int fz = (z > aw) << 4 | (z < -aw) << 5;
++    const int f0 = (x0 > aw) | (x0 < -aw) << 1 | (y0 > aw) << 2 | (y0 < -aw) << 3 | fz, f1 = (x1 > aw) | (x1 < -aw) << 1 | (y1 > aw) << 2 | (y1 < -aw) << 3 | fz;
++    const int fl = f0 << 6 | f1;   /* the VU's clip flags after both CLIPs: corner 0 in bits 6..11, corner 1 in 0..5 */
++    if (fl & 0xd7a) { drop[i] = 1; continue; }
++    drop[i] = 0;
++    float u0 = (float)(int32_t)U0[0] / 4096.0f, v0 = (float)(int32_t)U0[1] / 4096.0f, u1 = (float)(int32_t)U1[0] / 4096.0f, v1 = (float)(int32_t)U1[1] / 4096.0f;
++    if (fl) {
++      const float Q = vdiv(1.0f, c[3]);
++      float n0x = vc_vu(x0 * Q), n0y = vc_vu(y0 * Q), n1x = vc_vu(x1 * Q), n1y = vc_vu(y1 * Q);
++      if (fl & 0x080) { const float q = vdiv(vc_vu(n1x + 1.0f), vc_vu(n1x - n0x)); n0x = -1.0f; u0 = vc_vu(u1 + vc_vu(vc_vu(u0 - u1) * q)); x0 = -c[3]; }
++      if (fl & 0x200) { const float q = vdiv(vc_vu(n1y + 1.0f), vc_vu(n1y - n0y)); n0y = -1.0f; v0 = vc_vu(v1 + vc_vu(vc_vu(v0 - v1) * q)); y0 = -c[3]; }
++      if (fl & 0x001) { const float q = vdiv(vc_vu(n0x - 1.0f), vc_vu(n0x - n1x)); n1x = 1.0f; u1 = vc_vu(u0 + vc_vu(vc_vu(u1 - u0) * q)); x1 = c[3]; }
++      if (fl & 0x004) { const float q = vdiv(vc_vu(n0y - 1.0f), vc_vu(n0y - n1y)); n1y = 1.0f; v1 = vc_vu(v0 + vc_vu(vc_vu(v1 - v0) * q)); y1 = c[3]; }
++    }
++    const uint32_t col = (C[0] & 0xffu) | (C[1] & 0xffu) << 8 | (C[2] & 0xffu) << 16 | vc_a2((int)(C[3] & 0xffu)) << 24;
++    VcVertF *a = &v[2 * m], *b = a + 1;
++    a->u = u0; a->v = v0; a->c = col; a->x = x0; a->y = y0; a->z = c[3];
++    b->u = u1; b->v = v1; b->c = col; b->x = x1; b->y = y1; b->z = c[3];
++    m++;
++  }
++  return bad ? -4 : n;
++}
++
++/* ---- Stage C step 4 (vu1conv.h): P04+0x3a38, the rotated quads ---- */
++int vc_quad(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, VcCv *cv, uint8_t *st, int max)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  vc_xform(vm, top, 0x10, 1.0f, x);
++  static const float ID[12] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
++  memcpy(x->world, ID, sizeof ID);
++  x->n = 4 * n; x->clip = 1;
++  const uint32_t *k7 = vq(vm, 0x07);
++  const float fx = vfl(k7[0]), fy = vfl(k7[1]);
++  int bad = 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t *P = vq(vm, top + 0x100 + 12 * i), *C = vq(vm, top + 0x101 + 12 * i), *U0 = vq(vm, top + 0x102 + 12 * i),
++                   *S = vq(vm, top + 0x103 + 12 * i), *U1 = vq(vm, top + 0x104 + 12 * i);
++    for (int k = 0; k < 4; k++) if (C[k] > 255) bad = 1;
++    if (U0[2] != 0x1000 || U1[2] != 0x1000) bad = 1;
++    const float p[3] = { vfl(P[0]), vfl(P[1]), vfl(P[2]) };
++    float c[4]; vc_vu_clip(x->m, p, c);
++    const float sx = (float)(int32_t)S[0], sy = (float)(int32_t)S[1];
++    const float axx = vc_vu(fx * sx), ayy = vc_vu(fy * sy), axy = vc_vu(fx * sy), ayx = vc_vu(fy * sx);
++    /* MSUB / MADD with ACC = c: corner 0 c - f s; 1 (c.x + fx sy, c.y - fy sx); 2 (c.x - fx sy, c.y + fy sx); 3 c + f s */
++    const float X[4] = { vc_vu(c[0] - axx), vc_vu(c[0] + axy), vc_vu(c[0] - axy), vc_vu(c[0] + axx) };
++    const float Y[4] = { vc_vu(c[1] - ayy), vc_vu(c[1] - ayx), vc_vu(c[1] + ayx), vc_vu(c[1] + ayy) };
++    const float u0 = (float)(int32_t)U0[0] / 4096.0f, v0 = (float)(int32_t)U0[1] / 4096.0f, u1 = (float)(int32_t)U1[0] / 4096.0f, v1 = (float)(int32_t)U1[1] / 4096.0f;
++    const float U[4] = { u0, u1, u0, u1 }, V[4] = { v0, v0, v1, v1 };
++    const float aw = fabs_(c[3]), z = c[2];
++    const int fz = (z > aw) << 4 | (z < -aw) << 5;
++    int fa = 0x3f, fo = 0;
++    for (int k = 0; k < 4; k++) { const int f = (X[k] > aw) | (X[k] < -aw) << 1 | (Y[k] > aw) << 2 | (Y[k] < -aw) << 3 | fz; fa &= f; fo |= f; }
++    st[i] = fa ? 1 : fo ? 2 : 0;
++    const uint32_t col = (C[0] & 0xffu) | (C[1] & 0xffu) << 8 | (C[2] & 0xffu) << 16 | vc_a2((int)(C[3] & 0xffu)) << 24;
++    for (int k = 0; k < 4; k++) {
++      VcVertF *o = &v[4 * i + k]; o->u = U[k]; o->v = V[k]; o->c = col; o->x = X[k]; o->y = Y[k]; o->z = c[3];
++      if (st[i] == 2) {
++        VcCv *q = &cv[4 * i + k];
++        q->c[0] = X[k]; q->c[1] = Y[k]; q->c[2] = z; q->c[3] = c[3];
++        for (int j = 0; j < 4; j++) q->col[j] = (float)(int32_t)C[j];
++        q->uv[0] = U[k]; q->uv[1] = V[k]; q->uv[2] = 1.0f;
++        q->p[0] = X[k]; q->p[1] = Y[k]; q->p[2] = c[3];
++      }
++    }
++  }
++  return bad ? -4 : n;
++}
++
++/* ---- Stage C step 4 (vu1conv.h): P04+0x2b60, the line strips, and its clipper ---- */
++int vc_line(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, float (*cc)[4], uint8_t *cls, int max, int tme)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  vc_xform(vm, top, 0x10, 1.0f, x);
++  x->n = n; x->clip = 1;
++  int bad = 0, pf = 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t *p = vq(vm, top + 0x100 + 3 * i), *c = vq(vm, top + 0x101 + 3 * i), *t = vq(vm, top + 0x102 + 3 * i);
++    for (int k = 0; k < 4; k++) if (c[k] > 255) bad = 1;
++    if (tme && t[2] != 0x1000) bad = 1;   /* untextured: the GS takes no ST or Q from it (the deck's lines at vb 24,667 hold old data there) */
++    v[i].x = vfl(p[0]); v[i].y = vfl(p[1]); v[i].z = vfl(p[2]);
++    v[i].u = (float)(int32_t)t[0] / 4096.0f; v[i].v = (float)(int32_t)t[1] / 4096.0f;
++    v[i].c = (c[0] & 0xffu) | (c[1] & 0xffu) << 8 | (c[2] & 0xffu) << 16 | vc_a2((int)(c[3] & 0xffu)) << 24;
++    flags[i] = (uint16_t)t[3];
++    const float pp[3] = { v[i].x, v[i].y, v[i].z };
++    vc_vu_clip(x->m, pp, cc[i]);
++    const int f = vc_cflags(cc[i]);
++    cls[i] = i == 0 || (flags[i] & 0x8000) ? 0 : !(f | pf) ? 1 : (f & pf) ? 2 : 4;
++    pf = f;
++  }
++  return bad ? -4 : n;
++}
++/* one plane of the line clipper (p4.lst 0x31a0 .. 0x36d8): bit (0..5) and axis of the plane, s = +1 / -1 */
++static void seg_plane(VcCv *e, int bit, int axis, float s)
++{
++  VcCv *a = &e[0], *b = &e[1];
++  const float da = vc_vu(a->c[3] - s * a->c[axis]), db = vc_vu(b->c[3] - s * b->c[axis]);
++  const float q = vdiv(1.0f, vc_vu(db - da));
++  VcCv r;
++  for (int j = 0; j < 4; j++) r.c[j] = vc_vu(vc_vu(a->c[j] * db) - vc_vu(b->c[j] * da));
++  r.c[axis] = s * r.c[3];   /* ADDW / SUBW: 0 +- the new w (exact) */
++  for (int j = 0; j < 4; j++) r.c[j] = vc_vu(r.c[j] * q);
++  for (int j = 0; j < 4; j++) r.col[j] = vc_vu(vc_vu(vc_vu(a->col[j] * db) - vc_vu(b->col[j] * da)) * q);
++  for (int j = 0; j < 3; j++) r.uv[j] = vc_vu(vc_vu(vc_vu(a->uv[j] * db) - vc_vu(b->uv[j] * da)) * q);
++  for (int j = 0; j < 3; j++) r.p[j] = (a->p[j] * db - b->p[j] * da) * q;   /* (ours: the world position for the GE, as uv) */
++  /* the end replaced: b if b is outside the plane, else a */
++  if (vc_cflags(b->c) >> bit & 1) *b = r; else *a = r;
++}
++int vc_clip_seg(const VcCv in[2], VcCv out[2])
++{
++  VcCv e[2] = { in[0], in[1] };
++  int fa = vc_cflags(e[0].c), fb = vc_cflags(e[1].c);
++  if (fa & fb) return 0;
++  if ((fa | fb) & 0x10) { seg_plane(e, 4, 2, 1.0f); fa = vc_cflags(e[0].c); fb = vc_cflags(e[1].c); if (fa & fb) return 0; }
++  for (int k = 0; k < 2; k++) for (int j = 0; j < 4; j++) e[k].col[j] = vc_vu(e[k].col[j] * e[k].c[3]);   /* 0x2508 */
++  fa = vc_cflags(e[0].c); fb = vc_cflags(e[1].c);
++  static const int BIT[5] = { 5, 0, 1, 2, 3 }, AX[5] = { 2, 0, 0, 1, 1 }; static const float SG[5] = { -1, 1, -1, 1, -1 };
++  for (int p = 0; p < 5; p++) if ((fa | fb) >> BIT[p] & 1) {
++    seg_plane(e, BIT[p], AX[p], SG[p]);
++    fa = vc_cflags(e[0].c); fb = vc_cflags(e[1].c);
++    if (fa & fb) return 0;
++  }
++  out[0] = e[0]; out[1] = e[1];
++  return 2;
++}
+--- sb14/ge/vu1conv.h	2026-11-02 23:09:05.127518130 +0000
++++ sb15/ge/vu1conv.h	2026-11-03 11:14:44.056016679 +0000
+@@ -51,8 +51,9 @@
+ 
+ /* P04+0x25f0 / +0x2870 (pre-lit strips with float world positions and per-vertex alpha; 2870 adds a back-face test): the call's
+    transform (the matrix at T+0x10..0x13; world rows without the x 32768) and vertices; flags as vc_df0 (from the UV qword's w).
+-   Returns the vertex count; -1: the header's count is above max; -4: a colour word above 255 or a UV z other than 1.0. */
+-int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max);
++   Returns the vertex count; -1: the header's count is above max; -4: a colour word above 255 or a UV z other than 1.0 (the UV z only when
++   tme, the call's PRIM TME: an untextured call's UV quadword is not drawn; sb15 4x, the deck's flat triangles hold old data there). */
++int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max, int tme);
+ /* sb6, Stage B lane 3 (renderer_notes 11.33): vc_fpos with the vertices read from the game's data (ge/xlate.h XlRec lane 3: p[0] the
+    positions, num[0] vectors of V4-32, kind[0] 1; p[1] the attributes, num[1] vectors of V4-16 signed, kind[1] 2, or 3 plus row; kind[2] 1:
+    the layout vc_fpos reads, cl 3), the rest from vm as vc_fpos reads it.  The same results as vc_fpos on the VU memory those streams leave;
+@@ -62,7 +63,7 @@
+   return p[0] && p[1] && kind[2] == 1 && kind[0] == 1 && (kind[1] == 2 || kind[1] == 3) && n <= (int)num[0] && 2 * n <= (int)num[1];
+ }
+ int vc_fpos_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint16_t *num, const uint8_t *kind, const uint32_t *row, VcXform *x,
+-                VcVertF *v, uint16_t *flags, int max);
++                VcVertF *v, uint16_t *flags, int max, int tme);
+ 
+ /* The P04 pre-lit clipper (micro address 0x1710, re/vu1_programs.md §2.5) on one triangle, as the PS2 runs it: the +z (near) plane if a
+    vertex is outside it; then the colours times w; then -z, +x, -x, +y, -y, each when one of the (at most 4) vertices left after the near
+@@ -240,4 +241,47 @@
+    above 0 the least and largest in zw[0], zw[1] and their count in *zn.  Returns n, or -8 where p06_main would not take the call (a UV1
+    above 32767) or the GE cannot draw it (a weight outside 0..4096, a factor's colour other than 4096 (1.0), with uv2 2 a UV2 above 32767) */
+ int vc_p06_c2v(const void *const *p, VcLit *L, const VcP6C2 *k, uint8_t *v, uint16_t *flags, const float *zr, float *zw, long *zn);
++
++/* ---- Stage C step 4 (stagec_notes.md step 4): the effects P12d910 sends that the GE did not draw before ---- */
++#define VC_SPR 0x19bb50u    /* P04+0x3740: sprites (the rain's mist and spray) */
++#define VC_QUAD 0x19be50u   /* P04+0x3a38: rotated quads */
++#define VC_LINE 0x19af68u   /* P04+0x2b60: line strips (the rain's streaks) */
++/* P04+0x3740 (p4.lst 0x3740-0x3a30): count (T+0x14 x) sprites, records of 6 quadwords from T+0x100: centre (float x, y, z), RGBA,
++   UV0 (4.12 s, t, q), -, size (ints x, y), UV1.  The PS2 (each step rounded as vc_vu): c = M centre (M at T+0x10..0x13, as
++   vc_vu_clip); corner 0 = c - size f, corner 1 = c + size f in x and y (f: abs 7 x, y; z and w are c's); both CLIP-tested against
++   |c.w|; a sprite with corner 1 beyond -x or -y, corner 0 beyond +x or +y, or either outside in z is dropped (ADC); else a corner beyond
++   x or y = -w (corner 0) or +w (corner 1) is moved onto it and its UV moved in proportion, in the order x0, y0, x1, y1; fog F =
++   clamp(fog_a w + fog_b, 0, abs 3 x) from corner 1.  Out: x as vc_xform makes it but with the GE world the identity (the GE's view
++   space is then the PS2's clip x, y, w: the GE divides by w and takes depth and fog from it), and the drawn sprites' corners as VcVertF
++   pairs, in order: x, y the corner's clip x, y (a moved one +-w), z the clip w, u, v the UV in PS2 texture widths after the moves, c the
++   colour as VcVert's; drop[i] = 1 for each sprite the PS2 drops (i below the count), else 0.  Returns the count (drawn and dropped);
++   -1: the count above max; -4: a colour word above 255, or UV0's q (the GS's Q for both corners) other than 1.0 */
++int vc_spr(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint8_t *drop, int max);
++/* P04+0x3a38 (p4.lst 0x3a38-0x3d90): count (T+0x14 x) quads, records of 12 quadwords from T+0x100: centre (float x, y, z), RGBA, UV0
++   (4.12 s, t, q), side (ints x, y), UV1.  The PS2 (each step rounded as vc_vu): c = M centre; corners c - f s, (c.x + fx sy, c.y - fy sx),
++   (c.x - fx sy, c.y + fy sx), c + f s (f: abs 7 x, y; z and w are c's), UVs (u0, v0), (u1, v0), (u0, v1), (u1, v1); each corner
++   CLIP-tested against |c.w|; all four outside one plane: dropped; another flag: the strip triangles (0, 1, 2) and (1, 2, 3) go to the
++   pre-lit clipper (micro 0x1710, vc_clip_tri; the micro program rewrites T+0x14 x to 4 x the count for it); else drawn as a strip of the
++   four corners.  Out: x as vc_spr's (the GE world the identity); for quad i st[i] = 0 drawn whole, 1 dropped, 2 to the clipper;
++   v[4 i + k]: corner k as vc_spr's (x, y: clip x, y; z: clip w; u, v in PS2 texture widths; c the colour as VcVert's); with st[i] = 2,
++   cv[4 i + k]: corner k as the clipper reads it (c: clip x, y, z, w; col: the PS2's colour, 0..255 floats; uv: u, v, q; p: clip x, y, w,
++   the GE's view position).  Returns the count; -1: above max; -4: a colour word above 255, or UV0's or UV1's q other than 1.0 */
++int vc_quad(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, VcCv *cv, uint8_t *st, int max);
++/* P04+0x2b60 (p4.lst 0x2b60-0x2de0; its clipper 0x2de8-0x3190 with the plane routines 0x31a0-0x3738 and 0x2508): count (T+0x14 x)
++   vertices of line strips, records of 3 quadwords from T+0x100 as P04+25f0's (float world position, RGBA, UV whose w holds the flags:
++   bit 15, a strip starts at the vertex).  The PS2: c = M p (vc_vu_clip) CLIP-tested for each vertex; the segment that ends at vertex i
++   (i >= 1, no strip start there) is drawn in the strip when neither end has a flag, else marked for the line clipper, which drops it when
++   both ends lie outside one plane and else clips it plane by plane (vc_clip_seg) and draws what is left as a line of its own (tag template
++   T+0x16).  tme: the call's PRIM TME (untextured, the UV quadword's x, y, q are not read).  Out: x as vc_fpos's (the GE world the call's matrix rows), v[i] as vc_fpos's (world position, UV in PS2 texture widths,
++   colour), flags[i] the UV's w, cc[i] the clip position c, cls[i] for the segment that ends at vertex i: 0 none (i = 0 or a strip start),
++   1 drawn in the strip, 2 dropped at the clipper's first test, 4 to be clipped (vc_clip_seg).  Returns the count; -1: above max; -4: a
++   colour word above 255 or, textured, a UV q other than 1.0 */
++int vc_line(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, float (*cc)[4], uint8_t *cls, int max, int tme);
++/* The P04 line clipper on one segment (in[0], in[1]: VcCv as vc_clip_tri's, uv's q 1.0): the +z plane if an end is outside it; the
++   colours times w; then -z, +x, -x, +y, -y in turn, each when an end is outside it as the CLIP flags stand after the plane before: the
++   end outside replaced in place by (a d_b - b d_a) / (d_b - d_a) (d = w - the coordinate, or w + it for the minus planes; a the first
++   end) with that coordinate set to +w or -w, each product, difference and quotient rounded as the VU's; after each plane, both ends
++   outside one plane drop the segment.  Returns 2 (out: the two ends, colours times w as the PS2 holds them: it draws ftoi0(col / w +
++   0.0005)) or 0 (dropped) */
++int vc_clip_seg(const VcCv in[2], VcCv out[2]);
+ #endif
+--- sb14/ge/xconv.c	2026-11-02 23:29:18.823924849 +0000
++++ sb15/ge/xconv.c	2026-11-03 12:36:09.794354908 +0000
+@@ -53,6 +53,7 @@
+ /* the GE transform of the call: world and projection from the VU matrix, the PS2 viewport in the replay's screen (512 -> 480 x 272,
+    GE offset 2048 - 240, 2048 - 136), depth x zk, fog (fogcol: FOGCOL, GS register 0x3d's low 24 bits), and the texture scale (uvk: 8 for
+    df0's 16-bit UVs, 1 for float UVs) */
++static const float XC_ID[12] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };   /* sb15 4x: the GE's world for vertices in clip space (x, y, w in z) */
+ static void xc_xform(const VcXform *x, const XcGs *d, const XcTex *t, int uvk, const XcHost *h, uint32_t fogcol, GerXform *gx)
+ {
+   memset(gx, 0, sizeof *gx);
+@@ -290,9 +291,18 @@
+     for (int q = 0; q < 4; q++) { col[q] = (uint32_t)(int32_t)a[q] + (k3 ? r->row[q] : 0); uv[q] = (uint32_t)(int32_t)a[4 + q] + (k3 ? r->row[q] : 0); } }
+   else { memcpy(col, vq(c->vm, c->top + 0x101 + 3 * j), 16); memcpy(uv, vq(c->vm, c->top + 0x102 + 3 * j), 16); }
+ }
++/* sb15 fx: one scratch for the effect converters (xc_fpos, xc_spr, xc_quad, xc_line).  Each converts one call into the frame's data and
++   returns; nothing points into the scratch afterwards and no two of them run at once, so they share it (step 4's own arrays were 262 KB) */
++static union {
++  struct { VcVertF v[1024], pv[8192]; uint16_t fl[1024], pfan[1024][2]; uint8_t cls[1024], cf[1024], drop[1024]; float cc[1024][4]; } f;
++  struct { VcVertF v[2 * 256]; uint8_t drop[256]; } s;
++  struct { VcVertF v[4 * 256], pv[2048]; VcCv cv[4 * 256]; uint8_t st[256], cls[4 * 256]; uint16_t pfan[512][2]; } q;
++  struct { VcVertF v[1024], sv[1024], pv[2048]; uint16_t fl[1024], run[512][2]; float cc[1024][4]; uint8_t cls[1024]; } l;
++} Fx;
+ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+-  static VcVertF v[1024], pv[8192]; static uint16_t fl[1024], pfan[1024][2]; static uint8_t cls[1024], cf[1024]; static float cc[1024][4];
++  VcVertF *const v = Fx.f.v, *const pv = Fx.f.pv; uint16_t *const fl = Fx.f.fl, (*const pfan)[2] = Fx.f.pfan; uint8_t *const cls = Fx.f.cls, *const cf = Fx.f.cf;
++  float (*const cc)[4] = Fx.f.cc;
+   if (h->trace) h->trace->n = 0;
+   /* a call whose vertices all lie at one point draws nothing (the deck's unused particles; some of them hold colour words above 255) */
+   int n0 = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff), same = n0 <= 1024;
+@@ -320,24 +330,24 @@
+   if (chk && same) xc_rec3_diff += chk == 2;
+ #endif
+   if (same) return 0;
+-  VcXform x; int n;
++  VcXform x; int n; const int tq = h->c4x ? d->tme : 1;   /* sb15 4x: an untextured call's UV q not checked */
+   if (rr) {
+-    n = vc_fpos_rec(c->vm, c->top, rr->p, rr->num, rr->kind, rr->row, &x, v, fl, 1024);
+-    if (n == -8) { rr = 0; xc_rec3_calls--; xc_rec3_vm++; xl_vm_sync(); n = vc_fpos(c->vm, c->top, &x, v, fl, 1024); }   /* (not expected:
++    n = vc_fpos_rec(c->vm, c->top, rr->p, rr->num, rr->kind, rr->row, &x, v, fl, 1024, tq);
++    if (n == -8) { rr = 0; xc_rec3_calls--; xc_rec3_vm++; xl_vm_sync(); n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, tq); }   /* (not expected:
+                                                         vc_fpos_rec_ok above) */
+ #ifndef __psp__
+     else if (chk) {   /* vc_fpos on the VU memory, decoded: its every output the same */
+       static VcVertF ev[1024]; static uint16_t ef[1024]; VcXform ex;
+-      int ne = vc_fpos(c->vm, c->top, &ex, ev, ef, 1024);
++      int ne = vc_fpos(c->vm, c->top, &ex, ev, ef, 1024, tq);
+       if (ne != n || memcmp(&ex, &x, sizeof x) || (n > 0 && (memcmp(ev, v, (size_t)n * sizeof *v) || memcmp(ef, fl, 2 * (size_t)n)))) chk = 2;
+       xc_rec3_diff += chk == 2;
+     }
+ #endif
+-  } else n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
++  } else n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, tq);
+   if (n < 0) return n;
+   /* task #114: a thinned effect (XcHost.thin): strips 0, keep, 2 keep ... drawn; drop[i]: vertex i is in a strip left out */
+-  static uint8_t drop[1024]; int keep = 1;
+-  for (int k = 0; k < h->nthin; k++) if (c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { keep = h->thin[k].keep; break; }
++  uint8_t *const drop = Fx.f.drop; int keep = 1;
++  for (int k = 0; k < h->nthin; k++) if (!h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { keep = h->thin[k].keep; break; }
+   if (keep > 1) { int s = 0;
+     for (int i = 0; i < n; i++) { if (i && (fl[i] & 0x8000) && i + 1 < n && (fl[i + 1] & 0x8000) && !(fl[i - 1] & 0x8000)) s++;
+       drop[i] = (uint8_t)(s % keep != 0); }
+@@ -358,6 +368,7 @@
+   if (tr) { tr->n = n;
+     for (int i = 0; i < n; i++) { int f = cf[i] | (i >= 1 ? cf[i - 1] : 0) | (i >= 2 ? cf[i - 2] : 0);   /* FCSET 0 before the loop */
+       memcpy(tr->c[i], cc[i], 16); tr->post[i] = (uint16_t)(fl[i] | (f && !(fl[i] & 0x8000) ? 0xc000 : 0)); } }
++  if (h->c4x) memcpy(x.world, XC_ID, sizeof x.world);   /* sb15 4x: the vertices in clip space (below), the GE's world the identity */
+   GerXform gx; xc_xform(&x, d, t, 1, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
+   const float g[4] = { gx.vs[0], gx.vo[0], gx.vs[1], gx.vo[1] };
+   int npf = 0, npv = 0, drawn = 0;
+@@ -395,12 +406,16 @@
+     for (int k = 0; k < m; k++) {   /* world position, the colour the PS2 draws (ftoi0(col / w + 0.0005)), UV */
+       const VcCv *P = &out[k]; VcVertF *o2 = &pv[npv++]; float Q = 1.0f / P->c[3]; int cv[4];
+       for (int q = 0; q < 4; q++) { cv[q] = (int)(P->col[q] * Q + 0.0005f); cv[q] = cv[q] < 0 ? 0 : cv[q] > 255 ? 255 : cv[q]; }
+-      o2->u = P->uv[0]; o2->v = P->uv[1]; o2->x = P->p[0]; o2->y = P->p[1]; o2->z = P->p[2];
++      o2->u = P->uv[0]; o2->v = P->uv[1];
++      if (h->c4x) { o2->x = P->c[0]; o2->y = P->c[1]; o2->z = P->c[3]; } else { o2->x = P->p[0]; o2->y = P->p[1]; o2->z = P->p[2]; }   /* (sb15 4x) */
+       o2->c = (uint32_t)cv[0] | (uint32_t)cv[1] << 8 | (uint32_t)cv[2] << 16 | (uint32_t)(cv[3] >= 0x80 ? 0xff : cv[3] * 2) << 24;
+     }
+   }
+   if (tr) memcpy(tr->cls, cls, n);
+   if (!drawn) return 0;
++  if (h->c4x)   /* sb15 4x: each vertex's clip position as the micro program computes it (x, y, with w in z); a thinned strip's vertices,
++                   whose triangles are not drawn, keep what they hold */
++    for (int i = 0; i < n; i++) if (!(keep > 1 && drop[i] && !tr)) { v[i].x = cc[i][0]; v[i].y = cc[i][1]; v[i].z = cc[i][3]; }
+   gx.nv = n; gx.nfan = npf; gx.nfv = npv;
+   uint32_t o = 0, nc = (n + 3) & ~3u, need = sizeof gx + (n + npv) * sizeof *v + nc + npf * 4;
+   if (need > cap) return -5;
+@@ -413,6 +428,199 @@
+   *size = o; return 1;
+ }
+ 
++/* ---- sb15, Stage C step 4 (stagec_notes.md step 4; XcHost.c4): P04+3740's sprites, +3a38's quads, +2b60's streaks as GERK_XFORMF
++   batches (ge/replay_fmt.h), the primitive in GerBatch.prim: the converters (ge/vu1conv.h vc_spr, vc_quad, vc_line, vc_clip_seg) as gsref's
++   spchk, qdchk and lnchk check them against the PS2's micro code.  The texture is looked up only for a call that draws something ---- */
++static void c4_tex(const XlCall *c, const XcHost *h, const XcGs *d, XcTex *t)
++{
++  memset(t, 0, sizeof *t); t->index = -1;
++  if (d->tme && h->tex && !h->tex(h->ctx, c->gr, d->ctxt, t)) t->index = -1;
++}
++static inline uint32_t c4_col(const float *col, float Q)   /* a clipped vertex's colour as the PS2 draws it: ftoi0(col / w + 0.0005), alpha doubled */
++{
++  int cv[4];
++  for (int q = 0; q < 4; q++) { cv[q] = (int)(col[q] * Q + 0.0005f); cv[q] = cv[q] < 0 ? 0 : cv[q] > 255 ? 255 : cv[q]; }
++  return (uint32_t)cv[0] | (uint32_t)cv[1] << 8 | (uint32_t)cv[2] << 16 | (uint32_t)(cv[3] >= 0x80 ? 0xff : cv[3] * 2) << 24;
++}
++/* the lowest colour alpha (PS2 scale) of n records of st quadwords from T + 0x101 (xc_twopass's a) */
++static int c4_amin(const XlCall *c, int n, int st)
++{
++  int amin = 255;
++  for (int i = 0; i < n; i++) { int a = (int)(vq(c->vm, c->top + 0x101 + (uint32_t)(st * i))[3] & 0xff); if (a < amin) amin = a; }
++  return amin;
++}
++/* sprites: the drawn sprites' corner pairs (clip x, y, with w in z: the GE's world the identity), one GU_SPRITES; no classes */
++static int xc_spr(const XlCall *c, const XcHost *h, const XcGs *d, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  VcVertF *const v = Fx.s.v; uint8_t *const drop = Fx.s.drop; VcXform x;
++  int n = vc_spr(c->vm, c->top, &x, v, drop, 256), m = 0;
++  if (n < 0) return n;
++  for (int i = 0; i < n; i++) m += !drop[i];
++  St.c4_n[0] += n; St.c4_drop[0] += n - m; St.c4_drawn[0] += m;
++  for (int i = 0, j = 0; i < n; i++) if (!drop[i]) { const VcVertF *a = &v[2 * j++]; St.c4_clip[0] += a->x == -a->z || a->y == -a->z || a[1].x == a->z || a[1].y == a->z; }
++  if (!m) return 0;
++  XcTex t; c4_tex(c, h, d, &t);
++  GerXform gx; xc_xform(&x, d, &t, 1, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
++  const uint32_t nv = 2u * (uint32_t)m, need = sizeof gx + nv * sizeof *v;
++  if (need > cap) return -5;
++  gx.nv = nv;
++  uint32_t o = 0;
++  memcpy(blob + o, &gx, sizeof gx); o += sizeof gx;
++  memcpy(blob + o, v, nv * sizeof *v); o += nv * sizeof *v;
++  xc_state(d, t.index, c->entry, b); b->kind = GERK_XFORMF; b->prim = 6; b->twopass = (uint8_t)xc_twopass(d, &t, c4_amin(c, n, 6)); b->count = nv;
++  *size = o; return 1;
++}
++/* quads: the quads drawn whole or clipped (the dropped ones left out: they draw nothing), 4 corners each in the strip's classes (corners
++   0, 1: 0; 2, 3: 1 whole, 4 clipped), the clipped triangles' polygons from vc_clip_tri as xc_fpos's class 4; fx_draw draws them as it
++   draws the fans */
++static int xc_quad(const XlCall *c, const XcHost *h, const XcGs *d, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  VcVertF *const v = Fx.q.v, *const pv = Fx.q.pv; VcCv *const cv = Fx.q.cv; uint8_t *const st = Fx.q.st, *const cls = Fx.q.cls;
++  uint16_t (*const pfan)[2] = Fx.q.pfan; VcXform x;
++  int n = vc_quad(c->vm, c->top, &x, v, cv, st, 256);
++  if (n < 0) return n;
++  int npf = 0, npv = 0, drawn = 0, q = 0;   /* q: the quads kept */
++  St.c4_n[1] += n;
++  for (int i = 0; i < n; i++) {
++    if (st[i] == 1) { St.c4_drop[1]++; continue; }
++    if (q != i) memcpy(&v[4 * q], &v[4 * i], 4 * sizeof *v);
++    uint8_t *k4 = cls + 4 * q; k4[0] = k4[1] = 0;
++    if (st[i] == 0) { k4[2] = k4[3] = 1; drawn = 1; St.c4_drawn[1]++; q++; continue; }
++    k4[2] = k4[3] = 4; St.c4_clip[1]++;
++    for (int t = 0; t < 2; t++) {
++      VcCv in[3] = { cv[4 * i + t], cv[4 * i + t + 1], cv[4 * i + t + 2] }, out[16];
++      int m = vc_clip_tri(in, out);
++      if (m < 3) { St.c4_poly_empty++; continue; }
++      if (npf == 512 || npv + m > 2048) { St.c4_full++; continue; }
++      pfan[npf][0] = (uint16_t)(4 * q + 2 + t); pfan[npf][1] = (uint16_t)m; npf++; drawn = 1; St.c4_poly++; St.c4_poly_v += m;
++      for (int k = 0; k < m; k++) {
++        const VcCv *P = &out[k]; VcVertF *o2 = &pv[npv++];
++        o2->u = P->uv[0]; o2->v = P->uv[1]; o2->c = c4_col(P->col, 1.0f / P->c[3]); o2->x = P->c[0]; o2->y = P->c[1]; o2->z = P->c[3];   /* (4x) */
++      }
++    }
++    q++;
++  }
++  if (!drawn) return 0;
++  XcTex t; c4_tex(c, h, d, &t);
++  GerXform gx; xc_xform(&x, d, &t, 1, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
++  const uint32_t nv = 4u * (uint32_t)q, nc = (nv + 3) & ~3u, need = sizeof gx + (nv + (uint32_t)npv) * sizeof *v + nc + (uint32_t)npf * 4;
++  if (need > cap) return -5;
++  gx.nv = nv; gx.nfan = (uint32_t)npf; gx.nfv = (uint32_t)npv;
++  uint32_t o = 0;
++  memcpy(blob + o, &gx, sizeof gx); o += sizeof gx;
++  memcpy(blob + o, v, nv * sizeof *v); o += nv * sizeof *v;
++  memcpy(blob + o, pv, (uint32_t)npv * sizeof *pv); o += (uint32_t)npv * sizeof *pv;
++  memcpy(blob + o, cls, nv); memset(blob + o + nv, 0, nc - nv); o += nc;
++  memcpy(blob + o, pfan, (uint32_t)npf * 4); o += (uint32_t)npf * 4;
++  xc_state(d, t.index, c->entry, b); b->kind = GERK_XFORMF; b->prim = 4; b->twopass = (uint8_t)xc_twopass(d, &t, c4_amin(c, n, 12)); b->count = nv;
++  *size = o; return 1;
++}
++/* streaks: the strip's drawn segments in the PS2's order as vertex pairs (sb15 4x: their clip positions as the micro program computes
++   them, x, y with w in z, the GE's world the identity, as the sprites'), a run of k > 1 joined segments as its k + 1 vertices (listed
++   after the vertices: uint16 first vertex, count); then the clipper's lines, their ends in pairs (the clipper's clip positions; colour
++   and UV as the PS2 draws them).  GerXform nv: the strip's
++   vertices kept, nst: the runs, nfv: the clipper's ends; nfan 0, no classes.  fx_draw: GU_LINES over the pairs before, between and after
++   the runs (the clipper's lines with the last), GU_LINE_STRIP for each run, so the GE draws the PS2's segments in its order.  The
++   vertices of segments the strip does not draw are left out (sb15: the frame's data).  Task #154: a call the host thins (a range with
++   line 1) draws strips 0, keep, 2 keep ... (a strip starts at vertex 0 and at each ADC vertex); the others' segments class 0, as if
++   the strip did not draw them */
++#ifndef __psp__
++uint16_t xc_lchk_sv[1024][2], xc_lchk_pv[1024]; int xc_lchk_nsv, xc_lchk_npv;   /* x86 check (task #154, xlive_chk.c thin_chk_l): the
++                                       strip's pieces as written (first vertex, vertices), then each clipper's line's segment */
++#endif
++static int xc_line(const XlCall *c, const XcHost *h, const XcGs *d, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  VcVertF *const v = Fx.l.v, *const sv = Fx.l.sv, *const pv = Fx.l.pv; uint16_t *const fl = Fx.l.fl, (*const run)[2] = Fx.l.run;
++  float (*const cc)[4] = Fx.l.cc; uint8_t *const cls = Fx.l.cls; VcXform x;
++#ifdef XC_TME_OLD   /* x86 proof build only (-DXC_TME_OLD): refuse untextured lines with a stale UV q, as before the tme argument */
++  int n = vc_line(c->vm, c->top, &x, v, fl, cc, cls, 1024, 1), npv = 0, nsv = 0, nst = 0;
++#else
++  int n = vc_line(c->vm, c->top, &x, v, fl, cc, cls, 1024, d->tme), npv = 0, nsv = 0, nst = 0;
++#endif
++  if (n < 0) return n;
++  { int keep = 1;   /* task #154 */
++    for (int k = 0; k < h->nthin; k++) if (h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { keep = h->thin[k].keep; break; }
++    if (keep > 1) { int s = 0; long nd = 0;
++      for (int i = 1; i < n; i++) { if (!cls[i]) s++; else if (s % keep) { cls[i] = 0; nd++; } }
++      St.thin_lcalls++; St.thin_lstrips += s + 1; St.thin_ldrop += s - s / keep; St.thin_lseg += nd; } }
++#ifndef __psp__
++  xc_lchk_nsv = xc_lchk_npv = 0;
++#endif
++  for (int i = 1; i < n; i++) {   /* the strip: a run of class 1 segments i..e is its vertices i-1..e (runs share no vertex) */
++    if (cls[i] != 1) continue;
++    int e = i; while (e + 1 < n && cls[e + 1] == 1) e++;
++    const int k = e - i + 2;
++    if (k > 2) { run[nst][0] = (uint16_t)nsv; run[nst][1] = (uint16_t)k; nst++; }
++#ifndef __psp__
++    xc_lchk_sv[xc_lchk_nsv][0] = (uint16_t)(i - 1); xc_lchk_sv[xc_lchk_nsv][1] = (uint16_t)k; xc_lchk_nsv++;
++#endif
++    memcpy(&sv[nsv], &v[i - 1], (size_t)k * sizeof *v);
++    for (int q = 0; q < k; q++) { const float *C = cc[i - 1 + q]; sv[nsv + q].x = C[0]; sv[nsv + q].y = C[1]; sv[nsv + q].z = C[3]; }   /* (4x) */
++    nsv += k;
++    i = e;
++  }
++  for (int i = 1; i < n; i++) {
++    if (!cls[i]) continue;
++    St.c4_n[2]++;
++    if (cls[i] == 1) { St.c4_drawn[2]++; continue; }
++    if (cls[i] == 2) { St.c4_drop[2]++; continue; }
++    St.c4_clip[2]++;
++    VcCv in[2], o2[2];
++    for (int k = 0; k < 2; k++) {
++      const int j = i - 1 + k; const uint32_t *C = vq(c->vm, c->top + 0x101 + 3u * (uint32_t)j);
++      memcpy(in[k].c, cc[j], 16);
++      for (int q = 0; q < 4; q++) in[k].col[q] = (float)(int32_t)C[q];
++      in[k].uv[0] = v[j].u; in[k].uv[1] = v[j].v; in[k].uv[2] = 1.0f; in[k].p[0] = v[j].x; in[k].p[1] = v[j].y; in[k].p[2] = v[j].z;
++    }
++    if (!vc_clip_seg(in, o2)) { St.c4_line_drop++; continue; }
++    if (npv + 2 > 2048) { St.c4_full++; continue; }
++    for (int k = 0; k < 2; k++) {
++      const VcCv *P = &o2[k]; VcVertF *q = &pv[npv++];
++      q->u = P->uv[0]; q->v = P->uv[1]; q->c = c4_col(P->col, 1.0f / P->c[3]); q->x = P->c[0]; q->y = P->c[1]; q->z = P->c[3];   /* (4x) */
++    }
++#ifndef __psp__
++    xc_lchk_pv[xc_lchk_npv++] = (uint16_t)i;
++#endif
++    St.c4_lines++;
++  }
++  if (!nsv && !npv) return 0;
++  XcTex t; c4_tex(c, h, d, &t);
++  memcpy(x.world, XC_ID, sizeof x.world);   /* (4x: clip positions) */
++  GerXform gx; xc_xform(&x, d, &t, 1, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
++  const uint32_t need = sizeof gx + (uint32_t)(nsv + npv) * sizeof *v + (uint32_t)nst * 4;
++  if (need > cap) return -5;
++  gx.nv = (uint32_t)nsv; gx.nst = (uint32_t)nst; gx.nfv = (uint32_t)npv;
++  uint32_t o = 0;
++  memcpy(blob + o, &gx, sizeof gx); o += sizeof gx;
++  memcpy(blob + o, sv, (uint32_t)nsv * sizeof *sv); o += (uint32_t)nsv * sizeof *sv;
++  memcpy(blob + o, pv, (uint32_t)npv * sizeof *pv); o += (uint32_t)npv * sizeof *pv;
++  memcpy(blob + o, run, (uint32_t)nst * 4); o += (uint32_t)nst * 4;
++  xc_state(d, t.index, c->entry, b); b->kind = GERK_XFORMF; b->prim = 2; b->twopass = (uint8_t)xc_twopass(d, &t, c4_amin(c, n, 3)); b->count = (uint32_t)(nsv + npv);
++  *size = o; return 1;
++}
++static int xc_c4(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  const int j = c->entry == VC_SPR ? 0 : c->entry == VC_QUAD ? 1 : 2;
++  St.c4_calls[j]++;
++  XcGs d; xc_gs(c->gr, &d);
++  int r = j == 0 ? xc_spr(c, h, &d, b, blob, cap, size) : j == 1 ? xc_quad(c, h, &d, b, blob, cap, size) : xc_line(c, h, &d, b, blob, cap, size);
++  if (r < 0) St.c4_bad[j]++; else if (!r) St.c4_empty[j]++; else St.c4_batches[j]++;
++#ifdef XC_C4_DBG   /* x86 diagnosis only (mk.sh <dir> -DXC_C4_DBG): what a refused call holds */
++  if (r < 0 && r != -5) {
++    static int nd; const int st = j == 0 ? 6 : j == 1 ? 12 : 3; const int n = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff);
++    if (nd < 60) { nd++; int shown = 0;
++      fprintf(stderr, "C4DBG kind %d r %d n %d top %03x gr3d %08x\n", j, r, n, (unsigned)c->top, (unsigned)(c->gr[0x3d] & 0xffffffff));
++      for (int i = 0; i < n && i < 1024 && shown < 6; i++) {
++        const uint32_t *C = vq(c->vm, c->top + 0x101 + (uint32_t)(st * i)), *U = vq(c->vm, c->top + 0x102 + (uint32_t)(st * i));
++        const int bc = C[0] > 255 || C[1] > 255 || C[2] > 255 || C[3] > 255, bq = U[2] != 0x1000;
++        if (bc || bq) { shown++; fprintf(stderr, "C4DBG   rec %d col %08x %08x %08x %08x uv %08x %08x %08x %08x\n", i, (unsigned)C[0], (unsigned)C[1], (unsigned)C[2], (unsigned)C[3], (unsigned)U[0], (unsigned)U[1], (unsigned)U[2], (unsigned)U[3]); }
++      }
++    }
++  }
++#endif
++  return r;
++}
++
+ /* ---- P06 and P07 (ge/vu1conv.h vc_p06, vc_p07; replay_fmt.h GERK_LIT).  The blob: the call's GerXform, a GerLit per pass the
+    program draws, the vertices of passes 1 and 2, pass 3's, the strips.  Passes 2 and 3 come from the translator after the call (xc_pass), each with its own
+    texture: their GerLit's texture scale is written then. ---- */
+@@ -873,6 +1081,7 @@
+ {
+   Lp.on = 0;
+   int k = c->entry == XL_DF0 ? 0 : c->entry == XL_FX ? 1 : c->entry == XL_FX2 ? 2 : is_p06(c->entry) ? 3 : c->entry == VC_P07 ? 4 : -1;
++  if (k < 0 && h->c4 && !c->cont && (c->entry == VC_SPR || c->entry == VC_QUAD || c->entry == VC_LINE)) return xc_c4(c, h, b, blob, cap, size);   /* sb15 */
+   if (k < 0 || c->cont) return 0;
+   St.calls[k]++;
+ #ifndef __psp__
+--- sb14/ge/xconv.h	2026-11-02 23:29:42.630983213 +0000
++++ sb15/ge/xconv.h	2026-11-03 12:34:32.491548510 +0000
+@@ -36,8 +36,9 @@
+   long calls, verts, always;                    /* calls taken and their vertices in front; depth-writing calls with ZTST ALWAYS (left out) */
+ } XcZr;
+ /* task #114: an effect the host thins (ge/fxthin.h): the guest address range its calls' vertex data comes from (XlCall.src), and the share
+-   of their strips drawn: strips 0, keep, 2 keep ... (a strip starts where two ADC vertices follow one without) */
+-typedef struct { uint32_t lo, hi; int keep; } XcThin;
++   of their strips drawn: strips 0, keep, 2 keep ... (a strip starts where two ADC vertices follow one without).  line (task #154): 1: the
++   range is for the streaks (P04+2b60, xc_line: a strip starts at an ADC vertex), 0: for the 25f0 / 2870 strips (xc_fpos) */
++typedef struct { uint32_t lo, hi; int keep, line; } XcThin;
+ void xc_zr_begin(XcZr *z);
+ void xc_zr_end(XcZr *z);   /* the last projection's range into lo, hi */
+ typedef struct {
+@@ -56,8 +57,10 @@
+   int clipfast;            /* sb3: 1: the effects' clip positions without the VU float clamps when no input needs them (ge/vu1conv.h
+                               vc_vu_clip_nc); 0 (older hosts): every vertex through vc_vu_clip.  The same bits either way */
+   const XcThin *thin; int nthin;   /* task #114: the effects thinned this frame (0: none): a 25f0 / 2870 call whose XlCall.src lies in
+-                              one of these ranges draws 1 strip in keep; the others' triangles are not drawn (class 0) and their
+-                              vertices get no clip position.  The call's minimum alpha (two passes or one) stays its whole one */
++                              one of these ranges (line 0) draws 1 strip in keep; the others' triangles are not drawn (class 0) and their
++                              vertices get no clip position.  The call's minimum alpha (two passes or one) stays its whole one.  Task
++                              #154: a streak call (2b60, step 4's C4) in a range with line 1 the same way: its other strips' segments
++                              are not drawn (class 0) */
+   int c1;                  /* sb11 C1 (stagec_notes.md 1.7-1.9): 1: a lane 4 P07 call is drawn by the GE's skinning, lighting and
+                               texture matrix (xconv.c xc_lit_c1; ge/replay_fmt.h GERL_C1) where the GE can draw it, else as today;
+                               0 (older hosts): as today */
+@@ -73,6 +76,11 @@
+   int c3w;                 /* sb14 3w (with 3v): 1: a two-pass call's vertices written straight into the frame's room, where xc_df0
+                               puts them after the GerXform (when the room holds 1,024 vertices); 0: into a buffer, then copied there.
+                               The same bytes either way */
++  int c4;                  /* sb15, Stage C step 4 (stagec_notes.md step 4): 1: P04+3740's sprites, +3a38's quads and +2b60's streaks
++                              converted (xconv.c xc_c4: GERK_XFORMF with GerBatch.prim GU_SPRITES, GU_TRIANGLE_STRIP or
++                              GU_LINE_STRIP); 0 (older hosts): not drawn */
++  int c4x;                 /* sb15 4x (g_opt2 OPT2_C4X; stagec_notes.md 4.7): 1: P04+25f0 / +2870's strips and polygons from their clip positions
++                              (the GerXform's world the identity), an untextured call's UV q not checked; 0 (older hosts): world positions, q checked */
+ } XcHost;
+ /* counters since the start, for a report */
+ typedef struct {
+@@ -94,6 +102,8 @@
+                                                 fast form converted again in the exact form, and those whose output differs */
+   long thin_calls, thin_strips, thin_drop, thin_tris;   /* task #114: effect calls thinned, their strips, the strips left out, their
+                                                 triangles (not in tris[]) */
++  long thin_lcalls, thin_lstrips, thin_ldrop, thin_lseg;   /* task #154: streak calls thinned, their strips, the strips left out, their
++                                                segments (not in c4_n[2]) */
+   long c1_calls, c1_v, c1_nw[9], c1_fall[4];   /* sb11 C1 (XcHost.c1): P07 calls drawn by the GE's skinning and lighting, their
+                                                 vertices, by weights a vertex (1..8); calls left to today's path: vc_p07_c1 -8 (the fast
+                                                 form's own conditions), -9 (the clamp, a light or the ambient), the vertices (vc_p07_c1s or
+@@ -111,6 +121,13 @@
+                                                 and their vertices */
+   long c3z_in, c3z_in_v;                      /* sb14 3z: df0 calls (and vertices) whose w the depth range took by the box's bound alone */
+   long c3_chk, c3_chk_bad;                    /* sb14 check mode (xc_c3_chk): calls compared with the one-pass forms; differences */
++  long c4_calls[3], c4_bad[3], c4_batches[3], c4_empty[3];   /* sb15 step 4 (XcHost.c4), by kind: sprites, quads, streaks: calls; bad
++                                                input; batches; calls with nothing drawn */
++  long c4_n[3], c4_drop[3], c4_clip[3];       /* sprites, quads, streak segments (vertices after the first of a strip); dropped (sprites,
++                                                quads; streaks: class 2); sprites with a corner moved, quads and segments to the clipper */
++  long c4_drawn[3], c4_poly, c4_poly_v, c4_poly_empty, c4_lines, c4_line_drop, c4_full;   /* drawn whole (sprites, quads, strip
++                                                segments); the quads' clipped polygons kept, their vertices, empty; the streaks'
++                                                clipped lines kept, dropped by the clipper; left out for want of room */
+ } XcStats;
+ const XcStats *xc_stats(void);
+ /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
+--- sb14/ge/xlate.c	2026-11-02 02:25:40.904182765 +0000
++++ sb15/ge/xlate.c	2026-11-03 10:15:35.237141512 +0000
+@@ -732,6 +732,9 @@
+   if (e == XL_DF0 || e == XL_FX || e == XL_FX2) { st = 3; h = 0x14; }
+   else if (e == 0x19fe08u || e == 0x1a0160u || e == 0x1a0540u || e == 0x1a08c0u) { st = 6; h = 0x14; }   /* P06 (vu1conv.h VC_P06..) */
+   else if (e == 0x1a31e0u) { st = 7; h = 0; }   /* P07 (VC_P07) */
++  else if (e == 0x19bb50u) { st = 6; h = 0x14; }   /* sb15 step 4: P04+3740's sprites (VC_SPR: 6 quadwords a record) */
++  else if (e == 0x19be50u) { st = 12; h = 0x14; }  /* P04+3a38's quads (VC_QUAD: 12) */
++  else if (e == 0x19af68u) { st = 3; h = 0x14; }   /* P04+2b60's streaks (VC_LINE: 3) */
+   else { vm_all(); return; }
+   XC(St.need_calls++);
+   need_q(0, 0x40); need_q(t, 0x18); need_q(t + 0xfe, 2);
+--- sb14/ge/fxthin.c	2026-10-31 16:14:17.103116843 +0000
++++ sb15/ge/fxthin.c	2026-11-03 12:47:13.060018304 +0000
+@@ -1,28 +1,36 @@
+ /* fxthin.c (task #114): see fxthin.h.  Portable C; reads game memory only. */
+ #include <string.h>
+ #include "fxthin.h"
++#ifndef __psp__
++#include <stdio.h>
++#include <stdlib.h>
++#endif
+ 
+ #define FX_RAM (32u << 20)
+ #define RD(a) (*(const uint32_t *)(ram + (a)))
+-static const char *const NAME[FX_KINDS] = { "d_splash_camera.c", "ft_splsh.c" };
+-static const uint32_t OBJ[FX_KINDS] = { 0x40, 0x860 };   /* where the actor keeps its DG object */
++static const struct { const char *s; int k; uint32_t obj; } NAME[] = {   /* the file name, its kind, where the actor keeps its DG object */
++  { "d_splash_camera.c", 0, 0x40 }, { "ft_splsh.c", 1, 0x860 }, { "rain.c", 2, 0 }, { "rain_slow.c", 2, 0 } };
++#define NAME_N (int)(sizeof NAME / sizeof NAME[0])
+ #define LV_HEAD 0x1b9d94u   /* the first level's head actor; level k's at + 0x64 k, its tail at head + 0x30 */
+ #define LV_N 11
+ #define WALK_MAX 4096       /* actors a scan walks at most (the deck has about 290) */
++#define TAB_N 64            /* task #154: a streak actor's table: up to TAB_N entries of 0x20 bytes from +0xb0 to the end of the actor's
++                               block (rain.c's block 0x5b0 bytes: 40 entries; rain_slow.c's 0x8b0: 64), the block's address at +0x10 */
++#define TAB_0 0xb0u
+ 
+ static int ok_addr(uint32_t a, uint32_t n) { return a >= 0x100000u && a <= FX_RAM - n && !(a & 3); }
+-void fx_thin_init(FxThin *t, int keep_sheets, int keep_splash)
++static int clamp_share(int n) { return n < 1 ? 1 : n > 8 ? 8 : n; }
++void fx_thin_init(FxThin *t, int keep_sheets, int keep_splash, int keep_streaks)
+ {
+   memset(t, 0, sizeof *t);
+-  t->keep[0] = keep_sheets < 1 ? 1 : keep_sheets > 8 ? 8 : keep_sheets;
+-  t->keep[1] = keep_splash < 1 ? 1 : keep_splash > 8 ? 8 : keep_splash;
++  t->keep[0] = clamp_share(keep_sheets); t->keep[1] = clamp_share(keep_splash); t->keep[2] = clamp_share(keep_streaks);
+ }
+-int fx_thin_on(const FxThin *t) { return t->keep[0] > 1 || t->keep[1] > 1; }
+-static int name_kind(const uint8_t *ram, uint32_t np)   /* 1: none of ours */
++int fx_thin_on(const FxThin *t) { return t->keep[0] > 1 || t->keep[1] > 1 || t->keep[2] > 1; }
++static int name_kind(const uint8_t *ram, uint32_t np)   /* the NAME entry, -1: none of ours */
+ {
+-  if (!ok_addr(np, 32)) return 1;
+-  for (int k = 0; k < FX_KINDS; k++) if (!memcmp(ram + np, NAME[k], strlen(NAME[k]) + 1)) return 2 + k;
+-  return 1;
++  if (!ok_addr(np, 32)) return -1;
++  for (int k = 0; k < NAME_N; k++) if (!memcmp(ram + np, NAME[k].s, strlen(NAME[k].s) + 1)) return k;
++  return -1;
+ }
+ static unsigned fx_slot(const FxThin *t, uint32_t act, uint32_t np)   /* the pair's entry, or the empty one where it goes */
+ {
+@@ -30,7 +38,60 @@
+   while (t->c[h].ak && ((t->c[h].ak & ~3u) != act || t->c[h].np != np)) h = (h + 1) & (FX_CACHE - 1);
+   return h;
+ }
+-int fx_thin_scan(FxThin *t, const uint8_t *ram)
++/* the block of the allocator that starts at p: [p, the next block's header), when the header 0x10 bytes before p looks right (previous,
++   next, 0, size: the next header's previous is this header); 0 otherwise */
++static uint32_t blk_end(const uint8_t *ram, uint32_t p)
++{
++  const uint32_t nx = ok_addr(p, 0x10) ? RD(p - 0x0c) : 0;
++  return ok_addr(nx, 0x10) && nx > p && nx - p <= 0x100000u && RD(nx) == p - 0x10 ? nx : 0;
++}
++#ifndef __psp__
++static void fx_rdump(const uint8_t *ram, uint32_t a, uint32_t ae)   /* x86 (MGS2_FX_RDUMP=1): the first 4 streak actors (by address and
++                                                                          name) with their tables and blocks, once */
++{
++  static int on = -1, nd; static uint32_t seen[4];
++  if (on < 0) on = getenv("MGS2_FX_RDUMP") && atoi(getenv("MGS2_FX_RDUMP"));
++  if (!on || nd == 4) return;
++  const uint32_t np = RD(a + 0x28);
++  for (int i = 0; i < nd; i++) if (seen[i] == (a ^ np)) return;
++  seen[nd++] = a ^ np;
++  printf("fxrdump: actor %08x name %.20s, header %08x %08x %08x %08x, its block %x bytes\n", a, ok_addr(np, 32) ? (const char *)ram + np : "?",
++         RD(a - 0x10), RD(a - 0x0c), RD(a - 8), RD(a - 4), ae ? ae - a : 0);
++  for (uint32_t i = 0; i < TAB_N && (!ae || TAB_0 + 0x20 * (i + 1) <= ae - a); i++) {
++    const uint32_t e = a + TAB_0 + 0x20 * i, p = RD(e + 0x10);
++    printf("fxrdump: %2u", i); for (uint32_t q = 0; q < 0x20; q += 4) printf(" %08x", RD(e + q));
++    if (ok_addr(p, 0x10)) { const uint32_t nx = RD(p - 0x0c); printf(" h %08x %08x %08x %08x", RD(p - 0x10), RD(p - 0x0c), RD(p - 8), RD(p - 4));
++      if (ok_addr(nx, 0x10)) printf(" nx %08x %08x %08x %08x", RD(nx), RD(nx + 4), RD(nx + 8), RD(nx + 12)); }
++    printf("\n"); }
++}
++#endif
++/* task #154: a streak actor's blocks, in address order, neighbours joined, as ranges for the streaks */
++static void fx_streaks(FxThin *t, const uint8_t *ram, uint32_t a)
++{
++  const uint32_t ae = blk_end(ram, a);
++#ifndef __psp__
++  fx_rdump(ram, a, ae);
++#endif
++  if (!ae || ae - a < TAB_0 + 0x20) { t->bad++; return; }
++  const uint32_t ne = (ae - a - TAB_0) / 0x20 < TAB_N ? (ae - a - TAB_0) / 0x20 : TAB_N;   /* the entries the block holds */
++  XcThin b[TAB_N]; int nb = 0;
++  for (uint32_t i = 0; i < ne; i++) {
++    const uint32_t p = RD(a + TAB_0 + 0x10 + 0x20 * i);
++    if (!p) { t->tab_empty++; continue; }
++    const uint32_t e = blk_end(ram, p);
++    if (!e) { t->tab_bad++; continue; }
++    int j = nb; while (j > 0 && b[j - 1].lo > p) { b[j] = b[j - 1]; j--; }   /* (in address order: one compare each when the table is) */
++    b[j].lo = p; b[j].hi = e; nb++;
++  }
++  t->found[2]++; t->tab_blocks += nb;
++  for (int i = 0; i < nb; ) {   /* a block that starts at the last one's end + its header (16 bytes no effect's data is in) joins it */
++    const uint32_t lo = b[i].lo; uint32_t hi = b[i].hi;
++    for (i++; i < nb && b[i].lo <= hi + 0x10; i++) if (b[i].hi > hi) hi = b[i].hi;
++    if (t->n == FX_RANGES) { t->over++; continue; }
++    t->r[t->n].lo = lo; t->r[t->n].hi = hi; t->r[t->n].keep = t->keep[2]; t->r[t->n].line = 1; t->n++; t->tab_ranges++;
++  }
++}
++int fx_thin_scan(FxThin *t, const uint8_t *ram, int lines)
+ {
+   t->n = 0; t->scans++;
+   if (!fx_thin_on(t)) return 0;
+@@ -45,15 +106,19 @@
+       unsigned h = fx_slot(t, act, np);
+       if (!t->c[h].ak) {   /* a pair not seen yet: its name read once */
+         if (t->nc >= FX_CACHE / 4 * 3) { memset(t->c, 0, sizeof t->c); t->nc = 0; t->flushes++; h = fx_slot(t, act, np); }
+-        t->c[h].ak = act | (uint32_t)name_kind(ram, np); t->c[h].np = np; t->nc++; t->named++; }
+-      int k = (int)(t->c[h].ak & 3) - 2;
+-      if (k >= 0 && t->keep[k] > 1) {
+-        uint32_t obj = RD(a + OBJ[k]);
+-        if (obj) {   /* the object's block: [obj, the next block), the next block's previous one being this block */
+-          uint32_t nx = ok_addr(obj, 0x10) ? RD(obj - 0x0c) : 0;
+-          if (!ok_addr(nx, 0x10) || nx <= obj || nx - obj > 0x100000u || RD(nx) != obj - 0x10) t->bad++;
+-          else if (t->n == FX_RANGES) t->over++;
+-          else { t->r[t->n].lo = obj; t->r[t->n].hi = nx; t->r[t->n].keep = t->keep[k]; t->n++; t->found[k]++; }
++        const int q = name_kind(ram, np);
++        t->c[h].ak = act | (q < 0 ? 1u : 2u); t->ck[h] = (uint8_t)(q < 0 ? 0 : q); t->c[h].np = np; t->nc++; t->named++; }
++      if ((t->c[h].ak & 3) == 2) {
++        const int q = t->ck[h], k = NAME[q].k;
++        if (t->keep[k] > 1) {
++          if (k == 2) { if (lines) fx_streaks(t, ram, a); }
++          else { const uint32_t obj = RD(a + NAME[q].obj);
++            if (obj) {   /* the object's block: [obj, the next block), the next block's previous one being this block */
++              const uint32_t nx = blk_end(ram, obj);
++              if (!nx) t->bad++;
++              else if (t->n == FX_RANGES) t->over++;
++              else { t->r[t->n].lo = obj; t->r[t->n].hi = nx; t->r[t->n].keep = t->keep[k]; t->r[t->n].line = 0; t->n++; t->found[k]++; }
++            } }
+         }
+       }
+       a = RD(a);
+@@ -62,3 +127,132 @@
+   t->actors += steps;
+   return t->n;
+ }
++
++#ifndef __psp__
++/* x86 census (sb15, task #152; MGS2_FX_WHO=1): which actor's block each effect call's records come from (XlCall.src), by the actor's
++   file name and where in the actor the block's pointer sits; printed at the end */
++#define WHO_K 5
++static const uint32_t WHO_E[WHO_K] = { 0x19bb50u, 0x19be50u, 0x19af68u, 0x19a9f0u, 0x19ac78u };
++static const char *const WHO_N[WHO_K] = { "sprites +3740", "quads +3a38", "streaks +2b60", "fans +25f0", "strips +2870" };
++#define WHO_ROWS 512
++static struct { char name[40]; uint32_t off, size; long n[WHO_K], sh[WHO_K]; } who[WHO_ROWS];   /* sh: calls from a block more than
++                                                                                   one actor points at (MGS2_FX_WHO=3) */
++static int nwho, who_on = -1;
++static long who_calls[WHO_K], who_nosrc[WHO_K], who_noblk[WHO_K], who_noown[WHO_K], who_over, who_bounded, who_unbounded, who_shared[WHO_K];
++static struct { uint32_t h, nx, a, off; int nref; } wb[256]; static int nwb, wbi;   /* recent blocks: header, next header, owner actor,
++                                                                                   offset; actors pointing at it (MGS2_FX_WHO=3) */
++static void who_print(void)
++{
++  printf("fxwho: calls by kind:"); for (int k = 0; k < WHO_K; k++) printf(" %s %ld (no src %ld, no block %ld, no owner %ld);", WHO_N[k],
++    who_calls[k], who_nosrc[k], who_noblk[k], who_noown[k]); printf(" rows over %ld; actors scanned by their block %ld, by 0x400 bytes %ld\n",
++    who_over, who_bounded, who_unbounded);
++  for (int i = 0; i < nwho; i++) { printf("fxwho: %-28s +%03x size %6u:", who[i].name, who[i].off, who[i].size);
++    for (int k = 0; k < WHO_K; k++) { if (who[i].n[k]) printf(" %s %ld", WHO_N[k], who[i].n[k]); }
++    printf("\n"); }
++  if (who_on >= 3) {   /* task #154: how sure the owners are */
++    printf("fxwhosh: calls from a block more than one actor points at, by kind:");
++    for (int k = 0; k < WHO_K; k++) { printf(" %s %ld;", WHO_N[k], who_shared[k]); }
++    printf("\n");
++    for (int i = 0; i < nwho; i++) { int any = 0; for (int k = 0; k < WHO_K; k++) any |= who[i].sh[k] != 0;
++      if (!any) continue;
++      printf("fxwhosh: %-28s +%03x:", who[i].name, who[i].off);
++      for (int k = 0; k < WHO_K; k++) if (who[i].sh[k]) printf(" %s %ld of %ld", WHO_N[k], who[i].sh[k], who[i].n[k]);
++      printf("\n"); } }
++}
++static uint32_t who_span(const uint8_t *ram, uint32_t a)   /* the actor's own block, [a, the next block); 0x400 bytes when its header does
++                                                              not look right.  (The first census scanned 0x1000 bytes from every actor,
++                                                              into the blocks after a small one: an owner could be the actor before it.) */
++{
++  const uint32_t nx = RD(a - 0x0c);
++  if (ok_addr(nx, 0x10) && nx > a && nx - a <= 0x100000u && RD(nx) == a - 0x10) { who_bounded++; return nx - a; }
++  who_unbounded++; return 0x400;
++}
++static int who_owner(const uint8_t *ram, uint32_t obj, uint32_t *a_out, uint32_t *off_out)
++{
++  int steps = 0;
++  for (int lv = 0; lv < LV_N; lv++) {
++    uint32_t head = LV_HEAD + 0x64u * (uint32_t)lv, tail = head + 0x30, a = RD(head);
++    while (a != tail) {
++      if (!ok_addr(a, 0x1000) || ++steps > WALK_MAX) return 0;
++      const uint32_t span = who_span(ram, a);
++      if (ok_addr(a, span)) for (uint32_t o = 0; o < span; o += 4) if (RD(a + o) == obj) { *a_out = a; *off_out = o; return 1; }
++      a = RD(a);
++    }
++  }
++  return 0;
++}
++/* MGS2_FX_WHO=3 (task #154): the actors that point at obj from their own block; the first 64 blocks more than one points at printed with
++   them (file name + where) */
++static int who_nref(const uint8_t *ram, uint32_t obj, uint32_t size)
++{
++  static int shown; int steps = 0, nr = 0; char line[1024]; int ln = 0; line[0] = 0;
++  for (int lv = 0; lv < LV_N; lv++) {
++    uint32_t head = LV_HEAD + 0x64u * (uint32_t)lv, tail = head + 0x30, a = RD(head);
++    while (a != tail) {
++      if (!ok_addr(a, 0x1000) || ++steps > WALK_MAX) return nr;
++      const uint32_t span = who_span(ram, a);
++      if (ok_addr(a, span)) for (uint32_t o = 0; o < span; o += 4) if (RD(a + o) == obj) {
++        nr++;
++        if (ln < 900) { const uint32_t np = RD(a + 0x28); char nm[24] = "?";
++          if (ok_addr(np, 24)) { memcpy(nm, ram + np, 23); nm[23] = 0; for (int i = 0; nm[i]; i++) if (nm[i] < 32 || nm[i] > 126) { nm[i] = 0; break; } }
++          ln += snprintf(line + ln, sizeof line - (size_t)ln, " %s+%03x", nm, o); }
++        break; }
++      a = RD(a);
++    }
++  }
++  if (nr > 1 && shown < 64) { shown++; printf("fxwhosh: block %08x size %x, %d actors:%s\n", obj, size, nr, line); }
++  return nr;
++}
++/* the block holding src and its owner (wb[*j]): 0, or -1 no source, -2 no block, -3 no actor points at it */
++static int who_find(const uint8_t *ram, uint32_t src, int *jo)
++{
++  if (!ok_addr(src, 16)) return -1;
++  int j = -1;
++  for (int i = 0; i < nwb; i++) if (src >= wb[i].h + 0x10 && src < wb[i].nx && RD(wb[i].h + 4) == wb[i].nx && RD(wb[i].nx) == wb[i].h) { j = i; break; }
++  if (j < 0) {   /* the block holding src: a header [previous, next, 0, size] whose next header points back at it */
++    uint32_t h = (src & ~3u) - 0x10, lo = src > 0x180000u ? src - 0x80000u : 0x100000u, nx = 0;
++    for (; h >= lo; h -= 4) { if (RD(h + 8)) continue; nx = RD(h + 4);
++      if (nx > src && nx - h <= 0x100000u && ok_addr(nx, 0x10) && RD(nx) == h) break; }
++    if (h < lo) return -2;
++    j = wbi; wbi = (wbi + 1) & 255; if (nwb < 256) nwb++;
++    wb[j].h = h; wb[j].nx = nx; wb[j].a = 0; wb[j].off = 0; wb[j].nref = 0;
++  }
++  *jo = j;
++  const uint32_t obj = wb[j].h + 0x10;
++  if (wb[j].a == 1) return -3;   /* a block no actor points at (checked once while it stays in wb) */
++  if (!wb[j].a || !ok_addr(wb[j].a, 0x1000) || RD(wb[j].a + wb[j].off) != obj) {
++    uint32_t a, off; if (!who_owner(ram, obj, &a, &off)) { wb[j].a = 1; return -3; }
++    wb[j].a = a; wb[j].off = off; wb[j].nref = who_on >= 3 ? who_nref(ram, obj, wb[j].nx - obj) : 0; }
++  return 0;
++}
++static void who_nm(const uint8_t *ram, uint32_t a, char *nm, int cap)   /* the actor's file name (printable, cap > 1) */
++{
++  const uint32_t np = RD(a + 0x28); nm[0] = '?'; nm[1] = 0;
++  if (ok_addr(np, 40)) { memcpy(nm, ram + np, (size_t)cap - 1); nm[cap - 1] = 0; for (int i = 0; nm[i]; i++) if (nm[i] < 32 || nm[i] > 126) { nm[i] = 0; break; } }
++}
++int fx_who_name(const uint8_t *ram, uint32_t src, char *name, int cap)
++{
++  int j; const int r = who_find(ram, src, &j);
++  if (!r) who_nm(ram, wb[j].a, name, cap);
++  return r;
++}
++void fx_who_note(const uint8_t *ram, uint32_t entry, uint32_t src)
++{
++  if (who_on < 0) { who_on = getenv("MGS2_FX_WHO") ? atoi(getenv("MGS2_FX_WHO")) : 0; if (who_on < 0) who_on = 0; if (who_on) atexit(who_print); }
++  if (!who_on) return;
++  int k = 0; while (k < WHO_K && WHO_E[k] != entry) k++;
++  if (k == WHO_K) return;
++  who_calls[k]++;
++  int j; const int r = who_find(ram, src, &j);
++  if (r == -1) { who_nosrc[k]++; return; }
++  if (r == -2) { who_noblk[k]++; return; }
++  if (r == -3) { who_noown[k]++; return; }
++  const uint32_t obj = wb[j].h + 0x10;
++  char nm[40]; who_nm(ram, wb[j].a, nm, sizeof nm);
++  uint32_t size = wb[j].nx - obj;
++  int ro = 0; while (ro < nwho && (strcmp(who[ro].name, nm) || who[ro].off != wb[j].off)) ro++;
++  if (ro == nwho) { if (nwho == WHO_ROWS) { who_over++; return; } snprintf(who[ro].name, sizeof who[ro].name, "%s", nm); who[ro].off = wb[j].off; who[ro].size = size; nwho++; }
++  who[ro].n[k]++;
++  if (wb[j].nref > 1) { who[ro].sh[k]++; who_shared[k]++; }
++}
++#endif
+--- sb14/ge/fxthin.h	2026-10-31 16:14:17.102417045 +0000
++++ sb15/ge/fxthin.h	2026-11-03 12:47:13.060722672 +0000
+@@ -9,26 +9,44 @@
+    allocator (header 0x10 bytes before it: previous block, next block, 0, size).  The block's range goes to the converter, which thins an
+    effect call whose vertex data comes from it (ge/xconv.h XcHost.thin, XlCall.src).  The names are cached by act function and name
+    pointer (open addressing, every pair kept: a name is read once), and the cache is emptied when the stage image's header (0x1f1c00, 32
+-   bytes) changes or it is 3/4 full.  It only reads game memory. */
++   bytes) changes or it is 3/4 full.  It only reads game memory.
++
++   Task #154 (step 4, C4: the effects the PSP did not draw before): the rain's streaks (P04+2b60 line strips) 1 strip in N too (cfg
++   MGS2_GL_STREAKS).  Their actors are rain.c (the rain) and rain_slow.c (all 64 sets for 42 frames on both routes); each keeps a table of
++   entries of 0x20 bytes from its +0xb0 to its block's end (rain.c's block 0x5b0 bytes: 40 entries; rain_slow.c's 0x8b0: 64): two floats,
++   then the address of a block of the allocator at the entry's +0x10, each block the vertex data of one call (4,736 bytes, in a row 0x1290
++   apart in the dumps).  The scan takes the blocks whose header looks right, sorts
++   them by address and joins neighbours (a block that starts right after the last one's end and the next header): one range a run of
++   blocks, marked for the streaks (XcThin.line).  Owners from the x86 census (MGS2_FX_WHO=1, stagec_notes.md 4.9). */
+ #ifndef MGS2_FXTHIN_H
+ #define MGS2_FXTHIN_H
+ #include <stdint.h>
+ #include "xconv.h"
+ 
+-#define FX_KINDS 2      /* 0: the sheets of drops close to the camera (d_splash_camera.c), 1: the splash at the feet (ft_splsh.c) */
++#define FX_KINDS 3      /* 0: the sheets of drops close to the camera (d_splash_camera.c), 1: the splash at the feet (ft_splsh.c), 2: the
++                           rain's streaks (rain.c, rain_slow.c; task #154) */
+ #define FX_RANGES 16    /* blocks a frame (more instances are not thinned: counted in over) */
+ #define FX_CACHE 512    /* (act function, name pointer) pairs (a power of two; the deck has about 140) */
+ typedef struct FxThin {
+   int keep[FX_KINDS];                 /* 1 strip in keep[k] of kind k's calls drawn (1: all) */
+   XcThin r[FX_RANGES]; int n;         /* this frame's blocks */
+-  struct { uint32_t ak, np; } c[FX_CACHE]; int nc;   /* ak: the act function | its kind (0 an empty entry, 1 another actor, 2 + the
+-                                         effect's kind; act functions are 4-byte aligned); nc: entries in use */
++  struct { uint32_t ak, np; } c[FX_CACHE]; int nc;   /* ak: the act function | 0 an empty entry, 1 another actor, 2 one of ours (its
++                                         kind in ck; act functions are 4-byte aligned); nc: entries in use */
++  uint8_t ck[FX_CACHE];               /* task #154: the kind of an entry with 2 */
+   uint32_t sig[8];                    /* the stage image's header the cache was filled under */
+   long scans, actors, named, flushes, found[FX_KINDS], bad, over;   /* scans; actors walked; names read; cache emptied; blocks found by
+-                                         kind; walks or objects that did not look right (the frame is not thinned past them); blocks over
+-                                         FX_RANGES */
++                                         kind (the streaks: their actors); walks, objects or streak actors that did not look right (the
++                                         frame is not thinned past a walk's); blocks over FX_RANGES (the streaks: ranges) */
++  long tab_blocks, tab_empty, tab_bad, tab_ranges;   /* task #154: the streak actors' tables: blocks taken, entries 0, entries whose
++                                         block's header did not look right (not thinned), ranges made of the blocks taken */
+ } FxThin;
+-void fx_thin_init(FxThin *t, int keep_sheets, int keep_splash);   /* shares 1..8 */
++void fx_thin_init(FxThin *t, int keep_sheets, int keep_splash, int keep_streaks);   /* shares 1..8 (streaks: task #154) */
+ int fx_thin_on(const FxThin *t);                                  /* 1: a share above 1 */
+-int fx_thin_scan(FxThin *t, const uint8_t *ram);                  /* ram: the guest's 32 MB; this frame's blocks into t->r, their number */
++int fx_thin_scan(FxThin *t, const uint8_t *ram, int lines);       /* ram: the guest's 32 MB; this frame's blocks into t->r, their number;
++                                                                     lines (task #154): 1: the streaks' too (C4 on: they are drawn) */
++#ifndef __psp__
++void fx_who_note(const uint8_t *ram, uint32_t entry, uint32_t src);   /* x86 census (MGS2_FX_WHO=1): see fxthin.c */
++int fx_who_name(const uint8_t *ram, uint32_t src, char *name, int cap);   /* x86 (task #154 check): the census's owner of the block
++                                         holding src, its file name into name; 0, or -1 no source, -2 no block, -3 no actor points at it */
++#endif
+ #endif
+--- sb14/boot/xlive_chk.c	2026-11-02 23:29:42.636193644 +0000
++++ sb15/boot/xlive_chk.c	2026-11-03 12:44:11.444888161 +0000
+@@ -86,6 +86,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <stdint.h>
++#include <stddef.h>
+ #include <math.h>
+ #include <time.h>
+ #include "../ge/xlive.h"
+@@ -153,6 +154,7 @@
+ /* MGS2_XLIVE_GX: the PSP harness's frames and GE lists */
+ static int gx_on, gx_seen; static long gx_from = -1, gx_to = -1, gx_count, gx_n, gx_fail, gx_first = -1, gx_wmax, gx_amax, gx_bmax, gx_drop;
+ static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
++static long gx_c4s, gx_c4r, gx_c4l;   /* sb15 step 4: the lists' GxCount fx_spr, fx_lruns, fx_lines */
+ static long gx_c2p, gx_c2b, gx_c2w;   /* sb12 C2: c2_passes, c2_bones, c2_words */
+ static uint64_t gx_all = 0xcbf29ce484222325ull, gx_call = 0xcbf29ce484222325ull; static GxList gxl; static GxHost gxh;   /* gx_call: sb4's
+                                                        content digests (gelive.h gl_digest_c) folded as gx_all */
+@@ -166,6 +168,63 @@
+   if (q >= gx_pool && q <= gx_pool + gx_pool_n) return 0x09000000u + (uint32_t)(q - gx_pool);
+   fprintf(stderr, "xlive gx: an address outside the frame memory, the aux and the pool\n"); exit(2);
+ }
++/* sb15 (task #152): MGS2_GX_SEM=1, the GE list as the GE draws it, independent of where its data lies and of how its primitives are
++   grouped: every state word in order (the address words VADDR, IADDR and BASE only followed, not hashed) and every primitive each PRIM
++   makes, its vertices' bytes as the GE reads them (by VTYPE, an index list if any; the vertex or index address following each PRIM as
++   the GE's does), a line strip's segments and GU_LINES' pairs alike.  Two lists with the same digest draw the same picture */
++static int gx_sem_on; static uint64_t gx_sem_all = 0xcbf29ce484222325ull; static long gx_sem_n, gx_sem_bad;
++static const uint8_t *gx_ptr(uint32_t a, uint32_t len)   /* gx_addr's inverse; 0 outside the frame memory, the list's block and the pool */
++{
++  if (a >= 0x08600000u && a + len <= 0x08600000u + GL_PSP_ARENA) return gx_arena + (a - 0x08600000u);
++  if (a >= 0x08600000u + GL_PSP_ARENA && a + len <= 0x08600000u + GL_PSP_ARENA + gx_listn) return gx_lb + (a - 0x08600000u - GL_PSP_ARENA);
++  if (a >= 0x09000000u && a + len <= 0x09000000u + gx_pool_n) return gx_pool + (a - 0x09000000u);
++  return 0;
++}
++static uint32_t gx_vsize(uint32_t vt)   /* a vertex's bytes (GE VTYPE: weights, texture, colour, normal, position, each aligned) */
++{
++  static const uint32_t W[4] = { 0, 1, 2, 4 }, C[8] = { 0, 0, 0, 0, 2, 2, 2, 4 };
++  const uint32_t parts[5][2] = { { W[vt >> 9 & 3], (vt >> 14 & 7) + 1 }, { W[vt & 3], 2 }, { C[vt >> 2 & 7], 1 }, { W[vt >> 5 & 3], 3 }, { W[vt >> 7 & 3], 3 } };
++  uint32_t o = 0, al = 1;
++  for (int k = 0; k < 5; k++) { const uint32_t z = parts[k][0]; if (!z) continue; o = (o + z - 1) & ~(z - 1); o += z * parts[k][1]; if (z > al) al = z; }
++  return ((o + al - 1) & ~(al - 1)) * ((vt >> 18 & 7) + 1);
++}
++static uint64_t gx_sem(const GxList *l)
++{
++  uint64_t h = 0xcbf29ce484222325ull; uint32_t base = 0, va = 0, ia = 0, vt = 0;
++#define SH(x) do { uint32_t x_ = (x); for (int k_ = 0; k_ < 4; k_++) { h ^= x_ >> 8 * k_ & 0xff; h *= 0x100000001b3ull; } } while (0)
++  for (uint32_t n = 0; n < l->n; n++) {
++    const uint32_t w = l->w[n], c = w >> 24;
++    if (c == 0x10) { base = (w & 0x0f0000) << 8; continue; }      /* BASE */
++    if (c == 0x01) { va = base | (w & 0xffffff); continue; }       /* VADDR */
++    if (c == 0x02) { ia = base | (w & 0xffffff); continue; }       /* IADDR */
++    if (c == 0x12) vt = w & 0xffffff;                              /* VTYPE (hashed below, as state) */
++    if (c != 0x04) { SH(w); continue; }
++    const uint32_t cnt = w & 0xffff, ty = w >> 16 & 7, vs = gx_vsize(vt), ix = vt >> 11 & 3, isz = ix == 1 ? 1 : ix == 2 ? 2 : ix == 3 ? 4 : 0;
++    const uint8_t *vb = 0, *ib = 0; uint32_t maxi = 0;
++    if (isz) {
++      if (!(ib = gx_ptr(ia, cnt * isz))) { gx_sem_bad++; SH(0xdead0001u); continue; }
++      for (uint32_t i = 0; i < cnt; i++) { uint32_t x = isz == 1 ? ib[i] : isz == 2 ? (uint32_t)(ib[2 * i] | ib[2 * i + 1] << 8) : (uint32_t)(ib[4 * i] | ib[4 * i + 1] << 8 | ib[4 * i + 2] << 16 | (uint32_t)ib[4 * i + 3] << 24); if (x > maxi) maxi = x; }
++      vb = gx_ptr(va, (maxi + 1) * vs);
++    } else vb = gx_ptr(va, cnt * vs);
++    if (!vb) { gx_sem_bad++; SH(0xdead0002u); continue; }
++#define VX(i) (isz == 1 ? ib[i] : isz == 2 ? (uint32_t)(ib[2 * (i)] | ib[2 * (i) + 1] << 8) : isz == 4 ? (uint32_t)(ib[4 * (i)] | ib[4 * (i) + 1] << 8 | ib[4 * (i) + 2] << 16 | (uint32_t)ib[4 * (i) + 3] << 24) : (uint32_t)(i))
++#define SV(i) do { const uint8_t *p_ = vb + (size_t)VX(i) * vs; for (uint32_t b_ = 0; b_ < vs; b_ += 4) { uint32_t u_; memcpy(&u_, p_ + b_, 4); SH(u_); } } while (0)
++    /* the primitive's kind: points 0, lines 1 (GU_LINES and the line strip's segments), triangles 3 (and the strip's and fan's), sprites 6 */
++    if (ty == 0) for (uint32_t i = 0; i < cnt; i++) { SH(0x50000000u); SV(i); }
++    else if (ty == 1) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH(0x50000001u); SV(i); SV(i + 1); }
++    else if (ty == 2) for (uint32_t i = 0; i + 1 < cnt; i++) { SH(0x50000001u); SV(i); SV(i + 1); }
++    else if (ty == 3) for (uint32_t i = 0; i + 2 < cnt; i += 3) { SH(0x50000003u); SV(i); SV(i + 1); SV(i + 2); }
++    else if (ty == 4) for (uint32_t i = 0; i + 2 < cnt; i++) { SH(0x50000004u); SV(i); SV(i + 1); SV(i + 2); }   /* (the strip's winding kept) */
++    else if (ty == 5) for (uint32_t i = 1; i + 1 < cnt; i++) { SH(0x50000005u); SV(0); SV(i); SV(i + 1); }
++    else if (ty == 6) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH(0x50000006u); SV(i); SV(i + 1); }
++    else { SH(w); gx_sem_bad++; }
++    if (isz) ia += cnt * isz; else va += cnt * vs;
++#undef SV
++#undef VX
++  }
++#undef SH
++  return h;
++}
+ static void gx_list(long vb)   /* psp/xl_psp.c gl_list's work on the frame that ended (its last vblank vb) */
+ {
+   int d = (int)(gx_count++ & 1), dg = vb >= gx_from && vb <= gx_to;
+@@ -176,6 +235,7 @@
+     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", vb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+   gx_drop += gxl.c.dropped; if (gxl.c.words > gx_wmax) gx_wmax = gxl.c.words; if (gxl.c.aux > gx_amax) gx_amax = gxl.c.aux;
+   gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
++  gx_c4s += gxl.c.fx_spr; gx_c4r += gxl.c.fx_lruns; gx_c4l += gxl.c.fx_lines;
+   gx_c2p += gxl.c.c2_passes; gx_c2b += gxl.c.c2_bones; gx_c2w += gxl.c.c2_words;
+   if (4 * gxl.c.words + gxl.c.aux > gx_bmax) gx_bmax = 4 * gxl.c.words + gxl.c.aux;
+   if (dg) {
+@@ -185,6 +245,8 @@
+             glf.o.nt, gxl.c.dropped);
+     uint64_t gc = gl_digest_c(&glf); gx_call = (gx_call ^ gc) * 0x100000001b3ull;   /* sb4: the content, for step c on against off */
+     fprintf(stderr, "picture: vb %ld content %016llx\n", vb, (unsigned long long)gc);
++    if (gx_sem_on) { uint64_t s = gx_sem(&gxl); gx_sem_all = (gx_sem_all ^ s) * 0x100000001b3ull; gx_sem_n++;
++      fprintf(stderr, "picture: vb %ld drawn %016llx\n", vb, (unsigned long long)s); }
+   }
+ }
+ static void gb_line(const GlCount *n, int64_t db, int64_t tb, const char *what)   /* db, tb: n's data and texture bytes (psp/xl_psp.c gl_line) */
+@@ -198,13 +260,57 @@
+           n->tex_lost, n->tex_unsup, n->tex_full, n->dropped);
+   fprintf(stderr, "; P06 and P07 calls %ld, passes 2 and 3 drawn %ld, not drawn %ld", n->lit_calls, n->lit_passes, n->lit_nopass);
+ }
++/* sb15 4t census (stagec_notes.md step 4): what sharing transforms would save in a frame's data, batches in draw order.  A: a step 4
++   effect batch (sprites, quads, streaks) whose GerXform (world .. fog colour) equals the last such batch's would carry a 32-byte
++   reference (texture scale, counts) instead of its 188 bytes; B: the same over all the effects (25f0 / 2870's too); C: any transform
++   batch whose camera (projection, viewport, fog) equals the last transform batch's would share it (100 bytes) */
++static long cx_n[3], cx_same[3], cx_fx_n, cx_fx_same, cx_cam_n, cx_cam_same, cx_frames;
++static long long cx_s[3], cx_max[4]; static long cx_maxvb[4];
++static void cx_frame(long vb, long long db)
++{
++  const GbOut *o = &glf.o;
++  const size_t PRE = offsetof(GerXform, su), C0 = offsetof(GerXform, proj);
++  const GerXform *l4 = 0, *lf = 0, *lc = 0; long long sA = 0, sB = 0, sC = 0;
++  for (int i = 0; i < o->nb; i++) {
++    const GerBatch *b = &o->b[i]; const GerXform *x;
++    if (b->kind == GERK_XFORM || b->kind == GERK_XFORMF) x = (const GerXform *)(o->d + b->first);
++    else if (b->kind == GERK_LIT) { const GerLit *l = (const GerLit *)(o->d + b->first); if ((l->pass & 15) != 1) continue; x = (const GerXform *)((const uint8_t *)l + l->xf); }
++    else continue;
++    const int k = b->entry == VC_SPR ? 0 : b->entry == VC_QUAD ? 1 : b->entry == VC_LINE ? 2 : -1;
++    if (k >= 0) { cx_n[k]++; if (l4 && !memcmp(l4, x, PRE)) { cx_same[k]++; sA += (long long)sizeof(GerXform) - 32; } l4 = x; }
++    if (k >= 0 || b->entry == XL_FX || b->entry == XL_FX2) { cx_fx_n++; if (lf && !memcmp(lf, x, PRE)) { cx_fx_same++; sB += (long long)sizeof(GerXform) - 32; } lf = x; }
++    cx_cam_n++; if (lc && !memcmp((const uint8_t *)lc + C0, (const uint8_t *)x + C0, PRE - C0)) { cx_cam_same++; sC += (long long)(PRE - C0); } lc = x;
++  }
++  cx_s[0] += sA; cx_s[1] += sB; cx_s[2] += sC; cx_frames++;
++  static long cx_vb = -2; if (cx_vb == -2) cx_vb = getenv("MGS2_CX_VB") ? atol(getenv("MGS2_CX_VB")) : -1;
++  if (vb == cx_vb) {   /* the frame's data by kind: each batch owns the bytes from its first to the next first in address order */
++    static int ord[16384]; int nb = 0;
++    for (int i = 0; i < o->nb && nb < 16384; i++) if (o->b[i].kind != GERK_THROUGH) ord[nb++] = i;
++    for (int i = 1; i < nb; i++) { int t = ord[i], j = i; while (j > 0 && o->b[ord[j - 1]].first > o->b[t].first) { ord[j] = ord[j - 1]; j--; } ord[j] = t; }
++    static const char *KN[9] = { "df0", "effect meshes 25f0/2870", "sprites", "quads", "streaks", "P06", "P07", "other", "" };
++    long long kb[9] = { 0 }; long kn[9] = { 0 };
++    for (int i = 0; i < nb; i++) {
++      const GerBatch *b = &o->b[ord[i]]; const uint32_t end = i + 1 < nb ? o->b[ord[i + 1]].first : (uint32_t)o->nd;
++      const int k = b->kind == GERK_XFORM ? 0 : b->entry == XL_FX || b->entry == XL_FX2 ? 1 : b->entry == VC_SPR ? 2 : b->entry == VC_QUAD ? 3 :
++                    b->entry == VC_LINE ? 4 : b->kind == GERK_LIT && b->entry != VC_P07 ? 5 : b->entry == VC_P07 ? 6 : 7;
++      kb[k] += end - b->first; kn[k]++;
++    }
++    fprintf(stderr, "cx vb %ld: data %lld KB in %d transform batches (nd %u):", vb, db >> 10, nb, (unsigned)o->nd);
++    for (int k = 0; k < 8; k++) fprintf(stderr, " %s %ld / %lld KB;", KN[k], kn[k], kb[k] >> 10);
++    fputc('\n', stderr);
++  }
++  const long long v[4] = { db, db - sA, db - sB, db - sC };
++  for (int j = 0; j < 4; j++) if (v[j] > cx_max[j]) { cx_max[j] = v[j]; cx_maxvb[j] = vb; }
++}
+ static long tp_vb, tp_to;   /* (the probe window, set below) */
+ static void gb_frame_end(long vb)
+ {
+   if (glf.ft && vb >= tp_vb && vb <= tp_to) { fprintf(stderr, "thin vb %ld n %d", vb, glf.h.nthin);   /* (dev, task #114) */
+-    for (int k = 0; k < glf.h.nthin; k++) fprintf(stderr, " %07x-%07x/%d", glf.h.thin[k].lo, glf.h.thin[k].hi, glf.h.thin[k].keep);
++    for (int k = 0; k < glf.h.nthin; k++) fprintf(stderr, " %07x-%07x/%d%s", glf.h.thin[k].lo, glf.h.thin[k].hi, glf.h.thin[k].keep,
++                                                  glf.h.thin[k].line ? "s" : "");
+     fputc('\n', stderr); }
+   gl_end(&glf);
++  cx_frame(vb, (long long)glf.n.dbytes);   /* sb15 4t census */
+   if (gx_on) gx_list(vb);
+   char w[64]; snprintf(w, sizeof w, "xlive gb: vb %ld:", vb); gb_line(&glf.n, glf.n.dbytes, glf.n.tbytes, w);
+   if (glf.zraw) {
+@@ -580,7 +686,7 @@
+ }
+ /* the volume census (MGS2_XLIVE_VCEN=1) */
+ static int vc_on; static XlStats vc_prev; static long vc_calls[3], vc_pcalls[3], vc_pprim, vc_pqw;
+-static void vc_line(long vb)
++static void vc_cline(long vb)   /* (sb15: was vc_line, now ge/vu1conv.h's streak converter) */
+ {
+   const XlStats *S = xl_stats(); long cw = 0, d[4] = { 0, 0, 0, 0 };   /* data words: UNPACK, MPG, DIRECT, the rest */
+   for (int c = 0; c < 128; c++) {
+@@ -609,7 +715,7 @@
+ {
+   static VcVertF v[1024]; static uint16_t fl[1024]; VcXform x;
+   xl_vm_sync();
+-  int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
++  int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, 1);
+   if (n <= 0) { fprintf(stderr, "fx n %d\n", n); return; }
+   int st = 0, tri = 0, same = 1, a0 = 255, a1 = 0, beh = 0;
+   float b[16]; for (int k = 0; k < 16; k += 2) { b[k] = 1e30f; b[k + 1] = -1e30f; }
+@@ -645,14 +751,15 @@
+ {
+   static uint8_t b0[GL_XCAP], b1[GL_XCAP]; static VcVertF v[1024]; static uint16_t fl[1024]; static uint8_t drop[1024];
+   int keep = 1;
+-  for (int k = 0; k < glf.h.nthin; k++) if (c->src - glf.h.thin[k].lo < glf.h.thin[k].hi - glf.h.thin[k].lo) { keep = glf.h.thin[k].keep; break; }
++  for (int k = 0; k < glf.h.nthin; k++) if (!glf.h.thin[k].line && c->src - glf.h.thin[k].lo < glf.h.thin[k].hi - glf.h.thin[k].lo) { keep = glf.h.thin[k].keep; break; }
+   if (keep < 2) return;
+   xl_vm_sync();
+   XcHost h0 = glf.h; h0.nthin = 0;
+   GerBatch g0, g1; uint32_t s0 = 0, s1 = 0; memset(&g0, 0, sizeof g0); memset(&g1, 0, sizeof g1);
+   int r0 = xc_call(c, &h0, &g0, b0, GL_XCAP, &s0), r1 = xc_call(c, &glf.h, &g1, b1, GL_XCAP, &s1);
+   tc_n++;
+-  VcXform x; int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
++  const int tme = (int)(((c->gr[0x1a] & 1) ? c->gr[0x00] : c->gr[0x1b]) >> 4 & 1);   /* (xconv.c xc_gs's TME) */
++  VcXform x; int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, glf.h.c4x ? tme : 1);   /* (sb15 4x: see below) */
+   for (int i = 0, st = 0; i < n; i++) { if (i && (fl[i] & 0x8000) && i + 1 < n && (fl[i + 1] & 0x8000) && !(fl[i - 1] & 0x8000)) st++; drop[i] = st % keep != 0; }
+   if (r1 == 0 && r0 == 1) {   /* nothing of the kept strips drawn: then no kept triangle of the full call is drawn either */
+     const GerXform *X = (const GerXform *)b0; const uint8_t *cl = b0 + sizeof *X + (X->nv + X->nfv) * sizeof(VcVertF);
+@@ -664,7 +771,9 @@
+     tc_empty++; tc_bad += bad; return; }
+   if (r0 != r1 || r0 != 1) { if (r0 != r1) tc_bad++; return; }
+   const GerXform *X0 = (const GerXform *)b0, *X1 = (const GerXform *)b1; int bad = 0;
+-  if (X0->nv != X1->nv || (int)X0->nv != n || memcmp(b0 + sizeof *X0, b1 + sizeof *X1, X0->nv * sizeof(VcVertF))) bad |= 1;
++  if (X0->nv != X1->nv || (int)X0->nv != n) bad |= 1;   /* sb15 4x: the vertices of the kept strips (a left-out strip's hold its world
++                                                           positions with C4X, the full call's their clip positions; neither is drawn) */
++  else for (int i = 0; i < n; i++) if (!drop[i] && memcmp(b0 + sizeof *X0 + i * sizeof(VcVertF), b1 + sizeof *X1 + i * sizeof(VcVertF), sizeof(VcVertF))) { bad |= 1; break; }
+   GerXform t0 = *X0, t1 = *X1; t0.nfan = t1.nfan = 0; t0.nfv = t1.nfv = 0; if (memcmp(&t0, &t1, sizeof t0)) bad |= 2;
+   GerBatch q0 = g0, q1 = g1; q0.first = q1.first = 0; if (memcmp(&q0, &q1, sizeof q0)) bad |= 4;   /* (the state, twopass, the count) */
+   const uint8_t *c0 = b0 + sizeof *X0 + (X0->nv + X0->nfv) * sizeof(VcVertF), *c1 = b1 + sizeof *X1 + (X1->nv + X1->nfv) * sizeof(VcVertF);
+@@ -683,6 +792,68 @@
+   if (k1 != X1->nfan) bad |= 16;
+   if (bad) { tc_bad++; if (tc_bad <= 10) fprintf(stderr, "thin check: vb %ld call src %08x differs (%d)\n", cur_vb, c->src, bad); }
+ }
++/* task #154 check (MGS2_THIN_CHK=1, x86, C4 on): a streak call in a thinned range converted again with no thinning, and its thinned form
++   built from that one: the pieces (runs and pairs) and the clipper's lines of the kept strips (strips 0, keep, 2 keep ... by the ADC
++   flags), in the same order, byte for byte; the GerXform and the batch the same but for the counts.  And each streak call's owner by
++   the census's walk (fxthin.c fx_who_name): rain.c's and rain_slow.c's calls thinned, no other's */
++extern uint16_t xc_lchk_sv[1024][2], xc_lchk_pv[1024]; extern int xc_lchk_nsv, xc_lchk_npv;
++static long tl_n, tl_bad, tl_empty, tl_kseg, tl_dseg, tl_own[4][2];   /* tl_own: [rain.c or rain_slow.c / another actor / no block / no
++                                                                         owner or no source][thinned] */
++static void thin_chk_l(const XlCall *c)
++{
++  int keep = 1;
++  for (int k = 0; k < glf.h.nthin; k++) if (glf.h.thin[k].line && c->src - glf.h.thin[k].lo < glf.h.thin[k].hi - glf.h.thin[k].lo) { keep = glf.h.thin[k].keep; break; }
++  { char nm[40]; const int w = fx_who_name(glf.ram, c->src, nm, sizeof nm);
++    tl_own[w == 0 ? (strcmp(nm, "rain.c") && strcmp(nm, "rain_slow.c") ? 1 : 0) : w == -2 ? 2 : 3][keep > 1]++;
++    static int shown;   /* (the first calls whose block the census does not find) */
++    if (w == -2 && shown < 12) { shown++; fprintf(stderr, "thin check streaks: no block: vb %ld src %08x thinned %d; words before:", cur_vb, c->src, keep > 1);
++      for (int q = 8; q >= 1; q--) fprintf(stderr, " %08x", *(const uint32_t *)(glf.ram + ((c->src & ~3u) - 4u * (uint32_t)q)));
++      fputc('\n', stderr); } }
++  if (keep < 2) return;
++  static uint8_t b0[GL_XCAP], b1[GL_XCAP], be[GL_XCAP]; static uint16_t p0[1024][2], q0[1024], trun[1024][2];
++  static VcVertF v[1024], tsv[2048], tpv[2048]; static uint16_t fl[1024]; static float cc[1024][4]; static uint8_t cls[1024]; static int st[1024];
++  xl_vm_sync();
++  XcHost h0 = glf.h; h0.nthin = 0;
++  GerBatch g0, g1; uint32_t s0 = 0, s1 = 0; memset(&g0, 0, sizeof g0); memset(&g1, 0, sizeof g1);
++  const int r0 = xc_call(c, &h0, &g0, b0, GL_XCAP, &s0), np0 = xc_lchk_nsv, nq0 = xc_lchk_npv;
++  memcpy(p0, xc_lchk_sv, (size_t)np0 * sizeof p0[0]); memcpy(q0, xc_lchk_pv, (size_t)nq0 * sizeof q0[0]);
++  const int r1 = xc_call(c, &glf.h, &g1, b1, GL_XCAP, &s1);
++  tl_n++;
++  const int tme = (int)(((c->gr[0x1a] & 1) ? c->gr[0x00] : c->gr[0x1b]) >> 4 & 1);   /* (xconv.c xc_gs's TME) */
++  VcXform x; const int n = vc_line(c->vm, c->top, &x, v, fl, cc, cls, 1024, tme);
++  int bad = 0;
++  if (n < 0 || r0 != 1) { if (r1 != r0) bad = 1; goto done; }
++  st[0] = 0; for (int i = 1; i < n; i++) st[i] = st[i - 1] + !cls[i];   /* each vertex's strip, by the PS2's classes */
++  const GerXform *X0 = (const GerXform *)b0; const VcVertF *sv0 = (const VcVertF *)(b0 + sizeof *X0), *pv0 = sv0 + X0->nv;
++  const uint16_t (*run0)[2] = (const uint16_t (*)[2])(pv0 + X0->nfv);
++  uint32_t nsv = 0, nst = 0, npv = 0, o0 = 0, ri = 0;
++  for (int j = 0; j < np0; j++) {   /* the full call's pieces (their runs as the blob lists them), the kept strips' in order */
++    const int f = p0[j][0], k = p0[j][1];
++    if (k > 2) { if (ri >= X0->nst || run0[ri][0] != o0 || run0[ri][1] != k) bad |= 2; ri++; }
++    if (st[f] % keep == 0) {
++      memcpy(&tsv[nsv], &sv0[o0], (size_t)k * sizeof *tsv);
++      if (k > 2) { trun[nst][0] = (uint16_t)nsv; trun[nst][1] = (uint16_t)k; nst++; }
++      nsv += (uint32_t)k; tl_kseg += k - 1;
++    } else tl_dseg += k - 1;
++    o0 += (uint32_t)k;
++  }
++  if (o0 != X0->nv || ri != X0->nst || 2u * (uint32_t)nq0 != X0->nfv) bad |= 2;
++  for (int j = 0; j < nq0; j++) {   /* the clipper's lines of the kept strips */
++    if (st[q0[j]] % keep == 0) { tpv[npv++] = pv0[2 * j]; tpv[npv++] = pv0[2 * j + 1]; tl_kseg++; } else tl_dseg++; }
++  if (!nsv && !npv) { if (r1 != 0) bad |= 4; else tl_empty++; goto done; }
++  if (r1 != 1) { bad |= 4; goto done; }
++  { GerXform Xe = *X0; Xe.nv = nsv; Xe.nst = nst; Xe.nfv = npv;
++    uint32_t o = 0;
++    memcpy(be, &Xe, sizeof Xe); o += sizeof Xe;
++    memcpy(be + o, tsv, nsv * sizeof *tsv); o += nsv * (uint32_t)sizeof *tsv;
++    memcpy(be + o, tpv, npv * sizeof *tpv); o += npv * (uint32_t)sizeof *tpv;
++    memcpy(be + o, trun, nst * 4); o += nst * 4;
++    if (s1 != o || memcmp(b1, be, o)) bad |= 8; }
++  { GerBatch q0b = g0, q1b = g1; q0b.first = q1b.first = 0; q0b.count = q1b.count = 0;
++    if (memcmp(&q0b, &q1b, sizeof q0b) || g1.count != nsv + npv) bad |= 16; }
++done:
++  if (bad) { tl_bad++; if (tl_bad <= 10) fprintf(stderr, "thin check streaks: vb %ld call src %08x differs (%d)\n", cur_vb, c->src, bad); }
++}
+ static void on_call(void *ctx, const XlCall *c)
+ {
+   (void)ctx; ncall++; ec_add(c);
+@@ -703,7 +874,8 @@
+   if (vc_on) vc_calls[gl_conv_entry(c->entry) ? 0 : xl_rule(c->entry) ? 1 : 2]++;
+   if (gb_now) gl_call(&glf, c);
+   { static int tc = -1; if (tc < 0) tc = getenv("MGS2_THIN_CHK") && atoi(getenv("MGS2_THIN_CHK"));   /* task #114 check */
+-    if (tc && gb_now && glf.ft && (c->entry == XL_FX || c->entry == XL_FX2) && !c->cont) thin_chk(c); }
++    if (tc && gb_now && glf.ft && (c->entry == XL_FX || c->entry == XL_FX2) && !c->cont) thin_chk(c);
++    if (tc && gb_now && glf.ft && glf.h.c4 && c->entry == VC_LINE && !c->cont) thin_chk_l(c); }   /* task #154 */
+ }
+ static void on_flush(void *ctx) { (void)ctx; if (glf.nheld) { glf.hflush[0]++; gl_flush(&glf); } }   /* sb4: a transfer's end */
+ /* MGS2_XLIVE_RTLOG (dev): a textured primitive's TEX0 / CLAMP / TEXA / FRAME / ZBUF, texel box and what the map says of its texture's
+@@ -827,6 +999,13 @@
+               "words, the largest aux %ld bytes, the largest list and aux together %ld bytes (of %u); digests %ld (vb %ld..%ld), all %016llx\n",
+               gx_count, gx_first, gx_fail, gx_drop, gx_wmax, gx_amax, gx_bmax, gx_listn, gx_n, gx_from, gx_to, (unsigned long long)gx_all);
+       fprintf(stderr, "picture: content digests %ld, all %016llx\n", gx_n, (unsigned long long)gx_call);
++      if (gx_sem_on) fprintf(stderr, "picture: drawn digests (MGS2_GX_SEM) %ld, all %016llx; addresses outside the frame memory %ld\n", gx_sem_n,
++                             (unsigned long long)gx_sem_all, gx_sem_bad);
++      fprintf(stderr, "picture: transform sharing census (4t) over %ld frames: step 4 effect batches %ld %ld %ld, equal to the last one's %ld %ld %ld; "
++              "all effect batches %ld, equal %ld; transform batches %ld, camera equal %ld; saved A %lld KB, B %lld KB, C %lld KB; the largest "
++              "frame's data now %lld KB (vb %ld), after A %lld KB (vb %ld), B %lld KB (vb %ld), C %lld KB (vb %ld)\n", cx_frames, cx_n[0], cx_n[1],
++              cx_n[2], cx_same[0], cx_same[1], cx_same[2], cx_fx_n, cx_fx_same, cx_cam_n, cx_cam_same, cx_s[0] >> 10, cx_s[1] >> 10, cx_s[2] >> 10,
++              cx_max[0] >> 10, cx_maxvb[0], cx_max[1] >> 10, cx_maxvb[1], cx_max[2] >> 10, cx_maxvb[2], cx_max[3] >> 10, cx_maxvb[3]);
+       fprintf(stderr, "picture: textures: %ld uses, textures %ld hits / %ld conversions, palettes %ld / %ld; render targets %ld, not known %ld, "
+               "refused %ld (no room in the pool %ld), texels or entries the map could not give %ld; converted %lld KB, kept %ld (%lld KB, peak "
+               "%lld KB), evicted %ld, the heaviest frame %lld KB; pool %u KB, budget %u KB\n", k->uses, k->hits, k->misses, k->pal_hits,
+@@ -850,7 +1029,16 @@
+               x->thin_strips, x->thin_drop, x->thin_tris);
+       if (tc_n) fprintf(stderr, "xlive gb: thin check: %ld thinned calls converted again without thinning: differing %ld; kept strips' triangles %ld "
+                 "(the same classes), left-out strips' %ld (class 0), kept polygons %ld (the same); calls with nothing left to draw %ld\n", tc_n, tc_bad,
+-                tc_keep_tris, tc_drop_tris, tc_fans, tc_empty); }
++                tc_keep_tris, tc_drop_tris, tc_fans, tc_empty);
++      if (t->keep[2] > 1)   /* task #154 */
++        fprintf(stderr, "xlive gb: thinned streaks (1 in %d): actors %ld; their tables' blocks %ld, entries 0 %ld, blocks not right %ld; "
++                "ranges %ld; calls thinned %ld, their strips %ld, left out %ld (%ld segments)\n", t->keep[2], t->found[2], t->tab_blocks,
++                t->tab_empty, t->tab_bad, t->tab_ranges, x->thin_lcalls, x->thin_lstrips, x->thin_ldrop, x->thin_lseg);
++      if (tl_own[0][0] + tl_own[0][1] + tl_own[1][0] + tl_own[1][1] + tl_own[2][0] + tl_own[2][1] + tl_own[3][0] + tl_own[3][1])
++        fprintf(stderr, "xlive gb: thin check streaks: %ld thinned calls converted again without thinning: differing %ld, nothing left to "
++                "draw %ld; segments kept %ld, left out %ld; streak calls by the census's owner, thinned / not: rain.c or rain_slow.c %ld / "
++                "%ld, another actor %ld / %ld, no block %ld / %ld, no owner %ld / %ld\n", tl_n, tl_bad, tl_empty, tl_kseg, tl_dseg,
++                tl_own[0][1], tl_own[0][0], tl_own[1][1], tl_own[1][0], tl_own[2][1], tl_own[2][0], tl_own[3][1], tl_own[3][0]); }
+     fprintf(stderr, "xlive gb: step c: %ld calls held (%ld of them P07); flushes at a transfer's end %ld, for a call's room %ld, records full "
+             "%ld, P07 copies full %ld, at a frame's end %ld; faults: held calls not placed %ld, passes after their call ran %ld%s%s\n",
+             glf.held_n, glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late,
+@@ -886,7 +1074,17 @@
+     if (x->c3v_calls || x->c3z_in || x->c3_chk)   /* sb14 step 3 (g_opt2 OPT2_C3V, OPT2_C3Z, OPT2_C3W) */
+       fprintf(stderr, "xlive gb: df0 C3 (two passes, the depth range by the box): lane calls in two passes %ld (straight into the frame %ld), cut "
+               "before the second pass %ld calls, %ld vertices; the depth range by the box alone %ld calls, %ld vertices; checked %ld, different %ld\n",
+-              x->c3v_calls, x->c3w_calls, x->c3v_cut, x->c3v_cut_v, x->c3z_in, x->c3z_in_v, x->c3_chk, x->c3_chk_bad); }
++              x->c3v_calls, x->c3w_calls, x->c3v_cut, x->c3v_cut_v, x->c3z_in, x->c3z_in_v, x->c3_chk, x->c3_chk_bad);
++    if (x->c4_calls[0] || x->c4_calls[1] || x->c4_calls[2])   /* sb15 step 4 (g_opt2 OPT2_C4) */
++      fprintf(stderr, "xlive gb: effects C4: calls sprites %ld, quads %ld, streaks %ld; bad %ld %ld %ld; batches %ld %ld %ld; nothing drawn %ld %ld %ld; "
++              "sprites %ld (dropped %ld, corners moved %ld, drawn %ld); quads %ld (dropped %ld, clipped %ld, whole %ld; polygons %ld, their "
++              "vertices %ld, empty %ld); streak segments %ld (dropped %ld, to the clipper %ld, in the strip %ld; lines %ld, the clipper's drops "
++              "%ld); no room %ld; GE list: sprites %ld, line strips %ld, lines %ld\n",
++              x->c4_calls[0], x->c4_calls[1], x->c4_calls[2], x->c4_bad[0], x->c4_bad[1], x->c4_bad[2], x->c4_batches[0], x->c4_batches[1],
++              x->c4_batches[2], x->c4_empty[0], x->c4_empty[1], x->c4_empty[2], x->c4_n[0], x->c4_drop[0], x->c4_clip[0], x->c4_drawn[0],
++              x->c4_n[1], x->c4_drop[1], x->c4_clip[1], x->c4_drawn[1], x->c4_poly, x->c4_poly_v, x->c4_poly_empty, x->c4_n[2], x->c4_drop[2],
++              x->c4_clip[2], x->c4_drawn[2], x->c4_lines, x->c4_line_drop, x->c4_full, gx_c4s, gx_c4r, gx_c4l);
++  }
+ }
+ 
+ /* the options, at the first transfer or vblank */
+@@ -932,6 +1130,7 @@
+           fprintf(stderr, "xlive: no memory for the live frame\n"); exit(1); }
+         gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;   /* one block, as the PSP's */
+         if (gx_listn != GL_PSP_LIST) fprintf(stderr, "xlive mode: a list block of %u KB (MGS2_XLIVE_GX_LIST: not the PSP's)\n", gx_listn >> 10);
++        gx_sem_on = getenv("MGS2_GX_SEM") && atoi(getenv("MGS2_GX_SEM"));   /* sb15 */
+         gxh.addr = gx_addr; gxh.ctx = 0; gxh.fb[0] = 0x000000; gxh.fb[1] = 0x088000; gxh.zb = 0x110000; gx_on = 1;
+         fprintf(stderr, "xlive mode: the PSP harness's frames and GE lists (MGS2_XLIVE_GX), texture pool %ld KB (budget %u KB); digests of the "
+                 "frames whose last vblank is in %ld..%ld\n", kb, gx_pool_n / 8 * 7 >> 10, gx_from, gx_to);
+@@ -944,9 +1143,10 @@
+       if (getenv("MGS2_GL_HOLD") && atoi(getenv("MGS2_GL_HOLD")) >= 1 && atoi(getenv("MGS2_GL_HOLD")) <= GL_HOLD) {   /* sb4: as the PSP's cfg */
+         glf.hold_max = atoi(getenv("MGS2_GL_HOLD")); fprintf(stderr, "xlive mode: step c holds up to %d P06 calls (MGS2_GL_HOLD)\n", glf.hold_max); }
+       { static FxThin ft; fx_thin_init(&ft, getenv("MGS2_GL_RAIN") ? atoi(getenv("MGS2_GL_RAIN")) : 1,   /* task #114: as the PSP's cfg */
+-          getenv("MGS2_GL_SPLASH") ? atoi(getenv("MGS2_GL_SPLASH")) : 1);
++          getenv("MGS2_GL_SPLASH") ? atoi(getenv("MGS2_GL_SPLASH")) : 1, getenv("MGS2_GL_STREAKS") ? atoi(getenv("MGS2_GL_STREAKS")) : 1);
+         if (fx_thin_on(&ft)) { glf.ft = &ft; fprintf(stderr, "xlive mode: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d "
+-          "(MGS2_GL_RAIN, MGS2_GL_SPLASH)\n", ft.keep[0], ft.keep[1]); } }
++          "(MGS2_GL_RAIN, MGS2_GL_SPLASH)\n", ft.keep[0], ft.keep[1]);
++          if (ft.keep[2] > 1) fprintf(stderr, "xlive mode: the rain's streaks drawn 1 strip in %d with C4 (MGS2_GL_STREAKS)\n", ft.keep[2]); } }
+       if (getenv("MGS2_XLIVE_CUT") && !atoi(getenv("MGS2_XLIVE_CUT"))) { glf.h.cut = 0;   /* the PSP's OPT_GL_CUT off */
+         fprintf(stderr, "xlive mode: every df0 call converted (MGS2_XLIVE_CUT=0)\n"); }
+       const char *e2 = getenv("MGS2_XLIVE_GER"), *c2 = e2 ? strrchr(e2, ':') : 0;
+@@ -1022,9 +1222,9 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.h.c4 = (g_opt2 & OPT2_C4) != 0; glf.h.c4x = (g_opt2 & OPT2_C4X) != 0; glf.ram = M.mem; gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+-  if (on && vc_on) vc_line(vb - 1);
++  if (on && vc_on) vc_cline(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+   ph = 0xcbf29ce484222325ull;
+   if (!on && vb == from) { on = 1; xl_reset(); xdg_open(dig); vc_start(); if (cg_on) CALLGRIND_START_INSTRUMENTATION; }
+--- sb14/psp/main_psp.c	2026-11-02 23:29:54.054567971 +0000
++++ sb15/psp/main_psp.c	2026-11-03 11:15:48.424513821 +0000
+@@ -190,16 +190,19 @@
+ static Win w_cur, w_deck;
+ /* the configurations boot.c opt_window cycles through (its cfg[] order), plus anything else */
+ #ifdef MGS2_GL
+-#define NCFG 32
++#define NCFG 35
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+                                             "SPR bulk off", "native forms off", "reduced renderer off", "GS one-loop walk off", "native sort key off",
+                                             "stage table off", "translator off", "picture off", "GE overlap off", "VU sync by scan",
+                                             "block tex conv off", "area memo off", "flags-only test off", "palette memo off", "V4-8 decode off",
+                                             "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off", "face hold off",
+-                                            "face GE lighting on", "people GE lighting on", "mesh 2-pass off", "mesh box depth off", "mesh trims off", "mesh frame write off" };
++                                            "face GE lighting on", "people GE lighting on", "mesh 2-pass off", "mesh box depth off", "mesh trims off", "mesh frame write off",
++                                            "effects drawn", "effect strips exact", "effects drawn and exact" };
+                               /* 17-21: codec_speed.md A-D (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4); 24, 25:
+                                  sb10's T1, T2 (step 1); 26: sb11's C1 switched on (off by default in gl14); 27: sb12's C2 switched on
+-                                 (off by default); 28-31: sb14's step 3 trims off (3v, 3z, both, 3w) */
++                                 (off by default); 28-31: sb14's step 3 trims off (3v, 3z, both, 3w); 32: sb15's C4 switched on (step 4's sprites,
++                                 quads and streaks; off by default); 33: sb15's C4X on (4x: the effect strips from their clip positions,
++                                 untextured ones not refused), 34: both */
+ #else
+ #define NCFG 13
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+@@ -321,7 +324,8 @@
+                  g_opt2 == (OPT2_DEFAULT & ~8u) ? 25 : g_opt2 == (OPT2_DEFAULT | OPT2_C1) ? 26 : g_opt2 == (OPT2_DEFAULT | OPT2_C2) ? 27 :
+                  g_opt2 == (OPT2_DEFAULT & ~OPT2_C3V) ? 28 : g_opt2 == (OPT2_DEFAULT & ~OPT2_C3Z) ? 29 :
+                  g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z)) || g_opt2 == (OPT2_DEFAULT & ~(OPT2_C3V | OPT2_C3Z | OPT2_C3W)) ? 30 :
+-                 g_opt2 == (OPT2_DEFAULT & ~OPT2_C3W) ? 31 : 4;   /* sb14: 28-31 (30: 3w has no effect without 3v) */
++                 g_opt2 == (OPT2_DEFAULT & ~OPT2_C3W) ? 31 : g_opt2 == (OPT2_DEFAULT | OPT2_C4) ? 32 : g_opt2 == (OPT2_DEFAULT | OPT2_C4X) ? 33 :
++                 g_opt2 == (OPT2_DEFAULT | OPT2_C4 | OPT2_C4X) ? 34 : 4;   /* sb14: 28-31 (30: 3w has no effect without 3v); sb15: 32-34 */
+ #endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+--- sb14/psp/xl_psp.c	2026-11-02 23:29:42.636708292 +0000
++++ sb15/psp/xl_psp.c	2026-11-03 12:36:28.055449147 +0000
+@@ -91,6 +91,7 @@
+ static uint32_t gl_texkb = GL_PSP_TEXKB, gl_vol_n; static uint8_t *gl_vol; static void *gl_pool; static int gl_hold;
+ static long gx_words_max, gx_aux_max, gx_both_max, gx_drop; static uint64_t gx_words_sum;
+ static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
++static long gx_c4s, gx_c4r, gx_c4l;   /* sb15 step 4: the lists' GxCount fx_spr, fx_lruns, fx_lines */
+ static long gx_c2p, gx_c2b, gx_c2w;   /* sb12 C2: c2_passes, c2_bones, c2_words */
+ static uint32_t gl_addr(void *ctx, const void *p) { (void)ctx; return (uint32_t)(uintptr_t)p; }
+ static void gl_line(FILE *f, const GlCount *n, int64_t db, int64_t tb, const char *what)   /* as boot/xlive_chk.c's gb_line; db, tb: n's data
+@@ -133,7 +134,8 @@
+   if ((e = mgs2_getenv("MGS2_GL_DIG")) && sscanf(e, "%ld:%ld", &dig_from, &dig_to) != 2) dig_from = dig_to = -1;
+   if ((e = mgs2_getenv("MGS2_GL_HOLD"))) gl_hold = atoi(e);   /* sb4: step c's records in use at most (1..GL_HOLD) */
+   { int rn = (e = mgs2_getenv("MGS2_GL_RAIN")) ? atoi(e) : 1, sp = (e = mgs2_getenv("MGS2_GL_SPLASH")) ? atoi(e) : 1;   /* task #114: 1 in N */
+-    fx_thin_init(&gl_ft, rn, sp); }
++    int sk = (e = mgs2_getenv("MGS2_GL_STREAKS")) ? atoi(e) : 1;   /* task #154: the rain's streaks (drawn with C4 only) */
++    fx_thin_init(&gl_ft, rn, sp, sk); }
+   for (e = mgs2_getenv("MGS2_GL_SHOT"); e && *e && shot_n < 16; ) { shot_vb[shot_n++] = strtol(e, (char **)&e, 10); if (*e == ',') e++; else break; }
+   gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST;
+   gl_vol = host_vol_tail(gl_vol_n); gl_pool = memalign(64, gl_texkb << 10);
+@@ -163,9 +165,10 @@
+   if (gl_hold >= 1 && gl_hold <= GL_HOLD) glf.hold_max = gl_hold;
+   fprintf(stderr, "picture: step c holds up to %d P06 calls (%u bytes a call)\n", glf.hold_max, (unsigned)sizeof(XcHeld));
+   if (fx_thin_on(&gl_ft)) { glf.ft = &gl_ft; glf.ram = M.mem; }   /* task #114 (after gl_init, which clears glf) */
+-  if (!fx_thin_on(&gl_ft)) fprintf(stderr, "picture: the rain's drop sheets and the foot splash drawn as the PS2 (MGS2_GL_RAIN, MGS2_GL_SPLASH)\n");
+-  else fprintf(stderr, "picture: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d (MGS2_GL_RAIN, MGS2_GL_SPLASH; 1: as "
+-               "the PS2)\n", gl_ft.keep[0], gl_ft.keep[1]);
++  if (!fx_thin_on(&gl_ft)) fprintf(stderr, "picture: the rain's drop sheets, the foot splash and the rain's streaks drawn as the PS2 "
++                                    "(MGS2_GL_RAIN, MGS2_GL_SPLASH, MGS2_GL_STREAKS)\n");
++  else fprintf(stderr, "picture: the rain's drop sheets drawn 1 strip in %d, the foot splash 1 in %d, the rain's streaks 1 in %d (with C4) "
++               "(MGS2_GL_RAIN, MGS2_GL_SPLASH, MGS2_GL_STREAKS; 1: as the PS2)\n", gl_ft.keep[0], gl_ft.keep[1], gl_ft.keep[2]);
+ }
+ /* the GE has drawn the frame: it is on the screen from the next display vblank */
+ static void gl_show(void)
+@@ -188,6 +191,7 @@
+     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", fvb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+   gx_words_sum += gxl.c.words; gx_drop += gxl.c.dropped;
+   gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
++  gx_c4s += gxl.c.fx_spr; gx_c4r += gxl.c.fx_lruns; gx_c4l += gxl.c.fx_lines;
+   gx_c2p += gxl.c.c2_passes; gx_c2b += gxl.c.c2_bones; gx_c2w += gxl.c.c2_words;
+   if (gxl.c.words > gx_words_max) gx_words_max = gxl.c.words;
+   if (gxl.c.aux > gx_aux_max) gx_aux_max = gxl.c.aux;
+@@ -241,6 +245,8 @@
+       glf.h.c3v = (g_opt2 & OPT2_C3V) != 0;      /* sb14 3v: df0 in two passes */
+       glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0;      /* sb14 3z: df0's depth range by the box */
+       glf.h.c3w = (g_opt2 & OPT2_C3W) != 0;      /* sb14 3w: two-pass df0 vertices straight into the frame */
++      glf.h.c4 = (g_opt2 & OPT2_C4) != 0;        /* sb15 step 4: the sprites, quads and streaks drawn */
++      glf.h.c4x = (g_opt2 & OPT2_C4X) != 0;      /* sb15 4x: the effect strips from their clip positions */
+       gl_begin(&glf); gl_now = 1;
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -298,7 +304,7 @@
+ {
+   (void)ctx; ncall++;
+   if (!gl_now) return;
+-  if (gl_conv_entry(c->entry) && !c->cont) { HOST_ENTER(HOST_GL); gl_call(&glf, c); HOST_LEAVE(HOST_GL); }
++  if ((gl_conv_entry(c->entry) || (glf.h.c4 && gl_c4_entry(c->entry))) && !c->cont) { HOST_ENTER(HOST_GL); gl_call(&glf, c); HOST_LEAVE(HOST_GL); }
+   else gl_call(&glf, c);
+ }
+ static void on_pass(void *ctx, const XlCall *c, int pass)   /* P06's passes 2 and 3 (HOST_GL) */
+@@ -439,10 +445,23 @@
+       fprintf(f, "picture: df0 C3 (two passes, the depth range by the box): lane calls in two passes %ld (straight into the frame %ld), cut "
+               "before the second pass %ld calls, %ld vertices; the depth range by the box alone %ld calls, %ld vertices\n",
+               x->c3v_calls, x->c3w_calls, x->c3v_cut, x->c3v_cut_v, x->c3z_in, x->c3z_in_v);
++    if (x->c4_calls[0] || x->c4_calls[1] || x->c4_calls[2])   /* sb15 step 4 (g_opt2 OPT2_C4) */
++      fprintf(f, "picture: effects C4: calls sprites %ld, quads %ld, streaks %ld; bad %ld %ld %ld; batches %ld %ld %ld; nothing drawn %ld %ld %ld; "
++              "sprites %ld (dropped %ld, corners moved %ld, drawn %ld); quads %ld (dropped %ld, clipped %ld, whole %ld; polygons %ld, their "
++              "vertices %ld, empty %ld); streak segments %ld (dropped %ld, to the clipper %ld, in the strip %ld; lines %ld, the clipper's drops "
++              "%ld); no room %ld; GE list: sprites %ld, line strips %ld, lines %ld\n",
++              x->c4_calls[0], x->c4_calls[1], x->c4_calls[2], x->c4_bad[0], x->c4_bad[1], x->c4_bad[2], x->c4_batches[0], x->c4_batches[1],
++              x->c4_batches[2], x->c4_empty[0], x->c4_empty[1], x->c4_empty[2], x->c4_n[0], x->c4_drop[0], x->c4_clip[0], x->c4_drawn[0],
++              x->c4_n[1], x->c4_drop[1], x->c4_clip[1], x->c4_drawn[1], x->c4_poly, x->c4_poly_v, x->c4_poly_empty, x->c4_n[2], x->c4_drop[2],
++              x->c4_clip[2], x->c4_drawn[2], x->c4_lines, x->c4_line_drop, x->c4_full, gx_c4s, gx_c4r, gx_c4l);
+     if (glf.ft) { const FxThin *t = glf.ft;   /* task #114 */
+       fprintf(f, "picture: thinned effects (sheets 1 in %d, splash 1 in %d): scans %ld, actors walked %ld, names read %ld, cache emptied %ld; "
+               "blocks found: sheets %ld, splash %ld; bad %ld, over %ld; calls thinned %ld, their strips %ld, left out %ld (%ld triangles)\n",
+               t->keep[0], t->keep[1], t->scans, t->actors, t->named, t->flushes, t->found[0], t->found[1], t->bad, t->over, x->thin_calls,
+-              x->thin_strips, x->thin_drop, x->thin_tris); } }
++              x->thin_strips, x->thin_drop, x->thin_tris);
++      if (t->keep[2] > 1)   /* task #154 */
++        fprintf(f, "picture: thinned streaks (1 in %d): actors %ld; their tables' blocks %ld, entries 0 %ld, blocks not right %ld; ranges %ld; "
++                "calls thinned %ld, their strips %ld, left out %ld (%ld segments)\n", t->keep[2], t->found[2], t->tab_blocks, t->tab_empty,
++                t->tab_bad, t->tab_ranges, x->thin_lcalls, x->thin_lstrips, x->thin_ldrop, x->thin_lseg); } }
+ #endif
+ }
+--- sb14/runtime/host_time.h	2026-11-02 23:29:42.634991876 +0000
++++ sb15/runtime/host_time.h	2026-11-03 11:14:44.050474007 +0000
+@@ -121,8 +121,19 @@
+                                            the range already kept (ge/xconv.c xc_df0_zin, as C1 and C2).  Exact: the same ranges */
+ #define OPT2_C3W 256u                   /* sb14, Stage C step 3 3w (with 3v): a two-pass df0 call's vertices written straight into the frame's
+                                            room (ge/xconv.c xc_call, xc_df0), not into a buffer and then copied.  Exact: the same lists */
+-#define OPT2_DEFAULT (~OPT2_C2)         /* g_opt2 at the start: every switch on but C2 (sb12 for gl15: C1 on by default, my call after gl14's
+-                                           run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14: ~OPT2_C1) */
++#define OPT2_C4 512u                    /* sb15, Stage C step 4 (stagec_notes.md step 4), MGS2_GL builds (ge/xconv.c xc_c4, ge/gelist.c
++                                           fx_draw): the effects the picture left out drawn, P04+3740's sprites, +3a38's quads and +2b60's
++                                           streaks; off: not drawn, as gl16.  A different picture (more of the game's), so off by default
++                                           until Ffm's OK.  NOTE: a cycle word written for gl16 (ffffffdf ...) has this bit set */
++#define OPT2_C4X 1024u                  /* sb15 4x (stagec_notes.md 4.7), MGS2_GL builds (ge/xconv.c xc_fpos): P04+25f0 / +2870's effect strips
++                                           drawn from the clip positions the micro program computes, the GE's world the identity (as step 4's
++                                           sprites), not their world positions through the call's matrix, which the GE holds in 24-bit floats
++                                           (up to 4.6 px off in the opening's rain); and an untextured call's stale UV q not refused (the
++                                           deck's flat triangles at vb 24,467-24,947).  A different picture (closer to the PS2's), so off by
++                                           default until Ffm's OK */
++#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X))   /* g_opt2 at the start: every switch on but C2, C4 and C4X (sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
++                                           C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
++                                           ~OPT2_C1) */
+ extern uint32_t g_opt2;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);

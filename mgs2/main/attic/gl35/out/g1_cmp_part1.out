@@ -1,0 +1,94 @@
+=== f against k
+out_f.log: 17664 picture lines, 17664 content; out_k.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against kc
+out_f.log: 17664 picture lines, 17664 content; out_kc.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against k1
+out_f.log: 17664 picture lines, 17664 content; out_k1.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against k2
+out_f.log: 17664 picture lines, 17664 content; out_k2.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against k4
+out_f.log: 17664 picture lines, 17664 content; out_k4.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against k8
+out_f.log: 17664 picture lines, 17664 content; out_k8.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== dxp against dx
+out_dxp.log: 17664 picture lines, 17664 content; out_dx.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== dxp against dx2
+out_dxp.log: 17664 picture lines, 17664 content; out_dx2.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 0
+=== f against dxp
+out_f.log: 17664 picture lines, 17664 content; out_dxp.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 330
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 16748
+content digest                                      : 17664 lines, differ 0
+natb                                                : 17664 lines, differ 0
+natz                                                : 17664 lines, differ 0
+natq                                                : 17664 lines, differ 0
+nats (the translator state, gl35)                   : 17664 lines, differ 0
+alllines differing 33500
+50c50
+< xlive mode: gl29 dz (MGS2_GL_DZ): 1 entries: 29490-31400 1/0
+---
+> xlive mode: gl29 dz (MGS2_GL_DZ): 3 entries: 0-29489 1/0 29490-31400 1/0 31401-999999999 1/0

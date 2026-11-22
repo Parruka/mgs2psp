@@ -1,0 +1,16 @@
+t0m window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 2.42 k, total 2.42 k 
+t0m window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.12 k, total 3.12 k 
+t0m window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.05 k, total 11.05 k 
+t0m window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.68 k, total 10.68 k 
+t0m window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 4.00 k, total 4.00 k 
+t0m window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.70 k, total 8.70 k 
+t0m window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 3.64 k, total 3.64 k 
+t0m window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 10.00 k, total 10.00 k 
+t1m window 0: window 0 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.92 k, total 7.92 k 
+t1m window 1: window 1 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 7.41 k, total 7.41 k 
+t1m window 2: window 2 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 6.26 k, total 6.26 k 
+t1m window 3: window 3 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 12.11 k, total 12.11 k 
+t1m window 4: window 4 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 11.11 k, total 11.11 k 
+t1m window 5: window 5 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 12.53 k, total 12.53 k 
+t1m window 6: window 6 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 8.27 k, total 8.27 k 
+t1m window 7: window 7 fully associative 256 lines: imiss game 0.00 k, asm 0.00 k, C 5.72 k, total 5.72 k 

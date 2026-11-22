@@ -1,0 +1,8 @@
+tw/x86/out_p.log: 17664 picture lines, 17664 content; tw/x86/out_fc2.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl34)                   : 17664 lines, differ 0; arm 0: 0 of 17664

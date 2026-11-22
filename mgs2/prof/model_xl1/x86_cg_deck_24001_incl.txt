@@ -1,0 +1,40 @@
+Ir                    file:function
+--------------------------------------------------------------------------------
+378,363,543 (100.0%)  /mnt/project-files/mgs2/boot/xlive_chk.c:xlive_chk_dma [/home/claude/xlive/xcg/boot]
+378,363,543 (100.0%)  /mnt/project-files/mgs2/ge/xlive.c:xlv_dma [/home/claude/xlive/xcg/boot]
+348,418,585 (92.09%)  /mnt/project-files/mgs2/ge/xlate.c:xl_vif1_span [/home/claude/xlive/xcg/boot]
+299,781,202 (79.23%)  /mnt/project-files/mgs2/ge/xlive.c:run [/home/claude/xlive/xcg/boot]
+209,251,172 (55.30%)  /mnt/project-files/mgs2/ge/xlate.c:gif_qw [/home/claude/xlive/xcg/boot]
+187,870,944 (49.65%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_reg [/home/claude/xlive/xcg/boot]
+167,231,863 (44.20%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_packed [/home/claude/xlive/xcg/boot]
+144,612,537 (38.22%)  /mnt/project-files/mgs2/ge/xlate.c:vif_cmd [/home/claude/xlive/xcg/boot]
+127,852,836 (33.79%)  /mnt/project-files/mgs2/ge/xlate.c:call [/home/claude/xlive/xcg/boot]
+101,347,120 (26.79%)  /mnt/project-files/mgs2/ge/xlate.c:kick_vm [/home/claude/xlive/xcg/boot]
+ 85,418,841 (22.58%)  /mnt/project-files/mgs2/ge/gsup.c:bl_push [/home/claude/xlive/xcg/boot]
+ 70,111,296 (18.53%)  /mnt/project-files/mgs2/ge/gsup.c:gu_trxdir [/home/claude/xlive/xcg/boot]
+ 69,899,378 (18.47%)  /mnt/project-files/mgs2/ge/gsup.c:cover [/home/claude/xlive/xcg/boot]
+ 66,075,456 (17.46%)  /mnt/project-files/mgs2/ge/gsfront.c:drew_ctx [/home/claude/xlive/xcg/boot]
+ 63,311,629 (16.73%)  /mnt/project-files/mgs2/ge/gsup.c:gu_drawn [/home/claude/xlive/xcg/boot]
+ 58,839,034 (15.55%)  /mnt/project-files/mgs2/ge/gsup.c:gu_clut_load [/home/claude/xlive/xcg/boot]
+ 54,301,887 (14.35%)  /mnt/project-files/mgs2/ge/gsfront.c:kick [/home/claude/xlive/xcg/boot]
+ 54,096,749 (14.30%)  /mnt/project-files/mgs2/ge/gsfront.c:emit [/home/claude/xlive/xcg/boot]
+ 24,914,116 ( 6.58%)  /mnt/project-files/mgs2/ge/gsup.c:cell_bn [/home/claude/xlive/xcg/boot]
+ 23,969,007 ( 6.33%)  /mnt/project-files/mgs2/ge/gsup.c:ld_unref [/home/claude/xlive/xcg/boot]
+ 22,618,339 ( 5.98%)  /mnt/project-files/mgs2/ge/xlate.c:vm_one [/home/claude/xlive/xcg/boot]
+ 15,468,940 ( 4.09%)  /mnt/project-files/mgs2/ge/gslayout.h:cell_bn
+ 14,719,859 ( 3.89%)  /mnt/project-files/mgs2/ge/xlate.c:ud_vec [/home/claude/xlive/xcg/boot]
+ 13,181,680 ( 3.48%)  /mnt/project-files/mgs2/ge/gsfront.c:gf_drew [/home/claude/xlive/xcg/boot]
+  9,476,568 ( 2.50%)  /usr/include/x86_64-linux-gnu/bits/string_fortified.h:bl_push
+  8,206,300 ( 2.17%)  /mnt/project-files/mgs2/ge/gsup.c:xf_unref [/home/claude/xlive/xcg/boot]
+  6,846,024 ( 1.81%)  ./string/../sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S:__memcpy_avx_unaligned_erms [/usr/lib/x86_64-linux-gnu/libc.so.6]
+  6,179,363 ( 1.63%)  /mnt/project-files/mgs2/ge/xlate.c:xl_flush [/home/claude/xlive/xcg/boot]
+  5,862,614 ( 1.55%)  ./string/../sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S:__memset_avx2_unaligned_erms [/usr/lib/x86_64-linux-gnu/libc.so.6]
+
+--------------------------------------------------------------------------------
+-- Auto-annotated source: /mnt/project-files/mgs2/ge/gsup.c
+--------------------------------------------------------------------------------
+Ir                 
+
+-- line 97 ----------------------------------------
+        .           #ifdef GU_SENT
+        .             if (m->read_sent) return x->sent ? x->sent + off : 0;

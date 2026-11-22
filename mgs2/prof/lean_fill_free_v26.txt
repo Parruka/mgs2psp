@@ -1,0 +1,86 @@
+generated code: 270098 slots in touched lines (1055 KB), I-misses 50824 per step
+
+by line class (share of the generated code's I-misses)
+  body                  66.1%
+  call                  14.0%
+  entry                  8.2%
+  jr                     7.1%
+  exit                   4.1%
+  not a header line      0.4%
+  other                  0.1%
+
+body lines by guest kind
+  branch                10.8%
+  store 64/128           8.2%
+  load 8-32              7.6%
+  vu0 op/move            7.1%
+  load 64/128            6.9%
+  alu                    6.3%
+  fpu op                 5.6%
+  store 8-32             4.0%
+  fpu ld/st              3.6%
+  vu0 ld/st              3.6%
+  j/jal                  1.1%
+  ld/st unaligned        0.9%
+  mmi                    0.4%
+
+by line class and PSP kind (>= 0.3%)
+  body     alu                         11.1%
+  body     addiu                        6.7%
+  body     ld other mem                 6.1%
+  body     ld host stack                5.2%
+  body     branch                       5.2%
+  body     other                        4.6%
+  body     st host stack                4.6%
+  body     st other mem                 4.3%
+  entry    st host stack                4.1%
+  exit     ld host stack                2.9%
+  body     lui                          2.8%
+  call     st R lo                      2.4%
+  call     st R hi                      2.4%
+  body     move                         2.1%
+  jr       st R lo                      1.9%
+  body     host call (jal)              1.9%
+  jr       st R hi                      1.8%
+  body     sra 31 (high word)           1.5%
+  call     ld host stack                1.3%
+  entry    ld R lo                      1.3%
+  body     st R hi                      1.2%
+  body     move zero                    1.2%
+  body     st R lo                      1.1%
+  body     st VF/VI                     1.1%
+  entry    addiu                        1.0%
+  body     ld R lo                      1.0%
+  body     ld VF/VI                     0.9%
+  call     move zero                    0.9%
+  body     ori                          0.9%
+  body     nop                          0.8%
+  call     st other mem                 0.8%
+  call     lui                          0.8%
+  call     st host stack                0.8%
+  entry    ld R hi                      0.7%
+  body     ld R hi                      0.7%
+  jr       ld host stack                0.7%
+  call     host call (jal)              0.6%
+  jr       sra 31 (high word)           0.6%
+  call     ori                          0.6%
+  entry    lui                          0.6%
+  call     ld other mem                 0.5%
+  call     sra 31 (high word)           0.5%
+  call     ld R lo                      0.5%
+  call     addiu                        0.4%
+  exit     jr                           0.4%
+  exit     addiu                        0.4%
+  entry    ld F                         0.4%
+  jr       st other mem                 0.4%
+  jr       st F                         0.4%
+  call     ld R hi                      0.3%
+  call     alu                          0.3%
+
+body memory lines: PSP kinds (share of all generated I-misses)
+  load 8-32        7.6%: alu 1.4, ld other mem 1.1, addiu 1.0, st host stack 0.9, host call (jal) 0.8, ld host stack 0.6, move 0.4, branch 0.4, sra 31 (high word) 0.3
+  store 8-32       4.0%: alu 1.2, addiu 0.7, st other mem 0.6, branch 0.4, ld host stack 0.3, st host stack 0.2, lui 0.1, move 0.1, host call (jal) 0.1
+  load 64/128      6.9%: ld other mem 2.4, alu 1.5, ld host stack 0.6, st R lo 0.4, st R hi 0.4, st host stack 0.3, addiu 0.3, st other mem 0.2, branch 0.2
+  store 64/128     8.2%: st other mem 2.3, alu 1.7, addiu 1.0, st host stack 0.7, ld host stack 0.6, ld R lo 0.5, ld R hi 0.5, branch 0.2, ld RH lo 0.1
+  fpu ld/st        3.6%: alu 0.9, addiu 0.5, ld other mem 0.5, st host stack 0.3, ld host stack 0.3, host call (jal) 0.3, st other mem 0.2, branch 0.2, move 0.1
+  vu0 ld/st        3.6%: alu 0.9, addiu 0.5, lui 0.4, ld other mem 0.3, branch 0.2, st VF/VI 0.2, ld host stack 0.2, move 0.2, ori 0.2

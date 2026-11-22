@@ -1,0 +1,49 @@
+tw/x86/out_a3.log: 17664 picture lines, 17664 content; tw/x86/out_a1.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natst: CHANGED: streams 00fd5150 01230a50 0104b000 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd5170 01230a70 0104b010 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd51b0 01230ab0 0104b030 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd5220 01230b20 0104b070 (3 3 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd5310 01230c10 0104b0f0 (6 6 3 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd5370 01230c70 0104b120 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd5390 01230c90 0104b130 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd6fb0 012328b0 0104bf90 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd6ff0 012328f0 0104bfb0 (7 7 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7060 01232960 0104bff0 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7080 01232980 0104c000 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd70c0 012329c0 0104c020 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7100 01232a00 0104c040 (8 8 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7180 01232a80 0104c080 (8 8 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7200 01232b00 0104c0c0 (10 10 5 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd72a0 01232ba0 0104c110 (14 14 7 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7380 01232c80 0104c180 (12 12 6 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7440 01232d40 0104c1e0 (8 8 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd74c0 01232dc0 0104c220 (12 12 6 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7580 01232e80 0104c280 (6 6 3 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd75e0 01232ee0 0104c2b0 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7620 01232f20 0104c2d0 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7640 01232f40 0104c2e0 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7660 01232f60 0104c2f0 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd76a0 01232fa0 0104c310 (8 8 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7720 01233020 0104c350 (4 4 2 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7760 01233060 0104c370 (6 6 3 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd77c0 012330c0 0104c3a0 (7 7 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7830 01233130 0104c3e0 (28 28 14 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd79f0 012332f0 0104c4c0 (26 26 13 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7b90 01233490 0104c590 (9 9 5 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7c20 01233520 0104c5e0 (7 7 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7c90 01233590 0104c620 (8 8 4 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7d10 01233610 0104c660 (14 14 7 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7df0 012336f0 0104c6d0 (12 12 6 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd7eb0 012337b0 0104c730 (27 27 14 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd8060 01233960 0104c810 (19 19 10 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd8190 01233a90 0104c8b0 (10 10 5 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd8230 01233b30 0104c900 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natst: CHANGED: streams 00fd8250 01233b50 0104c910 (2 2 1 qw) drawn at vb 24004, other bytes at the start of vb 24015
+natinpl: totals: groups flagged static 1925910 (drawn 1921926)
+natst: static groups drawn 1921926, each hashed again at every vblank's start for 16 vblanks: CHANGED 1722; by the vblanks since the draw: 8: 126 9: 280 10: 268 11: 317 12: 188 13: 153 14: 52 15: 36 16: 302; left the window unchanged or counted 1918670, not followed (ring full) 0

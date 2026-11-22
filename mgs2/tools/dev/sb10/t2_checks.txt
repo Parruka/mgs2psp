@@ -1,0 +1,68 @@
+=== out_t2don.log against out_t1don.log
+frame lines: new 11766, reference 11766, differ 0 []
+content lines: new 11766, reference 11766, differ 0 []
+hash lines: new 252, reference 252, differ 0 []
+vuh lines: new 0, reference 0, equal True
+sb lane 4: slots 1169126; 639618 P07 calls from the game's streams, 14268 from the VU memory, checked 0, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 905204 calls held (639618 of them P07); flushes at a transfer's end 9135, for a call's room 0, records full 741, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0
+xlive gb: P07 held (sb10 T2): 639618 calls; slots copied at the hold 10344, placed at the run 1597968; vertices rebuilt 0; placed memory checked 0, differing 0
+=== out_t2dck.log against out_t1don.log
+frame lines: new 11766, reference 11766, differ 0 []
+content lines: new 11766, reference 11766, differ 0 []
+hash lines: new 252, reference 252, differ 0 []
+vuh lines: new 0, reference 0, equal True
+xlive mode: Stage B lanes 1 2 3 4 (MGS2_SB_LANE), their df0, P06, P07 and effect input checked (MGS2_SB_CHK)
+xlive mode: step c checks: the records' images and the scratch memory poisoned (MGS2_SB_POISON)
+sb lane 4: slots 1169126; 639618 P07 calls from the game's streams, 14268 from the VU memory, checked 639618, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 905204 calls held (639618 of them P07); flushes at a transfer's end 9135, for a call's room 0, records full 741, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0; the records' images and the scratch memory poisoned
+xlive gb: P07 held (sb10 T2): 639618 calls; slots copied at the hold 10344, placed at the run 8954652; vertices rebuilt 639618; placed memory checked 639618, differing 0 (MGS2_C7_CHK)
+=== out_t2ion.log against out_t1ion.log
+frame lines: new 17664, reference 17664, differ 0 []
+content lines: new 17664, reference 17664, differ 0 []
+hash lines: new 378, reference 378, differ 0 []
+vuh lines: new 0, reference 0, equal True
+sb lane 4: slots 1761366; 1104330 P07 calls from the game's streams, 0 from the VU memory, checked 0, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 2530988 calls held (1104330 of them P07); flushes at a transfer's end 18036, for a call's room 0, records full 3921, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0
+xlive gb: P07 held (sb10 T2): 1104330 calls; slots copied at the hold 17028, placed at the run 2701903; vertices rebuilt 0; placed memory checked 0, differing 0
+=== out_t2ick.log against out_t1ion.log
+frame lines: new 17664, reference 17664, differ 0 []
+content lines: new 17664, reference 17664, differ 0 []
+hash lines: new 378, reference 378, differ 0 []
+vuh lines: new 0, reference 0, equal True
+xlive mode: Stage B lanes 1 2 3 4 (MGS2_SB_LANE), their df0, P06, P07 and effect input checked (MGS2_SB_CHK)
+xlive mode: step c checks: the records' images and the scratch memory poisoned (MGS2_SB_POISON)
+sb lane 4: slots 1761366; 1104330 P07 calls from the game's streams, 0 from the VU memory, checked 1104330, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 2530988 calls held (1104330 of them P07); flushes at a transfer's end 18036, for a call's room 0, records full 3921, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0; the records' images and the scratch memory poisoned
+xlive gb: P07 held (sb10 T2): 1104330 calls; slots copied at the hold 17028, placed at the run 15460620; vertices rebuilt 1104330; placed memory checked 1104330, differing 0 (MGS2_C7_CHK)
+=== out_t2con.log against out_t1con.log
+frame lines: new 18931, reference 18931, differ 0 []
+content lines: new 18931, reference 18931, differ 0 []
+hash lines: new 400, reference 400, differ 0 []
+vuh lines: new 0, reference 0, equal True
+sb lane 4: slots 2919767; 2262731 P07 calls from the game's streams, 0 from the VU memory, checked 0, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 2635952 calls held (2262731 of them P07); flushes at a transfer's end 29826, for a call's room 0, records full 903, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0
+xlive gb: P07 held (sb10 T2): 2262731 calls; slots copied at the hold 35753, placed at the run 5595891; vertices rebuilt 0; placed memory checked 0, differing 0
+=== out_t2cck.log against out_t1con.log
+frame lines: new 18931, reference 18931, differ 0 []
+content lines: new 18931, reference 18931, differ 0 []
+hash lines: new 400, reference 400, differ 0 []
+vuh lines: new 0, reference 0, equal True
+xlive mode: Stage B lanes 1 2 3 4 (MGS2_SB_LANE), their df0, P06, P07 and effect input checked (MGS2_SB_CHK)
+xlive mode: step c checks: the records' images and the scratch memory poisoned (MGS2_SB_POISON)
+sb lane 4: slots 2919767; 2262731 P07 calls from the game's streams, 0 from the VU memory, checked 2262731, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 2635952 calls held (2262731 of them P07); flushes at a transfer's end 29826, for a call's room 0, records full 903, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0; the records' images and the scratch memory poisoned
+xlive gb: P07 held (sb10 T2): 2262731 calls; slots copied at the hold 35753, placed at the run 31678234; vertices rebuilt 2262731; placed memory checked 2262731, differing 0 (MGS2_C7_CHK)
+=== out_t2cfp.log against out_t1con.log
+frame lines: new 18931, reference 18931, differ 0 []
+content lines: new 18931, reference 18931, differ 0 []
+hash lines: new 400, reference 400, differ 0 []
+vuh lines: new 0, reference 0, equal True
+xlive mode: step c checks: every held call through the rebuilt VU memory (MGS2_SB_FORCE) the records' images and the scratch memory poisoned (MGS2_SB_POISON)
+sb lane 4: slots 2919767; 0 P07 calls from the game's streams, 2262731 from the VU memory, checked 0, differing 0; STCYCL 7 / 1 tags not taken: room 0, tag 0 0, tags 1-5 0, tags 6-19 0, data 0, declined 0
+xlive gb: step c: 2635952 calls held (2262731 of them P07); flushes at a transfer's end 29826, for a call's room 0, records full 903, P07 copies full 0, at a frame's end 0; faults: held calls not placed 0, passes after their call ran 0; every held call through the rebuilt VU memory; the records' images and the scratch memory poisoned
+xlive gb: P07 held (sb10 T2): 2262731 calls; slots copied at the hold 35753, placed at the run 31678234; vertices rebuilt 2262731; placed memory checked 2262731, differing 0 (MGS2_C7_CHK)
+
+Final source (up_last's division-free forms, 2026-11-02 02:33-02:38, t2fchk.sh): out_t2f{d,i,c}on.log against T1's runs: deck 11,766 frames /
+11,766 contents / 252 hash lines differ 0; inside 17,664 / 17,664 / 378 differ 0; codec 18,931 / 18,931 / 400 differ 0.  Against the first
+T2 runs (x1 built before the refactor): every line equal but the two wall-time lines (state hash 2 timing, xlive time).  The first T2
+runs' logs deleted (superseded).

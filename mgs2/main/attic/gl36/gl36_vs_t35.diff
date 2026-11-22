@@ -1,0 +1,978 @@
+diff -ruN -x '*.o' -x 'build*' -x rt t35/boot/nat_stub.h t36/boot/nat_stub.h
+--- t35/boot/nat_stub.h	2026-11-21 17:30:41.413070576 +0000
++++ t36/boot/nat_stub.h	2026-11-22 03:47:57.758549638 +0000
+@@ -56,6 +56,13 @@
+ static int nat_keep_all, nat_keep_ncyc; static uint8_t nat_keep_cyc[32];
+ extern int xl_keep_chk;
+ static int nat_fast_all, nat_fast_ncyc; static uint8_t nat_fast_cyc[32];
++/* gl36, the reuse of a run's translation from the last picture (ge/xlate.h xl_nr_*; attic/gl36/reuse_design.txt).  MGS2_NAT_REUSE=1 for
++   the whole run, MGS2_NAT_REUSE_CYCLE=<a>,<b>,... by the same turns: 1: the picture's fast native runs are replayed when they match
++   the kept entries, else recorded.  MGS2_NAT_RCHK=1: the check mode (a matching run is fed in full, recorded again and compared).
++   Taken at each pipeline call with the other switches, kept in its buffer's NatBuf.ru */
++int g_nat_reuse, g_nat_rchk, g_nat_rcfg;   /* g_nat_rcfg: 1 when MGS2_NAT_REUSE or MGS2_NAT_REUSE_CYCLE names a 1 (the host makes the table) */
++struct NrEnt; void xl_nr_table(struct NrEnt *t, int cap, int chk);   /* (ge/xlate.h) */
++static int nat_reuse_all, nat_reuse_ncyc; static uint8_t nat_reuse_cyc[32];
+ static uint32_t nat_seq_seen;
+ #ifndef __psp__
+ static int nat_cap_dev;          /* dev (x86): MGS2_NAT_CAP=<n>: the array's entries (the fallback's test) */
+@@ -98,6 +105,16 @@
+     while (nat_keep_ncyc < 32 && *p) { nat_keep_cyc[nat_keep_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 15); if (*p != ',') break; p++; }
+     if (nat_keep_ncyc && !nat_ncyc && !nat_inpl_ncyc && !nat_fast_ncyc) { nat_from = f; nat_turn = n; } }
+   xl_keep_chk = (e = getenv("MGS2_NAT_KCHK")) ? atoi(e) & 1 : 0;
++  nat_reuse_all = (e = getenv("MGS2_NAT_REUSE")) ? atoi(e) & 1 : 0;   /* gl36 */
++  if ((e = getenv("MGS2_NAT_REUSE_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++    char *p = (char *)e;
++    while (nat_reuse_ncyc < 32 && *p) { nat_reuse_cyc[nat_reuse_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
++    if (nat_reuse_ncyc && !nat_ncyc && !nat_inpl_ncyc && !nat_fast_ncyc && !nat_keep_ncyc) { nat_from = f; nat_turn = n; } }
++  g_nat_rchk = (e = getenv("MGS2_NAT_RCHK")) ? atoi(e) & 1 : 0;
++  g_nat_rcfg = nat_reuse_all; for (int i = 0; i < nat_reuse_ncyc; i++) if (nat_reuse_cyc[i]) g_nat_rcfg = 1;
++  if (g_nat_cfg) fprintf(stderr, "nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE %d, MGS2_NAT_REUSE_CYCLE %s (1: a fast run "
++                         "that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK %d (1: such a run fed in full and compared)\n",
++                         nat_reuse_all, nat_reuse_ncyc ? getenv("MGS2_NAT_REUSE_CYCLE") : "none", g_nat_rchk);
+   if (g_nat_cfg) fprintf(stderr, "nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP %d, MGS2_NAT_KEEP_CYCLE %s (bits: 1 drawn areas, 2 A+D "
+                          "packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns), MGS2_NAT_KCHK %d\n",
+                          nat_keep_all, nat_keep_ncyc ? getenv("MGS2_NAT_KEEP_CYCLE") : "none", xl_keep_chk);
+@@ -105,6 +122,12 @@
+                          "translator's fast front end; by the same turns)\n", nat_fast_all, nat_fast_ncyc ? getenv("MGS2_NAT_FAST_CYCLE") : "none");
+ #ifndef __psp__
+   if ((e = getenv("MGS2_NAT_CAP"))) { nat_cap_dev = atoi(e); if (nat_cap_dev < 0 || nat_cap_dev > NAT_MAXGRP) nat_cap_dev = 0; }
++  if (g_nat_cfg && g_nat_rcfg) {   /* gl36: the reuse's table (the PSP's: psp/xl_psp.c nat_psp_setup) */
++    int cap = (e = getenv("MGS2_NAT_RCAP")) ? atoi(e) : NAT_MAXGRP; if (cap < 0 || cap > NAT_MAXGRP) cap = NAT_MAXGRP;
++    struct NrEnt *t = cap ? calloc((size_t)cap * 64u + 2048u, 1) : 0;   /* gl36 fix B: + ge/xlate.h XL_NR_LW_N uint16_t */
++    xl_nr_table(t, t ? cap : 0, g_nat_rchk);   /* (ge/xlate.h NrEnt: 64 B) */
++    fprintf(stderr, "nat: gl36 reuse table: %d entries of 64 B (%u KB)%s\n", t ? cap : 0, (unsigned)((size_t)(t ? cap : 0) * 64u >> 10),
++            g_nat_rchk ? ", check mode" : ""); }
+   if (g_nat_cfg && !((e = getenv("MGS2_NAT_NOMEM")) && atoi(e)))   /* (dev: MGS2_NAT_NOMEM=1: no arrays, the PSP's case when its block is refused) */
+   { g_nat[0].g = calloc(NAT_MAXGRP, sizeof(NatGrp));   /* (dev: MGS2_NAT_ONE=1: one array for both buffers, the PSP's case with one block) */
+     g_nat[1].g = (e = getenv("MGS2_NAT_ONE")) && atoi(e) ? g_nat[0].g : calloc(NAT_MAXGRP, sizeof(NatGrp)); }
+@@ -133,6 +156,12 @@
+   if (nat_keep_ncyc && vb > nat_from) return nat_keep_cyc[((vb - nat_from - 1) / nat_turn) % nat_keep_ncyc];
+   return nat_keep_all;
+ }
++int rt_nat_reuse_at(long vb)   /* gl36: the reuse's switch at vblank vb */
++{
++  if (nat_set < 0) nat_setup();
++  if (nat_reuse_ncyc && vb > nat_from) return nat_reuse_cyc[((vb - nat_from - 1) / nat_turn) % nat_reuse_ncyc];
++  return nat_reuse_all;
++}
+ int rt_nat_fast_at(long vb)   /* gl34: the fast front end's switch at vblank vb */
+ {
+   if (nat_set < 0) nat_setup();
+@@ -149,7 +178,7 @@
+ {
+   uint32_t mesh, desc, qwc, cap, dest, end, d, blk, fog, clip, pre, cur[3], key = 0, vq = 0, kq; int32_t ng; int b, arm, i, r30, stub; NatBuf *s; NatGrp *g;
+   static NatGrp tmp;
+-  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); g_nat_keep = rt_nat_keep_at(k_vblanks); }
++  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); g_nat_keep = rt_nat_keep_at(k_vblanks); g_nat_reuse = rt_nat_reuse_at(k_vblanks); }
+   arm = g_nat_arm;
+   if (arm <= 0) return 0;
+   if (arm == 4) { g_nat_c[NC_STUBC]++; return 1; }
+@@ -171,7 +200,8 @@
+     if (o->g == s->g && o->draw && o->cur < o->n) { g_nat_c[NC_LEFT] += (long)(o->n - o->cur); g_nat_c[NC_LEFT_PICS]++; }
+     if (g_nat_sync) g_nat_sync(b);
+     if (o->g == s->g) { o->n = o->cur = 0; o->draw = 0; }
+-    s->seq = g_dg_seq; s->n = s->cur = s->vq = s->last_key = 0; s->draw = arm >= 2; g_nat_c[NC_PICS]++; }
++    s->seq = g_dg_seq; s->n = s->cur = s->vq = s->last_key = 0; s->draw = arm >= 2; g_nat_c[NC_PICS]++;
++    s->ru = (uint32_t)(stub && g_nat_fast && g_nat_reuse); }   /* gl36 */
+   ng = (int32_t)(int16_t)nat_r16(mesh + 0xcc);
+   if (ng <= 0) { g_nat_c[NC_EMPTY]++; return stub; }
+   if (ng > 1024 || s->n + (uint32_t)ng > NAT_CAP) { g_nat_c[ng > 1024 ? NC_FB_OTHER : NC_FB_FULL]++; return 0; }
+diff -ruN -x '*.o' -x 'build*' -x rt t35/boot/nat_x86.c t36/boot/nat_x86.c
+--- t35/boot/nat_x86.c	2026-11-21 17:31:15.198358977 +0000
++++ t36/boot/nat_x86.c	2026-11-21 22:45:28.922313019 +0000
+@@ -29,6 +29,7 @@
+ extern long g_nat_stc;
+ extern long g_nat_fst, xl_nf_n[8], lw_nh_n[3]; int rt_nat_fast_at(long vb);   /* gl34 */
+ extern long g_nat_kpt, xl_nk_n[16]; int rt_nat_keep_at(long vb);   /* gl35 */
++extern long xl_nr_n[20], xl_nr_why[16]; extern int xl_nr_cap;   /* gl36 (ge/xlate.h) */
+ #include "../ge/vu1conv.h"
+ static long ninp_vb0 = -1, ninp_st0, ninp_drawn, ninp_drawn0;
+ typedef struct { uint32_t s[3]; uint8_t n[3], bad; long vb; uint64_t h; uint32_t seq; } StE;
+@@ -103,6 +104,14 @@
+             rt_nat_keep_at(ninp_vb0 + 1), turn, g_nat_kpt - f0, xl_nk_n[0] - n0[0], xl_nk_n[1] - n0[1], xl_nk_n[2] - n0[2], xl_nk_n[3] - n0[3], xl_nk_n[4] - n0[4],
+             xl_nk_n[5] - n0[5], xl_nk_n[6] - n0[6], xl_nk_n[7] - n0[7], xl_nk_n[8] - n0[8]);
+     f0 = g_nat_kpt; for (int k = 0; k < 9; k++) n0[k] = xl_nk_n[k]; }
++  { static long r0[20]; long d[20]; int rt_nat_reuse_at(long vb);   /* gl36 (ge/xlate.h xl_nr_n) */
++    for (int k = 0; k < 20; k++) { d[k] = xl_nr_n[k] - r0[k]; r0[k] = xl_nr_n[k]; }
++    if (xl_nr_cap) fprintf(stderr, "natreuse: vb %ld-%ld%s arm %d reuse %d turn %ld: runs replayed %ld (groups %ld, skipping %ld, in S %ld), recorded %ld "
++            "(groups %ld; kept %ld, not kept %ld), checked %ld (groups %ld; S differing %ld, boxes differing %ld); boxes recorded %ld, kept boxes taken %ld, "
++            "cut %ld, positions then needed %ld; no table room %ld; replays with a group not taken %ld, with a decline %ld\n", ninp_vb0, vb, last ? " (exit)" : "",
++            arm, rt_nat_reuse_at(ninp_vb0 + 1), turn, d[0], d[1], d[18], d[2], d[3], d[4], d[5], d[13], d[6], d[7], d[8], d[9], d[16], d[10], d[11], d[12],
++            d[14], d[15], d[17]);
++    { static long w0[16]; if (xl_nr_cap) { fprintf(stderr, "natreuse: vb %ld-%ld why not replayed:", ninp_vb0, vb); for (int k = 0; k < 16; k++) { fprintf(stderr, " %ld", xl_nr_why[k] - w0[k]); w0[k] = xl_nr_why[k]; } fprintf(stderr, "; barriers %ld\n", d[19]); } } }
+ }
+ static void nat_report(void);
+ static void nat_xfer(uint32_t tadr)
+@@ -149,6 +158,7 @@
+ {
+   uint32_t a; int b; NatBuf *s;
+   nat_stop = 0xffffffffu;
++  { extern long gl_rp_vb; gl_rp_vb = k_vblanks; }   /* gl36 probe */
+   if (tadr & 0x80000000u) return 0;
+   a = tadr & (GUEST_SIZE - 1) & ~15u;
+   if (a < NAT_PKT0 || a >= NAT_PKT1) return 0;
+@@ -174,8 +184,12 @@
+     return 0; }
+   if (nat_xf_b < 0 && s->cur < s->n) nat_xf_b = b;
+   if (b != nat_xf_b) return 0;
+-  { int nq = 0;
++  { int nq = 0, nr = 0, nrt = 0, nr0 = (int)s->cur;   /* gl36 (ge/xlate.h xl_nr_*): the run's reuse, when its picture has the switch */
++    if (s->ru && xl_nr_cap && g_xl_one && s->cur < s->n && (s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u) <= a) {
++      uint32_t e = s->cur + 1; while (e < s->n && (s->g[e].key & (GUEST_SIZE - 1) & ~15u) <= a) e++;
++      nr = xl_nr_begin(s->g + s->cur, (int)(e - s->cur), (int)s->cur); }
+     while (s->cur < s->n && (s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u) <= a) {
++      if (nr) xl_nr_group((int)s->cur - nr0);
+       const NatGrp *g = &s->g[s->cur++]; int rc;
+       st_cur_seq = s->seq; st_group(g);   /* gl33 */
+       if (ninp_vb0 < 0) ninp_vb0 = k_vblanks - k_vblanks % 100;
+@@ -183,9 +197,10 @@
+       if (!g_xl_one) { NX.state++; continue; }   /* (a transfer the translator is not fed: nothing drawn) */
+       if (s->seq != g_dg_seq) NX.late_seq++;
+       rc = nat_p04_group(g); NX.emit++;
+-      if (rc == NATP_CORE) NX.core++; else if (rc == NATP_FED) NX.fed++; else NX.bad++;
++      if (rc == NATP_CORE) { NX.core++; nrt++; } else if (rc == NATP_FED) NX.fed++; else NX.bad++;
+       nq = (g->flags & NATG_PKT) && (g->key & (GUEST_SIZE - 1) & ~15u) == a ? 7 + (g->flags & NATG_FULL) : 0;
+     }
++    if (nr) xl_nr_end(nrt);
+     if (s->cur < s->n) nat_stop = s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u;
+     if (nq) {   /* arm 2: the packet stepped over: the runtime's VIF state as lane 1 leaves it */
+       int q0 = nq == 8, nr = 4 + q0;
+@@ -204,6 +219,11 @@
+                          g_nat_fst, xl_nf_n[0], xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], vc_km_n[2], vc_km_n[3]);
+   if (g_nat_cfg) fprintf(stderr, "natkeep: totals: groups flagged %ld; drawn areas replayed %ld, checked %ld, DIFFERING %ld; textures replayed %ld, checked %ld, DIFFERING %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n",
+                          g_nat_kpt, xl_nk_n[0], xl_nk_n[1], xl_nk_n[2], xl_nk_n[3], xl_nk_n[4], xl_nk_n[5], xl_nk_n[6], xl_nk_n[7], xl_nk_n[8]);
++  if (g_nat_cfg && xl_nr_cap) fprintf(stderr, "natreuse: totals: runs replayed %ld (groups %ld, skipping %ld), recorded %ld (groups %ld; kept %ld, not kept %ld), "
++                         "checked %ld (groups %ld; S DIFFERING %ld, boxes DIFFERING %ld); in S %ld; boxes recorded %ld, taken %ld, cut %ld, positions then needed %ld; "
++                         "no table room %ld; replays with a group not taken %ld (PROBLEM if not 0), with a decline %ld\n", xl_nr_n[0], xl_nr_n[1], xl_nr_n[18], xl_nr_n[3],
++                         xl_nr_n[4], xl_nr_n[5], xl_nr_n[13], xl_nr_n[6], xl_nr_n[7], xl_nr_n[8], xl_nr_n[9], xl_nr_n[2], xl_nr_n[16], xl_nr_n[10], xl_nr_n[11],
++                         xl_nr_n[12], xl_nr_n[14], xl_nr_n[15], xl_nr_n[17]);
+   if (g_nat_cfg) fprintf(stderr, "natfast: totals: pointers by their own hints (MGS2_NAT_LW=2's views) %ld, checked %ld, DIFFERING %ld\n", lw_nh_n[0], lw_nh_n[2], lw_nh_n[1]);
+   if (st_win > 0) {
+     fprintf(stderr, "natst: static groups drawn %ld, each hashed again at every vblank's start for %ld vblanks: CHANGED %ld; by the vblanks since the draw:",
+diff -ruN -x '*.o' -x 'build*' -x rt t35/boot/xlive_chk.c t36/boot/xlive_chk.c
+--- t35/boot/xlive_chk.c	2026-11-21 12:09:44.468890581 +0000
++++ t36/boot/xlive_chk.c	2026-11-21 22:29:58.383440973 +0000
+@@ -1040,6 +1040,7 @@
+ {
+   const NatGrp *g[2] = { 0, 0 }; int n[2], r = 1, x0 = 0, nx = 0;
+   n[0] = nlw_pend(0, &g[0]); n[1] = nlw_pend(1, &g[1]); nlw_tr++;
++  for (int b = 0; b < 2; b++) { nlw_p.nat_i0[b] = (int)g_nat[b].cur; nlw_p.nat_ru[b] = (int)g_nat[b].ru; }   /* gl36 (ge/xlme.h) */
+   nlw_p.m = &M; nlw_p.lw_on = 1; nlw_p.lanes = 15;
+   nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0; nlw_p.nat_b = -1; nlw_p.nat_used = 0;
+   if (nlw_mode == 2) {
+@@ -1382,6 +1383,8 @@
+     c1m_on = getenv("MGS2_C1_MODEL") && atoi(getenv("MGS2_C1_MODEL"));   /* sb11 */
+     c2m_on = getenv("MGS2_C2_MODEL") && atoi(getenv("MGS2_C2_MODEL"));   /* sb12 */
+     c3m_on = getenv("MGS2_C3_MODEL") && atoi(getenv("MGS2_C3_MODEL"));   /* sb13 */
++    if (xc_rec_chk || xc_c3_chk || c3m_on || gl_need_chk) { xl_nr_ok = 0;   /* gl36 */
++      fprintf(stderr, "xlive mode: gl36's reuse off (a check of the converter's input is on: MGS2_SB_CHK, MGS2_SB_NCHK, MGS2_C3_CHK or MGS2_C3_MODEL)\n"); }
+     xc_c7_chk = getenv("MGS2_C7_CHK") && atoi(getenv("MGS2_C7_CHK"));   /* sb10 T2: each held P07 call's placed memory against its own */
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
+       "the rebuilt VU memory (MGS2_SB_FORCE)" : "", xc_held_poison ? " the records' images and the scratch memory poisoned (MGS2_SB_POISON)" : "", vc_p06_exact ? " P06 in "
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/gelive.c t36/ge/gelive.c
+--- t35/ge/gelive.c	2026-11-21 17:29:57.226574823 +0000
++++ t36/ge/gelive.c	2026-11-21 22:29:15.148225829 +0000
+@@ -12,6 +12,10 @@
+ #include "fxthin.h"   /* task #114 */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #include "natsplit.h"   /* gl34: NS_MARK */
++#ifndef __psp__
++#include "natsnap.h"
++#include "reuse_probe.h"   /* gl36: the twin's probe (x86 only) */
++#endif
+ 
+ static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
+ {
+@@ -117,6 +121,11 @@
+ }
+ void gl_begin(GlFrame *f)
+ {
++#ifndef __psp__
++  rp_begin();   /* gl36 probe */
++#endif
++  xl_keep_bits = 0;   /* gl36: the keep bits start again with each picture (gl35's left the last fast group's standing: a turn with no fast group
++                         kept the texture keeps of the turn before) */
+   gb_reset(&f->o); memset(f->hash, 0xff, sizeof f->hash); memset(&f->n, 0, sizeof f->n); f->memo.valid = 0; f->lit_ok = 0;
+   f->o.dropped = 0; xc_zr_begin(&f->zr); f->tlo = 3.0e38f; f->thi = -1; f->tz0 = f->tztop = 0;
+   f->nheld = 0; f->held_cur = -1; f->held_gone = 0; f->pend = 0; xc_hold7_reset();   /* sb4 (sb10 T2: and the P07 calls' copies) */
+@@ -402,6 +411,9 @@
+   if (!blob) { f->n.conv_full++; return; }
+   GerBatch b; uint32_t size = 0;
+   int r = xc_call(c, &f->h, &b, blob, cap, &size);
++#ifndef __psp__
++  rp_call(f, c, r, &b, blob, size);   /* gl36 probe */
++#endif
+   if (r == -5) { f->n.conv_full++; return; }
+   if (r < 0) { f->n.conv_bad++; return; }
+   if (!r) { f->n.conv_empty++; return; }
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/natp04.h t36/ge/natp04.h
+--- t35/ge/natp04.h	2026-11-21 17:30:41.413287344 +0000
++++ t36/ge/natp04.h	2026-11-21 21:47:14.055916918 +0000
+@@ -48,6 +48,9 @@
+     else { x.unp[j] = 0; x.qwc[j] = 0; x.dp[j] = 0; ad[j] = 0; all = 0; }   /* not sent: CNT 0, the slot's STCYCL and a NOP */
+   }
+   x.hunp = NATT_HDR; x.mscal = g->mscal; x.hdr = g->hdr; x.tadr = key; x.q0 = q0; x.keep = g->flags >> 4;
++#ifndef __psp__
++  { extern const NatGrp *gl_rp_g; gl_rp_g = g; }   /* gl36: the twin's probe (ge/reuse_probe.h) */
++#endif
+   if (all && (g->flags & NATG_FAST) && xl_p04_fast(&x)) return NATP_CORE;   /* gl34: the fast front end (0: not its form) */
+   if (all && xl_p04_core(&x)) return NATP_CORE;   /* lane 1's case: every slot a REF (runtime/ee_io.h lane_p04's tests hold by construction) */
+   /* the generic walk's order: each tag's TTE words, then its data (a REF's where it lies; the CNT's: the header, MSCAL and three NOPs) */
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/natsnap.h t36/ge/natsnap.h
+--- t35/ge/natsnap.h	2026-11-21 17:41:21.596745177 +0000
++++ t36/ge/natsnap.h	2026-11-21 22:29:15.148611512 +0000
+@@ -52,6 +52,7 @@
+   uint32_t seq;                  /* the pipeline call that wrote them (boot.c g_dg_seq) */
+   uint32_t vq;                   /* quadwords the builder would have written for them (the virtual packet position) */
+   uint32_t last_key;             /* the last group's key (RAM offset) */
++  uint32_t ru;                   /* gl36: 1: the picture's runs are reused (MGS2_NAT_REUSE, _CYCLE; ge/xlate.h xl_nr_*), set as the array starts */
+ } NatBuf;
+ /* the stub's counts (boot/nat_stub.h g_nat_c): calls recorded (arm B, or the x86 shadow arms), their groups; calls stubbed with no record
+    (arm C); calls with no group; arm B calls that ran the builder: the array full, a key below the last, the virtual position near the
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/reuse_probe.h t36/ge/reuse_probe.h
+--- t35/ge/reuse_probe.h	1970-01-01 00:00:00.000000000 +0000
++++ t36/ge/reuse_probe.h	2026-11-21 22:30:27.677960407 +0000
+@@ -0,0 +1,125 @@
++/* reuse_probe.h (gl36, x86 twin only; included by ge/gelive.c under #ifndef __psp__): the twin's probe for the whole-group reuse
++   (attic/gl36/reuse_design.txt section 2).  MGS2_REUSE_PROBE=1: every fast native ship group's converter call (XlRec.nf) is
++   hashed by its inputs and its output, and matched with the same group of the picture before (gl_begin to gl_begin):
++     id    the group's identity: its material address, stream counts, header count, and the streams' addresses (static groups,
++           NATG_INPL) or their bytes (the others), with its occurrence number among equal ids in the picture;
++     in    what the translation reads: the VU memory model at T + 0 .. 0x17 (the constant block: mtx = T + 0 .. 3, the matrix; rest
++           = T + 4 .. 0x13, 0x15 .. 0x17), the header (T + 0x14), the material (T + 0xe8 .. 0xef), abs 2 .. 5, the GS registers
++           xc_gs / xc_state / gl_tex read after the material packet, the streams' bytes, T itself (the VU buffer);
++     out   the converter's result: r, the batch (first 0, the texture index as the frame's texture key), the GerXform, the rest of
++           the blob (vertices, strips, indices).
++   "rprobe:" lines a 100 vblanks and at the exit.  Reads only; changes nothing of the run. */
++#ifndef MGS2_REUSE_PROBE_H
++#define MGS2_REUSE_PROBE_H
++#include <stdio.h>
++const NatGrp *gl_rp_g;   /* the group being walked (ge/natp04.h, x86) */
++long gl_rp_vb;          /* the vblank (boot/nat_x86.c nat_walk) */
++static int rp_on = -1;
++typedef struct { uint64_t id, mtx, rest, hdr, mat, abs_, gs, str, out_b, out_x, out_v; uint32_t top; int r, used; } RpE;
++#define RP_N 8192
++static RpE rp_t[2][RP_N]; static int rp_cur, rp_n[2]; static long rp_pic;
++static long rp_c[40], rp_vb0 = -1;
++/* calls (the groups of one P1214a0 call share its key): by the first group's id, the count and the ids' sequence; 24 calls; 25 their
++   groups; 26 calls whose count and sequence equal the picture before's call with that first id; 27 their groups; 28 of 27 cut; 29 groups
++   in calls of one group */
++typedef struct { uint64_t id, seq; int n, used; } RpC;
++static RpC rp_ct[2][RP_N]; static uint32_t rp_ckey; static uint64_t rp_cid, rp_cseq; static int rp_cn, rp_ccut, rp_copen;
++static int rp_cfind(int t, uint64_t id)
++{
++  uint32_t h = (uint32_t)(id * 0x9e3779b97f4a7c15ull >> 51) & (RP_N - 1);
++  for (int k = 0; k < RP_N; k++, h = (h + 1) & (RP_N - 1)) { RpC *e = &rp_ct[t][h]; if (!e->used) return -(int)h - 1; if (e->id == id) return (int)h; }
++  return -RP_N - 1;
++}
++static void rp_cend(void)
++{
++  if (!rp_copen) return;
++  rp_copen = 0; rp_c[24]++; rp_c[25] += rp_cn; if (rp_cn == 1) rp_c[29]++;
++  int s = rp_cfind(rp_cur, rp_cid); if (s < -RP_N) return;
++  if (s < 0) { RpC *e = &rp_ct[rp_cur][-s - 1]; e->id = rp_cid; e->seq = rp_cseq; e->n = rp_cn; e->used = 1; }
++  int p = rp_cfind(rp_cur ^ 1, rp_cid);
++  if (p >= 0 && rp_ct[rp_cur ^ 1][p].n == rp_cn && rp_ct[rp_cur ^ 1][p].seq == rp_cseq) { rp_c[26]++; rp_c[27] += rp_cn; rp_c[28] += rp_ccut; }
++}
++/* counts: 0 groups; 1 id found in the picture before; 2 all inputs equal; 3 of 2 output equal; 4 of 2 output differs; 5 id found, the
++   matrix differs, the rest of the inputs equal; 6 of 5 vertices part equal; 7 of 5 cut outcome equal; 8 of 5 batch equal; 9 id found, the
++   matrix equal but something else differs; 10 the GS registers differ (of 1); 11 the texture key differs (of 1, in the batch); 12 T differs
++   (of 1); 13 rest of block differs (of 1); 14 streams differ (of 1); 15 static (INPL) groups; 16 of 15 id found; 17 of 15 all inputs equal;
++   18 cut (r 0) groups; 19 mat differs (of 1); 20 hdr differs; 21 abs differs; 22 of 2 with output differing only in batch;
++   23 of 1: output equal (whatever the inputs) */
++static uint64_t rp_h(uint64_t h, const void *p, size_t n) { const uint8_t *b = p; for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ull; } return h; }
++#define RP_H0 1469598103934665603ull
++static inline const uint8_t *rp_q(const XlCall *c, uint32_t qa) { return c->vm + ((qa & 0x3ffu) << 4); }
++static int rp_find(int t, uint64_t id)
++{
++  uint32_t h = (uint32_t)(id * 0x9e3779b97f4a7c15ull >> 51) & (RP_N - 1);
++  for (int k = 0; k < RP_N; k++, h = (h + 1) & (RP_N - 1)) { RpE *e = &rp_t[t][h]; if (!e->used) return -(int)h - 1; if (e->id == id) return (int)h; }
++  return -RP_N - 1;
++}
++static void rp_line(long vb, int last)
++{
++  static long c0[40];
++  fprintf(stderr, "rprobe: vb %ld-%ld%s:", rp_vb0, vb, last ? " (exit)" : "");
++  for (int k = 0; k < 30; k++) fprintf(stderr, " %ld", rp_c[k] - c0[k]);
++  fputc('\n', stderr);
++  for (int k = 0; k < 40; k++) c0[k] = rp_c[k];
++}
++static void rp_exit(void)
++{
++  if (rp_vb0 >= 0) rp_line(gl_rp_vb, 1);
++  fprintf(stderr, "rprobe: totals:"); for (int k = 0; k < 30; k++) fprintf(stderr, " %ld", rp_c[k]); fprintf(stderr, " (pictures %ld)\n", rp_pic);
++}
++static void rp_begin(void)
++{
++  if (rp_on < 0) { const char *e = getenv("MGS2_REUSE_PROBE"); rp_on = e ? atoi(e) : 0; if (rp_on) atexit(rp_exit); }
++  if (!rp_on) return;
++  rp_cend();
++  rp_cur ^= 1; memset(rp_t[rp_cur], 0, sizeof rp_t[rp_cur]); memset(rp_ct[rp_cur], 0, sizeof rp_ct[rp_cur]); rp_n[rp_cur] = 0; rp_pic++;
++  long vb = gl_rp_vb;
++  if (rp_vb0 < 0) rp_vb0 = vb - vb % 100;
++  if (vb >= rp_vb0 + 100) { rp_line(rp_vb0 + 100, 0); rp_vb0 = vb - vb % 100; }
++}
++static void rp_call(const GlFrame *f, const XlCall *c, int r, const GerBatch *b, const uint8_t *blob, uint32_t size)
++{
++  if (rp_on <= 0 || !c->rec || !c->rec->nf || !gl_rp_g) return;
++  const NatGrp *g = gl_rp_g; const XlRec *R = c->rec; RpE e; memset(&e, 0, sizeof e);
++  int inpl = (g->flags & NATG_INPL) != 0;
++  e.str = RP_H0; for (int k = 0; k < 3; k++) e.str = rp_h(e.str, R->p[k], 16u * g->n[k]);
++  uint64_t id = rp_h(RP_H0, &g->mat, 4); id = rp_h(id, g->n, 3); id = rp_h(id, &g->hdr[0], 4);
++  if (inpl) id = rp_h(id, g->s, 12); else id = rp_h(id, &e.str, 8);
++  e.mtx = rp_h(RP_H0, rp_q(c, c->top), 64);
++  e.rest = rp_h(RP_H0, rp_q(c, c->top + 4), 16 * 16); e.rest = rp_h(e.rest, rp_q(c, c->top + 0x15), 48);
++  e.hdr = rp_h(RP_H0, rp_q(c, c->top + 0x14), 16);
++  e.mat = rp_h(RP_H0, rp_q(c, c->top + 0xe8), 128);
++  e.abs_ = rp_h(RP_H0, rp_q(c, 2), 64);
++  { static const uint8_t RG[] = { 0x00, 0x1a, 0x1b, 0x18, 0x19, 0x40, 0x41, 0x4e, 0x4f, 0x47, 0x48, 0x42, 0x43, 0x06, 0x07, 0x08, 0x09, 0x3b, 0x3d, 0x4c, 0x4d, 0x14, 0x15 };
++    e.gs = RP_H0; for (size_t k = 0; k < sizeof RG; k++) e.gs = rp_h(e.gs, &c->gr[RG[k]], 8); }
++  e.top = c->top; e.r = r; e.used = 1;
++  if (r > 0) {
++    GerBatch bb = *b; bb.first = 0; uint64_t tk = bb.tex != 0xffff && bb.tex < (uint32_t)f->o.nt ? f->tkey[bb.tex] : 0; bb.tex = 0;
++    e.out_b = rp_h(RP_H0, &bb, sizeof bb); e.out_b = rp_h(e.out_b, &tk, 8);
++    e.out_x = rp_h(RP_H0, blob, sizeof(GerXform) < size ? sizeof(GerXform) : size);
++    e.out_v = size > sizeof(GerXform) ? rp_h(RP_H0, blob + sizeof(GerXform), size - sizeof(GerXform)) : 0;
++  }
++  /* the occurrence number among equal ids */
++  if (!rp_copen || g->key != rp_ckey) { rp_cend(); rp_copen = 1; rp_ckey = g->key; rp_cn = 0; rp_ccut = 0; rp_cid = 0; rp_cseq = RP_H0; }
++  int t = rp_cur, o = 0, s;
++  for (;;) { uint64_t k = id + 0x100000001b3ull * (uint64_t)o; s = rp_find(t, k); if (s < 0) { e.id = k; break; } o++; }
++  if (s >= -RP_N) rp_t[t][-s - 1] = e;
++  if (!rp_cn) { rp_cid = e.id; } rp_cn++; rp_ccut += r == 0; rp_cseq = rp_h(rp_cseq, &e.id, 8);
++  rp_c[0]++; if (inpl) rp_c[15]++; if (r == 0) rp_c[18]++;
++  int p = rp_find(t ^ 1, e.id); if (p < 0) return;
++  const RpE *q = &rp_t[t ^ 1][p];
++  rp_c[1]++; if (inpl) rp_c[16]++;
++  int dm = q->mtx != e.mtx, dr = q->rest != e.rest, dh = q->hdr != e.hdr, dma = q->mat != e.mat, da = q->abs_ != e.abs_, dg = q->gs != e.gs, ds = q->str != e.str, dt = q->top != e.top;
++  int oeq = q->r == e.r && q->out_b == e.out_b && q->out_x == e.out_x && q->out_v == e.out_v;
++  if (oeq) rp_c[23]++;
++  rp_c[10] += dg; rp_c[12] += dt; rp_c[13] += dr; rp_c[14] += ds; rp_c[19] += dma; rp_c[20] += dh; rp_c[21] += da;
++  if (e.r > 0 && q->r > 0 && q->out_b != e.out_b) rp_c[11]++;
++  if (!dm && !dr && !dh && !dma && !da && !dg && !ds && !dt) {
++    rp_c[2]++; if (inpl) rp_c[17]++;
++    if (oeq) rp_c[3]++; else { rp_c[4]++; if (q->r == e.r && q->out_x == e.out_x && q->out_v == e.out_v) rp_c[22]++; } }
++  else if (dm && !dr && !dh && !dma && !da && !dg && !ds && !dt) {
++    rp_c[5]++; if (q->r == e.r) rp_c[7]++;
++    if (q->r > 0 && e.r > 0) { if (q->out_v == e.out_v) rp_c[6]++; if (q->out_b == e.out_b) rp_c[8]++; } }
++  else if (!dm) rp_c[9]++;
++}
++#endif
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/vu1conv.c t36/ge/vu1conv.c
+--- t35/ge/vu1conv.c	2026-11-21 11:30:52.487809118 +0000
++++ t36/ge/vu1conv.c	2026-11-21 22:27:07.377808493 +0000
+@@ -154,6 +154,36 @@
+ {
+   return df0_pos(vm, top, p, kind, row, x, v, b, max, xsrc, xgen);
+ }
++/* gl36 (vu1conv.h): df0_pos in two parts for a group with a kept box (ge/xconv.c xc_call, xlate.h XR_BOX): the transform as df0_pos
++   takes or computes it (the same memo, counts and split mark), and the positions' stores of its loop */
++int vc_df0_xf_k(const uint8_t *vm, uint32_t top, VcXform *x, int max, const void *xsrc, uint32_t xgen)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  if (xsrc && xsrc == vc_km_src && xgen == vc_km_gen) {
++    *x = vc_km; vc_km_n[0]++;
++#ifndef __psp__
++    if (vc_km_chk > 0) { VcXform e; vc_xform(vm, top, 0, 32768.0f, &e); vc_km_n[2]++; if (memcmp(&e, x, sizeof e)) vc_km_n[3]++; }
++#endif
++  } else { vc_xform(vm, top, 0, 32768.0f, x); if (xsrc) { vc_km = *x; vc_km_src = xsrc; vc_km_gen = xgen; vc_km_n[1]++; } }
++  NS_MARK(NS_XF);
++  x->n = n; x->clip = h[3] != 0;
++  return n;
++}
++void vc_df0_pv(const void *const *p, const uint8_t *kind, const uint32_t *row, VcVert *v, int n)
++{
++  if (kind[0] != 3) {
++    const vc_w32 *wa = (const vc_w32 *)p[0]; vc_w32 *o = (vc_w32 *)v;
++    for (int i = 0; i < n; i++, wa += 2, o += 4) { const uint32_t a0 = wa[0], a1 = wa[1]; o[2] = a0; o[3] = a1 & 0xffffu; }
++  } else {
++    const vc_h16 *pa = p[0];
++    for (int i = 0; i < n; i++) {
++      uint32_t p0 = (uint32_t)(int32_t)pa[4 * i] + row[0], p1 = (uint32_t)(int32_t)pa[4 * i + 1] + row[1], p2 = (uint32_t)(int32_t)pa[4 * i + 2] + row[2];
++      v[i].x = (int16_t)p0; v[i].y = (int16_t)p1; v[i].z = (int16_t)p2; v[i].pad = 0;
++    }
++  }
++}
+ void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n)
+ {
+   const uint32_t a = vc_a2(x->alpha) << 24;
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/vu1conv.h t36/ge/vu1conv.h
+--- t35/ge/vu1conv.h	2026-11-21 11:26:51.511493709 +0000
++++ t36/ge/vu1conv.h	2026-11-21 22:27:07.378264933 +0000
+@@ -49,6 +49,11 @@
+    vc_km_chk: [2] taken ones computed again, [3] of those differing */
+ int vc_df0_pos_k(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen);
+ extern long vc_km_n[4];
++/* gl36: vc_df0_pos_k in two parts (ge/xconv.c, a group with a kept box): vc_df0_xf_k the transform (the same memo and counts; returns
++   the header's count or -1 above max), vc_df0_pv the positions as vc_df0_pos writes them (x, y, z, pad of n vertices; the streams'
++   checks are not made: the kept box was recorded from a call that passed them) */
++int vc_df0_xf_k(const uint8_t *vm, uint32_t top, VcXform *x, int max, const void *xsrc, uint32_t xgen);
++void vc_df0_pv(const void *const *p, const uint8_t *kind, const uint32_t *row, VcVert *v, int n);
+ #ifndef __psp__
+ extern int vc_km_chk;
+ #endif
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xconv.c t36/ge/xconv.c
+--- t35/ge/xconv.c	2026-11-21 11:27:18.397775791 +0000
++++ t36/ge/xconv.c	2026-11-21 22:28:10.438281075 +0000
+@@ -144,6 +144,9 @@
+    positions when Dbox_ok (vc_df0_pos's, or xc_df0_off's) */
+ static int Datt = 1, Dbox_ok; static int16_t Dbox[6]; static const XlRec *Drec;
+ static VcVert *Dvp = Dv;   /* sb14 3w: where the call's vertices are: Dv, or the frame's room after the GerXform (xc_df0's place for them) */
++/* gl36 (xlate.h XR_BOX): Dpos 1 while a call with a kept box has not computed its positions (vc_df0_pv when read); Dne its entry */
++static int Dpos; static const NrEnt *Dne;
++static inline void xc_df0_pos_now(void) { if (Dpos) { vc_df0_pv(Drec->p, Drec->kind, Drec->row, Dvp, Dn); Dpos = 0; } }
+ int xc_c3_chk;   /* xconv.h */
+ /* the df0 call xc_call read: 1 when XcHost.cut leaves it out */
+ static int xc_df0_off(const XcGs *d)
+@@ -202,6 +205,7 @@
+     z->calls++; z->verts += n; St.c3z_in++; St.c3z_in_v += n;
+     return;
+   }
++  if (Dpos) { xc_df0_pos_now(); xl_nr_n[12]++; }   /* gl36: the positions of a call with a kept box, read here */
+   xc_zr_df0(z, &Dx, Dvp, n);
+ }
+ /* a call the cut leaves out gives the frame's depth range (XcZr) what xc_df0 would have given it: a depth-testing, depth-writing call
+@@ -212,6 +216,7 @@
+   if (!h->zr || !d->zte || d->zmsk || (d->ate && d->atst == 0 && d->afail == 1)) return;   /* xc_state's GERF_ZWRITE */
+   int i = 2;
+   if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
++  else if (Dne) i = Dne->i1;   /* gl36: a kept box's call: the first triangle without ADC as recorded */
+   else {   /* sb14 3v: the flags from the stream B, as vc_df0_att would write them */
+     const XlRec *r = Drec;
+     while (i < Dn && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
+@@ -1087,6 +1092,18 @@
+ }
+ 
+ 
++/* gl36 (xlate.h XR_REC): a recorded or checked group's box and first triangle without ADC kept in its entry (check mode: compared with
++   the entry's first; xl_nr_n[9] the differing) */
++static void xc_nr_rec(const XlRec *r, int n)
++{
++  NrEnt *e = r->ne;
++  if (!e) return;
++  if (n <= 0) { e->bits &= (uint8_t)~NR_BOX; if ((r->ru & XR_CHK) && (e->bits & NR_OB)) xl_nr_n[9]++; return; }
++  int i = 2;
++  while (i < n && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
++  if ((r->ru & XR_CHK) && (e->bits & NR_OB) && (memcmp(e->box, Dbox, sizeof Dbox) || e->i1 != (uint16_t)i)) xl_nr_n[9]++;
++  memcpy(e->box, Dbox, sizeof Dbox); e->i1 = (uint16_t)i; e->bits |= NR_BOX; xl_nr_n[16]++;
++}
+ int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   Lp.on = 0;
+@@ -1100,14 +1117,21 @@
+   XcGs d; xc_gs(c->gr, &d);
+   NS_MARK(NS_GS);
+   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
+-    Datt = 1; Dbox_ok = 0; Dvp = Dv;   /* sb14 */
++    Datt = 1; Dbox_ok = 0; Dvp = Dv; Dpos = 0; Dne = 0;   /* sb14; gl36 */
+     if (c->rec) {   /* sb1 lane: the streams from the game's data */
+       const XlRec *r = c->rec; xc_rec_calls++;
+       if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
+         if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
++        Drec = r;
++        if (r->nf && (r->ru & XR_BOX) && xl_nr_ok) {   /* gl36: a kept box: the transform now, the positions when read */
++          Dn = vc_df0_xf_k(c->vm, c->top, &Dx, 1024, r->xsrc, r->xgen);
++          if (Dn > 0) { memcpy(Dbox, r->ne->box, sizeof Dbox); Dpos = 1; Dne = r->ne; xl_nr_n[10]++; }
++        } else {
+         Dn = r->nf ? vc_df0_pos_k(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024, r->xsrc, r->xgen)   /* gl34: a fast native group */
+                    : vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024);
+-        Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
++        if (r->nf && (r->ru & XR_REC)) xc_nr_rec(r, Dn);   /* gl36: the box and i1 kept (or compared, check mode) */
++        }
++        Dbox_ok = Dn > 0; Datt = 0; St.c3v_calls++;
+         NS_MARK(NS_POS);
+ #ifndef __psp__   /* (x86 only: no check arrays or code in the PSP's hot path) */
+         if (xc_c3_chk) {   /* the two passes against vc_df0_rec: every output the same; the flags read from the stream the same as converted */
+@@ -1146,7 +1170,9 @@
+       Datt = 1; c3m_call(c, &d, h, Dn, Dvp, Dfl, &Dx, off); }
+ #endif
+     if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
++      if (Dpos) xl_nr_n[11]++;
+       xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
++    xc_df0_pos_now();   /* gl36: a kept box's call the cut keeps: its positions now */
+     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+     NS_MARK(NS_ATT);
+   }
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xlate.c t36/ge/xlate.c
+--- t35/ge/xlate.c	2026-11-21 17:41:21.597495557 +0000
++++ t36/ge/xlate.c	2026-11-22 03:47:57.757900843 +0000
+@@ -8,6 +8,10 @@
+ #include "gsfront.h"
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #include "gsup.h"    /* gl34: gu_clut_load (xl_p04_fast) */
++#include "natsnap.h"   /* gl36: NatGrp (xl_nr_begin) */
++#ifndef __psp__
++#include <stdlib.h>   /* gl36: getenv (the x86 debug line) */
++#endif
+ #ifndef __psp__
+ #include <stdio.h>
+ #endif
+@@ -687,13 +691,111 @@
+ long xl_nf_n[8];
+ long xl_nk_n[16];
+ static const uint32_t *nf_blk[2]; static uint32_t nf_gen[2], nf_top[2];   /* by V.dbf: the block last copied to that buffer by a fast group */
+-static inline __attribute__((always_inline)) void nf_copy(uint32_t a, const uint32_t *p, uint32_t num)   /* ud_eager's copy: num quadwords to a, VM owns them */
++static inline __attribute__((always_inline)) void nf_put(uint32_t a, const uint32_t *p, uint32_t num)   /* num quadwords to a, VM owns them */
+ {
+   const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
+   for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
+   own_fill_i(a, num, 0);
++}
++static inline __attribute__((always_inline)) void nf_copy(uint32_t a, const uint32_t *p, uint32_t num)   /* ud_eager's copy: num quadwords to a, VM owns them */
++{
++  nf_put(a, p, num);
+   XC(St.eg_cmds++); XC(St.eg_vec += num);
+ }
++/* gl36 (xlate.h xl_nr_*): the reuse's table and the run being walked.  nr_lw[q]: the group (j + 1) of the run being recorded that wrote
++   VU quadword q last, for the quadwords a replay may skip (cleared at the run's end); nr_tv: the run's T values (its groups' VU buffers) */
++static NrEnt *nr_t; int xl_nr_cap, xl_nr_ok = 1; static int nr_chk; long xl_nr_n[20];
++static int nr_mode, nr_n, nr_i0, nr_j = -1, nr_bad; static long nr_nf0, nr_nfl; static const NatGrp *nr_g; static uint32_t nr_vbg, nr_tv[4]; static int nr_tn;
++static uint16_t *nr_lw;   /* gl36 fix B: XL_NR_LW_N entries after the table's cap entries, in the host's block (not this file's bss) */
++#ifndef __psp__
++long xl_nr_why[16];   /* x86: why a run was not replayed: 0 buffers out of range, 1 length, 2 buffers, 3 entry, 4 head or not fast, 5 + k word k */
++#endif
++typedef char nr_size_check[sizeof(NrEnt) == 64 ? 1 : -1];
++void xl_nr_table(NrEnt *t, int cap, int chk) { nr_t = t; xl_nr_cap = t ? cap : 0; nr_chk = chk; nr_lw = t ? (uint16_t *)(void *)(t + cap) : 0; }
++static inline void nr_words(const NatGrp *g, uint32_t *w)
++{
++  w[0] = g->mat; w[1] = g->s[0]; w[2] = g->s[1]; w[3] = g->s[2];
++  w[4] = (uint32_t)g->n[0] | (uint32_t)g->n[1] << 8 | (uint32_t)g->n[2] << 16 | (uint32_t)(g->flags & 0xf) << 24;
++  w[5] = g->hdr[0]; w[6] = g->hdr[1]; w[7] = g->hdr[2]; w[8] = g->hdr[3]; w[9] = g->mscal;
++}
++int xl_nr_begin(const void *grp, int n, int i0)
++{
++  const NatGrp *g = (const NatGrp *)grp;
++  nr_mode = 0; nr_j = -1;
++  if (!nr_t || n <= 0 || !xl_nr_ok) return 0;
++  if (i0 < 0 || i0 + n > xl_nr_cap) { xl_nr_n[14]++; return 0; }
++  NrEnt *e = nr_t + i0;
++  uint32_t vbg = ~0u;
++  if (V.tops < 1024 && V.base < 1024 && V.ofst < 1024) vbg = (uint32_t)V.tops | (uint32_t)V.base << 10 | (uint32_t)V.ofst << 20 | (uint32_t)(V.dbf & 1) << 30;
++  int ok = vbg != ~0u && e->rn == n && e->vbg == vbg && VPsrc[0x1be] == XL_DF0;   /* (the fast path's entry, as when recorded) */
++#ifndef __psp__
++  int why = vbg == ~0u ? 0 : e->rn != n ? 1 : e->vbg != vbg ? 2 : VPsrc[0x1be] != XL_DF0 ? 3 : -1;
++#endif
++  for (int j = 0; j < n && ok; j++) {
++    uint32_t w[10]; const NrEnt *f = e + j; nr_words(&g[j], w);
++    if (f->hd != (uint16_t)i0 || !(g[j].flags & NATG_FAST)) ok = 0;
++    else for (int k = 0; k < 10; k++) if (w[k] != f->w[k]) { ok = 0;
++#ifndef __psp__
++      why = 5 + k;
++#endif
++      break; }
++#ifndef __psp__
++    if (!ok && why < 0) why = 4;
++#endif
++  }
++#ifndef __psp__
++  if (!ok) xl_nr_why[why < 0 ? 15 : why]++;
++#endif
++  nr_n = n; nr_i0 = i0; nr_vbg = vbg; nr_nf0 = xl_nf_n[0]; nr_tn = 0; nr_bad = 0; nr_g = g;
++  if (ok && !nr_chk) { nr_mode = 1; xl_nr_n[0]++; xl_nr_n[1] += n; return 1; }
++  nr_mode = ok ? 3 : 2;
++  if (ok) { xl_nr_n[6]++; xl_nr_n[7] += n; } else { xl_nr_n[3]++; xl_nr_n[4] += n; }
++  for (int j = 0; j < n; j++) { NrEnt *f = e + j; uint8_t b = f->bits; f->bits = ok ? (uint8_t)((b & NR_S ? NR_OS : 0) | (b & NR_BOX ? NR_OB : 0)) : 0; }
++  return nr_mode;
++}
++/* a recorded run's segment ends: each quadword's last writer so far is in S (NR_S2) and the notes are cleared */
++static void nr_seg(void)
++{
++  NrEnt *e = nr_t + nr_i0; const uint32_t n = (uint32_t)nr_n;
++  for (int t = 0; t < nr_tn; t++) {
++    const uint32_t T = nr_tv[t];
++    for (uint32_t q = T + 4; q < T + 0x1e0; q++) { const uint16_t l = nr_lw[q]; if (l) { if (l <= n) e[l - 1].bits |= NR_S2; nr_lw[q] = 0; } }
++  }
++}
++/* the group before (nr_j) in a recorded run did not take the fast path: xl_p04_core (or the word-by-word feed) wrote all it writes,
++   and a converter of another entry may read any quadword: a barrier.  It is in S (never skips), and the segment before it ends there,
++   so every quadword it may read holds its last writer's value, which writes in full */
++static void nr_after(void)
++{
++  if (nr_mode >= 2 && nr_j >= 0 && xl_nf_n[0] == nr_nfl) { nr_t[nr_i0 + nr_j].bits |= NR_S2; nr_seg(); xl_nr_n[19]++; }
++}
++void xl_nr_group(int j) { nr_after(); nr_j = j; nr_nfl = xl_nf_n[0]; }
++void xl_nr_end(int taken)
++{
++  if (!nr_mode) return;
++  nr_after();
++  NrEnt *e = nr_t + nr_i0; const int n = nr_n;
++  if (nr_mode == 1) {
++    if (taken != n) xl_nr_n[15]++;
++    if (xl_nf_n[0] - nr_nf0 != n) xl_nr_n[17]++;   /* (a group the fast path declined: xl_p04_core wrote all it writes; exact) */
++    nr_mode = 0; nr_j = -1; return;
++  }
++  int kept = taken == n && !nr_bad && nr_vbg != ~0u && nr_tn > 0;
++#ifndef __psp__
++  { static int dn = -1; if (dn < 0) { const char *ev = getenv("MGS2_NAT_RDBG"); dn = ev ? atoi(ev) : 0; }
++    if (!kept && dn > 0) { dn--; fprintf(stderr, "nrdbg: n %d i0 %d taken %d fast %ld bad %d vbg %08x tn %d\n", n, nr_i0, taken, xl_nf_n[0] - nr_nf0, nr_bad, nr_vbg, nr_tn); } }
++#endif
++  nr_seg();   /* the S set from the notes of the last segment, which are cleared */
++  for (int j = 0; j < n; j++) {
++    NrEnt *f = e + j; const uint8_t b = f->bits; const int s2 = (b & NR_S2) != 0;
++    if (nr_mode == 3) { if (((b & NR_OS) != 0) != s2) xl_nr_n[8]++; if ((b & NR_OB) && !(b & NR_BOX)) xl_nr_n[9]++; }
++    if (s2) xl_nr_n[2]++;
++    f->bits = (uint8_t)((s2 ? NR_S : 0) | (b & NR_BOX));
++    if (kept) { nr_words(&nr_g[j], f->w); f->hd = (uint16_t)nr_i0; } else f->hd = 0xffffu;
++  }
++  if (kept) { e->rn = (uint16_t)n; e->vbg = nr_vbg; xl_nr_n[5]++; } else { e->rn = 0; xl_nr_n[13]++; }
++  nr_mode = 0; nr_j = -1;
++}
+ int xl_p04_fast(const XlP04 *g)
+ {
+   const int q0 = g->q0, nr = 4 + q0; const uint32_t T = V.tops, To = V.dbf ? V.base : V.base + V.ofst, n = g->hdr[0] & 0xffff;
+@@ -715,6 +817,23 @@
+   xl_nf_n[0]++;
+   static XlRec R;
+   const int kp = g->keep; xl_keep_bits = kp;   /* gl35 */
++  /* gl36 (xl_nr_*): the group's reuse bits in a replayed run (XR_SKIP outside the S set, XR_BOX with a kept box), or its notes in a
++     recorded or checked one */
++  int ru = 0; NrEnt *ne = 0;
++  if (nr_mode && (unsigned)nr_j < (unsigned)nr_n) {
++    ne = nr_t + nr_i0 + nr_j;
++    if (nr_mode == 1) ru = (ne->bits & NR_S ? 0 : XR_SKIP) | (ne->bits & NR_BOX ? XR_BOX : 0);
++    else {
++      const uint16_t lj = (uint16_t)(nr_j + 1); int t = 0;
++      ru = XR_REC | (nr_mode == 3 ? XR_CHK : 0);
++      while (t < nr_tn && nr_tv[t] != T) t++;
++      if (t == nr_tn) { if (nr_tn < 4) nr_tv[nr_tn++] = T; else nr_bad = 1; }
++      if (q0) { for (uint32_t q = T + 4; q < T + 0x14; q++) nr_lw[q] = lj; nr_lw[T + 0x16] = lj; nr_lw[T + 0x17] = lj; }
++      for (uint32_t q = T + 0xe8; q < T + 0xf0; q++) nr_lw[q] = lj;
++      for (uint32_t s = 0; s < 3; s++) for (uint32_t k = 0, q = T + 0x100 + s; k < num[s]; k++, q += 3) nr_lw[q] = lj;
++    }
++  }
++  R.ru = (uint8_t)ru; R.ne = ne;
+   /* the REFs: STCYCL and the UNPACK (the block and the material copied, the streams' descriptors), as xl_p04_core counts them */
+   St.words += 2u * (uint32_t)nr + 10u + (q0 ? 96u : 0u) + 32u + 4u * (g->qwc[q0 + 1] + g->qwc[q0 + 2] + g->qwc[q0 + 3]);
+   St.cmds[1] += nr + 1; St.cmds[0x6c] += 2 + q0; St.cmds[0x6d] += 2; St.cmds[0x75]++; St.cmds[0x14]++;
+@@ -722,6 +841,18 @@
+   for (int j = 0; j < nr; j++) { V.cl = (int)(g->stc[j] & 0xff); V.wl = (int)(g->stc[j] >> 8 & 0xff); St.wd[g->unp[j] >> 24 & 0x7f] += 4 * g->qwc[j]; up_census(g->unp[j]); }
+   V.cl = V.wl = 1; St.wd[0x6c] += 4; up_census(g->hunp);
+ #endif
++  if (ru & XR_SKIP) {   /* gl36: a replayed run's group outside S: the matrix and the tag template only (the call reads them), the rest
++                           skipped (a later group of the run writes each of those quadwords again); the counts as today */
++    if (q0) { nf_put(T, g->dp[0], 4); nf_put(T + 0x15, g->dp[0] + 4 * 0x15, 1); XC(St.eg_cmds++); XC(St.eg_vec += 24);
++      nf_blk[V.dbf & 1] = g->dp[0]; nf_gen[V.dbf & 1] = xl_vm_wgen; nf_top[V.dbf & 1] = T; }
++    XC(St.eg_cmds++); XC(St.eg_vec += 8);
++    if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
++    for (uint32_t s = 0; s < 3; s++) {
++      XC(St.lz_cmds++); XC(St.lz_vec += num[s]);
++      R.p[s] = g->dp[q0 + 1 + s]; R.num[s] = (uint16_t)num[s]; R.kind[s] = (uint8_t)(s == 2 ? 4 : 2);
++    }
++    xl_nr_n[18]++;
++  } else {
+   if (q0) { nf_copy(T, g->dp[0], 24); nf_blk[V.dbf & 1] = g->dp[0]; nf_gen[V.dbf & 1] = xl_vm_wgen; nf_top[V.dbf & 1] = T; }
+   nf_copy(T + 0xe8, mat, 8);
+   if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
+@@ -734,6 +865,7 @@
+     for (; k > 0; k--, q += 3) *q = id;
+     R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)(s == 2 ? 4 : 2);
+   }
++  }
+   V.cl = V.wl = 1;
+   nf_copy(T + 0x14, g->hdr, 1);   /* the CNT: the header */
+   vsrc0 = g->tadr + 16 * (uint32_t)nr + 16; usrc = 0;
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xlate.h t36/ge/xlate.h
+--- t35/ge/xlate.h	2026-11-21 17:30:41.413560774 +0000
++++ t36/ge/xlate.h	2026-11-22 03:47:57.758309800 +0000
+@@ -46,7 +46,9 @@
+                     hold xsrc's first four quadwords and abs 2 .. 5 are unchanged, so two calls with the same (xsrc, xgen) have the
+                     same transform (ge/vu1conv.c vc_df0_pos keeps the last one).  nf 1: the call came from xl_p04_fast (the quadwords
+                     its converter reads are decoded: ge/gelive.c gl_call asks for no more) */
+-                 const void *xsrc; uint32_t xgen; uint8_t nf; } XlRec;
++                 const void *xsrc; uint32_t xgen; uint8_t nf;
++                 /* gl36 (xl_p04_fast's calls only): ru the reuse bits of the group (XR_*), ne its kept entry (0: none) */
++                 uint8_t ru; struct NrEnt *ne; } XlRec;
+ typedef struct {
+   uint32_t entry;               /* 0 when the micro code at the start address was never uploaded, or for an MSCNT after an entry
+                                    without a known continuation */
+@@ -157,6 +159,39 @@
+    register the drawn areas read.  xl_nk_n: [0] drawn areas replayed, [1] checked, [2] differing; [3] textures replayed, [4] checked,
+    [5] differing, [6] records made; [7] gu_clut_load calls not made, [8] PRIM writes in line */
+ extern int xl_keep_bits, xl_keep_nf, xl_keep_chk; extern uint32_t xl_gs_gen; extern long xl_nk_n[16];
++/* gl36, the reuse of a run's translation from the last picture (attic/gl36/reuse_design.txt section 4).  A run: the native groups a walk
++   hands the translator in one go (ge/xlme.c lw_nat, boot/nat_x86.c nat_walk).  The host gives a table (xl_nr_table: cap entries of 64 B,
++   one per group index of a picture's array; chk 1: the check mode, MGS2_NAT_RCHK).  The walk calls xl_nr_begin with the run's records
++   (NatGrp, ge/natsnap.h), their count and the first one's index in the picture's array, when the run's picture has the switch on
++   (NatBuf.ru); then xl_nr_group(j) before group j's front end, and xl_nr_end after the run.  A run whose kept entries match (every
++   record's ten words, the run's length and head, the VU buffers' TOPS, BASE, OFFSET, DBF, every group fast) is REPLAYED: in
++   xl_p04_fast a group outside the run's S set (the last writers of the quadwords below) skips the VU memory writes a later group of
++   the run makes again (the constant block's T + 4 .. 0x13 and 0x16, 0x17; the material's 8 at T + 0xe8; the three streams'
++   descriptors and own[] marks), and in the converter (ge/xconv.c xc_call) a group with a kept box takes the transform as today and
++   the box and the first triangle without ADC (i1) from the entry, its positions computed only when they are read.  Any other run is
++   RECORDED (fed in full, the entries made at its end; a run where a group declined the fast path is not kept).  The check mode feeds a
++   would-be replayed run in full, records it again and counts the differences.  Exact by construction: the skipped quadwords are never
++   read between their skipped write and the next one, and the last writer of each writes as today; the box and i1 are functions of the
++   static streams, whose addresses and counts the compared words hold.  xl_nr_n: [0] runs replayed, [1] their groups, [2] of them in S,
++   [3] runs recorded, [4] their groups, [5] runs kept, [6] runs checked, [7] their groups, [8] S bits differing, [9] boxes or i1
++   differing, [10] kept boxes taken, [11] of them cut, [12] of 11 whose positions were still needed (depth range), [13] runs not
++   kept (a decline, a group not fast, the buffers), [14] runs with no table room, [15] replayed runs where a group was not taken by a
++   front end (a problem: 0 expected), [16] boxes recorded, [17] replayed runs with a group the fast path declined (xl_p04_core took
++   it: exact), [18] groups that skipped (outside S), [19] barriers in recorded runs (a group that did not take the fast path) */
++typedef struct NrEnt { uint32_t w[10]; int16_t box[6]; uint16_t i1, hd; uint8_t bits, pad; uint16_t rn; uint32_t vbg; } NrEnt;   /* 64 B */
++enum { NR_S = 1, NR_BOX = 2, NR_S2 = 4, NR_OS = 8, NR_OB = 16 };
++enum { XR_SKIP = 1, XR_REC = 2, XR_BOX = 4, XR_CHK = 8 };
++#define XL_NR_LW_N 1024u   /* gl36 fix B: the table's block holds cap entries, then XL_NR_LW_N uint16_t (the run's last writers, ge/xlate.c
++                              nr_lw), all zero: XL_NR_BYTES(cap) bytes */
++#define XL_NR_BYTES(cap) ((size_t)(cap) * sizeof(NrEnt) + XL_NR_LW_N * sizeof(uint16_t))
++void xl_nr_table(NrEnt *t, int cap, int chk);
++int xl_nr_begin(const void *grp, int n, int i0);   /* grp: n NatGrp records.  Returns 1 replayed, 2 recorded, 3 checked, 0 neither */
++void xl_nr_group(int j);
++void xl_nr_end(int taken);                        /* taken: the groups a front end took (NATP_CORE) */
++extern long xl_nr_n[20];
++extern int xl_nr_cap;
++extern int xl_nr_ok;   /* 1 (the default); the twin sets 0 while a check of the converter's input runs that reads every quadword or
++                          vertex at once (MGS2_SB_CHK, MGS2_SB_NCHK, MGS2_C3_CHK, MGS2_C3_MODEL): then nothing is replayed or recorded */
+ #ifndef __psp__
+ void xl_state_dig(uint32_t *h);   /* gl34 (x86): the translator's state folded (xlate.c), for the twin's "nats:" line */
+ #endif
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xlme.c t36/ge/xlme.c
+--- t35/ge/xlme.c	2026-11-21 12:09:30.221520940 +0000
++++ t36/ge/xlme.c	2026-11-21 22:28:27.475127880 +0000
+@@ -98,14 +98,18 @@
+   lw_nh_chk = x->nh_chk;
+   if (x->nat_clk) c0 = ME_CALLP(x->nat_clk)();
+   if (ns) { uint32_t c1 = ME_CALLP(x->nat_clk)(); g_ns.cal_t += (uint32_t)(c1 - c0); g_ns.cal_n++; c0 = c1; }   /* gl34: a pair of reads */
++  int nr = 0, nrt = 0;   /* gl36 (xlate.h xl_nr_*): the run's reuse, when its picture has the switch */
++  if (x->nat_ru[b] && xl_nr_cap) { int e = i + 1; while (e < n && (g[e].key & (lw_size - 1) & ~15u) <= a) e++; nr = xl_nr_begin(g + i, e - i, x->nat_i0[b] + i); }
+   do {
+     if (ns && --g_ns.cd <= 0) { g_ns.cd = 24 + (int)((g_ns.n * 5) & 15); g_ns.n++; g_ns.clk = x->nat_clk; g_ns.last = ME_CALLP(x->nat_clk)(); }   /* gl34: this group timed by stage */
++    if (nr) xl_nr_group(i - i0);
+     int rc = nat_p04_group(&g[i]);
+     if (g_ns.clk) { NS_MARK(NS_END); g_ns.clk = 0; }
+-    if (rc == NATP_CORE) x->nat_core++; else if (rc == NATP_FED) x->nat_fed++; else x->nat_bad++;
++    if (rc == NATP_CORE) { x->nat_core++; nrt++; } else if (rc == NATP_FED) x->nat_fed++; else x->nat_bad++;
+     skip = (g[i].flags & NATG_PKT) && (g[i].key & (lw_size - 1) & ~15u) == a ? 7u + (g[i].flags & NATG_FULL) : 0;
+     i++;
+   } while (i < n && (g[i].key & (lw_size - 1) & ~15u) <= a);
++  if (nr) xl_nr_end(nrt);
+   if (x->nat_clk) { uint32_t d = ME_CALLP(x->nat_clk)() - c0; x->nat_t += d;
+     if (ns) { g_ns.seen += i - i0; g_ns.ch_nat[g_ns.ch_cur] += d; g_ns.ch_grp[g_ns.ch_cur] += i - i0; } }
+   x->nat_runs++; *cur = i;
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xlme.h t36/ge/xlme.h
+--- t35/ge/xlme.h	2026-11-21 12:09:30.221008226 +0000
++++ t36/ge/xlme.h	2026-11-21 22:28:27.475455362 +0000
+@@ -70,6 +70,9 @@
+      its frame's chain list, set by the host before xm_walk; -1: none */
+   int ns_on, ch_i;
+   int nh_chk;                       /* gl34: lw_nptr_h's check (ge/xlme.c) */
++  /* gl36 (ge/xlate.h xl_nr_*): per packet buffer, the index in its picture's array of nat_g[b][0], and the picture's reuse switch
++     (boot/nat_stub.h NatBuf.ru), set by the host with nat_g */
++  int nat_i0[2]; int nat_ru[2];
+ } XmPic;
+ extern long lw_nh_n[3];             /* gl34 (ge/xlme.c lw_nptr_h): hinted look-ups, of them differing from lw_nptr's, checked */
+ 
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xme.c t36/ge/xme.c
+--- t35/ge/xme.c	2026-11-21 12:09:30.221240325 +0000
++++ t36/ge/xme.c	2026-11-21 22:34:34.619437959 +0000
+@@ -70,6 +70,7 @@
+     xm_switch(p, r->opt, r->opt2);
+     if (r->nx >= 0) { v->x = x->fc.ext + r->x0; v->n = r->nx; v->last = 0; m->view = v; }
+     p->nat_n[0] = p->nat_n[1] = 0; p->nat_b = -1;   /* native step 1 (xme.h XmeRec) */
++    for (int b = 0; b < 2; b++) { p->nat_i0[b] = r->ng0[b]; p->nat_ru[b] = r->nru[b]; }   /* gl36 (xlme.h) */
+     if (r->nx >= 0) { if (r->nb >= 0 && r->nb < 2 && r->ngn[r->nb] > 0 && x->nat_g[r->nb]) {
+         p->nat_b = r->nb; p->nat_g[r->nb] = (const NatGrp *)(const void *)(x->fc.arena + r->noff); p->nat_n[r->nb] = r->ngn[r->nb]; } }
+     else for (int b = 0; b < 2; b++) if (r->ngn[b] > 0 && x->nat_g[b]) { p->nat_g[b] = x->nat_g[b] + r->ng0[b]; p->nat_n[b] = r->ngn[b]; }
+diff -ruN -x '*.o' -x 'build*' -x rt t35/ge/xme.h t36/ge/xme.h
+--- t35/ge/xme.h	2026-11-21 12:09:30.220660053 +0000
++++ t36/ge/xme.h	2026-11-22 03:48:17.250842053 +0000
+@@ -57,7 +57,9 @@
+        XME_AT_BEGIN = 0x312, XME_AT_TKFRAME = 0x313, XME_AT_IDLE = 0x500, XME_AT_HANG = 0x600 };
+ typedef struct { int ch, lanes, restart, x0, nx, t, now; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+                  int nb, ng0[2], ngn[2]; uint32_t noff;
+-                 int chi;                        /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none) */
++                 int16_t chi;                    /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none; < NS_CH) */
++                 uint8_t nru[2];                 /* gl36: each buffer's reuse switch (boot/nat_stub.h NatBuf.ru, 0 or 1) as the record was made;
++                                                    fix B: with chi in the 4 bytes gl35's int chi took (the queue keeps gl35's size) */
+                } XmeRec;   /* native step 1 (xlme.h XmPic): the ship-mesh groups the record's walk
+                                                  draws.  A record with a copy (nx >= 0): nb the packet buffer its plan bound (-1: none),
+                                                  ngn[nb] groups from index ng0[nb] of that buffer's array, which the ME copies into the
+@@ -66,6 +68,7 @@
+                                                  CPU waits for it) and answers in XmeSh nat_b / nat_used */
+ typedef struct { int32_t vb; int end, d, dig, begin, stop; uint32_t opt, opt2; int dz, dzn; } XmeHook;   /* gl29: dz, dzn the ending frame's
+                                                  MGS2_GL_DZ arm and steps (gelist.h GxList.dz, dzn; 0, 0: none) */
++typedef char xme_rec_size_check[sizeof(XmeRec) == 80 ? 1 : -1];   /* gl36 fix B: gl35's 80 B */
+ typedef struct { int kind, why, nlog; XmeRec r; XmeHook h; } XmeE;
+ typedef struct { int32_t fvb; int d, r, nt, dig; uint32_t *list; uint64_t dig_list, dig_frame; GxCount c;
+                  int dz, dzn; GxDzCount dc; uint32_t t_list; int t_me, me_turn; int32_t a_nb, a_nv, a_nd; } XmeRes;   /* gl29: the list's arm, steps and counts; xm_list's
+diff -ruN -x '*.o' -x 'build*' -x rt t35/psp/xl_psp.c t36/psp/xl_psp.c
+--- t35/psp/xl_psp.c	2026-11-21 17:31:15.200414415 +0000
++++ t36/psp/xl_psp.c	2026-11-22 03:47:57.760793000 +0000
+@@ -116,6 +116,7 @@
+ int rt_nat_fast_at(long vb); extern long g_nat_fst;   /* gl34: the fast native front end (boot/nat_stub.h) */
+ int rt_nat_keep_at(long vb); extern long g_nat_kpt;   /* gl35: the keeps (boot/nat_stub.h) */
+ static long nk_kpt0, nk_n0[9];
++int rt_nat_reuse_at(long vb); extern int g_nat_rcfg, g_nat_rchk; static long nr_n0[20];   /* gl36: the reuse (boot/nat_stub.h, ge/xlate.h) */
+ #include "../ge/vu1conv.h"   /* gl34: vc_km_n */
+ #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
+ #include <pspiofilemgr.h>
+@@ -635,7 +636,8 @@
+ static XmPic xmp ME_LN; static XmCopy xmc; static XmView mp_view ME_LN;   /* (ME_LN: step 4d-3) */
+ #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
+ typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+-                 int nb, ng0[2], ngn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec */ } MpRec;   /* (4b-2: t, filled,
++                 int nb, ng0[2], ngn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec */
++                 uint8_t nru[2];                          /* gl36: as ge/xme.h XmeRec (0 or 1) */ } MpRec;   /* (4b-2: t, filled,
+                                             and the check's line hashes h0 .. h0 + nh - 1) */
+ /* ---- task #180 step 4b-2 (me_step4_notes.md): MGS2_ME_PIC=2, the copy at its deadline.  From the hook of vb MGS2_ME_PIC_DL on (default
+    60: the boot's writers are not guarded, me_handoff_design.md 4.10) a record's copy is planned as its transfer ends (ge/xlme.c xm_plan:
+@@ -2262,6 +2264,7 @@
+    ME copies them there with the extents (REC) and its walk draws them (merged by key).  A record walked from RAM takes them in place
+    and answers how many.  Nothing here is read by the game. ---- */
+ static int nat_on;                       /* the arrays made (mode 4): arm B's groups are drawn */
++static SceUID nat_rsys = -1;   /* gl36 */
+ static SceUID nat_sys[2] = { -1, -1 }; static uint32_t nat_sys_free[4], nat_sys_n; static int nat_one;   /* nat_one: one array for both buffers */
+ static uint8_t nat_unf[2];               /* a buffer's groups are in a copy the ME may not have made yet (a record posted without a wait) */
+ static long nat_n_sync, nat_n_plan, nat_n_plang, nat_n_dirg, nat_n_room; static uint32_t nat_ca_max;
+@@ -2275,7 +2278,7 @@
+ {
+   const NatGrp *g;
+   e->nb = -1; e->noff = 0;
+-  for (int b = 0; b < 2; b++) { e->ngn[b] = e->ch == 1 && e->lanes ? nat_pend(b, &g) : 0; e->ng0[b] = (int)g_nat[b].cur; }
++  for (int b = 0; b < 2; b++) { e->ngn[b] = e->ch == 1 && e->lanes ? nat_pend(b, &g) : 0; e->ng0[b] = (int)g_nat[b].cur; e->nru[b] = (int)g_nat[b].ru; }   /* gl36: nru */
+   if (e->ngn[0] | e->ngn[1]) { XS(mq)->nat_b = -1; XS(mq)->nat_used = 0; }
+ }
+ static void nat_direct_post(const MpRec *e)   /* after the wait for that walk: the groups it took */
+@@ -2328,6 +2331,20 @@
+           (unsigned)(uintptr_t)g_nat[0].g, (unsigned)(uintptr_t)g_nat[1].g,
+           (unsigned)(nat_sys_free[0] >> 10), (unsigned)(nat_sys_free[1] >> 10), (unsigned)(nat_sys_free[2] >> 10),
+           (unsigned)(nat_sys_free[3] >> 10), mq->nat_t_on ? "yes" : "no");
++  if (nat_on && g_nat_rcfg) {   /* gl36: the reuse's table (ge/xlate.h NrEnt), a block of the system's memory outside newlib's heap */
++    static const int cap_try[4] = { NAT_MAXGRP, 1536, 1024, 512 }; uint8_t *bl = 0; int cap = 0;
++    uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
++    for (int k = 0; k < 4 && !bl; k++) {
++      uint32_t nb = (uint32_t)XL_NR_BYTES(cap_try[k]);   /* gl36 fix B: + the last writers (ge/xlate.h XL_NR_LW_N) */
++      nat_rsys = sceKernelAllocPartitionMemory(2, "nat_reuse", PSP_SMEM_Low, nb, 0);
++      if (nat_rsys >= 0) { bl = (uint8_t *)sceKernelGetBlockHeadAddr(nat_rsys); cap = cap_try[k];
++        if (bl && ((uintptr_t)bl & 63)) { bl = 0; cap = 0; break; } } }   /* (not on a 64-byte line: not used; the system's blocks are) */
++    if (bl) { memset(bl, 0, XL_NR_BYTES(cap)); sceKernelDcacheWritebackAll(); xl_nr_table((NrEnt *)(void *)bl, cap, g_nat_rchk); }
++    fprintf(stderr, "nat reuse (gl36): the table: %s, %d entries of %u B = %u KB and the last writers' 2 KB (%08x); the system's memory before: largest block %u KB, total %u KB; "
++            "after: %u KB, %u KB; check mode (MGS2_NAT_RCHK) %d\n", bl ? "made" : "NOT MADE: nothing is reused", cap, (unsigned)sizeof(NrEnt),
++            (unsigned)((uint32_t)cap * (uint32_t)sizeof(NrEnt) >> 10), (unsigned)(uintptr_t)bl, (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
++            (unsigned)((uint32_t)sceKernelMaxFreeMemSize() >> 10), (unsigned)((uint32_t)sceKernelTotalFreeMemSize() >> 10), g_nat_rchk);
++  }
+ }
+ /* a line per turn (ME turn: mq_tend; main CPU turn: mq_tstart), the counts since the turn before */
+ static long nat_c0[NC_N], nat_t0n[16]; static uint64_t nat_t0t, nat_w0[2];
+@@ -2346,6 +2363,7 @@
+   nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
+   nat_stc0 = g_nat_stc;   /* gl33 */
+   nk_kpt0 = g_nat_kpt; for (int k = 0; k < 9; k++) nk_n0[k] = xl_nk_n[k];   /* gl35 */
++  for (int k = 0; k < 20; k++) nr_n0[k] = xl_nr_n[k];   /* gl36 */
+   ns_s0 = g_ns; ns_fst0 = g_nat_fst; for (int k = 0; k < 8; k++) ns_nf0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) ns_km0[k] = vc_km_n[k];   /* gl34 */
+   for (int k = 0; k < 3; k++) ns_nh0[k] = lw_nh_n[k];
+   ns_wk0 = mq->t_k[XE_WALK]; ns_rec0 = mq->t_k[XE_REC]; ns_b0 = xmc.bytes; ns_q0 = xmc.nat_qw; ns_nb0 = mq->n_natb; ns_l0[0] = ns_ch_lists; ns_l0[1] = ns_ch_unl; ns_l0[2] = ns_ch_in;
+@@ -2397,6 +2415,12 @@
+           "made %ld, PRIM writes in line %ld (MGS2_NAT_KCHK %d)\n", vb0, vb, who, arm, rt_nat_keep_at(vb0 + 1), g_nat_kpt - nk_kpt0,
+           xl_nk_n[0] - nk_n0[0], xl_nk_n[1] - nk_n0[1], xl_nk_n[2] - nk_n0[2], xl_nk_n[3] - nk_n0[3], xl_nk_n[4] - nk_n0[4], xl_nk_n[5] - nk_n0[5],
+           xl_nk_n[6] - nk_n0[6], xl_nk_n[7] - nk_n0[7], xl_nk_n[8] - nk_n0[8], xl_keep_chk);
++  if (xl_nr_cap) { long d[20]; for (int k = 0; k < 20; k++) d[k] = xl_nr_n[k] - nr_n0[k];   /* gl36: the reuse's counts (the picture's side) */
++    fprintf(stderr, "nat reuse vb %ld-%ld %s arm %d reuse %d (gl36; 1: a fast run that matches its kept entries is replayed): runs replayed %ld (groups %ld, "
++            "skipping %ld, in S %ld), recorded %ld (groups %ld; kept %ld, not kept %ld), checked %ld (groups %ld; S differing %ld, boxes differing %ld); boxes "
++            "recorded %ld, kept boxes taken %ld, cut %ld, positions then needed %ld; no table room %ld; replays with a group not taken %ld, with a decline %ld "
++            "(MGS2_NAT_RCHK %d)\n", vb0, vb, who, arm, rt_nat_reuse_at(vb0 + 1), d[0], d[1], d[18], d[2], d[3], d[4], d[5], d[13], d[6], d[7], d[8], d[9],
++            d[16], d[10], d[11], d[12], d[14], d[15], d[17], g_nat_rchk); }
+   if (me && mq->ns_on) {   /* gl34 (ge/natsplit.h): the ME's time inside the native path, and the walks' time by chain */
+     const NatSplit *s = &g_ns; long n = s->n - ns_s0.n, seen = s->seen - ns_s0.seen, cn = s->cal_n - ns_s0.cal_n; double us = (double)mq_tdiv / 1000.0, sum = 0;
+     double nat = (double)(xmp.nat_t - nat_t0t) / mq_tdiv;
+@@ -2473,6 +2497,7 @@
+   e.r.ch = r->ch; e.r.lanes = r->lanes; e.r.restart = r->restart; e.r.x0 = r->x0; e.r.nx = r->nx; e.r.t = r->t; e.r.now = now;
+   e.r.chcr = r->chcr; e.r.madr = r->madr; e.r.qwc = r->qwc; e.r.tadr = r->tadr; e.r.opt = r->opt; e.r.opt2 = r->opt2;
+   e.r.nb = r->nb; e.r.ng0[0] = r->ng0[0]; e.r.ng0[1] = r->ng0[1]; e.r.ngn[0] = r->ngn[0]; e.r.ngn[1] = r->ngn[1]; e.r.noff = r->noff;   /* native step 1 */
++  e.r.nru[0] = r->nru[0]; e.r.nru[1] = r->nru[1];   /* gl36 */
+   e.r.chi = ns_chain(r);   /* gl34 */
+   if (r->nx >= 0 && r->nb >= 0 && !now) nat_unf[r->nb] = 1;
+   s = mq_post(&e);
+@@ -2481,7 +2506,7 @@
+ static int mq_plan(MpRec *e, int *x0, int *nx)   /* gl24b: xm_plan, counting a walk's extents and arena bytes with two areas */
+ {
+   uint32_t u0 = xmc.used; int r;
+-  e->nb = -1; e->ngn[0] = e->ngn[1] = 0; e->noff = 0;   /* native step 1: the groups this transfer's tags reach, planned with it */
++  e->nb = -1; e->ngn[0] = e->ngn[1] = 0; e->noff = 0; e->nru[0] = e->nru[1] = 0;   /* native step 1: the groups this transfer's tags reach, planned with it */
+   xmc.nat_n[0] = xmc.nat_n[1] = 0;
+   if (nat_on && e->ch == 1 && e->lanes) { xmc.nat_n[0] = nat_pend(0, &xmc.nat_g[0]); xmc.nat_n[1] = nat_pend(1, &xmc.nat_g[1]); }
+   r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, x0, nx);
+@@ -2490,7 +2515,7 @@
+     if (xm_nat_room(&xmc, (uint32_t)xmc.nat_cur * (uint32_t)sizeof(NatGrp), &off)) {   /* no room for their copy: the plan undone, as an arena
+                                                                                          too full for the extents (xm_plan's 3) */
+       xmc.copies--; xmc.exts -= *nx; xmc.bytes -= xmc.used - u0; xmc.next = *x0; xmc.used = u0; xmc.fails[3]++; nat_n_room++; r = 3; }
+-    else { e->nb = xmc.nat_b; e->ng0[e->nb] = (int)g_nat[e->nb].cur; e->ngn[e->nb] = xmc.nat_cur; e->noff = off; } }
++    else { e->nb = xmc.nat_b; e->ng0[e->nb] = (int)g_nat[e->nb].cur; e->ngn[e->nb] = xmc.nat_cur; e->noff = off; e->nru[e->nb] = (int)g_nat[e->nb].ru; } }   /* gl36: nru */
+   if (!r) { uint32_t h = xmc.used - (two ? (uint32_t)two_h * two_ah : 0u); if (h > nat_ca_max) nat_ca_max = h; }
+   if (two && !r) { two_wx += *nx; two_wb += xmc.used - u0; }
+   return r;
+@@ -2671,6 +2696,11 @@
+             nat_n_dirg, nat_n_room, nat_n_sync, mq->n_natrec, mq->n_natg, (unsigned long long)mq->n_natb, xmp.nat_runs, xmp.nat_core, xmp.nat_fed,
+             xmp.nat_bad, xmp.nat_late, xmp.nat_stop, xmp.nat_in, xmp.nat_out, xmp.nat_part);
+   if (g_nat_cfg) fprintf(f, "static streams in place totals (gl33): groups flagged static %ld\n", g_nat_stc);
++  if (g_nat_cfg && xl_nr_cap) fprintf(f, "reuse totals (gl36): table %d entries; runs replayed %ld (groups %ld, skipping %ld), recorded %ld (groups %ld; kept %ld, "
++                         "not kept %ld), checked %ld (groups %ld; S differing %ld, boxes differing %ld); in S %ld; boxes recorded %ld, taken %ld, cut %ld, "
++                         "positions then needed %ld; no table room %ld; replays with a group not taken %ld, with a decline %ld\n", xl_nr_cap, xl_nr_n[0],
++                         xl_nr_n[1], xl_nr_n[18], xl_nr_n[3], xl_nr_n[4], xl_nr_n[5], xl_nr_n[13], xl_nr_n[6], xl_nr_n[7], xl_nr_n[8], xl_nr_n[9], xl_nr_n[2],
++                         xl_nr_n[16], xl_nr_n[10], xl_nr_n[11], xl_nr_n[12], xl_nr_n[14], xl_nr_n[15], xl_nr_n[17]);
+   if (g_nat_cfg) fprintf(f, "keeps for fast native groups totals (gl35): groups flagged %ld; drawn areas replayed %ld, checked %ld, differing %ld; textures "
+                          "replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n", g_nat_kpt, xl_nk_n[0],
+                          xl_nk_n[1], xl_nk_n[2], xl_nk_n[3], xl_nk_n[4], xl_nk_n[5], xl_nk_n[6], xl_nk_n[7], xl_nk_n[8]);
+diff -ruN -x '*.o' -x 'build*' -x rt t35/runtime/iop_host.h t36/runtime/iop_host.h
+--- t35/runtime/iop_host.h	2026-11-21 02:56:27.580479342 +0000
++++ t36/runtime/iop_host.h	2026-11-22 02:59:11.519412570 +0000
+@@ -75,9 +75,18 @@
+ {
+   FILE *f;
+   if (!n) return;
+-  if (disc_pak) { uint32_t s0 = pos / 2048, ns = (pos + n + 2047) / 2048 - s0; uint8_t *t = calloc(ns, 2048);
+-    if (!t) { fprintf(stderr, "disc: no memory for %u sectors (%u bytes of %s)\n", ns, n, df->path); exit(7); }
+-    disc_pak_read(df->lsn + s0, ns, t); memcpy(dst, t + pos % 2048, n); free(t); return; }
++  if (disc_pak) {   /* gl36: the whole sectors straight into dst (zeroed first, as disc_pak_read wants), the partial first and last
++                       sectors through one sector of memory: the same bytes as the whole-read buffer before, without it */
++    uint32_t s = df->lsn + pos / 2048, o = pos % 2048; uint8_t *t = 0;
++    while (n) {
++      uint32_t k;
++      if (o || n < 2048) {
++        if (!t && !(t = malloc(2048))) { fprintf(stderr, "disc: no memory for a sector (%u bytes of %s)\n", n, df->path); exit(7); }
++        memset(t, 0, 2048); disc_pak_read(s, 1, t); k = 2048 - o; if (k > n) k = n; memcpy(dst, t + o, k); o = 0; s++;
++      } else { uint32_t ns = n / 2048; k = ns * 2048; memset(dst, 0, k); disc_pak_read(s, ns, dst); s += ns; }
++      dst += k; n -= k;
++    }
++    free(t); return; }
+   if ((f = fopen(df->host, "rb"))) { fseek(f, pos, SEEK_SET); if (fread(dst, 1, n, f)) {} fclose(f); }
+ }
+ static void disc_open(const char *root)
+@@ -245,8 +254,8 @@
+       tmp = malloc(n + 1);
+       if (!tmp) { fprintf(stderr, "fileio: no memory for a read of %u bytes\n", n); exit(7); }
+       disc_file_read(d->f, d->pos, tmp, n); (void)f;
+-      if (n) sif_push(0, w[4], tmp, n);
+-      free(tmp); d->pos += n; r = (int32_t)n;
++      if (n) sif_push_own(0, w[4], tmp, n); else free(tmp);   /* gl36: the sif keeps tmp (no second copy of the read) */
++      d->pos += n; r = (int32_t)n;
+     } else r = -9;
+     if (sif_log > 1) fprintf(stderr, "fileio: read fd %u %u bytes -> EE %08x (%d)\n", w[3], w[5], w[4], r);
+     fio_rep[7] = w[4]; break; }
+diff -ruN -x '*.o' -x 'build*' -x rt t35/runtime/sif.h t36/runtime/sif.h
+--- t35/runtime/sif.h	2026-11-21 02:56:27.580540137 +0000
++++ t36/runtime/sif.h	2026-11-22 02:59:11.518912367 +0000
+@@ -60,6 +60,22 @@
+   if (!it->data) { fprintf(stderr, "sif: no memory for %u bytes of IOP->EE data (%d items queued)\n", n, sif_ft - sif_fh); exit(7); }
+   memcpy(it->data, src, n); sif_ft++;
+ }
++/* gl36: sif_push for a buffer the caller malloc'd and gives away: the same writes in the same order and at the same time as
++   sif_push, but a queued item keeps the caller's buffer instead of a copy of it (fileio's reads: a file's size less of the heap at
++   its peak; the boot's 354 KB read of MODULE.IPK at vb 0 left gl35 under 16 KB to spare on the emulator).  src is freed here. */
++static void sif_push_own(int cmd, uint32_t dest, uint8_t *src, uint32_t n)
++{
++  SifItem *it;
++  sif_npush++;
++  if (!cmd && sif_in_run) {
++    while (sif_fh != sif_ft && !sif_fifo[sif_fh % SIF_FIFO].cmd) {
++      it = &sif_fifo[sif_fh % SIF_FIFO]; ee_copy_to(it->dest, it->data, it->n); free(it->data); sif_fh++; }
++    if (sif_fh == sif_ft) { ee_copy_to(dest, src, n); free(src); return; }
++  }
++  it = &sif_fifo[sif_ft % SIF_FIFO];
++  if (sif_ft - sif_fh >= SIF_FIFO) { fprintf(stderr, "sif: IOP->EE FIFO full\n"); exit(7); }
++  it->cmd = cmd; it->dest = dest; it->n = n; it->data = src; sif_ft++;
++}
+ static void sif_ee_deliver(void)
+ {
+   while (sif_fh != sif_ft) {

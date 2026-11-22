@@ -1,0 +1,5 @@
+vblanks in both: 30 (32601..32630); by kind (bit 0 full call, bit 1 reduced call): 1: 15, 2: 15
+transfers started inside a call: all-vblank run 0, skip run 0; records left out by the skip run 4463515
+shown vblanks compared: 15; equal in everything: 15
+  equal by field: calls 15, prims 15, primitive hash 15, textured 15, texture hash 15, render-target reads 15, render-target hash 15
+  primitives drawn in them: 216499 (all-vblank run), textured 214596, render-target reads 0, mipmapped 0

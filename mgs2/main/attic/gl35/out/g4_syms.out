@@ -1,0 +1,21 @@
+gl35 G4: undefined symbols of each object against gl33's object (psp-nm -u); < only gl33's, > only gl35's
+  boot_rt.o: > xl_keep_chk 
+  ge_gelive.o: > g_ns > tk_keep_again > tk_keep_last > tk_keep_ok > xl_keep_bits > xl_keep_chk > xl_keep_nf > xl_nk_n 
+  ge_vu1conv.o: > g_ns 
+  ge_xconv.o: > g_ns > vc_df0_pos_k 
+  ge_xlate.o: > g_ns > gu_clut_load > gu_dgen > gu_drawn_again > gu_keep_got > gu_keep_mark 
+  ge_xlme.o: > xl_p04_fast 
+  xl_psp.o: > g_nat_fst > g_nat_kpt > g_ns > lw_nh_n > rt_nat_fast_at > rt_nat_keep_at > vc_km_n > xl_keep_chk > xl_nf_n > xl_nk_n 
+objects: 45; byte-identical to gl33's objects: 33
+new names and where the ELF defines them: xl_keep_chk(B) g_ns(B) tk_keep_again(T) tk_keep_last(T) tk_keep_ok(T) xl_keep_bits(B) xl_keep_chk(B) xl_keep_nf(B) xl_nk_n(B) g_ns(B) g_ns(B) vc_df0_pos_k(T) g_ns(B) gu_clut_load(T) gu_dgen(T) gu_drawn_again(T) gu_keep_got(T) gu_keep_mark(T) xl_p04_fast(T) g_nat_fst(B) g_nat_kpt(B) g_ns(B) lw_nh_n(B) rt_nat_fast_at(T) rt_nat_keep_at(T) vc_km_n(B) xl_keep_chk(B) xl_nf_n(B) xl_nk_n(B)
+imports of the ELF (sce* names) against gl33's: 133 / 133 names; differences: 0
+  section .lib.stub: gl33 00000154 bytes, gl35 00000154 bytes
+  section .lib.ent: gl33 00000010 bytes, gl35 00000010 bytes
+  section .rodata.sceResident: gl33 0000015c bytes, gl35 0000015c bytes
+  section .rodata.sceNid: gl33 000001c4 bytes, gl35 000001c4 bytes
+  section .sceStub.text: gl33 00000388 bytes, gl35 00000388 bytes
+ge_xme_me.o: gl33 4d964c8c, gl35 4d964c8c; instruction lines differing: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

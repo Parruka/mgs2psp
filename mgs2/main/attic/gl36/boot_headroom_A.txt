@@ -1,0 +1,8 @@
+emu_At/log.txt:free memory: heap headroom 12512 KB; outside the heap: largest block 512 KB, total 764 KB
+emu_At/log.txt:free memory now: heap headroom 32 KB; outside the heap: largest block 116 KB, total 120 KB
+emu_At/log.txt:memory: the break's highest point 0be6b000 at vb 23677, 0 KB above the break now: the headroom was about 32 KB at its lowest
+emu_At/log.txt:memory at the end: blocks malloc can still give (KB): 32 16 16 = 64 KB in 3 blocks
+emu_nA/log.txt:free memory: heap headroom 12592 KB; outside the heap: largest block 512 KB, total 764 KB
+emu_nA/log.txt:free memory now: heap headroom 128 KB; outside the heap: largest block 116 KB, total 120 KB
+emu_nA/log.txt:memory: the break's highest point 0be59000 at vb 23677, 8 KB above the break now: the headroom was about 120 KB at its lowest
+emu_nA/log.txt:memory at the end: blocks malloc can still give (KB): 128 = 128 KB in 1 blocks

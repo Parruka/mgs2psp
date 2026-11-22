@@ -1,0 +1,47 @@
+--- /home/claude/t31/ge/gelive.c	2026-11-19 15:15:23.979995824 +0000
++++ dbg/t31d/ge/gelive.c	2026-11-20 22:20:10.105016368 +0000
+@@ -505,18 +505,25 @@
+   return h;
+ }
+ #endif
++#ifndef __psp__
++#include <stdio.h>
++FILE *gl_dig_dump;   /* dbg (build_gl31/dbg only): the hashed stream of one frame, each piece as <u32 n><n bytes> */
++static uint64_t hwd(uint64_t h, const void *p, uint32_t n) { if (gl_dig_dump) { fwrite(&n, 4, 1, gl_dig_dump); fwrite(p, 1, n, gl_dig_dump); } return hw(h, p, n); }
++#else
++#define hwd hw
++#endif
+ uint64_t gl_digest(const GlFrame *f, const GxList *l)
+ {
+   const GbOut *o = &f->o; uint64_t h = 0xcbf29ce484222325ull;
+   uint32_t n[5] = { (uint32_t)o->nb, (uint32_t)o->nv, o->nd, l->naux, (uint32_t)o->nt };
+-  h = hw(h, &l->dig, 8); h = hw(h, n, sizeof n);
+-  h = hw(h, o->b, n[0] * (uint32_t)sizeof *o->b); h = hw(h, o->v, n[1] * (uint32_t)sizeof *o->v); h = hw(h, o->d, o->nd);
+-  h = hw(h, l->aux + l->alow, l->naux);   /* (aux is taken from the top down: gelist.h) */
++  h = hwd(h, &l->dig, 8); h = hwd(h, n, sizeof n);
++  h = hwd(h, o->b, n[0] * (uint32_t)sizeof *o->b); h = hwd(h, o->v, n[1] * (uint32_t)sizeof *o->v); h = hwd(h, o->d, o->nd);
++  h = hwd(h, l->aux + l->alow, l->naux);   /* (aux is taken from the top down: gelist.h) */
+   for (int i = 0; i < o->nt; i++) {
+-    h = hw(h, &o->t[i], sizeof o->t[i]);
++    h = hwd(h, &o->t[i], sizeof o->t[i]);
+     if (o->t[i].kind != 1) continue;
+-    if (f->tdata[i]) h = hw(h, f->tdata[i], f->tsize[i]);
+-    if (f->tpal[i]) h = hw(h, f->tpal[i], o->t[i].npal * 4);
++    if (f->tdata[i]) h = hwd(h, f->tdata[i], f->tsize[i]);
++    if (f->tpal[i]) h = hwd(h, f->tpal[i], o->t[i].npal * 4);
+   }
+   return h;
+ }
+--- /home/claude/t31/boot/xlive_chk.c	2026-11-20 21:42:48.931151669 +0000
++++ dbg/t31d/boot/xlive_chk.c	2026-11-20 22:20:10.105469348 +0000
+@@ -298,7 +298,10 @@
+   gx_c2p += gxl.c.c2_passes; gx_c2b += gxl.c.c2_bones; gx_c2w += gxl.c.c2_words;
+   if (4 * gxl.c.words + gxl.c.aux > gx_bmax) gx_bmax = 4 * gxl.c.words + gxl.c.aux;
+   if (dg) {
++    { extern FILE *gl_dig_dump; const char *e = getenv("MGS2_DIGDUMP"), *c = e ? strrchr(e, ':') : 0;   /* dbg: <prefix>:<vb>[,<vb>...] */
++      if (c) { char fn[512]; const char *q = c + 1; while (*q) { long v = strtol(q, (char **)&q, 10); if (v == vb) { snprintf(fn, sizeof fn, "%.*s%ld.dig", (int)(c - e), e, vb); gl_dig_dump = fopen(fn, "wb"); break; } if (*q == ',') q++; else break; } } }
+     uint64_t g = gl_digest(&glf, &gxl); gx_all = (gx_all ^ g) * 0x100000001b3ull; gx_n++;
++    { extern FILE *gl_dig_dump; if (gl_dig_dump) { fclose(gl_dig_dump); gl_dig_dump = 0; } }
+     char zt[224] = "";   /* gl29: the arm and its counts, as psp/xl_psp.c dz_txt prints them */
+     if (gx_dz_on) { const GxDzCount *c = &gxl.dc; const int a = gxl.dz; char an[8];
+       if (a == GX_DZ_B) snprintf(an, sizeof an, "B%d", gxl.dzn); else { an[0] = a >= 0 && a < GX_DZ_B ? "OXYW"[a] : '?'; an[1] = 0; }

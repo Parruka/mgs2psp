@@ -1,0 +1,168 @@
+gl36 REUSE DESIGN (written before the lever's code; 2026-11-21, build agent, Opus at high)
+Plan: attic/gl36/gl36_plan.md (md5 46a78673). Base: gl35 as delivered (tree /home/claude/t35, build_gl35), gl35's PSP run
+(psp_harness.md "Build gl35"), gl35's keep design (attic/gl35/keep_design.txt).
+Marks: [C] measured (x86 twin, or the PSP log where said) or read in code, [C model] the PspProf cost model, [I] inferred (basis
+named), UNKNOWN. The cost model has overrated Media Engine savings on the PSP about 4x (gl33, gl34, gl35's retrain); every [C model]
+or [I] saving below is to be read with that in mind.
+
+1. THE TWIN PROBE (BEFORE ANY LEVER CODE) [C]
+Tree t36 = t35 + an x86-only probe (ge/reuse_probe.h, included by ge/gelive.c under #ifndef __psp__; MGS2_REUSE_PROBE=1; reads
+only). Run: build_gl36/probe (the twin of t36), route i to vb 31,400, the delivered gl35 keys with the plan's base (native, in place
+and fast in every turn, MGS2_NAT_KEEP=1), log build_gl36/probe/x86/out_p2.log, 14,593 pictures, 609,235 fast native ship groups that
+reached the converter. Every such group was hashed by its inputs and its output and matched with the same group of the picture
+before (identity: material address, stream counts and addresses (all 609,235 are static, NATG_INPL), header count, with an
+occurrence number among equal identities):
+  inputs hashed: the VU memory model at T + 0 .. 3 (the matrix), T + 4 .. 0x13 and 0x15 .. 0x17 (the rest of the constant block),
+  T + 0x14 (the header), T + 0xe8 .. 0xef (the material), abs 2 .. 5 (fog, alpha, viewport), 23 GS registers (PRIM, PRMODE(CONT),
+  XYOFFSET, SCISSOR, ZBUF, TEST, ALPHA, TEX0, CLAMP, TEXA, FOGCOL, FRAME, TEX1, both contexts), the streams' bytes, T itself;
+  output hashed: the converter's return, the batch (its data offset left out, its texture index as the frame's texture key), the
+  GerXform, the rest of the blob (vertices, strips, indices).
+
+                                              rain wait 29,600-30,500    rain walk 31,000-31,100    before the rain 24,000-26,200
+  fast groups                                       254,987                    10,950                    47,066
+  same group found in the picture before            254,907 (100.0%)           10,744 (98.1%)            44,167 (93.8%)
+  ... ALL inputs equal                                    0                         0                         0
+  ... matrix differs, every other input equal       104,468                     5,028                    27,207
+  ... matrix equal, something else differs                0                         0                         0
+  groups the cut leaves out (no output)             137,840 (54.1%)             7,406 (67.6%)            38,240 (81.2%)
+  cut outcome the same as the picture before        104,361 of 104,468          4,987 of 5,028           27,118 of 27,207
+  drawn both times: vertices, strips, batch equal   all of them (e.g. 6,060 of 6,060 at 29,800-29,900)
+  T (the VU buffer) differs                           8,534 (3.3%)              1,797                     6,495
+  GS registers differ                                     0                         0                     1,528
+  runs (consecutive groups walked together)             900 (2 a picture)          85                       623
+  ... the run's identities in the same order as the
+      picture before's run                              879; 244,821 groups (96.0%)  65; 7,321 (66.9%)   536; 38,546 (81.9%)
+  the rest of the block differs (of the found)        58% of groups (not read by df0's converter: see 2)
+Whole totals (to 31,400): 609,235 groups; 604,669 found; all inputs equal 0; output equal 347,777 (all of them groups the cut left
+out in both pictures: a drawn group's output was never equal, its GerXform differs); the steady deck (d01t, 26,200-28,700) has no
+fast group.
+
+2. WHAT THE PROBE SAYS
+a. THE PLAN'S LEVER AS WRITTEN HAS A HIT RATE OF 0 [C]. The matrix (T + 0 .. 3, the constant block's first four quadwords, which
+   holds the camera) is different in every picture for every group; nothing else differs in the rain. A drawn group's GE output
+   (its GerXform: world, projection, viewport) depends on the matrix, and so does its cut test and its depth-range note. So no
+   drawn group's GE words are ever equal to the last picture's, and no group's translation can be replayed whole with words copied:
+   the plan's target (-50% of 60.8 us a group in the rain wait ME turns) cannot be reached by copying words. [C]
+b. What does repeat [C]: everything that is not camera-dependent. For drawn groups the vertices, strips, indices and batch state
+   are equal to the last picture's in every case seen; the cut outcome is equal in 99.9%; the runs of groups come in the same order
+   in 96% of the rain wait's groups (two runs of ~285 groups a picture); the GS registers and the VU buffers are the same in 97-100%.
+c. What a group's translation reads and writes (t35's fast path, xl_p04_fast + gl_call/xc_call + gf_drew) [C, code], and what
+   changes from picture to picture in the rain [C probe]:
+     stage (PSP us, keep 0 [C PSP])  reads                                   writes                                   changes?
+     walk 5.8                        the record, the view's extents          pointers (host)                          record no
+     register 9.8                    block (24 qw), material (8), header,    VM T+0..0x17, T+0xe8..0xef, T+0x14;     block: matrix
+                                     the three streams' places               three descriptors + own[] marks;        yes, rest of
+                                                                             counters, V.tops/dbf, nf memo, RC row   block often
+     A+D 5.1                         material packet, CLUT state, GS mem     gr/F.gr CLAMP TEX2 TEX0 ALPHA, CLUT      no (static)
+                                                                             loads (GuMap), GIF path 1 state
+     call rest 1.2, host+GS 6.0      PRIM template (T+0x15), GS registers    PRIM, F flags, XcGs (local)              no
+     transform 4.8                   T+0..3, abs 2..5 (memo by block)        vc_km memo                               YES (camera)
+     positions 4.3                   stream A                                vertex x,y,z, the box                    no (static)
+     cut 4.5                         the box, the transform, SCISSOR/OFFSET  -                                        YES (camera)
+     attributes 1.5, strips 1.6      streams B, C                            vertex u,v,c, flags, strips, indices    no (static)
+     texture 8.4                     TEX0/CLAMP/TEXA, CLUT state, the cache  texture cache LRU, frame's table        no inputs; the
+                                                                                                                      frame's table
+                                                                                                                      is per picture
+     GE transform 4.6, depth 2.2     transform, GS state, texture            GerXform, data laid, zr (frame depth)    YES (camera)
+     into frame 1.4                  -                                       the frame's batch list                   (order)
+     way back 2.8, drawn areas 3.4   F.gr FRAME/ZBUF/SCISSOR/TEST, GuMap     GuMap areas, stamps, counters            no (K1 keeps)
+   (stage figures: PSP, us a timed group, gl35 keep 0, each with one ~0.46 us clock read; averages over all timed groups, so the
+   per-vertex stages hold the cut groups' zeros [C, psp_harness.md "Build gl35"].)
+d. So the reusable part is the translator's own model work (the VU memory model's copies and descriptors) and the static,
+   camera-free inputs of the converter (the box, the flags); the camera-dependent part (transform, cut, GerXform, depth) and the
+   GS model's ordered effects (CLUT loads, texture look-ups, drawn areas) have to run each picture.
+
+3. WHAT EACH REUSE CAN BE WORTH (upper bounds, before the reuse path's own cost) [I, from the PSP stage times above]
+  R0 whole group, words copied (the plan's form): hit rate 0 [C] -> 0.
+  R1 the VU memory model's work of a run (R-a below): the register stage's copies of the block's rest and the material and the three
+     descriptors, for every group whose writes a later group of the same run overwrites: about 5-6 of the 9.8 us register stage
+     [I: the stage's code by lines; the header, the matrix and the tag template stay], plus the transfer-end decode of ~850
+     descriptors a run (xl_flush -> vm_all) that then has a few: about 0.5-1 us a group [I: the descriptor loop's length].
+  R2 the box for cut groups (R-b below): the positions stage (4.3 us) for the 54% of groups that the cut then leaves out: about
+     2.3 us a group on average [I].
+  R3 the cut groups' converter set-up (host call + GS state, way back): a further ~3-5 us on cut groups [I]; needs the call's
+     wrappers (twin and PSP differ) and gl_call's state reproduced outside the converter: NOT in gl36 (risk against gain).
+  R4 the GS model's effects replayed per run (the CLUT loads, the texture look-ups, the drawn areas): these are ordered effects
+     whose inputs (the CLUT state, the cache's LRU, the GS model's counts that gl_tex's memo reads) change from group to group
+     inside the run; gl35 measured that a guarded replay of one of them (the texture, K3) costs MORE than the step on the PSP
+     (+0.76 us a group [C PSP]) and the drawn areas replay (K1) saves 1.6 [C PSP], which gl36 keeps. NOT in gl36.
+  So the most the reuse can reach in gl36's form is about R1 + R2 = 8-9 us of 60.8 a group (about -14%) [I], net perhaps -6 to -8
+  us after the guards and the record pictures [I], against the plan's -30 us. THE PLAN'S TARGET (-50%) IS NOT REACHABLE [C probe
+  for the cause, I for the size]. In the model's terms the parts touched are about 8% of the ship's native work a picture in the
+  rain wait ME turn (xl_p04_fast's copies and descriptors, vc_df0_pos_k for cut groups: model_split.out parts 6 and 12) [C model
+  shares, I for the split inside the functions].
+  The design below builds R1 + R2 (the best part that is exact by construction and needs no GS-model replay), behind its own switch,
+  in turns, so the PSP's split timers measure it stage by stage.
+
+4. THE DESIGN (keys MGS2_NAT_REUSE=<0/1> for the whole run, MGS2_NAT_REUSE_CYCLE=a,b,c,d by MGS2_OPT_CYCLE's turns as the other
+   MGS2_NAT_* keys; MGS2_NAT_RCHK=1 the check mode; fast native groups only, so it needs MGS2_NAT_FAST in that turn)
+4.1 Units and where the decision is made
+  A RUN is the set of consecutive native groups the walk hands to the translator in one go (ge/xlme.c lw_nat on the PSP's walks,
+  boot/nat_x86.c nat_walk on the twin): nothing else reaches the translator between two groups of a run. The groups are an array
+  per packet buffer (boot/nat_stub.h g_nat); a group's place in it (its index) is the same from picture to picture when the picture
+  repeats. The switch is taken per pipeline call (NatBuf.ru, set with the array's start), so every group of a picture has the same.
+  The kept table (host memory, NR entries of 64 bytes, one per group index; the PSP: a block outside newlib's heap, 147 KB for 2,304
+  groups, fewer entries if the block is refused, none = the switch does nothing): per index the record's words that the
+  translation reads (material, streams, counts, flags' low bits, the header's four words, MSCAL: 40 bytes, compared whole), the box,
+  the first triangle without ADC (i1), bits (in the S set; box valid), and at a run's first index the run's length and the VU
+  buffers (BASE, OFFSET, DBF).
+4.2 The test (before the run is fed)
+  The run [i0, i0 + n) is REPLAYED when: the switch is on for its picture; the table has entries for all of it; the entry at i0
+  holds a recorded run of length n with BASE, OFFSET and DBF equal to now; every group's record words equal its entry's (a full
+  compare, no hash); every group is a fast group. Otherwise the run is RECORDED (fed as today, with the record kept, section 4.4).
+  The test costs one pass over the run's records (10 words a group compared) [C, code].
+4.3 What a replayed run does differently (everything else is today's path, in today's order)
+  R-a, the front end (ge/xlate.c xl_p04_fast): a group NOT in the run's S set skips the VU memory writes that a later group of the
+  same run overwrites: the constant block's quadwords 4 .. 0x13 and 0x16 .. 0x17 (q0 groups still copy 0 .. 3, the matrix, and
+  0x15, the tag template, which the call reads), the material's 8 quadwords at T + 0xe8, and the three streams' descriptors and
+  own[] marks. It still does: the form tests (a group that does not fit takes xl_p04_core in full, as today), every counter (the
+  same increments: the translator's St, the census, xl_nf_n, the lane counts), the RC row, the header, the nf memo, V.tops / DBF,
+  the A+D packet (the GS registers, the CLUT loads), the tag's PRIM, the call with the same XlRec (the streams' pointers), the
+  drawn areas. A group IN the S set runs exactly today's path.
+  The S set (recorded): the groups that are the LAST writer, within the run, of at least one quadword of those kinds (block rest,
+  material, stream data) in either VU buffer. Exactness of the VU memory model: every such quadword's final value and owner is
+  its last writer's, which is in S and writes as today; a quadword skipped by a group outside S is written again later in the run
+  by S or by another group, in order, so after the run (and at every read inside it, see below) the memory as a read sees it is
+  today's [C, argument; checked: section 5]. Reads inside a run: the converter of a fast group reads T + 0 .. 3, T + 0x14 and abs
+  2 .. 5 (written in both forms) and the tag template T + 0x15 (written in both forms by q0 groups); nothing reads the skipped
+  quadwords between their skipped write and their next write [C, code: xlate.c call path, xconv.c xc_call for XlRec.nf]. What
+  differs is only the representation: fewer pending descriptors (ud_n, ud_vecs), so the transfer's end decodes less, and a full
+  table comes later (a later group is then taken by the fast path where today it would go to xl_p04_core: the same state and
+  output, gl34's proof [C, attic/gl34]).
+  R-b, the converter (ge/xconv.c xc_call, XlRec.nf with a kept box): the transform is taken as today (vc_df0_pos_k's memo and
+  counters) but the positions' loop is not run: Dn is the header's count, the box is the kept one; then the cut test as today. A
+  group the cut leaves out takes today's cut path, its depth-range note with i1 kept (no read of stream B) and, when the box's
+  bound does not decide (xc_df0_zin), the positions computed then; a group the cut keeps runs the positions' loop then and goes
+  on as today. The box and i1 are functions of the static streams only (stream A's positions; stream B's ADC flags), whose
+  identity (address and count) is in the compared record [C probe: 0 of 609,235 groups had other stream bytes for the same
+  identity in the picture before].
+4.4 Recording (a run that is not replayed, the switch on): fed as today with, in xl_p04_fast, the last writer of each quadword of
+  those kinds noted (a uint16 per VU quadword, cleared at the run's end), and in xc_call the box and i1 kept for the group's index
+  when vc_df0_pos_k gave a count; at the run's end S is made from the notes, and the entries (record words, box, i1, S bit, the
+  run's length and VU buffers) are written. A run with a group that did not take the fast path is not kept.
+4.5 The check mode (MGS2_NAT_RCHK=1): a run that would be replayed is fed in full and recorded again, and compared with the kept
+  entries: the S set, every box and i1, the run's length: "differing" counted. The twin also compares, frame by frame, the arms
+  with the switch on and off: the list and frame digests, the counts, the dz text, the content, natb / natz / natq, and the
+  translator's state (nats: the VU memory as a read sees it, the GS registers, the front end, the VIF and GIF state, the counters).
+4.6 What stays as gl35 delivered it, and the base: MGS2_NAT_FAST=1 and MGS2_NAT_KEEP=1 (the drawn-areas keep only) in every turn;
+  the keep bits (xl_keep_bits) reset at each picture's start (gl_begin), so a turn without keeps has none (gl35's oddity).
+4.7 Memory: the table, 64 B a group: 147 KB for 2,304 groups on the PSP (a block of the system's memory outside newlib's heap, as
+  the groups' arrays; gl35's PSP run had about 2.6 MB free at its end [C PSP]); if refused, 1,536 / 1,024 / 512 entries are tried;
+  groups past the table's end are recorded and replayed only when their whole run fits. The last-writer notes: 2 KB of static data.
+  The twin: calloc.
+
+5. GATES FOR THE LEVER (in addition to gl35's)
+  - twin: switch on in every turn, off, by turns in both orders, with the check mode: 685/685 hash lines each; all 17,664 frames equal
+    in every column between them; the check mode's differing 0 (S sets, boxes, i1);
+  - emulator: the delivered cfg 62/62, 916/916 digests equal to the twin; the check mode's differing 0; pictures against gl35's;
+  - counts in every 'nat reuse' line: runs replayed / recorded, groups replayed, groups in S, boxes used, cut by a kept box.
+
+6. EXPECTED [I unless marked]
+  - hit rate: 96% of the rain wait's fast groups in runs that repeat [C probe]; the share in S UNKNOWN until built (expected a few
+    groups a run: the last q0 group and the last group of each buffer, and the groups owning stream tails).
+  - per group in the rain wait's ME turns: register stage -4..-6 us, positions -2.3 us on average, the transfer-end decode -0.5..-1
+    us: about -7..-9 us of 60.8 (-12..-15%) on the PSP's timers if the model's per-stage shares hold [I]; the model run will give
+    [C model] figures; with the ~4x overrating seen before, the PSP step time may show 1-2 ms a step [I].
+  - step time: the ME is the rain's limit (85-88 ms a step, ~4 idle); a saving there shows up until the main CPU's turn work
+    (logic 43 ms a step + waits) becomes the limit [I].
+  - the plan's -50% target: NOT reachable by this form (section 3).

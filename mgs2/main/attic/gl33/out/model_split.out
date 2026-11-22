@@ -1,0 +1,84 @@
+waiting deck ME turn 29,810-29,890: gl31 arm 3 -> gl33 plain (the retrain): B model/g33p - A model/m32n3, 40 pictures
+  A: 48458717 instructions, 347252 I-misses, 332263 D-misses = 396.83 ms a picture;  B: 47993207, 241026, 330445 = 372.36 ms;  B - A: -465510, -106226, -1818 = -24.47 ms a picture [C model]
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   lw_q                            -3.200 ms  (  -417607   -4600    -744)  size 484 / -
+   texture                         -2.218 ms  (  -402197    -166    -740)  size 1876 / -
+   xc_run                          -1.909 ms  (  -383586     -23     -14)  size 252 / -
+   me_memset                       -1.453 ms  (     -281   -7397    +228)  size 248 / 248
+   xm_call.part.0                  -1.401 ms  (   -40687   -4742    -896)  size 408 / -
+   xm_walk                         +1.362 ms  (  +425407   -5948   +1816)  size 12216 / 14856
+   xf_setup                        +1.361 ms  (  +248475     -13    +514)  size 340 / 348
+   vupv_96936c0f_0                 -1.343 ms  (       +0   -6582      +4)  size 3460 / 3460
+   gif_qw                          -1.157 ms  (    -1430   -5398    -187)  size 1084 / 1072
+   xc_off.constprop.0              -1.141 ms  (       +0   -5515     -57)  size 860 / 860
+   vc_xform                        -1.017 ms  (      -13   -4080    -711)  size 1696 / 1696
+   call                            -0.964 ms  (     +103   -3473    -988)  size 3620 / 3716
+   gl_call                         -0.956 ms  (       +0   -4892    +166)  size 1536 / 1536
+   tk_get_um                       +0.895 ms  (       +7   +2805   +1247)  size 3996 / 4008
+   gu_drawn                        -0.887 ms  (      -24   -3807    -425)  size 2768 / 2888
+   dz_pair                         +0.853 ms  (   +91065    +226   +1375)  size - / 4652
+   put                             -0.792 ms  (   -88571   -1631     -77)  size 148 / 148
+   xm_call                         +0.728 ms  (   +33611   +1030   +1361)  size - / 288
+   blend                           -0.668 ms  (  -128240     -45     -91)  size 860 / -
+   ud_eager                        +0.667 ms  (       +0   +3293     -22)  size 440 / 440
+   lw_tp                           -0.652 ms  (   -64798    -993    -498)  size 464 / -
+   ud_new                          -0.639 ms  (       +0   -2915    -170)  size 1696 / 1696
+   xm_plan                         +0.636 ms  (  +131078     -47     -15)  size 2948 / 3680
+   xl_lane_p06                     -0.615 ms  (       +0   -3406    +313)  size 1060 / 1060
+   (all the others)                -9.956 ms  (  +132177  -47906   -3209)
+waiting deck ME turn 29,810-29,890: gl33 plain -> gl33 in place (the rule): B model/g33i - A model/g33p, 40 pictures
+  A: 47993207 instructions, 241026 I-misses, 330445 D-misses = 372.36 ms a picture;  B: 47092395, 240233, 303480 = 360.77 ms;  B - A: -900812, -793, -26965 = -11.59 ms a picture [C model]
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   me_memcpy                       -5.144 ms  (  -276652      -0  -14611)  size 328 / 328
+   xc_merge                        -4.219 ms  (  -439256      -0   -7908)  size 652 / 652
+   xm_walk                         -0.608 ms  (   -11228    -137   -2032)  size 14856 / 14856
+   xm_plan                         -0.407 ms  (   -76982      -1     -97)  size 3680 / 3680
+   xc_add                          -0.310 ms  (   -51770      -0    -207)  size 364 / 364
+   ud_eager                        -0.167 ms  (       +0      +1    -649)  size 440 / 440
+   (not in the ELF's functions)    -0.142 ms  (   -16787    -134    -123)  size - / -
+   mp_mark                         -0.136 ms  (   -24193      -0     -60)  size 512 / 512
+   rt_nat_p04                      +0.133 ms  (   +26880      +1      +0)  size 2384 / 2384
+   xc_call                         -0.108 ms  (       +0    -127    -316)  size 13568 / 13568
+   me_memset                       -0.081 ms  (       +1    -300     -76)  size 248 / 248
+   xc_zr_df0d.isra.0               -0.075 ms  (     +671      -1    -303)  size 1276 / 1276
+   (all the others)                -0.326 ms  (   -31498     -94    -583)
+waiting deck main turn 29,910-29,990: gl31 arm 3 -> gl33 plain (the retrain): B model/g33p.1 - A model/m32n3.1, 40 pictures
+  A: 42663089 instructions, 321374 I-misses, 251721 D-misses = 342.03 ms a picture;  B: 42373195, 219530, 255115 = 320.67 ms;  B - A: -289894, -101843, +3394 = -21.36 ms a picture [C model]
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   texture                         -2.166 ms  (  -394163    -130    -720)  size 1876 / -
+   me_memset                       -1.607 ms  (    -3663   -7625    -123)  size 248 / 248
+   xm_call.part.0                  -1.379 ms  (   -40287   -4678    -866)  size 408 / -
+   xf_setup                        +1.364 ms  (  +249093     -11    +512)  size 340 / 348
+   gif_qw                          -1.338 ms  (    -7897   -5315    -828)  size 1084 / 1072
+   vupv_96936c0f_0                 -1.338 ms  (       +0   -6555      +4)  size 3460 / 3460
+   xc_off.constprop.0              -1.121 ms  (       +0   -5329    -127)  size 860 / 860
+   xm_walk                         -0.989 ms  (    +2983   -5530    +487)  size 12216 / 14856
+   gl_call                         -0.961 ms  (     -785   -4862    +137)  size 1536 / 1536
+   dz_pair                         +0.855 ms  (   +89150    +211   +1431)  size - / 4652
+   vc_xform                        -0.849 ms  (    -1096   -4140      +9)  size 1696 / 1696
+   xl_lane_p06                     -0.785 ms  (    -3313   -3434    -261)  size 1060 / 1060
+   tk_get_um                       +0.783 ms  (    -3168   +2998    +720)  size 3996 / 4008
+   put                             -0.757 ms  (   -83021   -1608     -68)  size 148 / 148
+   xc_call                         +0.698 ms  (     -427    -296   +2945)  size 13524 / 13568
+   blend                           -0.666 ms  (  -127836     -43     -91)  size 860 / -
+   ud_eager                        +0.656 ms  (    -1926   +3383     -99)  size 440 / 440
+   xm_call                         +0.649 ms  (   +33168   +1024   +1069)  size - / 288
+   call                            -0.618 ms  (    -4379   -3782    +683)  size 3620 / 3716
+   xc_xform                        -0.617 ms  (     -528   -3077     +54)  size 588 / 588
+   gu_drawn                        -0.607 ms  (    -1006   -2619    -259)  size 2768 / 2888
+   xc_hold                         -0.570 ms  (    -2350   -2510    -175)  size 1856 / 1856
+   fminf                           -0.550 ms  (       +0   -2694      +0)  size 152 / 152
+   ud_kind                         -0.497 ms  (   -26719   -1781      -5)  size 156 / -
+   (all the others)                -8.948 ms  (   +38275  -43439   -1035)
+waiting deck main turn 29,910-29,990: gl33 plain -> gl33 in place (the rule): B model/g33i.1 - A model/g33p.1, 40 pictures
+  A: 42373195 instructions, 219530 I-misses, 255115 D-misses = 320.67 ms a picture;  B: 42406987, 219541, 255200 = 320.86 ms;  B - A: +33792, +11, +84 = +0.19 ms a picture [C model]
+  by function (ms a picture; instructions, I-misses, D-misses a picture; the function's size in A / B):
+   rt_nat_p04                      +0.130 ms  (   +26208      +1      +0)  size 2384 / 2384
+   dz_pair                         +0.044 ms  (    +4769      -1     +79)  size 4652 / 4652
+   xc_zr_df0d.isra.0               +0.009 ms  (    +1325      +6      +3)  size 1276 / 1276
+   strcmp                          +0.004 ms  (     +732      +0      +0)  size 576 / 576
+   gl_digest + hw (frame digests)  +0.002 ms  (     +331      +0      +1)  size - / -
+   (not in the ELF's functions)    -0.002 ms  (      -66      -5      -0)  size - / -
+   put_sym                         +0.001 ms  (      +33      -0      +5)  size 220 / 220
+   dz_sortk                        -0.001 ms  (     -240      +0      +0)  size 252 / 252
+   (all the others)                +0.004 ms  (     +701      +9      -4)

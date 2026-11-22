@@ -1,0 +1,58 @@
+MGS2T_v25f, PspProf cost model of free play (2026-10-23; speed_notes §43, psp_harness.md "Build v25f")
+ms per step = (1.4 x instructions + 70 x (I-misses + D-misses)) / 333,000, per step, as since v16. Windows of 100 steps, everything on,
+MGS2_HASH_EVERY=500 (the harness's own state hash at vb 33000 falls in the crawl window: its PCs in k_vblank_hook, 430 M instructions and
+557 k D-misses, are taken off). Dumps: container /home/claude/v25f/model/mf, mf.1-3 (cfg_mf.txt); v24's tutorial: /home/claude/v24/model/m24da.
+Tools: tools/dev/prof_regions.py (per region), tools/dev/prof_topfn.py (per function, against another dump).
+
+1. Windows
+  window                         steps         instr      I-miss   D-miss   ms
+  free: walk the deck            31501-31600   12.225 M   93.2 k   68.4 k   85.36
+  free: crawl                    32901-33000   12.526 M   98.3 k   68.2 k   87.66   (state hash taken off)
+  free: first person             33801-33900   11.660 M   94.2 k   63.8 k   82.24
+  free: alert                    35501-35600   12.407 M   97.8 k   68.4 k   87.10
+  tutorial (v24, Otacon's M9)    24001-24100   11.462 M   50.4 k   64.8 k   72.40
+  Free play's four windows average 85.6 ms, +13.2 ms on the tutorial: instructions +6.5%, I-misses +90%, D-misses +4%.
+  v24's deck model was 3.4% high on the PSP (72.40 against 70.04), so the PSP should give about 82.8 ms per step [I]; §42 predicted
+  78-84 ms from guest instruction counts [I].
+
+2. By code region, walk window against the tutorial (ms per step)
+  region                          free (walk)                          tutorial
+  game ELF code (gen.o)           4.802 M  34.5 k I  30.3 k D  33.81    4.623 M  21.2 k I  27.3 k D  29.64
+  runtime (boot_rt.o)             3.988 M  12.8 k I  17.0 k D  23.01    3.990 M   9.4 k I  19.8 k D  22.92
+  stage reduced part (w00a)       2.212 M  31.3 k I  11.7 k D  18.33    2.160 M  15.4 k I  11.7 k D  14.76
+  stage extra part (w00a X)       0.340 M   8.8 k I   1.6 k D   3.62    -
+  dispatch (gen_dispatch.o)       0.389 M   1.2 k I   2.3 k D   2.38    0.265 M   0.6 k I   1.7 k D   1.61
+  IOP + sound                     0.242 M   2.3 k I   2.5 k D   2.02    0.222 M   2.5 k I   2.5 k D   1.97
+  libraries                       0.229 M   1.2 k I   2.7 k D   1.80    0.191 M   1.0 k I   1.6 k D   1.34
+  harness + hook                  0.022 M   1.0 k I   0.4 k D   0.39    0.011 M   0.4 k I   0.2 k D   0.17
+  (The other three windows: the same picture; boot_rt 24.4-25.8 ms there.)
+
+3. Calls through a register into the stage (the dispatch path), per step
+                         free (walk)                                       tutorial
+  function               entries  instr   I-miss  D-miss  ms             entries  instr   I-miss  D-miss  ms
+  gen_jalr                 640    30,317    516     588   0.36             247    14,914    265     440   0.21
+  guest_call               279    40,424    415     247   0.31             192    26,811    165     195   0.19
+  gen_call                 279    19,081    856      14   0.26             192    12,793    362      15   0.13
+  stage_ovl_call           257     7,719    284      43   0.10             170     5,101    111      30   0.05
+  S_w00a_call              257    72,245 12,725       0   2.98             170     6,152    453       0   0.12
+  __wrap_rt_missing         93     7,585    493     193   0.18               -
+  strcmp                   346     9,551    351     119   0.14             259     7,397    141      82   0.08
+  total                                                   4.33                                              0.78
+  S_w00a_call is the stage's switch over its 6,657 function addresses (288 KB of code). Built with v24's profile (the tutorial), GCC
+  orders the compare tree by the cases' measured probabilities, and the cases the profile never saw (probability 0) come out as one long
+  chain of compares: in the walk window 2,135 entries walk a 980-instruction chain spread over 18 KB, 801 entries a 977-instruction one
+  (disassembly of ovl_w00a.elf at 08cf9724-08cfe01c: "addiu a1,a0,K; bnel v0,a1,next; ...; sltu a1,v0,a1; beqz a1,return 0", one case
+  per node). Free play's calls average 281 instructions and 49 code-cache misses each (the tutorial's 36 and 2.7). The same lowering
+  applies to gen_call; there the JALR cache (tools/jalr_tab.py) takes its plain cases first, but every stage call still searches gen_call,
+  then checks the 10 signature words, then compares the overlay's name (strcmp), then walks S_w00a_call.
+  Facts for an exact fix: gen_call's 2,303 cases are all at 0x100010-0x17cedc, so no address from 0x1f1c00 up can match it; every case of
+  the stage switches is a plain call (w00a 6,657, d01t 5,244, w01a 6,498 cases; 29-32 of them at ELF addresses below 0x1f1c00).
+
+4. The rest of the increase
+  - Functions run in both windows: 82.1 k I-misses per step in free play against 49.5 k (instructions 11.76 M against 11.27 M); without
+    S_w00a_call 69.4 k against 49.0 k. Code lines touched in the 100 steps: 25,737 (1,608 KB) against 18,928 (1,183 KB), +36%.
+  - Functions run only in free play: 337 (352 KB), 0.46 M instructions, 11.1 k I-misses, 2.3 k D-misses per step (mostly the X functions).
+  - Both the PGO profile and the code order (layout_order_deck_v24) were trained on the tutorial and w01a only; the X functions sit after
+    v24's code (gen_x.o, the overlay's extra part) in the compiler's order, with no profile.
+  - Largest per-function I-miss increases besides the dispatch: P14fe30 +628, P11fde8 +611, S_w00a_P3beee8 +574, io_flush +520,
+    XS_w00a_P322d38 +473 (new), vupv_96936c0f_0 +452, P106d70 +407, P14f820 +407 per step (full list: container reg/topfn_mf.txt).

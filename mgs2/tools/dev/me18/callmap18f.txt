@@ -1,0 +1,35 @@
+# callmap18f.txt (task #180 step 4d-4: callmap18e.txt with the ME's own wait and cache steps named; glue:64 covers their frames 8 and 0)
+# callmap.txt (task #149, mecheck.py): what the ME unit's pointer calls can reach, by the function that holds them.
+# glue:<bytes>:<unit function or ->: a host callback (xl_psp.c on the PSP; the twin's on x86) with a frame of <bytes> [I: 64, not measured]
+run(xlive)          glue:64:-                 # m->seen: the twin's DMA check (0 on the PSP: xl_psp.c M.seen = 0)
+xlv_dma             glue:64:-                 # m->seen, as above
+call(xlate)         xm_on_call xm_on_pass   # call_fn = on_call -> gl_call; pass_fn = on_pass -> gl_pass
+xl_flush            xm_on_flush          # flush_fn = on_flush -> gl_flush
+emit(gsfront)       xm_on_prim           # g->fn = on_prim -> gl_prim
+tc_texture_cb       fe(texcache)              # fetch: texcache's fe (texconv's page_fetch is only tc_texture's, not in the unit)
+tc_texture_blk      fb(texcache)              # blk: texcache's fb
+xc_pass_look(xconv) gl_tex_cb                 # h->tex = gl_tex_cb (gl_init)
+xc_call             gl_tex_cb
+xc_hold             gl_tex_cb
+c4_tex(xconv)       gl_tex_cb                 # task #180: C4's h->tex (gl17's xconv.c), = gl_tex_cb
+addr_cmd(gelist)    glue:64:-                 # H->addr = the host's gl_addr (a leaf)
+gx_batch(gelist)    glue:64:-
+rec_ident(gsup2)    glue:64:-                 # m->ram = the host's RAM look-up (a leaf)
+entry(gsup2)        glue:64:-
+gu_block            xm_ram glue:64:-          # m->ram (xm_ram, step 2b); m->trx_fn (0: nobody calls gu_on_trx)
+gu_image            glue:64:-                 # m->data_fn: the twin's upload marks (gu_on_data; 0 on the PSP)
+lw_run(xlme)        glue:64:-                 # m->seen (0 on the PSP), as run(xlive)
+lw_seen(xlme)       glue:64:-                 # m->seen
+lw_walk(xlme)       glue:64:-                 # m->seen
+xm_walk             glue:64:-                 # m->seen: lw_walk, lw_run and lw_seen inlined into it
+mh_grow(me_rt)      xme_more(xme) glue:64:-   # H.more: the host's hook for more room on the main CPU; on the ME (step 4d-2) xme_more, a request to the main CPU
+mh_give_back(me_rt) xme_less(xme) glue:64:-   # H.less: the host's hook taking back an empty region; on the ME (step 4d-2) xme_less
+mh_resize(me_rt)    xme_resize(xme) glue:64:- # H.resize: the host's hook resizing a region one block fills; on the ME (step 4d-2) xme_resize
+xme_run             glue:64:-                 # task #180 step 4c: the host's wait (the thread's mq_wait_thr on the emulator; on the ME, step 4d-4, psp/xme_me.c xme_me_wait: frame 8 [C: -fstack-usage], a leaf but for me_leave, frame 0; checked by tools/xme_me_chk.py)
+xme_entry           glue:64:-                 # the host's wait for the GE (xme_hook inlined; on the ME xme_me_wait, as above)
+xme_hook(xme)       glue:64:-                 # the host's wait for the GE (on the ME xme_me_wait)
+xme_cache(xme)      glue:64:-                 # task #180 step 4d: the cache hook (the thread's counting stand-in on the emulator; on the ME, step 4d-4, psp/xme_me.c xme_me_cache: frame 0 [C], a leaf)
+xme_rq(xme)         glue:64:-                 # step 4d-2: the host's wait for the heap's answer (the thread's mq_wait_thr; on the ME xme_me_wait, 4d-4)
+xme_more(xme)       glue:64:-                 # (xme_rq inlined)
+xme_less(xme)       glue:64:-
+xme_resize(xme)     glue:64:-

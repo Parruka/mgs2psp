@@ -1,0 +1,501 @@
+--- sb5/runtime/ee_io.h	2026-10-31 20:16:40.343280408 +0000
++++ sb6/runtime/ee_io.h	2026-10-31 21:42:06.695501849 +0000
+@@ -230,13 +230,20 @@
+ #endif
+ /* sb1, Stage B lane 1 (renderer_notes 11.20): g_xl_lane bit 0 (boot/xlive_chk.c MGS2_SB_LANE) lets the one walk hand a P1214a0 group to
+    the translator whole (lane_p04 below, ge/xlate.c xl_lane_p04); sb2, lane 2: bit 1 a P12e8b8 group (lane_p06, xl_lane_p06); sb5, lane 4
+-   (renderer_notes 11.32): bit 3 a run of P07 slots (lane_p07, xl_lane_p07) */
++   (renderer_notes 11.32): bit 3 a run of P07 slots (lane_p07, xl_lane_p07); sb6, lane 3 (renderer_notes 11.33): bit 2 a run of the sort
++   pass's effect prims (lane_fx, xl_lane_fx) */
+ int g_xl_lane;
+ int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
+ int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
+ int xl_lane_p07(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
++int xl_lane_fx(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
+ #ifndef __psp__
+ long lane7_miss[8];   /* sb5, x86 census: tags starting with STCYCL 7 / 1 where lane_p07 took no slot, by the first test that failed (lane_p07) */
++long lane3_miss[8];   /* sb6, x86 census: tags starting with STCYCL 3, 6 or 12 / 1 and V4-32 to T + 0x100 where lane_fx took no prim, by the first
++                         test that failed (lane_fx) */
++long lane3_gen[8];    /* sb6, x86 census: such tags the generic walk took (vif1_chain_fast), by why: 4 not the one walk (the translator does not
++                         take that transfer from this walk), else 0 lane 3 off, 1 lane_fx took none (lane3_miss says why), 2 command data left,
++                         3 no TTE */
+ #endif
+ #else
+ #define XL_ONE(p, n, src) ((void)0)
+@@ -540,6 +547,57 @@
+ #endif
+   *next = tadr; return 20 * ns;
+ }
++/* sb6, Stage B lane 3 (renderer_notes 11.33): at tag t (as lane_p04), a run of the sort pass's effect prims (P12d910; re/mesh_packets.md
++   7), each 10 quadwords and 6 tags as the builder writes them: REF the positions (STCYCL cl 3, 6 or 12 / wl 1, V4-32 at T + 0x100), REF the
++   attributes (STCYCL 3 / 2, or 12 / 4 after cl 12; V4-16 signed at T + 0x101), REF 8 the owner's block (V4-32 at T + 0xe8), CNT 4 the
++   matrix (V4-32 at T + 0x10, its data), REF 3 (V4-32 at T + 0x14: the count, the GIF tag and a third quadword), the last four with STCYCL
++   1 / 1; a CNT of 0 with a NOP and MSCAL.  Each REF's UNPACK takes exactly the REF's data; no IRQ bit, every piece in one run of RAM or
++   scratchpad.  The prims one after another while the next tag starts one, each handed to the translator (xl_lane_fx: one call each);
++   afterwards the walk's state is what the generic walk leaves (STCYCL 1 / 1, no data left, the last command the MSCAL) and *next the tag
++   after the last prim taken; 0: no prim here, or the translator declines the first */
++static inline int lane_fx(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t *next)
++{
++  int np = 0;
++  for (;;) {
++    uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : GUEST_SIZE - (tadr & (GUEST_SIZE - 1) & ~15u), cl = t[2] & 0xff;
++    const uint32_t *dp[6]; int k, why = 0;
++    if (room < 160u) {   /* the prim's 10 quadwords in one piece */
++#ifndef __psp__
++      if (!np) lane3_miss[0]++;
++#endif
++      break; }
++    for (k = 0; k < 6; k++) {   /* tag k: quadword k; the REF 3 and the last CNT after the matrix's four data quadwords (k + 4) */
++      const uint32_t *g = t + 4 * (k < 4 ? k : k + 4); uint32_t n = g[0] & 0xffff, w = g[3], num = (w >> 16) & 0xff;
++      dp[k] = 0; why = k < 2 ? 1 + k : 3;
++      if (!num) num = 256;
++      if (k == 5) { if (g[0] >> 28 != 1 || n || g[2] || w >> 24 != 0x14) break; continue; }   /* CNT 0: NOP, MSCAL */
++      if (k == 3) { if (g[0] >> 28 != 1 || n != 4 || g[2] != 0x01000101u || w != 0x6c048010u) break; continue; }   /* CNT 4: V4-32 4 at
++                                                                                                         T + 0x10, its data */
++      if (g[0] >> 28 != 3) break;   /* REF, no IRQ */
++      if (k == 0) { if ((w & 0xff00ffffu) != 0x6c008100u || num != n) break; }   /* (its STCYCL tested before) V4-32 n at T + 0x100 */
++      else if (k == 1) { if (g[2] != (cl == 12 ? 0x0100040cu : 0x01000203u) || (w & 0xff00ffffu) != 0x6d008101u || num != 2 * n) break; }
++                                                                                    /* V4-16 signed at T + 0x101: 8 bytes a vector */
++      else if (g[2] != 0x01000101u || w != (k == 2 ? 0x6c0880e8u : 0x6c038014u) || n != (k == 2 ? 8u : 3u)) break;   /* REF 8: V4-32 8 at
++                                                                                    T + 0xe8; REF 3: V4-32 3 at T + 0x14 */
++      if (!(dp[k] = lane_ptr(g[1] & 0xfffffff0u, n))) { why = 4; break; }
++    }
++    if (k == 6 && !xl_lane_fx(t, tadr, dp)) { k = 0; why = 5; }
++#ifndef __psp__
++    if (k < 6 && !np) lane3_miss[why]++;
++#endif
++    if (k < 6) break;
++    np++;
++    tadr += 160; t = (const uint32_t *)((tadr & 0x80000000u) ? g_spr + (tadr & 0x3ff0) : g_mem + (tadr & (GUEST_SIZE - 1) & ~15u));
++    if ((t[2] != 0x01000103u && t[2] != 0x01000106u && t[2] != 0x0100010cu) || (t[3] & 0xff00ffffu) != 0x6c008100u) break;   /* the next
++                                                                                                tag does not start a prim */
++  }
++  if (!np) return 0;
++  s->left = 0; s->cmd = 0x14; s->cl = 1; s->wl = 1;
++#ifndef __psp__
++  vif1_n_cmd[0x01] += 5 * np; vif1_n_cmd[0x6c] += 4 * np; vif1_n_cmd[0x6d] += np; vif1_n_cmd[0x00] += np; vif1_n_cmd[0x14] += np;
++#endif
++  *next = tadr; return 6 * np;
++}
+ #endif
+ static void vif1_chain_fast(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* dma_feed for VIF1 */
+ {
+@@ -558,20 +616,29 @@
+     uint32_t t0 = t[0], t1 = t[1], n = t0 & 0xffff, id = (t0 >> 28) & 7, addr = t1 & 0xfffffff0u, data, next; int end = 0;
+     XL_TAG(t, tadr);
+ #ifdef MGS2_XLIVE
+-    if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40) && t[2] == 0x01000101u) {   /* (both lanes' groups start with STCYCL 1 / 1) */
+-      uint32_t nx; int nt = 0, l = g_xl_lane;
+-      if (g_opt & OPT_LANE_MATCH) {   /* sb3: the TTE word of the tag after the group's first material (after the constant block's tag
+-                                         when t[3] is its UNPACK) is STCYCL 3 / 1 in every group lane_p04 takes and 1 / 1 in every one
+-                                         lane_p06 takes, and both need seven quadwords of room at least: so only that lane can take it */
+-        uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : GUEST_SIZE - (tadr & (GUEST_SIZE - 1) & ~15u), u;
+-        if (room < 112u) l = 0;
+-        else { u = t[t[3] == 0x6c188000u ? 10 : 6]; l &= u == 0x01000103u ? 1 : u == 0x01000101u ? 2 : 0; } }
+-      if (l & 1) nt = lane_p04(t, tadr, &s, &nx);
+-      if (!nt && (l & 2)) nt = lane_p06(t, tadr, &s, &nx);
+-      if (nt) { tadr = nx; guard += (uint32_t)nt; continue; } }
+-    else if ((g_xl_lane & 8) && g_xl_one && !s.left && (chcr & 0x40) && t[2] == 0x01000107u) {   /* sb5: lane 4's slots start with STCYCL 7 / 1 */
+-      uint32_t nx; int nt = lane_p07(t, tadr, &s, &nx);
++    if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40) && (t[2] & 0xffffff00u) == 0x01000100u) {   /* every lane's first tag starts with
++                                                    STCYCL cl / 1 (sb6: one test of the tag's first TTE word, then its CL picks the lane) */
++      uint32_t nx, cl = t[2] & 0xff; int nt = 0;
++      if (cl == 1) {   /* lanes 1 and 2: both groups start with STCYCL 1 / 1 */
++        int l = g_xl_lane;
++        if (g_opt & OPT_LANE_MATCH) {   /* sb3: the TTE word of the tag after the group's first material (after the constant block's tag
++                                           when t[3] is its UNPACK) is STCYCL 3 / 1 in every group lane_p04 takes and 1 / 1 in every one
++                                           lane_p06 takes, and both need seven quadwords of room at least: so only that lane can take it */
++          uint32_t room = (tadr & 0x80000000u) ? 0x4000u - (tadr & 0x3ff0) : GUEST_SIZE - (tadr & (GUEST_SIZE - 1) & ~15u), u;
++          if (room < 112u) l = 0;
++          else { u = t[t[3] == 0x6c188000u ? 10 : 6]; l &= u == 0x01000103u ? 1 : u == 0x01000101u ? 2 : 0; } }
++        if (l & 1) nt = lane_p04(t, tadr, &s, &nx);
++        if (!nt && (l & 2)) nt = lane_p06(t, tadr, &s, &nx); }
++      else if (cl == 7) { if (g_xl_lane & 8) nt = lane_p07(t, tadr, &s, &nx); }   /* sb5: lane 4's slots start with STCYCL 7 / 1 */
++      else if ((cl == 3 || cl == 6 || cl == 12) && (g_xl_lane & 4) && (t[3] & 0xff00ffffu) == 0x6c008100u) nt = lane_fx(t, tadr, &s, &nx);
++                                                    /* sb6: lane 3's prims start with STCYCL 3, 6 or 12 / 1 and V4-32 to T + 0x100 (lane 1's
++                                                       streams after STCYCL 3 / 1 are V4-16) */
+       if (nt) { tadr = nx; guard += (uint32_t)nt; continue; } }
++#ifndef __psp__
++    if ((t[2] == 0x01000103u || t[2] == 0x01000106u || t[2] == 0x0100010cu) && (t[3] & 0xff00ffffu) == 0x6c008100u)   /* sb6 census: an effect
++                                                    prim's first tag left to the generic walk */
++      lane3_gen[!g_xl_one ? 4 : !(g_xl_lane & 4) ? 0 : s.left ? 2 : !(chcr & 0x40) ? 3 : 1]++;
++#endif
+ #endif
+     if (chcr & 0x40) { XL_ONE(t + 2, 2, tadr + 8); vif1_fast_words(t + 2, t + 4, &s); }   /* TTE: the tag's upper half */
+     switch (id) {
+--- sb5/runtime/host_time.h	2026-10-31 20:15:47.027277238 +0000
++++ sb6/runtime/host_time.h	2026-10-31 21:32:38.273953722 +0000
+@@ -84,6 +84,9 @@
+ #define OPT_XL_LANE4 268435456u         /* sb5, MGS2_XL builds (runtime/ee_io.h lane_p07, ge/xlate.c xl_lane_p07; renderer_notes 11.32): Stage B
+                                            lane 4, the walk hands the codec faces' P07 slots to the translator whole and P07 reads its
+                                            vertices from the game's data; off: word by word, as gl10.  The same picture either way */
++#define OPT_XL_LANE3 536870912u         /* sb6, MGS2_XL builds (runtime/ee_io.h lane_fx, ge/xlate.c xl_lane_fx; renderer_notes 11.33): Stage B
++                                           lane 3, the walk hands the sort pass's effect prims to the translator whole and P04+25f0 / +2870
++                                           read their vertices from the game's data; off: word by word, as sb5.  The same picture either way */
+ extern uint32_t g_opt;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);
+--- sb5/ge/xlate.h	2026-10-31 20:24:10.326742382 +0000
++++ sb6/ge/xlate.h	2026-10-31 21:32:51.055456853 +0000
+@@ -33,7 +33,13 @@
+    sb5, Stage B lane 4: a P07 call whose input came as a P07 slot (xl_lane_p07): lane 4, streams A to F in slots 0 to 5, vector i of slot
+    s being VU quadword T + 0x100 + s + 7 i for A to E (kind 2: V4-16 signed), and for F (kind 5: V4-8 unsigned, two vectors a vertex)
+    T + 0x105 + 7 i (vector 2 i) and T + 0x106 + 7 i (vector 2 i + 1); p[s] 0 when the slot did not send stream s.  The translator has
+-   decoded the quadwords P07 reads besides (T + 0 to 3, T + 0xfe, 0xff, abs 2 to 11, 16 to 19, 24 to 63) */
++   decoded the quadwords P07 reads besides (T + 0 to 3, T + 0xfe, 0xff, abs 2 to 11, 16 to 19, 24 to 63).
++   sb6, Stage B lane 3: a call whose input came as an effect prim of the sort pass (xl_lane_fx; renderer_notes 11.33): lane 3, p[0] the
++   positions (kind 1: V4-32 as they are; vector i is VU quadword T + 0x100 + cl i), p[1] the attributes (kind 2 or 3: V4-16 signed, plus
++   ROW for 3; with cl 3 vectors 2 i and 2 i + 1 are T + 0x101 + 3 i and T + 0x102 + 3 i), kind[2] 1 when the prim's layout is cl 3 (STCYCL
++   3 / 1 for the positions, 3 / 2 for the attributes: P04+25f0's and +2870's), else 0.  Given with every prim; the converter checks what it
++   reads (ge/vu1conv.h vc_fpos_rec).  For P04+25f0 and +2870 the translator has decoded the quadwords they read besides (T + 0x10 to 0x15,
++   abs 2 to 5) */
+ typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4]; } XlRec;
+ typedef struct {
+   uint32_t entry;               /* 0 when the micro code at the start address was never uploaded, or for an MSCNT after an entry
+@@ -47,7 +53,8 @@
+   const uint64_t *gr;           /* GS registers (gsref's numbering: the A+D address), valid until the next word */
+   const XlRec *rec;             /* sb1, sb2, sb5: the streams of a lane's P04+df0 call (lane 1), P06 call (lane 2) or P07 call (lane 4), else 0 */
+   uint32_t src;                 /* task #114: the guest address of the data of the last UNPACK to T + 0x100 (the first vertex quadword)
+-                                   since the previous call; 0: none (and a lane's call) */
++                                   since the previous call; 0: none (and a call of lanes 1, 2 and 4; lane 3 sets it as the words would) */
++  int lane;                     /* sb6: the lane that handed the call's group to the translator (1 .. 4; XlRec.lane), else 0 */
+ } XlCall;
+ typedef void (*XlCallFn)(void *ctx, const XlCall *c);
+ 
+@@ -120,7 +127,11 @@
+    of tag k (0: not sent, and for the tags without an UNPACK; the CNT's data is the slot's own).  As xl_lane_p04, the call's streams in
+    XlCall.rec lane 4 when its entry is P07 */
+ int xl_lane_p07(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
+-extern long xl_lane_groups[5];   /* sb2: groups the lanes took (index: the lane; sb5: lane 4, its P07 slots) */
++/* sb6, Stage B lane 3: one effect prim of the sort pass (runtime/ee_io.h lane_fx; renderer_notes 11.33): t its first tag (guest address
++   tadr), dp[k] the data of REF k (0 the positions, 1 the attributes, 2 the owner's block, 4 the REF 3; dp[3] and dp[5] 0: the CNT of 4's
++   data is the prim's own, the last CNT has none).  As xl_lane_p04, for every prim (one call, XlRec lane 3) */
++int xl_lane_fx(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp);
++extern long xl_lane_groups[5];   /* sb2: groups the lanes took (index: the lane; sb5: lane 4, its P07 slots; sb6: lane 3, its prims) */
+ void xl_lane(int on);
+ /* sb1, Stage B step "direct reads" (renderer_notes 11.22): xl_vm_need decodes, before a converter call, only the quadwords of the VU
+    memory model that its converter reads (for an entry with no converter: all, as xl_vm_sync); the rest wait for a later read, a write
+--- sb5/ge/xlate.c	2026-10-31 20:17:19.121539416 +0000
++++ sb6/ge/xlate.c	2026-10-31 21:37:15.129885642 +0000
+@@ -420,7 +420,13 @@
+        lights, their colours, the ambient), abs 32 .. 63 (the bones), T + 0xfe, 0xff (pass 3's scale and offset) */
+     vm_dec(c.top, 4); vm_dec(2, 10); vm_dec(16, 4); vm_dec(24, 40); vm_dec(c.top + 0xfe, 2);
+     c.rec = rec;
++  } else if (rec && rec->lane == 3 && (c.entry == XL_FX || c.entry == XL_FX2)) {
++    /* sb6 lane 3: what P04+25f0 / +2870 read besides the streams (vu1conv.c vc_fpos_rec, vc_xform; xconv.c xc_fpos): T + 0x10 .. 0x13 (the
++       matrix), 0x14 (the header), 0x15 (the tag template, read above), abs 2 .. 5 (fog, alpha, viewport) */
++    vm_dec(c.top + 0x10, 6); vm_dec(2, 4);
++    c.rec = rec;
+   }
++  if (rec) c.lane = rec->lane;
+   c.vm = VM; c.gr = gr;
+   if (call_fn) call_fn(call_ctx, &c);
+   if (r && r->passes) passes(&c, r->passes);
+@@ -613,6 +619,34 @@
+   xl_lane_groups[4]++;
+   return 1;
+ }
++/* sb6, Stage B lane 3 (xlate.h): one effect prim, tag k at quadword k (k < 4) or k + 4, as xl_vif1_span takes its words: each tag's TTE
++   words (STCYCL and the UNPACK; the last tag's a NOP and MSCAL), then a REF's or the CNT's data, all waiting */
++int xl_lane_fx(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp)
++{
++  (void)tadr;   /* (the CNT's data at tadr + 0x40 is the prim's own: t + 16) */
++  if (vleft || V.mode >= 2) return 0;
++  { int cl = V.cl, wl = V.wl, ok = 1;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones in STCYCL 1 / 1 always wait) */
++    for (int k = 0; k < 2; k++) { V.cl = (int)(t[4 * k + 2] & 0xff); V.wl = (int)(t[4 * k + 2] >> 8 & 0xff); if (!ud_ok(t[4 * k + 3])) ok = 0; }
++    V.cl = cl; V.wl = wl; if (!ok) return 0; }
++  static XlRec R;
++  for (int k = 0; k < 5; k++) {
++    const uint32_t *g = t + 4 * (k < 4 ? k : k + 4), *p = k == 3 ? t + 16 : dp[k]; uint32_t w = g[3], nw = 4 * (g[0] & 0xffff);
++    int c = (int)(w >> 24 & 0x7f);
++    St.words += 2 + nw; St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff); St.cmds[c]++; XC(St.wd[c] += nw);
++    up_census(w); ud_new(w, p, nw);
++    if (k < 2) { const Ud *d = &UD[ud_n - 1]; R.p[k] = d->p; R.num[k] = d->num; R.kind[k] = (uint8_t)ud_kind(d); }   /* the positions (kind
++                                                        1: V4-32), the attributes (2, 3: V4-16 signed) */
++  }
++  R.kind[2] = (t[2] & 0xffff) == 0x0103 && (t[6] & 0xffff) == 0x0203;   /* the layout P04+25f0 and +2870 read: cl 3 */
++  St.words += 2; St.cmds[0]++;   /* the last tag: a NOP, then MSCAL */
++  vsrc0 = t[33] & 0xfffffff0u; usrc = t[1] & 0xfffffff0u;   /* (xl_vif1_span's: where the last data began, the REF 3's; where the
++                                                        positions' did, the UNPACK to T + 0x100: XlCall.src for the thinning) */
++  memcpy(R.row, V.row, 16); R.lane = 3;
++  vcmd = t[39]; vn = 0; dqn = 0; uvert = 0; St.cmds[0x14]++;
++  call(t[39] & 0xffff, 0, &R);
++  xl_lane_groups[3]++;
++  return 1;
++}
+ void xl_lane(int on) { vm_all(); lane_on = on; }
+ /* sb1 (xlate.h): what each converter reads (ge/vu1conv.c, ge/xconv.c), every vq() address of it: abs 0..0x3f (the pass constants, fog,
+    viewport, alpha; P07's matrix, lights and ramp), T + 0..0x17 (the matrices, lights, skin, pass 3's matrix, the header), T + 0xfe and
+--- sb5/ge/vu1conv.h	2026-10-31 20:24:10.327917741 +0000
++++ sb6/ge/vu1conv.h	2026-10-31 21:34:21.920609868 +0000
+@@ -41,6 +41,16 @@
+    transform (the matrix at T+0x10..0x13; world rows without the x 32768) and vertices; flags as vc_df0 (from the UV qword's w).
+    Returns the vertex count; -1: the header's count is above max; -4: a colour word above 255 or a UV z other than 1.0. */
+ int vc_fpos(const uint8_t *vm, uint32_t top, VcXform *x, VcVertF *v, uint16_t *flags, int max);
++/* sb6, Stage B lane 3 (renderer_notes 11.33): vc_fpos with the vertices read from the game's data (ge/xlate.h XlRec lane 3: p[0] the
++   positions, num[0] vectors of V4-32, kind[0] 1; p[1] the attributes, num[1] vectors of V4-16 signed, kind[1] 2, or 3 plus row; kind[2] 1:
++   the layout vc_fpos reads, cl 3), the rest from vm as vc_fpos reads it.  The same results as vc_fpos on the VU memory those streams leave;
++   -8 when they do not hold what vc_fpos would read (vc_fpos_rec_ok: another kind or layout, fewer vectors than the header's count n) */
++static inline int vc_fpos_rec_ok(const void *const *p, const uint16_t *num, const uint8_t *kind, int n)
++{
++  return p[0] && p[1] && kind[2] == 1 && kind[0] == 1 && (kind[1] == 2 || kind[1] == 3) && n <= (int)num[0] && 2 * n <= (int)num[1];
++}
++int vc_fpos_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint16_t *num, const uint8_t *kind, const uint32_t *row, VcXform *x,
++                VcVertF *v, uint16_t *flags, int max);
+ 
+ /* The P04 pre-lit clipper (micro address 0x1710, re/vu1_programs.md §2.5) on one triangle, as the PS2 runs it: the +z (near) plane if a
+    vertex is outside it; then the colours times w; then -z, +x, -x, +y, -y, each when one of the (at most 4) vertices left after the near
+--- sb5/ge/vu1conv.c	2026-10-31 20:18:49.768576308 +0000
++++ sb6/ge/vu1conv.c	2026-10-31 21:34:21.919788026 +0000
+@@ -113,6 +113,40 @@
+   return bad ? -4 : n;
+ }
+ 
++/* sb6, Stage B lane 3 (vu1conv.h): vc_fpos's loop on the streams, K the attributes' kind (2: V4-16 signed, 3: plus ROW), each quadword
++   as the translator decodes it (ge/xlate.c ud_dec), then vc_fpos's arithmetic in its order */
++static inline __attribute__((always_inline)) int fpos_rec_loop(const uint32_t *P, const vc_h16 *A, const uint32_t *row, VcVertF *v, uint16_t *flags,
++                                                               int n, const int K)
++{
++  const uint32_t r0 = K == 3 ? row[0] : 0, r1 = K == 3 ? row[1] : 0, r2 = K == 3 ? row[2] : 0, r3 = K == 3 ? row[3] : 0;
++  int bad = 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t *p = P + 4 * i; const vc_h16 *a = A + 8 * i;   /* vertex i: T + 0x100 + 3 i; T + 0x101 + 3 i (vector 2 i), 0x102 + 3 i */
++    uint32_t c[4] = { (uint32_t)(int32_t)a[0] + r0, (uint32_t)(int32_t)a[1] + r1, (uint32_t)(int32_t)a[2] + r2, (uint32_t)(int32_t)a[3] + r3 };
++    uint32_t t[4] = { (uint32_t)(int32_t)a[4] + r0, (uint32_t)(int32_t)a[5] + r1, (uint32_t)(int32_t)a[6] + r2, (uint32_t)(int32_t)a[7] + r3 };
++    for (int k = 0; k < 4; k++) if (c[k] > 255) bad = 1;
++    if (t[2] != 0x1000) bad = 1;
++    v[i].x = vfl(p[0]); v[i].y = vfl(p[1]); v[i].z = vfl(p[2]);
++    v[i].u = (float)(int32_t)t[0] / 4096.0f; v[i].v = (float)(int32_t)t[1] / 4096.0f;
++    v[i].c = (c[0] & 0xffu) | (c[1] & 0xffu) << 8 | (c[2] & 0xffu) << 16 | vc_a2((int)(c[3] & 0xffu)) << 24;
++    flags[i] = (uint16_t)t[3];
++  }
++  return bad;
++}
++int vc_fpos_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint16_t *num, const uint8_t *kind, const uint32_t *row, VcXform *x,
++                VcVertF *v, uint16_t *flags, int max)
++{
++  const uint32_t *h = vq(vm, top + 0x14);
++  int n = (int)(h[0] & 0xffff);
++  if (n > max) return -1;
++  if (!vc_fpos_rec_ok(p, num, kind, n)) return -8;
++  vc_xform(vm, top, 0x10, 1.0f, x);
++  x->n = n; x->clip = 1;   /* (as vc_fpos) */
++  int bad = kind[1] == 2 ? fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 2) :
++                           fpos_rec_loop((const uint32_t *)p[0], (const vc_h16 *)p[1], row, v, flags, n, 3);
++  return bad ? -4 : n;
++}
++
+ float vc_vu(float f) { uint32_t u; memcpy(&u, &f, 4); return vfl(u); }
+ void vc_vu_clip(const float *m, const float *p, float *c)
+ {
+--- sb5/ge/xconv.h	2026-10-31 20:24:27.284700171 +0000
++++ sb6/ge/xconv.h	2026-10-31 21:40:27.340148947 +0000
+@@ -90,6 +90,11 @@
+ /* sb5, Stage B lane 4: P07 calls whose vertices came from the slot's streams (xc_rec7_calls) and those that needed the VU memory
+    (xc_rec7_vm: ge/vu1conv.h vc_p07_rec -8); with xc_rec_chk, xc_rec7_n of the first checked against vc_p07, xc_rec7_diff not the same */
+ extern long xc_rec7_calls, xc_rec7_vm, xc_rec7_n, xc_rec7_diff;
++/* sb6, Stage B lane 3: lane 3's P04+25f0 / +2870 calls whose vertices came from the prim's streams (xc_rec3_calls) and those that
++   needed the VU memory (xc_rec3_vm: ge/vu1conv.h vc_fpos_rec_ok 0); with xc_rec_chk, xc_rec3_n of the first checked against the VU memory,
++   decoded: every quadword of the vertices xc_fpos reads (position, colour, UV of the header's count) the same, and for a call whose
++   vertices are not all at one place vc_fpos's every output the same as vc_fpos_rec's; xc_rec3_diff not the same */
++extern long xc_rec3_calls, xc_rec3_vm, xc_rec3_n, xc_rec3_diff;
+ 
+ /* 1: the call's batch in *b and its data in blob[0..*size); b->first: the batch's offset in the blob (0 but for P06 and P07), to
+    which the host adds the blob's offset in its data block; 0: no batch (an entry without a converter, an MSCNT, or nothing drawn);
+--- sb5/ge/xconv.c	2026-10-31 20:33:02.322395802 +0000
++++ sb6/ge/xconv.c	2026-10-31 21:40:18.249299693 +0000
+@@ -220,15 +220,60 @@
+   return 0;
+ }
+ /* P04+25f0 / +2870: the strip's triangles by class, and the PS2 clipper's polygons (ge/vu1conv.h vc_clip_tri) for the crossing ones */
++long xc_rec3_calls, xc_rec3_vm, xc_rec3_n, xc_rec3_diff;   /* sb6 (xconv.h) */
++typedef int16_t __attribute__((may_alias)) xc_h16;
++/* sb6 lane 3: vertex j's colour and UV quadwords (T + 0x101 + 3 j, 0x102 + 3 j) as the VU memory holds them: from the prim's attributes
++   (XlRec p[1]: V4-16 signed, plus ROW for kind 3, as ge/xlate.c ud_dec decodes them), else from the VU memory */
++static inline void fx_attr(const XlCall *c, const XlRec *r, int j, uint32_t *col, uint32_t *uv)
++{
++  if (r) { const xc_h16 *a = (const xc_h16 *)r->p[1] + 8 * j; int k3 = r->kind[1] == 3;
++    for (int q = 0; q < 4; q++) { col[q] = (uint32_t)(int32_t)a[q] + (k3 ? r->row[q] : 0); uv[q] = (uint32_t)(int32_t)a[4 + q] + (k3 ? r->row[q] : 0); } }
++  else { memcpy(col, vq(c->vm, c->top + 0x101 + 3 * j), 16); memcpy(uv, vq(c->vm, c->top + 0x102 + 3 * j), 16); }
++}
+ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   static VcVertF v[1024], pv[8192]; static uint16_t fl[1024], pfan[1024][2]; static uint8_t cls[1024], cf[1024]; static float cc[1024][4];
+   if (h->trace) h->trace->n = 0;
+   /* a call whose vertices all lie at one point draws nothing (the deck's unused particles; some of them hold colour words above 255) */
+   int n0 = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff), same = n0 <= 1024;
+-  for (int i = 1; i < n0 && same; i++) same = !memcmp(vq(c->vm, c->top + 0x100 + 3 * i), vq(c->vm, c->top + 0x100), 12);
++  /* sb6 lane 3: the vertices from the prim's streams when they hold every quadword xc_fpos reads, else from the VU memory, decoded */
++  const XlRec *rr = c->rec && c->rec->lane == 3 ? c->rec : 0;
++#ifndef __psp__
++  int chk = 0;   /* (x86, xc_rec_chk: this call is checked; chk 2: a difference seen) */
++#endif
++  if (rr && !vc_fpos_rec_ok(rr->p, rr->num, rr->kind, n0)) { rr = 0; xc_rec3_vm++; xl_vm_sync(); }
++  else if (rr) {
++    xc_rec3_calls++;
++#ifndef __psp__   /* (x86 only) */
++    if (xc_rec_chk) {   /* every quadword of the vertices xc_fpos reads (position, colour, UV of the header's count) against the VU memory, decoded */
++      xl_vm_sync(); chk = 1; xc_rec3_n++;
++      for (int i = 0; i < n0 && chk == 1; i++) { uint32_t q[2][4];
++        fx_attr(c, rr, i, q[0], q[1]);
++        if (memcmp((const uint32_t *)rr->p[0] + 4 * i, vq(c->vm, c->top + 0x100 + 3 * i), 16) || memcmp(q[0], vq(c->vm, c->top + 0x101 + 3 * i), 16) ||
++            memcmp(q[1], vq(c->vm, c->top + 0x102 + 3 * i), 16)) chk = 2; }
++    }
++#endif
++  }
++  if (rr) { const uint32_t *P = (const uint32_t *)rr->p[0]; for (int i = 1; i < n0 && same; i++) same = !memcmp(P + 4 * i, P, 12); }
++  else for (int i = 1; i < n0 && same; i++) same = !memcmp(vq(c->vm, c->top + 0x100 + 3 * i), vq(c->vm, c->top + 0x100), 12);
++#ifndef __psp__
++  if (chk && same) xc_rec3_diff += chk == 2;
++#endif
+   if (same) return 0;
+-  VcXform x; int n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
++  VcXform x; int n;
++  if (rr) {
++    n = vc_fpos_rec(c->vm, c->top, rr->p, rr->num, rr->kind, rr->row, &x, v, fl, 1024);
++    if (n == -8) { rr = 0; xc_rec3_calls--; xc_rec3_vm++; xl_vm_sync(); n = vc_fpos(c->vm, c->top, &x, v, fl, 1024); }   /* (not expected:
++                                                        vc_fpos_rec_ok above) */
++#ifndef __psp__
++    else if (chk) {   /* vc_fpos on the VU memory, decoded: its every output the same */
++      static VcVertF ev[1024]; static uint16_t ef[1024]; VcXform ex;
++      int ne = vc_fpos(c->vm, c->top, &ex, ev, ef, 1024);
++      if (ne != n || memcmp(&ex, &x, sizeof x) || (n > 0 && (memcmp(ev, v, (size_t)n * sizeof *v) || memcmp(ef, fl, 2 * (size_t)n)))) chk = 2;
++      xc_rec3_diff += chk == 2;
++    }
++#endif
++  } else n = vc_fpos(c->vm, c->top, &x, v, fl, 1024);
+   if (n < 0) return n;
+   /* task #114: a thinned effect (XcHost.thin): strips 0, keep, 2 keep ... drawn; drop[i]: vertex i is in a strip left out */
+   static uint8_t drop[1024]; int keep = 1;
+@@ -242,7 +287,9 @@
+   for (int k = 0; fm && k < 16; k++) fm = vc_clip_in(x.m[k]);
+   XcTrace *tr = h->trace;
+   for (int i = 0; i < n; i++) { float p[3] = { v[i].x, v[i].y, v[i].z };
+-    int a = (int)(vq(c->vm, c->top + 0x101 + 3 * i)[3] & 0xff); if (a < amin) amin = a;
++    int a = rr ? (int)(((uint32_t)(int32_t)((const xc_h16 *)rr->p[1])[8 * i + 3] + (rr->kind[1] == 3 ? rr->row[3] : 0)) & 0xff) :
++                 (int)(vq(c->vm, c->top + 0x101 + 3 * i)[3] & 0xff);   /* (sb6: the colour's w) */
++    if (a < amin) amin = a;
+     if (keep > 1 && drop[i] && !tr) { cf[i] = 0; continue; }   /* (its triangles are not drawn; a trace gets every position) */
+     St.clip[0]++;
+     if (fm && vc_clip_in(p[0]) && vc_clip_in(p[1]) && vc_clip_in(p[2])) vc_vu_clip_nc(x.m, p, cc[i]);
+@@ -271,7 +318,7 @@
+       if (q[3] <= 0 || Z > h->zhi || Z < h->zlo) across = 1; }
+     cls[i] = o == 0 && !across && (fl[i] & 0x30) == 0x30 ? 3 : 4; St.tris[cls[i]]++;
+     VcCv in[3], out[16];   /* the clipper's input as the main loop stores it back: clip position, ITOF0 colour, ITOF12 UV (z = 1.0) */
+-    for (int k = 0; k < 3; k++) { int j = i - 2 + k; const uint32_t *col = vq(c->vm, c->top + 0x101 + 3 * j), *uv = vq(c->vm, c->top + 0x102 + 3 * j);
++    for (int k = 0; k < 3; k++) { int j = i - 2 + k; uint32_t col[4], uv[4]; fx_attr(c, rr, j, col, uv);
+       memcpy(in[k].c, cc[j], 16);
+       for (int q = 0; q < 4; q++) in[k].col[q] = (float)(int32_t)col[q];
+       for (int q = 0; q < 3; q++) in[k].uv[q] = (float)(int32_t)uv[q] / 4096.0f;
+@@ -530,7 +577,6 @@
+ 
+ /* ---- sb4, step c (xconv.h; renderer_notes 11.29): lane 2's P06 calls held to the end of their transfer ---- */
+ int xc_held_force, xc_held_poison;
+-typedef int16_t __attribute__((may_alias)) xc_h16;
+ static int hq_skin(uint32_t e) { return e == VC_P06S || e == VC_P06ST; }
+ static int hq_tint(uint32_t e) { return e == VC_P06T || e == VC_P06ST; }
+ static int hq_p3(uint32_t hy) { return (hy & 0x600) && !(hy & 0x100); }   /* pass 3 drawn (xc_lit's p3 > 0) */
+--- sb5/boot/xlive_chk.c	2026-10-31 20:24:46.039732727 +0000
++++ sb6/boot/xlive_chk.c	2026-10-31 21:57:25.363639741 +0000
+@@ -115,9 +115,11 @@
+ extern uint32_t g_dg_calls[2];   /* boot.c: draw-pipeline calls, full / reduced */
+ static int skip_on, skip_now; static uint32_t sk_c0, sk_c1; static long sk_vb, sk_tr;   /* MGS2_XLIVE_SKIP */
+ extern int g_xl_one;                    /* runtime/ee_io.h: the exact walk feeds the translator (MGS2_XLIVE_ONE) */
+-extern int g_xl_lane;                   /* sb1, sb2 runtime/ee_io.h: Stage B lanes (MGS2_SB_LANE: bit 0 lane 1, bit 1 lane 2, sb5 bit 3 lane 4;
+-                                           MGS2_SB_CHK=1 checks the lanes' df0, P06 and P07 input) */
++extern int g_xl_lane;                   /* sb1, sb2 runtime/ee_io.h: Stage B lanes (MGS2_SB_LANE: bit 0 lane 1, bit 1 lane 2, sb5 bit 3 lane 4,
++                                           sb6 bit 2 lane 3; MGS2_SB_CHK=1 checks the lanes' df0, P06, P07 and effect input) */
+ extern long lane7_miss[8];              /* sb5 runtime/ee_io.h lane_p07: tags with STCYCL 7 / 1 where no slot was taken, by the failed test */
++extern long lane3_miss[8], lane3_gen[8];   /* sb6 runtime/ee_io.h lane_fx: tags that start an effect prim where it took none, by the failed
++                                           test; such tags the generic walk took, by why the lane did not look (vif1_chain_fast) */
+ static int one_on; static long one_tr; static struct timespec one_t0;
+ static uint64_t ph = 0xcbf29ce484222325ull;
+ static long cur_vb;
+@@ -531,23 +533,27 @@
+ }
+ static long ncall, nprim; static int sync_on, dig_on, cg_on; static double t_walk; static uint8_t lvm[16384] __attribute__((aligned(16)));
+ #define EC_N 256
+-typedef struct { uint32_t entry; long calls, notpl, first; } EntCnt;
++typedef struct { uint32_t entry; long calls, notpl, first, lane[5]; } EntCnt;   /* (sb6: lane[k] calls of lane k, 0 the generic walk) */
+ static EntCnt ec[EC_N]; static int ec_n, ec_last, census_n; static long census_at[32];
+ static void ec_add(const XlCall *c)
+ {
+   int i = ec_last;
+   if (i >= ec_n || ec[i].entry != c->entry) {
+     for (i = 0; i < ec_n && ec[i].entry != c->entry; i++) {}
+-    if (i == ec_n) { if (ec_n == EC_N) return; ec[ec_n++] = (EntCnt){ c->entry, 0, 0, cur_vb };
++    if (i == ec_n) { if (ec_n == EC_N) return; ec[ec_n++] = (EntCnt){ c->entry, 0, 0, cur_vb, { 0, 0, 0, 0, 0 } };
+       fprintf(stderr, "xlive: vb %ld: entry %06x called first (%s)\n", cur_vb, (unsigned)c->entry, xl_rule(c->entry) ? "a rule" : "no rule"); }
+     ec_last = i;
+   }
+   ec[i].calls++; if (c->tag_qa == ~0u) ec[i].notpl++;
++  ec[i].lane[c->lane >= 0 && c->lane <= 4 ? c->lane : 0]++;
+ }
+ static void ec_report(long vb)
+ {
+   for (int i = 0; i < ec_n; i++) fprintf(stderr, "xlive census: to vb %ld: entry %06x (%s): %ld calls, %ld without a tag template, the first in vb %ld\n",
+                                          vb, (unsigned)ec[i].entry, xl_rule(ec[i].entry) ? "a rule" : "no rule", ec[i].calls, ec[i].notpl, ec[i].first);
++  if (g_xl_lane) for (int i = 0; i < ec_n; i++) if (ec[i].calls != ec[i].lane[0])   /* sb6: the entries a lane called, by lane */
++    fprintf(stderr, "sb census: to vb %ld: entry %06x: %ld calls: the generic walk %ld, lane 1 %ld, lane 2 %ld, lane 3 %ld, lane 4 %ld\n", vb,
++            (unsigned)ec[i].entry, ec[i].calls, ec[i].lane[0], ec[i].lane[1], ec[i].lane[2], ec[i].lane[3], ec[i].lane[4]);
+ }
+ static void on_trx(void *ctx, const uint64_t *gr)
+ {
+@@ -728,6 +734,9 @@
+   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
+   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
++  glf.ram = mem;   /* sb6: the thinning's scan (gelive.c fx_thin_scan) reads the game's RAM through glf.ram, which a frame's start copies
++                      from M.mem; with the translator started late (MGS2_XLIVE <from> > 0) the first frame begins before this first transfer,
++                      M.mem still 0: the digest runs from vb 30,800 stopped there at the rain's first +25f0 call.  The same pointer otherwise */
+   if (one_on && one) { one_tr++; g_xl_one = 1; clock_gettime(CLOCK_MONOTONIC, &one_t0); return; }   /* the exact walk feeds it */
+   struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
+   xlv_dma(&M, ch, chcr, madr, qwc, tadr);
+@@ -751,6 +760,11 @@
+                              "STCYCL 7 / 1 tags not taken: room %ld, tag 0 %ld, tags 1-5 %ld, tags 6-19 %ld, data %ld, declined %ld\n", xl_lane_groups[4],
+                              xc_rec7_calls, xc_rec7_vm, xc_rec7_n, xc_rec7_diff, lane7_miss[0], lane7_miss[1], lane7_miss[2], lane7_miss[3],
+                              lane7_miss[4], lane7_miss[5]);
++  if (g_xl_lane) fprintf(stderr, "sb lane 3: prims %ld; %ld 25f0 / 2870 calls from the game's streams, %ld from the VU memory, checked %ld, differing %ld; "
++                         "prim tags not taken: room %ld, tag 0 %ld, tag 1 %ld, tags 2-5 %ld, data %ld, declined %ld; prim tags left to the generic walk: "
++                         "lane 3 off %ld, not taken %ld, data left %ld, no TTE %ld, not the one walk %ld\n", xl_lane_groups[3], xc_rec3_calls, xc_rec3_vm,
++                         xc_rec3_n, xc_rec3_diff, lane3_miss[0], lane3_miss[1], lane3_miss[2], lane3_miss[3], lane3_miss[4], lane3_miss[5], lane3_gen[0],
++                         lane3_gen[1], lane3_gen[2], lane3_gen[3], lane3_gen[4]);
+   if (gl_need) fprintf(stderr, "sb need: %ld converter calls, %ld descriptors decoded for them; checked %ld, differing %ld\n", xl_stats()->need_calls,
+                        xl_stats()->need_runs, gl_need_n, gl_need_diff);
+   fprintf(stderr, "xlive: vb %ld..%ld: %ld transfers, %ld tags, %ld quadwords (%ld chains cut at 1,000,000 tags); translator: %ld VIF1 words, "
+@@ -900,10 +914,10 @@
+     for (const char *c = getenv("MGS2_XLIVE_CENSUS"); c && *c && census_n < 32; ) { census_at[census_n++] = strtol(c, (char **)&c, 10); if (*c == ',') c++; else break; }
+     vc_on = getenv("MGS2_XLIVE_VCEN") && atoi(getenv("MGS2_XLIVE_VCEN"));
+     if (getenv("MGS2_SB_NEED") && atoi(getenv("MGS2_SB_NEED"))) { gl_need = 1; xl_need(1); gl_need_chk = getenv("MGS2_SB_NCHK") && atoi(getenv("MGS2_SB_NCHK")); }
+-    if (getenv("MGS2_SB_LANE") && (atoi(getenv("MGS2_SB_LANE")) & 0xb)) { g_xl_lane = atoi(getenv("MGS2_SB_LANE")) & 0xb; xl_lane(1);
++    if (getenv("MGS2_SB_LANE") && (atoi(getenv("MGS2_SB_LANE")) & 0xf)) { g_xl_lane = atoi(getenv("MGS2_SB_LANE")) & 0xf; xl_lane(1);
+       xc_rec_chk = getenv("MGS2_SB_CHK") && atoi(getenv("MGS2_SB_CHK"));
+-      fprintf(stderr, "xlive mode: Stage B lanes%s%s%s (MGS2_SB_LANE)%s\n", (g_xl_lane & 1) ? " 1" : "", (g_xl_lane & 2) ? " 2" : "",
+-              (g_xl_lane & 8) ? " 4" : "", xc_rec_chk ? ", their df0, P06 and P07 input checked (MGS2_SB_CHK)" : ""); }
++      fprintf(stderr, "xlive mode: Stage B lanes%s%s%s%s (MGS2_SB_LANE)%s\n", (g_xl_lane & 1) ? " 1" : "", (g_xl_lane & 2) ? " 2" : "",
++              (g_xl_lane & 4) ? " 3" : "", (g_xl_lane & 8) ? " 4" : "", xc_rec_chk ? ", their df0, P06, P07 and effect input checked (MGS2_SB_CHK)" : ""); }
+     xc_held_force = getenv("MGS2_SB_FORCE") && atoi(getenv("MGS2_SB_FORCE")); xc_held_poison = getenv("MGS2_SB_POISON") && atoi(getenv("MGS2_SB_POISON"));
+     vc_p06_exact = getenv("MGS2_SB_P6EXACT") && atoi(getenv("MGS2_SB_P6EXACT"));
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
+--- sb5/psp/xl_psp.c	2026-10-31 20:25:02.184715679 +0000
++++ sb6/psp/xl_psp.c	2026-10-31 21:32:38.274438088 +0000
+@@ -54,7 +54,7 @@
+ static int state;                        /* 0: not started, 1: on, 2: off since it was on, -1: no memory for the map */
+ static long ncall, nprim, nrestart, ntransfer, none;
+ extern int g_xl_one;                     /* runtime/ee_io.h: the exact walk feeds the translator */
+-extern int g_xl_lane;                    /* sb1, sb2 runtime/ee_io.h: Stage B lanes 1 (OPT_XL_LANE) and 2 (OPT_XL_LANE2); sb5 lane 4 (OPT_XL_LANE4) */
++extern int g_xl_lane;                    /* sb1, sb2 runtime/ee_io.h: Stage B lanes 1 (OPT_XL_LANE) and 2 (OPT_XL_LANE2); sb5 lane 4 (OPT_XL_LANE4); sb6 lane 3 (OPT_XL_LANE3) */
+ char *mgs2_getenv(const char *k);        /* main_psp.c: mgs2.cfg's settings (newlib's getenv does not see them) */
+ static int one_mode = 1, skip_mode = 1, cfg_read;   /* MGS2_XL_ONE, MGS2_XL_SKIP */
+ static int skip_now; static long sk_vb, sk_tr;      /* shown frames only: this step's transfers are skipped; vblanks, transfers skipped */
+@@ -313,8 +313,8 @@
+   if (!(g_opt & OPT_XL)) { if (state == 1) state = 2; return; }
+   { static int ud = 1; int m = (g_opt & OPT_XL_VMUD) != 0; if (m != ud) { xl_vm_mode(m); ud = m; } }   /* (xlate.c's default: 1) */
+   { static int v4 = 1; int m = (g_opt & OPT_XL_V48) != 0; if (m != v4) { xl_ud_v48(m); v4 = m; } }   /* (xlate.c's default: 1) */
+-  { static int ln = 0; int m = ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE4) ? 8 : 0);   /* sb1, sb2,
+-                                                         sb5 lanes (xlate.c starts with them off) */
++  { static int ln = 0; int m = ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) |
++                              ((g_opt & OPT_XL_LANE4) ? 8 : 0);   /* sb1, sb2, sb6, sb5 lanes (xlate.c starts with them off) */
+     if (m != ln) { xl_lane(m != 0); g_xl_lane = m; ln = m; } }
+ #ifdef SB_NEED   /* sb1 direct reads: exact, but slower in the model (renderer_notes 11.22), so only in builds made with -DSB_NEED */
+   { static int nd = 0; int m = (g_opt & OPT_XL_NEED) != 0; if (m != nd) { xl_need(m); gl_need = m; nd = m; } }   /* (off at start) */

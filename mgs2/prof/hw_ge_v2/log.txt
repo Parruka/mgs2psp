@@ -1,0 +1,13 @@
+MGS2 GE replay v2
+clock 333/166: set (cpu 333 MHz, bus 166 MHz)
+ms0:/PSP/GAME/MGS2GE_v2/deck_ge.bin: vb 24056, 12250 batches, 59312 vertices, 322 textures, 1675392 data bytes
+other          12162 batches,  4837541 GE pixels
+mist               1 batches,   930237 GE pixels
+small sprites     85 batches,   117042 GE pixels
+depth blur         1 batches,   261120 GE pixels
+motion trail       1 batches,   130050 GE pixels
+textures in VRAM: 175 of them, 688 KB, 99.0% of the palette-textured GE pixels
+GE time per frame (ms; mean, min) and CPU time to build its list (ms), 39 frames x 3 rounds per mode:
+  full                       GE   75.47  min   73.44   build  18.29
+largest list 331 KB (of 4096); blends with no GE mapping: 0
+Press X (or HOME) to exit.

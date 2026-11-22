@@ -1,0 +1,47 @@
+== a1 (gl30's G1 command, NAT key absent) vs gl30's twin out_g1.log
+/home/claude/main/build_gl30/x86/out_g1.log: 17664 picture lines, 17664 content; tw/x86/out_a1.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : not in both logs (0, 17664)
+natz                                                : not in both logs (0, 17664)
+natq                                                : not in both logs (0, 17664)
+== a2 (the PSP cfg's schedule, NAT key absent) vs gl30's twin out_g1.log
+/home/claude/main/build_gl30/x86/out_g1.log: 17664 picture lines, 17664 content; tw/x86/out_a2.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : not in both logs (0, 17664)
+natz                                                : not in both logs (0, 17664)
+natq                                                : not in both logs (0, 17664)
+== b (0,0,3,3) vs a2
+tw/x86/out_a2.log: 17664 picture lines, 17664 content; tw/x86/out_b.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 69; arm 0: 30 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30922..31000, first [30922, 30924, 30926, 30928, 30930, 30932, 30934, 30936]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+== b (0,0,3,3) vs gl30's twin out_g1.log
+/home/claude/main/build_gl30/x86/out_g1.log: 17664 picture lines, 17664 content; tw/x86/out_b.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 3: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 92; arm 0: 53 of 14364; arm 3: 38 of 3233; first picture of a turn: 1 of 67
+      arm 0: vb 30854..31000, first [30854, 30856, 30858, 30860, 30862, 30864, 30866, 30868]
+      arm 3: vb 31008..31082, first [31008, 31010, 31012, 31014, 31016, 31018, 31020, 31022]
+      first picture of a turn: vb 31002..31002, first [31002]
+natb                                                : not in both logs (0, 17664)
+natz                                                : not in both logs (0, 17664)
+natq                                                : not in both logs (0, 17664)

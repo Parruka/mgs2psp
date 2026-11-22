@@ -1,0 +1,34 @@
+# gl18: gl17 with the rain's exact skips (rain_study.md sections 6-10; DEVIATIONS.md E5): on the aft deck the game's rain actors
+# still run every step as on the PS2, but the work whose result only the left-out pictures would use is skipped: the rain's sprites
+# (left out since 2026-11-03 18:19) and its streaks (none since 17:38) are hidden from the drawing code, and their vertex work is
+# done in place or not at all where nothing reads it. The game's choices, its random numbers, the sound and every picture stay the
+# PC's (checked on the PC for the whole route with the skips on and off). The effects of gl17's test (glows, smoke, haze) are off,
+# as by default. C1 (the faces on the GE) and step 3's trims stay on; C2 (the people on the GE) stays off.
+# Timing settings taking turns: from vblank 1000 to the end, 100 vblanks each, two in turn: first only the hiding (H3 and H3R),
+# then every skip on (G0, G0H, H3, NBS, G0C, H3R, G0R). So each all-skips turn sits between two hide-only turns. The log's windows
+# and steps.csv's cfg column: 36 hide-only, 35 every skip on.
+MGS2_OPT_CYCLE=1000:100:ffffffff,ffffffff
+MGS2_OPT2_CYCLE=fffd21df,fffff9df
+# The rain: the big sheets of speckled drops close to the camera drawn whole (1 = every strip, as the PS2), the splash at Snake's
+# feet 1 strip in 2 (as gl10), no rain streaks (0), the rain's own sprites left out (0). The skips above are exact only with these
+# last two at 0.
+MGS2_GL_RAIN=1
+MGS2_GL_SPLASH=2
+MGS2_GL_STREAKS=0
+MGS2_GL_RAIN_SPRITES=0
+# Frame checks: the frames whose last vblank lies in 31561-31959 (indoors, Snake and the guards) get their list and frame digests in
+# log.txt, to compare with the PC's, which builds the same frames word for word (measurement only, outside the step's time).
+MGS2_GL_DIG=31561:31959
+# Pictures: at these vblanks the frame on the screen is saved as shot_<vblank>.bmp next to the EBOOT (outside the step's time), to
+# compare with the emulator's and with gl17's: the same sixteen moments as gl15 to gl17.
+MGS2_GL_SHOT=8762,10518,15763,23265,24246,24786,29502,30502,31114,31665,32503,33615,34913,35029,35591,36943
+# The crash catcher: 3 = catcher 3b, as in gl6. At a crash the record goes on the screen (red text); then, when the crash came from
+# the game or the harness (not from the system), the stopped thread is handed back to the system asleep, the way the PSPLink debugger
+# does it, and the PSP's other threads run again: the record also goes to crash.txt and log.txt (green lines under the record say
+# so), and battery.txt goes on. HOME should then quit. At the start the screen offers the self-test: X makes a deliberate error that
+# must end with the SELF-TEST record and three green lines; O, or 15 s without an answer, starts the run.
+MGS2_EXC=3
+# The texture pool: 2688 KB, as gl6.
+MGS2_GL_TEXKB=2688
+# The deepest use of the main thread's stack, in the log's last lines: 1 = measured (outside the steps' time).
+MGS2_STACK_MARK=1

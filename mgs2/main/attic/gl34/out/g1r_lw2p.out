@@ -1,0 +1,5 @@
+twin.sh: lw2p rc 0, 369 s; split lines: 0
+out_lw2p.log: 685 hash lines, 311 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log
+wrote hashref_lw2p.txt
+twin.sh: hashref_lw2p.txt equals hashref_gl34.txt byte for byte

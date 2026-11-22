@@ -1,0 +1,207 @@
+diff -ru t26/ge/xme.c t27/ge/xme.c
+--- t26/ge/xme.c	2026-11-19 18:28:37.814926007 +0000
++++ t27/ge/xme.c	2026-11-19 20:32:12.992517687 +0000
+@@ -53,7 +53,8 @@
+ static void xme_walk(XmeCtx *x, XmeWait w)             /* psp/xl_psp.c 4b-2 mp_late's walks */
+ {
+   XmPic *p = x->p; XlvMem *m = x->m; XmView *v = x->v;
+-  xm_tsplit(w == x->w_me ? x->clk_me : w && w == x->w_thr ? x->clk : 0, x->t_ws, x->n_ws);   /* gl26: the split's clock, this CPU's (0: none) */
++  xm_tsplit(!x->ws_on ? 0 : w == x->w_me ? x->clk_me : w && w == x->w_thr ? x->clk : 0, x->t_ws, x->n_ws);   /* gl26: the split's clock, this
++                                                                                                    CPU's (0: none; gl27: none unless ws_on) */
+   xme_cache(x, XME_C_ALL, 0, 0);                       /* step 4d: the walk reads image data left in RAM and records walked from RAM */
+   for (int i = 0; i < x->nrec; i++) {
+     const XmeRec *r = &x->rec[i];
+diff -ru t26/ge/xme.h t27/ge/xme.h
+--- t26/ge/xme.h	2026-11-19 18:28:37.814820505 +0000
++++ t27/ge/xme.h	2026-11-19 20:32:12.992175235 +0000
+@@ -133,6 +133,8 @@
+   uint64_t t_ws[XM_TS_N]; long n_ws[XM_TS_N];   /* gl26: the walk's split (xlme.h xm_tsplit) in clk's or clk_me's ticks, and counts */
+   long n_call, n_cinv; uint64_t n_cinv_b;   /* step 4d-4: the loop's cache steps through the host's hook (the whole cache; ranges, their
+                                                bytes) */
++  int ws_on;                  /* gl27: the walk's split timed (MGS2_ME_SPLIT; set once before the ME starts): gl26's timers cost the ME
++                                 about 6 us a timed callback on the PSP, so they are off unless asked for */
+ } XmeCtx;
+ 
+ int xme_entry(XmeCtx *x, const XmeE *e, XmeWait w);   /* one entry (w: the wait for the GE): 1 at XE_STOP */
+diff -ru t26/psp/xl_psp.c t27/psp/xl_psp.c
+--- t26/psp/xl_psp.c	2026-11-19 18:52:29.231914786 +0000
++++ t27/psp/xl_psp.c	2026-11-19 20:56:35.600066676 +0000
+@@ -280,10 +280,23 @@
+   if (!gl_ft.keep[3]) fprintf(stderr, "picture: the rain's sprites (body_sph.c, charaspread.c, line_sph.c, rain_gas_pers.c) left out whole, "
+                               "with C4 (MGS2_GL_RAIN_SPRITES=0)\n");   /* task #161 */
+ }
++/* gl27: the screen flip.  gl_show hands a drawn frame to the display for its next vblank (PSP_DISPLAY_SETBUF_NEXTFRAME); until then
++   the display still scans the buffer of the frame before, and that buffer is the one the next list draws into (from a clear to black).
++   When the ME's next result was ready at once (TWO, GE2), mq_service gave the GE that list in the same vblank, and the GE cleared and drew
++   the buffer on the screen: the black marks seen on the PSP in gl26 [I].  MGS2_GL_FLIPWAIT: 0 off (gl26; the cases counted), 1 the next
++   list waits for a vblank after gl_show, 2 in every other ME turn and the main CPU turn after it (as GE2=2), and always from the vblank
++   MGS2_GL_FLIPWAIT_FROM on.  flip_force: the shots' path (no wait, as gl26).  Counts by turn: 0 the ME's, 1 the main CPU's */
++static uint32_t gl_show_vc;   /* the display's vblank count when gl_show ran */
++static int flip_cfg, flip_on, flip_w, flip_force; static long flip_from = -1; static uint32_t flip_t0;   /* flip_w: 1 + the bucket of the
++                                                                                                           hold now on (gl27b), 0: none */
++static int flip_sel(long vb);
++static long flip_hold[2], flip_race[2], flip_race_dir; static uint64_t flip_us[2];
++static long flip_h0[2], flip_r0[2], flip_mvb0 = -1; static uint64_t flip_u0[2];   /* at a turn's start */
+ /* the GE has drawn the frame: it is on the screen from the next display vblank */
+ static void gl_show(void)
+ {
+   sceDisplaySetFrameBuf((void *)(0x44000000u + (gl_ge_buf ? GL_FB1 : GL_FB0)), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
++  gl_show_vc = sceDisplayGetVcount();   /* gl27 */
+   gl_ge = 0; gl_shown++; gl_shown_buf = gl_ge_buf; gl_shown_vb = gl_ge_vb;
+ }
+ static void gl_wait(void) { int r; HOST_ENTER(HOST_GW); r = gl_sync(); HOST_LEAVE(HOST_GW); if (!r) gl_show(); }
+@@ -313,6 +326,7 @@
+             glf.o.nt, gxl.c.dropped);
+   }
+   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
++  if (gl_shown && sceDisplayGetVcount() == gl_show_vc) flip_race_dir++;   /* gl27: counted only */
+   sceGuStart(GU_DIRECT, gl_dl); sceGuCallList(gxl.w); sceGuFinish();
+   gl_ge = 1; gl_ge_buf = d; gl_ge_vb = fvb;
+   if (!(g_opt & OPT_GL_ASYNC)) gl_wait();
+@@ -393,7 +407,8 @@
+ {
+   if (gl_ok != 1) return;
+   for (int k = 0; k < shot_n; k++) if (shot_vb[k] == vb) {
+-    if (mq_on) { mq_drain(); mq_service(); mq_ge_finish(); if (gl_ok != 1) return; }   /* task #180 step 4c: the loop's entries done, its
++    if (mq_on) { flip_force = 1; mq_drain(); mq_service(); mq_ge_finish(); flip_force = 0; if (gl_ok != 1) return; }   /* gl27: no flip
++                                                                                                                        wait here */   /* task #180 step 4c: the loop's entries done, its
+                                                                                        last list drawn and shown */
+     else if (gl_ge) { if (gl_sync()) return; gl_show(); }
+     if (gl_shown_buf >= 0) gl_shot(); else fprintf(stderr, "picture: no frame shown yet at vb %ld\n", vb);
+@@ -1128,8 +1143,18 @@
+   mq_wait(two_seq[h], why);
+   two_poll();
+ }
++static void flip_line(const char *who, long vb0, long vb, int b)   /* gl27: a turn's flip counts */
++{
++  if (flip_w == 1 + b) { uint32_t n = sceKernelGetSystemTimeLow(); flip_us[b] += n - flip_t0; flip_t0 = n; }   /* gl27b: a hold still on:
++                                                                                                               its time so far */
++  fprintf(stderr, "%s vb %ld-%ld gl27 display: flip wait %s; lists held for the screen %ld (%.1f ms); lists drawn into the shown buffer %ld\n",
++          who, vb0, vb, flip_on ? "on" : "off", flip_hold[b] - flip_h0[b], (double)(flip_us[b] - flip_u0[b]) / 1000.0, flip_race[b] - flip_r0[b]);
++}
++static void flip_t0set(int b) { flip_h0[b] = flip_hold[b]; flip_r0[b] = flip_race[b]; flip_u0[b] = flip_us[b]; }
+ static void mq_tstart(long vb)   /* an ME turn begins (the main CPU's cache holds the counts as they are) */
+ {
++  if (flip_mvb0 >= 0) flip_line("main turn", flip_mvb0, vb, 1);   /* gl27: the main CPU's turn before */
++  flip_t0set(0);
+   for (int k = 0; k < XME_T_N; k++) mq_tk0[k] = k == XME_T_IDLE ? mq_idle() : mq->t_k[k];   /* gl24: the idle time from the shared words */
+   for (int k = 0; k < MW_N; k++) mq_tw0[k] = mq_wus[k];
+   two_t0[0] = two_steps; two_t0[1] = two_spills; two_t0[2] = two_nohalf;   /* gl24 */
+@@ -1174,7 +1199,8 @@
+           tt - (all - ms[XME_T_IDLE]), ge2, ge_n[ge2 ? 1 : 0] - ge_tn0, (double)(ge_draw[ge2 ? 1 : 0] - ge_td0) / 1000.0,
+           (double)(ge_note[ge2 ? 1 : 0] - ge_tq0) / 1000.0, mq->n_ge2 - ge2_tn0, two, two_steps - two_t0[0], two_spills - two_t0[1],
+           two_nohalf - two_t0[2], w[MW_HOOK], two_nowait - two_t1[0], two_older - two_t1[1], two_move - two_t1[2]);
+-  { double s[XM_TS_N], in = 0; long n[XM_TS_N];   /* gl26: the walk's split */
++  flip_line("me turn", mq_tvb0, vb, 0); flip_t0set(1); flip_mvb0 = vb;   /* gl27 */
++  if (mq->ws_on) { double s[XM_TS_N], in = 0; long n[XM_TS_N];   /* gl26: the walk's split (gl27: only with MGS2_ME_SPLIT) */
+     for (int k = 0; k < XM_TS_N; k++) { uint64_t d = mq->t_ws[k] - mq_ts0[k]; mq_tsall[k] += d; s[k] = (double)d / mq_tdiv; in += s[k];
+       n[k] = mq->n_ws[k] - mq_tsn0[k]; mq_tsnall[k] += n[k]; }
+     fprintf(stderr, "me turn vb %ld-%ld gl26 walk split (ms): calls: lane 1 meshes %.1f (%ld), lane 2 P06 %.1f (%ld), lane 3 effects %.1f (%ld), "
+@@ -1302,6 +1328,11 @@
+   if (!gl_ge && gl_ok == 1 && mq_cons != XS(mq)->listed) {   /* step 4d-4: the result read through the uncached alias (the ME wrote it
+                                                                  back before listed moved; a result of the main CPU's own turn is
+                                                                  written back from its cache first) */
++    int fb = mq_self ? 1 : 0;
++    if (gl_shown && !flip_force && sceDisplayGetVcount() == gl_show_vc) {   /* gl27: the frame before is not on the screen yet */
++      if (flip_on) { if (!flip_w) { flip_w = 1 + fb; flip_t0 = sceKernelGetSystemTimeLow(); flip_hold[fb]++; } return; }
++      flip_race[fb]++; }
++    if (flip_w) { flip_us[flip_w - 1] += sceKernelGetSystemTimeLow() - flip_t0; flip_w = 0; }   /* gl27b: to the hold's own bucket */
+     uint32_t k = mq_cons++ % XME_NRES;
+     XME_BARRIER(); sceKernelDcacheWritebackRange(&mq->res[k], sizeof mq->res[k]); XME_BARRIER(); mq_submit(&XR(mq)[k]); }
+ }
+@@ -1383,6 +1414,14 @@
+                                                   (unsigned)(sizeof *mq >> 10)); return; }
+   memset(mq, 0, sizeof *mq); mq->clk = mq_clk_us;   /* gl20 */
+   mq->w_thr = mq_wait_thr;   /* gl26: the loop's thread times the walk's split (the emulator), set once */
++  mq->ws_on = (e = mgs2_getenv("MGS2_ME_SPLIT")) && atoi(e) > 0;   /* gl27: before the ME starts */
++  fprintf(stderr, "me picture walk split (gl26's timers, MGS2_ME_SPLIT): %s\n", mq->ws_on ? "on" : "off");
++  flip_cfg = (e = mgs2_getenv("MGS2_GL_FLIPWAIT")) ? atoi(e) : 0; flip_from = (e = mgs2_getenv("MGS2_GL_FLIPWAIT_FROM")) ? atol(e) : -1;
++  flip_on = flip_cfg != 0;
++  fprintf(stderr, "picture display (gl27): the next list waits for the screen to show the frame before (MGS2_GL_FLIPWAIT): %s", flip_cfg == 2 ?
++          "in every other ME turn and the main CPU turn after it (on in odd pairs, as GE2=2)" : flip_cfg == 1 ? "always" : "never (counted)");
++  if (flip_cfg == 2 && flip_from >= 0) fprintf(stderr, ", always from vb %ld", flip_from);
++  fprintf(stderr, "\n");
+ #ifdef MGS2_ME_REAL
+   mq->clk_me = xme_me_clk; mq->w_me = xme_me_wait;   /* gl21: set once, before the ME starts (xme.c XME_CLK) */
+ #endif
+@@ -1455,6 +1494,7 @@
+     if (mq_me_start()) {
+       mq_me = 1;
+       if (mq_turn) { mq_turn_k = (int)((me_vb / mq_turn) & 1); mq_self = mq_turn_k; } else mq_self = 0;
++      flip_on = flip_sel(me_vb);   /* gl27b: the first turn's */
+       mq->cache = mq_self ? 0 : xme_me_cache;   /* gl21: the clocks are set once (xme.c XME_CLK) */
+       if (!mq_self) { xme_heap_ask(me_rs_on); mq_tstart(me_vb); two_start(two_on(me_vb)); }
+       fprintf(stderr, "me picture loop (task #180 step 4d-4): on: the loop on the PSP's Media Engine, queue of %u entries, %d results, at "
+@@ -1483,6 +1523,7 @@
+     if (mq_th >= 0) sceKernelDeleteThread(mq_th);
+     mq_th = -1; return; }
+   if (mq_turn) { mq_turn_k = (int)((me_vb / mq_turn) & 1); mq_self = mq_turn_k; } else mq_self = 0;
++  flip_on = flip_sel(me_vb);   /* gl27b: the first turn's */
+   if (mq_m4) { mq->cache = mq_self ? 0 : mq_cache_thr; if (!mq_self) { xme_heap_ask(me_rs_on); mq_tstart(me_vb); two_start(two_on(me_vb)); } }   /* step 4d: the ME's cache steps and
+                                                                                                    heap requests while it makes the picture */
+   fprintf(stderr, "me picture loop (task #180 step 4c): on: the ME's loop (ge/xme.c) as a thread of the main CPU, priority %#x (%s the main "
+@@ -1635,7 +1676,7 @@
+   mq_tbk_cold++; mq_tbk_rec = mp_nrec;
+   XS(mq)->tail = XS(mq)->head;
+   if (gl_ge) mq_ge_finish();                       /* the GE's list drawn and shown; the ME's lists not taken dropped */
+-  mq_cons = XS(mq)->listed;
++  mq_cons = XS(mq)->listed; flip_w = 0;   /* gl27b: a held result dropped too */
+   if (gl_ok == 1) XS(mq)->ge_done = XS(mq)->listed; else mq_released_all();
+   /* the picture cold, as at a start again (xlive_chk_dma), with a new texture cache (the ME may have stopped inside it) */
+   mq_sum(); gu_zero_empty(map, 0); xl_reset(); mq->l_words = mq->l_calls = mq->l_ad = 0;
+@@ -1759,6 +1800,10 @@
+   mq_wait(mq_post(&e), MW_SYNC); mq_syncs++;
+   if (!mq_dead) mq_cpu_wbinv();
+ }
++static int flip_sel(long vb)   /* gl27: the flip wait in the turn that begins at vb */
++{
++  return flip_cfg == 1 || (flip_cfg == 2 && ((flip_from >= 0 && vb >= flip_from) || !mq_turn || ((vb / (2 * mq_turn)) & 1)));
++}
+ /* step 4d, mode 4, after the hook's FILL, WALK and HOOK (no record waits): the hang test's stop found, the turns changed */
+ static void mq_turn_hook(long vb)
+ {
+@@ -1772,7 +1817,7 @@
+     mq_sync(); if (!MQ_LOOP()) return;   /* (a take-back meanwhile: the main CPU's from now on, or the picture stopped) */
+     mq_arena_wait(); if (!MQ_LOOP()) return;
+     XS(mq)->ge2 = 0;   /* gl23: the main CPU's turns: one frame on the GE side (the ME has handed over: it reads nothing until the next turn) */
+-    mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_self = 1; mq_tend(vb); two_start(0); }
++    mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_self = 1; mq_tend(vb); two_start(0); flip_on = flip_sel(vb); }
+   else {   /* to the ME (the main CPU writes back its cache before each post) */
+ #ifdef MGS2_ME_REAL
+     mq->cache = mq_me > 0 ? xme_me_cache : mq_cache_thr;   /* gl21: the clocks are set once (xme.c XME_CLK) */
+@@ -1782,7 +1827,8 @@
+     if (ge_fast_cfg == 2) ge_fast = (int)((vb / (2 * mq_turn)) & 1);   /* gl22: off, on, off, ... by ME turn */
+     ge2 = gl_vol2 && (ge2_cfg == 1 || (ge2_cfg == 2 && ((vb / (2 * mq_turn)) & 1)));   /* gl23: off, on, off, ... by ME turn */
+     XS(mq)->ge2 = (uint32_t)ge2;
+-    xme_heap_ask(me_rs_on); mq_self = 0; mq_tstart(vb); two_start(two_on(vb)); }   /* gl24: two areas or one, by ME turn */
++    xme_heap_ask(me_rs_on); mq_self = 0; mq_tstart(vb); two_start(two_on(vb)); flip_on = flip_sel(vb); }   /* gl24: two areas or one, by ME
++                                                                                                             turn; gl27: the flip wait */
+   mq_turn_k = k; mq_turns++; mq_thin_due = 0; mq_walk_due = 0;
+ }
+ /* xl_psp_frame in mode 3: the walks posted at the last hook done by now (at the latest), the turns, the step's records laid and walked
+@@ -1837,11 +1883,14 @@
+       sceKernelDeleteThread(mq_th); mq_th = -1; } }
+   mq_self = 1;
+   if (mq_sem >= 0) { sceKernelDeleteSema(mq_sem); mq_sem = -1; }
+-  mq_service(); mq_ge_finish();
++  flip_force = 1; mq_service(); mq_ge_finish(); flip_force = 0;   /* gl27b: the run's last list, no flip wait (the text goes up next) */
+ }
+ static void mq_report(FILE *f)
+ {
+-  if (mq_tn) { double s[XM_TS_N], in = 0, wk = (double)mq_tkall[XE_WALK] / (mq_tdiv ? mq_tdiv : 1);   /* gl26: the walk's split over the ME's
++  fprintf(f, "picture display (gl27): flip wait MGS2_GL_FLIPWAIT %d (from vb %ld): ME turns: lists held for the screen %ld (%.2f s), lists drawn "
++          "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld\n", flip_cfg, flip_from, flip_hold[0],
++          flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1]);
++  if (mq_tn && mq->ws_on) { double s[XM_TS_N], in = 0, wk = (double)mq_tkall[XE_WALK] / (mq_tdiv ? mq_tdiv : 1);   /* gl26: the walk's split over the ME's
+                                                                                                    turns (gl26b: only when there were some) */
+     for (int k = 0; k < XM_TS_N; k++) { s[k] = (double)mq_tsall[k] / (mq_tdiv ? mq_tdiv : 1) / 1000.0; in += s[k]; }
+     fprintf(f, "me picture walk split (gl26), the ME's turns (s): walks %.1f; calls: lane 1 meshes %.1f (%ld), lane 2 P06 %.1f (%ld), "
+@@ -2132,6 +2181,8 @@
+           "(vb %ld..%ld), all %016llx\n", gl_built, gl_first_vb, gl_shown, gl_shots, gl_listfail, gx_drop, (unsigned long long)gx_words_sum,
+           gx_words_max, gx_aux_max, gx_both_max, GL_PSP_LIST, dig_n, dig_from, dig_to,
+           (unsigned long long)dig_all);
++  if (!mq) fprintf(f, "picture display (gl27): lists drawn into the shown buffer (the main CPU's own picture, no loop; counted only) %ld\n",
++                   flip_race_dir);
+   gl_line(f, &glf.all, glf.all_dbytes, glf.all_tbytes, "picture: the frames:"); fprintf(f, "; memo answers that differed %ld\n", glf.memo_bad);
+   gl_line(f, &glf.max, glf.max.dbytes, glf.max.tbytes, "picture: the largest of each in one frame:"); fputc('\n', f);
+   { const TkStats *k = tk_stats(tk);

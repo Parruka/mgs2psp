@@ -1,0 +1,8 @@
+pgo.sh: w00a 571 s
+1107600 gen_s_w00a.gcda
+pgo: overlay w00a registered at vb 29100 (1 constructors)
+pgo: counts zeroed at vb 29100
+pgo: profile written to ms0:/pgo at vb 31550 in 383 ms (see stderr for libgcov errors)
+pgo: overlay w01a loaded after w00a was registered: no profile will be written
+/home/claude/main/build_gl34/pg/log_w00a.txt: 63 hash lines, 0 vuh lines; reference /home/claude/main/build_gl34/cfg/hashref_gl34.txt: 685 lines
+compared 63 reference lines (0 with vuh): 0 differ; 622 reference lines not in the log (first 100, last 37800)

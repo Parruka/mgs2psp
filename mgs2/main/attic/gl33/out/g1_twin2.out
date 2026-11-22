@@ -1,0 +1,31 @@
+== a3 vs lw2i (the PSP's plan / copy / view walk on the twin, MGS2_NAT_LW=2, the rule in every turn, static check)
+tw/x86/out_a3.log: 17664 picture lines, 17664 content; tw/x86/out_lw2i.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+== lw2p (late walk, plain) vs lw2i (late walk, in place)
+tw/x86/out_lw2p.log: 17664 picture lines, 17664 content; tw/x86/out_lw2i.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+xlive lines: lw2p 37831, lw2i 37831, differing: 0
+== late-walk lines
+nat lw: MGS2_NAT_LW 2: transfers 223280; plans failed 0 (the groups' room 0); groups planned and copied 2229410, taken by walks from RAM 0; late walk: merge runs 44027, groups to the core 2229137, fed word by word 273, dropped 0; planned groups the walk's tags did not reach (drawn at its end) 0; run lanes stopped at a key 9991; the groups' data pieces in the copy 3789581, outside it 5765778, partly 0; groups the plans counted 2229410; lane groups 1-4 5306992 2164203 74853 14591, walks that missed a group's end 0; most arena bytes in a transfer 3908960, extents 1838
+nat lw: MGS2_NAT_LW 2: transfers 223280; plans failed 0 (the groups' room 0); groups planned and copied 2229410, taken by walks from RAM 0; late walk: merge runs 44027, groups to the core 2229137, fed word by word 273, dropped 0; planned groups the walk's tags did not reach (drawn at its end) 0; run lanes stopped at a key 9991; the groups' data pieces in the copy 9555359, outside it 0, partly 0; groups the plans counted 2229410; lane groups 1-4 5306992 2164203 74853 14591, walks that missed a group's end 0; most arena bytes in a transfer 3908960, extents 1838
+natinpl: totals: groups flagged static 1925910 (drawn 0)
+== gl31's twin run b (NAT 0,0,3,3) vs g31 (the same + the rule in turns 0,0,1,1: so in the native turns)
+../build_gl31/tw/x86/out_b.log: 17664 picture lines, 17664 content; tw/x86/out_g31.log: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natinpl: totals: groups flagged static 1053381 (drawn 1052281)
+natst: static groups drawn 1052281, each hashed again at every vblank's start for 8 vblanks: CHANGED 0; by the vblanks since the draw:; left the window unchanged or counted 1052281, not followed (ring full) 0

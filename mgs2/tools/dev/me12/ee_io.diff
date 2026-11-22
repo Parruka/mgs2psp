@@ -1,0 +1,11 @@
+--- /home/claude/sb9/runtime/ee_io.h	2026-10-31 21:42:06.695501849 +0000
++++ /home/claude/me12/runtime/ee_io.h	2026-11-02 19:44:51.999457627 +0000
+@@ -251,7 +251,7 @@
+ #endif
+ /* a source chain (CHCR mode 1) or normal transfer, each quadword handed to fn; TTE passes the tag's upper half (VIF1) */
+ /* a contiguous run of n quadwords at guest address a, as one block when blk takes blocks (and no capture runs), else one by one */
+-#ifdef GEN_DG_TRACE   /* dev (boot.c MGS2_DG_TRACE): DMA reads of RAM and the scratchpad copies */
++#if defined(GEN_DG_TRACE) || defined(WT_TRACK)   /* dev (boot.c MGS2_DG_TRACE): DMA reads of RAM and the scratchpad copies (me12 WT_TRACK: boot/xlive_chk.c's tracker) */
+ void rt_dgt_dma(int ch, uint32_t a, uint32_t nq); void rt_dgt_copy(uint32_t dst, uint32_t src, uint32_t n);
+ #define DGT_DMA(ch, a, nq) rt_dgt_dma(ch, a, nq)
+ #define DGT_COPY(dst, src, n) rt_dgt_copy(dst, src, n)

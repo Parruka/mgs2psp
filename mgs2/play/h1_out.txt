@@ -1,0 +1,64 @@
+== union of the sessions, by unit (PSP -O2 sizes, no PGO)
+  free play (19 sessions)  elf :  965 functions 2.31 MB; not in the reduced build:  110, 0.22 MB
+  free play (19 sessions)  w00a: 2241 functions 6.18 MB; not in the reduced build: 1319, 3.16 MB
+  tutorial window          elf :  553 functions 1.65 MB; not in the reduced build:    0, 0.00 MB
+  tutorial window          w00a:  503 functions 2.02 MB; not in the reduced build:    0, 0.00 MB
+  both                     elf :  972 functions 2.31 MB; not in the reduced build:  110, 0.22 MB
+  both                     w00a: 2275 functions 6.27 MB; not in the reduced build: 1319, 3.16 MB
+== hot set over free play (all sessions, time-weighted) and its leftovers per step
+    90.000%:   112 functions,  0.91 MB; the rest  181503.5 instructions per step
+    99.000%:   461 functions,  2.77 MB; the rest   18318.2 instructions per step
+    99.900%:   888 functions,  4.01 MB; the rest    1820.5 instructions per step
+    99.990%:  1270 functions,  5.20 MB; the rest     183.1 instructions per step
+    99.999%:  1690 functions,  6.32 MB; the rest      18.3 instructions per step
+   100.000%:  3206 functions,  8.49 MB; the rest       0.0 instructions per step
+== leave one out: compiled = everything the other sessions (tutorial included) ran
+  idle    948 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 2041033)
+  tour1  1040 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 1987203)
+  tour2  1593 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 2090370)
+  tour3  1637 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 1766394)
+  crawl  1165 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 2027461)
+  fpv    1177 functions,   5 unseen (  10.8 KB),     10.4 instructions per step unseen (0.001% of its 1919473)
+  fire   1108 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 2042144)
+  punch  1059 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 2006307)
+  menus  1118 functions,  10 unseen (  27.3 KB),     52.3 instructions per step unseen (0.003% of its 1819813)
+  codec  1327 functions, 326 unseen ( 772.9 KB),  54115.9 instructions per step unseen (11.411% of its 474246)
+  pause  1036 functions,   3 unseen (   0.9 KB),      0.0 instructions per step unseen (0.000% of its 1661798)
+  roll   1094 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 1951608)
+  rand1  2250 functions,  47 unseen ( 113.0 KB),   1032.0 instructions per step unseen (0.067% of its 1545294)
+  rand2  1168 functions,   2 unseen (  11.2 KB),     18.0 instructions per step unseen (0.001% of its 1967344)
+  rand3  1643 functions,  22 unseen (  44.2 KB),      6.6 instructions per step unseen (0.000% of its 2026207)
+  rand4  1562 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 1992263)
+  rand5  2676 functions,   5 unseen (   6.8 KB),      1.4 instructions per step unseen (0.000% of its 1857772)
+  rand6  1742 functions,   5 unseen (   5.2 KB),     11.2 instructions per step unseen (0.001% of its 1990748)
+  death  2548 functions,   0 unseen (   0.0 KB),      0.0 instructions per step unseen (0.000% of its 1642314)
+== growth (tutorial, then sessions in order)
+  + tut    1056 new (3675.5 KB), total 1056 (3.68 MB)
+  + idle    252 new ( 704.1 KB), total 1308 (4.38 MB)
+  + tour1    29 new (  56.6 KB), total 1337 (4.44 MB)
+  + tour2   460 new (1147.1 KB), total 1797 (5.58 MB)
+  + tour3    41 new (  65.8 KB), total 1838 (5.65 MB)
+  + crawl    46 new ( 102.2 KB), total 1884 (5.75 MB)
+  + fpv      16 new (  51.4 KB), total 1900 (5.80 MB)
+  + fire      0 new (   0.0 KB), total 1900 (5.80 MB)
+  + punch    13 new (  61.9 KB), total 1913 (5.86 MB)
+  + menus    21 new (  53.0 KB), total 1934 (5.92 MB)
+  + codec   377 new ( 868.0 KB), total 2311 (6.79 MB)
+  + pause     3 new (   0.9 KB), total 2314 (6.79 MB)
+  + roll      2 new (  19.2 KB), total 2316 (6.81 MB)
+  + rand1   874 new (1652.8 KB), total 3190 (8.46 MB)
+  + rand2     6 new (  15.0 KB), total 3196 (8.47 MB)
+  + rand3    26 new (  53.1 KB), total 3222 (8.53 MB)
+  + rand4     2 new (   0.2 KB), total 3224 (8.53 MB)
+  + rand5    18 new (  48.9 KB), total 3242 (8.58 MB)
+  + rand6     5 new (   5.2 KB), total 3247 (8.58 MB)
+  + death     0 new (   0.0 KB), total 3247 (8.58 MB)
+== fit to a code budget: functions chosen by their highest per-step rate in any session / size; what is left to an interpreter
+  budget 3.0 MB (ELF + w00a):  952 functions; interpreted per step: tutorial    6650, free play mean    9004, max   12250 (tour2)
+  budget 4.0 MB (ELF + w00a): 1221 functions; interpreted per step: tutorial    1091, free play mean    1792, max    2782 (tour2)
+  budget 4.5 MB (ELF + w00a): 1318 functions; interpreted per step: tutorial     575, free play mean     569, max     990 (tour2)
+  budget 5.0 MB (ELF + w00a): 1472 functions; interpreted per step: tutorial     248, free play mean     207, max     458 (rand1)
+  budget 5.5 MB (ELF + w00a): 1600 functions; interpreted per step: tutorial      68, free play mean      80, max     224 (rand1)
+  budget 6.0 MB (ELF + w00a): 1777 functions; interpreted per step: tutorial      15, free play mean      29, max     101 (rand1)
+  budget 7.0 MB (ELF + w00a): 2279 functions; interpreted per step: tutorial       2, free play mean       4, max      23 (rand1)
+  budget 8.0 MB (ELF + w00a): 2934 functions; interpreted per step: tutorial       0, free play mean       1, max       4 (rand1)

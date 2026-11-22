@@ -1,0 +1,232 @@
+--- boot/xlive_chk.c.orig	2026-11-01 22:58:19.666770798 +0000
++++ boot/xlive_chk.c	2026-11-01 23:33:27.383345370 +0000
+@@ -123,6 +123,105 @@
+ extern long lane3_miss[8], lane3_gen[8];   /* sb6 runtime/ee_io.h lane_fx: tags that start an effect prim where it took none, by the failed
+                                            test; such tags the generic walk took, by why the lane did not look (vif1_chain_fast) */
+ static int one_on; static long one_tr; static struct timespec one_t0;
++/* me9 (task #130, the picture on the Media Engine, sizing): MGS2_XLIVE_DEFER=<n> runs the translator and the frame work late, as a second
++   CPU would that reads the game's RAM after the game has gone on.  Each transfer is queued (with the one walk off: the second walk takes
++   it from RAM when it runs) and so is each hook's frame work (the frame's end and GE list, its start, tk_frame); at each hook the queue
++   runs until n - 1 hooks are left in it.  n = 1: a step's transfers run at the hook that ends it, before that hook's frame work; n = 2:
++   one hook later still (the transfers of a shown step run through the following step too).  The decisions (shown or reduced, a frame
++   begins) are taken at the real hook from the game's counters.  The picture is then equal to the normal run's only if what the
++   translator reads (packets, uploads, the texture sources, the thinning's RAM) is still what it was.  Also: the host time of each transfer
++   in its step (where the work could start on a second CPU), the scratchpad quadwords the walks take, a line every 100 vblanks. */
++static int dfr; static long df_q_tr, df_q_hk, df_runs, df_spr, df_maxq;
++typedef struct { int kind; int ch; uint32_t chcr, madr, qwc, tadr; long vb; int fe, fb; uint8_t *lg; size_t ln; int fs; } DfE;   /* kind 0 transfer, 1 hook */
++#define DF_N (1 << 16)
++static DfE *dfq; static long dfh, dft, dfhk;   /* ring head and tail (counts), hook events in it */
++static struct timespec df_tafter; static double df_first, df_last;   /* the step's game part starts at df_tafter */
++static int df_ntr, df_rgb;                      /* transfers queued in this step; the real frame state (gb_now as the hooks decide it) */
++typedef struct { long steps, tsteps, tr; double game, tgame, first, last, rep; } DfSum;
++static DfSum df_w, df_all;
++static double df_ms(const struct timespec *a, const struct timespec *b) { return (double)(b->tv_sec - a->tv_sec) * 1e3 + (double)(b->tv_nsec - a->tv_nsec) / 1e6; }
++static void df_line(const char *what, const DfSum *s)
++{
++  fprintf(stderr, "me9 %s: steps %ld (with transfers %ld, transfers %ld): game ms a step %.3f; steps with transfers: game %.3f, the first "
++          "transfer at %.3f ms (%.1f%%), the last at %.3f ms (%.1f%%); the late work %.3f ms a step with transfers; scratchpad quadwords %ld; "
++          "queue at most %ld\n", what, s->steps, s->tsteps, s->tr, s->steps ? s->game / s->steps : 0, s->tsteps ? s->tgame / s->tsteps : 0,
++          s->tsteps ? s->first / s->tsteps : 0, s->tgame > 0 ? 100 * s->first / s->tgame : 0, s->tsteps ? s->last / s->tsteps : 0,
++          s->tgame > 0 ? 100 * s->last / s->tgame : 0, s->tsteps ? s->rep / s->tsteps : 0, df_spr, df_maxq);
++}
++/* me9 MGS2_XLIVE_SNAP (with DEFER): when a transfer comes, what its chain reads (each tag and data run, as ee_io.h dma_feed walks it) is
++   copied out of RAM; when the queue runs the transfer, the copy goes into a shadow RAM first, and the second walk, the texture sources
++   and the frame work read the shadow (M.mem): what a second CPU would get from a copy the main CPU makes as the game starts each transfer.
++   The thinning's scan reads the game's RAM itself (glf.ram): as the queue runs (1), or a whole copy of RAM taken at the step's first transfer (2).
++   Counted: the bytes copied (all, tags, a step's most), and the bytes the game changed between the copy and the queue run. */
++static int df_snap; static uint8_t *df_sh, *df_full[64]; static const uint8_t *df_live; static long df_fn;
++typedef struct { uint32_t a, n; } DfR;
++static DfR *df_r; static long df_nr, df_cr;
++typedef struct { long tr, rng, b, tagb, chg, chgr, chgt, maxb, pb[3], pchg[3]; } DfSnap;   /* pb, pchg: below 0x100000, the game's image (to 0x1edbc0), above */
++static DfSnap ds_w, ds_all; static long ds_step, ds_prn;
++#define DS_PLACE(a) ((a) < 0x100000u ? 0 : (a) < 0x1edbc0u ? 1 : 2)
++static void df_rng(uint32_t a, uint32_t nb, int tag)
++{
++  if (!nb) return;
++  if (a & 0x80000000u) { df_spr += nb / 16; return; }   /* the scratchpad: not copied (none in these runs) */
++  uint32_t b = a & (GSZ - 1) & ~15u;
++  if (tag) ds_w.tagb += nb;
++  while (nb) { uint32_t k = b + nb > GSZ ? GSZ - b : nb;
++    if (df_nr == df_cr) { df_cr = df_cr ? 2 * df_cr : 4096; if (!(df_r = realloc(df_r, (size_t)df_cr * sizeof *df_r))) exit(1); }
++    df_r[df_nr].a = b; df_r[df_nr].n = k; df_nr++; nb -= k; b = (b + k) & (GSZ - 1); }
++}
++static void df_walk(const uint8_t *mem, const uint8_t *spr, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* dma_feed's walk */
++{
++  uint32_t asp[2], nasp = 0, guard = 0;
++  df_nr = 0;
++  if (((chcr >> 2) & 3) == 0) { df_rng(madr & ~0x80000000u, 16 * qwc, 0); return; }
++  if (qwc) { uint32_t id = (chcr >> 28) & 7; df_rng(madr, 16 * qwc, 0); if (id == 0 || id == 7 || ((chcr & 0x80) && (chcr >> 31))) return; }
++  for (;;) {
++    const uint8_t *t = (tadr & 0x80000000u) ? spr + (tadr & 0x3ff0) : mem + (tadr & (GSZ - 1) & ~15u);
++    uint64_t tag; uint32_t n, id, addr, data, next; int end = 0;
++    memcpy(&tag, t, 8); n = tag & 0xffff; id = (tag >> 28) & 7; addr = (uint32_t)(tag >> 32) & 0x7ffffff0u; addr |= (uint32_t)(tag >> 32) & 0x80000000u;
++    df_rng(tadr, 16, 1);
++    switch (id) {
++    case 0: data = addr; next = 0; end = 1; break;
++    case 1: data = tadr + 16; next = data + 16 * n; break;
++    case 2: data = tadr + 16; next = addr; break;
++    case 3: case 4: data = addr; next = tadr + 16; break;
++    case 5: data = tadr + 16; if (nasp < 2) asp[nasp++] = data + 16 * n; next = addr; break;
++    case 6: data = tadr + 16; if (nasp) next = asp[--nasp]; else { next = 0; end = 1; } break;
++    default: data = tadr + 16; next = 0; end = 1; break;
++    }
++    df_rng(data, 16 * n, 0);
++    if (end || ((chcr & 0x80) && (tag >> 31) & 1)) break;
++    tadr = next;
++    if (++guard > 1000000) { fprintf(stderr, "me9: a chain does not end\n"); exit(3); }
++  }
++}
++static uint8_t *df_copy(const uint8_t *mem, size_t *len)   /* the ranges df_walk found, as records: address, bytes, the bytes */
++{
++  size_t tot = 0; long b = 0;
++  for (long i = 0; i < df_nr; i++) { tot += 8 + df_r[i].n; b += df_r[i].n; ds_w.pb[DS_PLACE(df_r[i].a)] += df_r[i].n; }
++  uint8_t *p = malloc(tot ? tot : 1), *o = p; if (!p) exit(1);
++  for (long i = 0; i < df_nr; i++) { memcpy(o, &df_r[i].a, 4); memcpy(o + 4, &df_r[i].n, 4); memcpy(o + 8, mem + df_r[i].a, df_r[i].n); o += 8 + df_r[i].n; }
++  ds_w.tr++; ds_w.rng += df_nr; ds_w.b += b; ds_step += b;
++  *len = tot; return p;
++}
++static void df_apply(DfE *e)   /* the queue runs a transfer: its copy into the shadow; what the game changed since, counted */
++{
++  const uint8_t *o = e->lg, *end = e->lg + e->ln; int any = 0;
++  while (o < end) { uint32_t a, n; memcpy(&a, o, 4); memcpy(&n, o + 4, 4); const uint8_t *d = o + 8;
++    if (memcmp(d, df_live + a, n)) { long c = 0; for (uint32_t i = 0; i < n; i++) c += d[i] != df_live[a + i];
++      ds_w.chg += c; ds_w.chgr++; any = 1; ds_w.pchg[DS_PLACE(a)] += c;
++      if (ds_prn < 80) { ds_prn++; fprintf(stderr, "me9 snap: vb %ld ch %d at %08x bytes %u: %ld changed before the queue ran\n", e->vb, e->ch, a, n, c); } }
++    memcpy(df_sh + a, d, n); o += 8 + n; }
++  ds_w.chgt += any;
++  free(e->lg); e->lg = 0;
++}
++static void ds_line(const char *what, const DfSnap *s, long tsteps)
++{
++  fprintf(stderr, "me9 snap %s: transfers %ld, ranges %ld, bytes %ld (tags %ld); a step with transfers %.1f KB, at most %.1f KB; changed "
++          "before the queue ran: %ld bytes in %ld ranges of %ld transfers; by place (below 0x100000, the game's image, above): copied %ld / %ld / "
++          "%ld, changed %ld / %ld / %ld\n", what, s->tr, s->rng, s->b, s->tagb,
++          tsteps ? s->b / 1024.0 / tsteps : 0, s->maxb / 1024.0, s->chg, s->chgr, s->chgt, s->pb[0], s->pb[1], s->pb[2], s->pchg[0], s->pchg[1], s->pchg[2]);
++}
+ static uint64_t ph = 0xcbf29ce484222325ull;
+ static long cur_vb;
+ static const uint8_t *ram(void *ctx, uint32_t ee, uint32_t n) { (void)ctx; ee &= GSZ - 1; return M.mem && ee + n <= GSZ ? M.mem + ee : 0; }
+@@ -529,7 +628,8 @@
+ /* each quadword as ee_io.h's pkt_fnv / pkt_tag hash it (a tag: only the fields that act) */
+ static void seen(void *ctx, int ch, uint32_t a, const uint8_t *q, int tag, uint32_t chcr)
+ {
+-  uint32_t w[4]; const uint8_t *p = q; (void)ctx; (void)a;
++  uint32_t w[4]; const uint8_t *p = q; (void)ctx;
++  if (a & 0x80000000u) df_spr++;   /* me9: a quadword from the scratchpad */
+   if (tag) { uint32_t id; memcpy(w, q, 16); id = (w[0] >> 28) & 7;
+     w[0] &= 0xf000ffffu; if (id == 1 || id == 6 || id == 7) w[1] = 0; if (ch != 1 || !(chcr & 0x40)) w[2] = w[3] = 0; p = (const uint8_t *)w; }
+   for (int i = 0; i < 16; i++) { ph ^= p[i]; ph *= 0x100000001b3ull; }
+@@ -750,6 +850,20 @@
+   glf.ram = mem;   /* sb6: the thinning's scan (gelive.c fx_thin_scan) reads the game's RAM through glf.ram, which a frame's start copies
+                       from M.mem; with the translator started late (MGS2_XLIVE <from> > 0) the first frame begins before this first transfer,
+                       M.mem still 0: the digest runs from vb 30,800 stopped there at the rain's first +25f0 call.  The same pointer otherwise */
++  if (df_snap) { df_live = mem; M.mem = df_sh; tp_mem = df_sh; }   /* me9 SNAP: the translator reads the shadow */
++  if (dfr) {   /* me9: queued with the time it came in its step; the second walk takes it from RAM when the queue runs (df_drain) */
++    struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); double ms = df_ms(&df_tafter, &t);
++    if (!df_ntr++) df_first = ms;
++    df_last = ms; df_q_tr++;
++    if (dft - dfh >= DF_N) { fprintf(stderr, "me9: the queue is full\n"); exit(3); }
++    DfE *q = &dfq[dft++ & (DF_N - 1)]; q->kind = 0; q->ch = ch; q->chcr = chcr; q->madr = madr; q->qwc = qwc; q->tadr = tadr; q->vb = cur_vb;
++    q->lg = 0; q->ln = 0; q->fs = -1;
++    if (df_snap) { df_walk(mem, spr, chcr, madr, qwc, tadr); q->lg = df_copy(mem, &q->ln);
++      if (df_snap == 2) { static int cur = -1;   /* a whole copy at a step's first transfer (at most dfr + 1 steps queued: 9 of 64 slots) */
++        if (df_ntr == 1) { cur = (int)(df_fn++ & 63); if (!df_full[cur] && !(df_full[cur] = malloc(GSZ))) exit(1); memcpy(df_full[cur], mem, GSZ); }
++        q->fs = cur; } }
++    if (dft - dfh > df_maxq) df_maxq = dft - dfh;
++    return; }
+   if (one_on && one) { one_tr++; g_xl_one = 1; clock_gettime(CLOCK_MONOTONIC, &one_t0); return; }   /* the exact walk feeds it */
+   struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
+   xlv_dma(&M, ch, chcr, madr, qwc, tadr);
+@@ -968,15 +1082,83 @@
+     skip_on = getenv("MGS2_XLIVE_SKIP") && atoi(getenv("MGS2_XLIVE_SKIP")); sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];
+     if (skip_on) fprintf(stderr, "xlive mode: shown frames only (MGS2_XLIVE_SKIP)\n");
+     one_on = M.fast && getenv("MGS2_XLIVE_ONE") && atoi(getenv("MGS2_XLIVE_ONE"));
++    if (getenv("MGS2_XLIVE_DEFER") && (dfr = atoi(getenv("MGS2_XLIVE_DEFER"))) > 0) {   /* me9 */
++      if (dfr > 8) dfr = 8;
++      if (from != 0) { fprintf(stderr, "me9: MGS2_XLIVE_DEFER needs MGS2_XLIVE=0:<to>\n"); exit(1); }
++      one_on = 0; if (!(dfq = calloc(DF_N, sizeof *dfq))) exit(1);
++      clock_gettime(CLOCK_MONOTONIC, &df_tafter);
++      fprintf(stderr, "xlive mode: me9: the translator and the frame work %d hook%s late (MGS2_XLIVE_DEFER; the one walk off)\n", dfr, dfr > 1 ? "s" : "");
++      if (getenv("MGS2_XLIVE_SNAP") && (df_snap = atoi(getenv("MGS2_XLIVE_SNAP"))) > 0) {
++        if (df_snap > 2) df_snap = 2;
++        if (!(df_sh = calloc(1, GSZ))) exit(1);
++        fprintf(stderr, "xlive mode: me9: each transfer's chain copied as it comes, the queue reads the copy (MGS2_XLIVE_SNAP=%d; the thinning "
++                "reads %s)\n", df_snap, df_snap == 2 ? "a whole copy of RAM taken at its step's first transfer" : "RAM as the queue runs"); } }
+     if (one_on) fprintf(stderr, "xlive mode: one walk (MGS2_XLIVE_ONE)\n");
+     if (from == 0) { on = 1; xl_reset(); xdg_open(dig); vc_start(); if (cg_on) CALLGRIND_START_INSTRUMENTATION; }
+   }
+ }
+ /* each vblank start (boot.c k_vblank_hook, after pkt_vblank): the line of the vblank that ended, then the window */
++/* me9: one queued event: a transfer through the second walk, or a hook's frame work as the normal hook does it (below) */
++static void df_exec(DfE *e)
++{
++  if (!e->kind) { struct timespec a, b;
++    if (df_snap) { df_apply(e); glf.ram = df_snap == 2 ? df_full[e->fs] : df_live; }
++    clock_gettime(CLOCK_MONOTONIC, &a); xlv_dma(&M, e->ch, e->chcr, e->madr, e->qwc, e->tadr);
++    clock_gettime(CLOCK_MONOTONIC, &b); t_walk += df_ms(&a, &b); return; }
++  df_runs++;
++  if (on) fprintf(stderr, "xlive: vb %ld %016llx\n", e->vb - 1, (unsigned long long)ph);
++  if (e->fe) { gb_frame_end(e->vb - 1); gb_now = 0; }   /* gb_now: the frame state the callbacks see, as the queue runs */
++  if (e->fb) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.ram = df_snap ? df_live : M.mem; gl_begin(&glf);
++    if (gx_on && gx_first < 0) { gx_first = e->vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", e->vb); } }
++  ph = 0xcbf29ce484222325ull;
++  if (tkc) tk_frame(tkc);
++}
++static void df_drain(long keep)   /* runs the queue until <keep> hook events are left in it */
++{
++  while (dfh < dft && dfhk > keep) { DfE *e = &dfq[dfh++ & (DF_N - 1)]; if (e->kind) dfhk--; df_exec(e); }
++}
++/* me9: the hook with MGS2_XLIVE_DEFER: the step's times, the real decisions (as the normal hook below), the hook event queued, the queue
++   run; 1 at the window's end (the queue run whole) */
++static int df_hook(long vb)
++{
++  struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
++  double game = df_ms(&df_tafter, &t0); int last;
++  df_w.steps++; df_w.game += game;
++  if (df_ntr) { df_w.tsteps++; df_w.tr += df_ntr; df_w.tgame += game; df_w.first += df_first; df_w.last += df_last; }
++  df_ntr = 0; if (ds_step > ds_w.maxb) ds_w.maxb = ds_step;
++  ds_step = 0;
++  DfE h; memset(&h, 0, sizeof h); h.kind = 1; h.vb = vb; h.fe = df_rgb;
++  { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
++    skip_now = skip_on && k == 2;
++    h.fb = gb_on && (k & 1) && on && vb < to && (!gx_on || gx_seen); }
++  df_rgb = h.fb;
++  if (dft - dfh >= DF_N) { fprintf(stderr, "me9: the queue is full\n"); exit(3); }
++  dfq[dft++ & (DF_N - 1)] = h; dfhk++; df_q_hk++;
++  last = on && vb >= to;
++  df_drain(last ? 0 : dfr - 1);
++  clock_gettime(CLOCK_MONOTONIC, &t1); df_w.rep += df_ms(&t0, &t1);
++  if ((vb - from) % 100 == 0 || last) {
++    char w[64]; snprintf(w, sizeof w, "vb %ld-%ld", vb - 1 - (vb - 1 - from) % 100, vb - 1); df_line(w, &df_w);
++    if (df_snap) { ds_line(w, &ds_w, df_w.tsteps); ds_all.tr += ds_w.tr; ds_all.rng += ds_w.rng; ds_all.b += ds_w.b; ds_all.tagb += ds_w.tagb;
++      ds_all.chg += ds_w.chg; ds_all.chgr += ds_w.chgr; ds_all.chgt += ds_w.chgt; if (ds_w.maxb > ds_all.maxb) ds_all.maxb = ds_w.maxb;
++      for (int k = 0; k < 3; k++) { ds_all.pb[k] += ds_w.pb[k]; ds_all.pchg[k] += ds_w.pchg[k]; }
++      memset(&ds_w, 0, sizeof ds_w); }
++    df_all.steps += df_w.steps; df_all.tsteps += df_w.tsteps; df_all.tr += df_w.tr; df_all.game += df_w.game; df_all.tgame += df_w.tgame;
++    df_all.first += df_w.first; df_all.last += df_w.last; df_all.rep += df_w.rep; memset(&df_w, 0, sizeof df_w);
++    if (last) { df_line("totals", &df_all); if (df_snap) ds_line("totals", &ds_all, df_all.tsteps);
++      fprintf(stderr, "me9: transfers queued %ld, hooks %ld, hook events run %ld\n", df_q_tr, df_q_hk, df_runs); } }
++  return last;
++}
+ void xlive_chk_vblank(long vb)
+ {
+   if (from == -2) setup();
+   if (from < 0 || done) return;
++  if (dfr) { int last = df_hook(vb); cur_vb = vb;
++    if (on && tx_on) {   /* me9: the texture check's scan and lines in the defer mode too (what the queue run's reads gave) */
++      ck.scanned += gu_sent_scan(map, scan_fn, 0);
++      if (vb > from && ((vb - from) % 100 == 0 || vb >= to)) { tx_line(&ck, vb - 1 - (vb - 1 - from) % 100, vb - 1); tx_add(); } }
++    if (last) goto window_end;
++    clock_gettime(CLOCK_MONOTONIC, &df_tafter); return; }
+   if (on) fprintf(stderr, "xlive: vb %ld %016llx\n", vb - 1, (unsigned long long)ph);
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+@@ -994,7 +1176,7 @@
+     if (vb > from && ((vb - from) % 100 == 0 || vb >= to)) { tx_line(&ck, vb - 1 - (vb - 1 - from) % 100, vb - 1); tx_add(); }
+   }
+   cur_vb = vb;
+-  if (on && vb >= to) { on = 0; done = 1; if (cg_on) CALLGRIND_STOP_INSTRUMENTATION; xdg_close(); if (dig) fclose(dig); dig = 0; totals();
++  if (on && vb >= to) { window_end: on = 0; done = 1; if (cg_on) CALLGRIND_STOP_INSTRUMENTATION; xdg_close(); if (dig) fclose(dig); dig = 0; totals();
+     ec_report(vb - 1);
+     if (vc_on) { const XlStats *S = xl_stats();   /* the UNPACK kinds of the window */
+       for (int i = 0; i < S->nuk; i++) { uint64_t k = S->uk[i];

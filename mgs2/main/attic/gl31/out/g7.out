@@ -1,0 +1,13 @@
+== G7: rb2 (a second folder) against psp
+EBOOT.PBP equal (024bedf5)
+ovl_d00t.bin equal (08b979b5)
+ovl_d01t.bin equal (11ea73b0)
+ovl_init.bin equal (b25edabb)
+ovl_n_title.bin equal (8c25f9dc)
+ovl_r_title.bin equal (cc9a8ce7)
+ovl_r_tnk0.bin equal (b9f8e1fe)
+ovl_w00a.bin equal (5d168552)
+ovl_w01a.bin equal (9e3cedc2)
+MGS2T.elf equal (56302bde)
+stage objects 45, differing 0
+deliver's EBOOT and overlays = psp's (cmp)

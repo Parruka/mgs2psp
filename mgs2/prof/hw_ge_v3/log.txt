@@ -1,0 +1,76 @@
+MGS2 GE replay v3
+clock 333/166: set (cpu 333 MHz, bus 166 MHz)
+ms0:/PSP/GAME/MGS2GE_v3/deck_ge.bin: vb 24056, 12250 batches, 59312 vertices, 322 textures, 1675392 data bytes
+other          12162 batches,  4837541 GE pixels
+mist               1 batches,   930237 GE pixels
+small sprites     85 batches,   117042 GE pixels
+depth blur         1 batches,   261120 GE pixels
+motion trail       1 batches,   130050 GE pixels
+textures in VRAM: 175 of them, 688 KB, 99.0% of the palette-textured GE pixels
+  part blur as the PS2 draws it         27.20 ms per draw (min   27.20)
+  part blur top-left corner first        2.65 ms per draw (min    2.65)
+  part blur 15-pixel columns            25.94 ms per draw (min   25.94)
+  part blur 16-row tiles                 2.66 ms per draw (min    2.66)
+  part blur top-left, 16-row tiles       2.65 ms per draw (min    2.65)
+  part blur from a copy                 28.64 ms per draw (min   28.64)
+  part blur, no texture (*)              1.28 ms per draw (min    1.28)
+  part blur, nearest filter (*)         19.84 ms per draw (min   19.84)
+  part blur, no depth test (*)          26.88 ms per draw (min   26.88)
+  part blur, 16-bit buffer (*)          22.48 ms per draw (min   22.48)
+  part mist as the PS2 draws it          3.28 ms per draw (min    3.28)
+  part mist, textures in VRAM            3.28 ms per draw (min    3.28)
+  part small sprites                     0.83 ms per draw (min    0.82)
+  part small sprites, tex in VRAM        0.72 ms per draw (min    0.72)
+  part trail as the PS2 draws it         7.48 ms per draw (min    7.47)
+  part trail 64-pixel columns            1.49 ms per draw (min    1.49)
+  part trail 32-pixel columns            1.53 ms per draw (min    1.53)
+  part trail 16-pixel columns            1.36 ms per draw (min    1.35)
+  part trail, 16-bit buffer (*)          3.66 ms per draw (min    3.66)
+fastest cuts (used by "best fixes together"): depth blur top-left first, 16-row tiles, motion trail 16-pixel columns
+  (round 1) full (as v2b)              GE   75.06  min   74.96   build  17.69
+  (round 1) best fixes together        GE   38.70  min   38.65   build  18.19
+  (round 1) best, no motion trail      GE   37.35  min   37.26   build  18.43
+  (round 1) best, no depth blur        GE   36.06  min   35.97   build  18.06
+  (round 1) best, 16-bit buffers       GE   26.90  min   26.84   build  18.16
+  (round 1) best, no textures          GE   26.35  min   26.30   build  15.48
+  (round 2) full (as v2b)              GE   74.52  min   73.91   build  17.68
+  (round 2) best fixes together        GE   38.41  min   38.09   build  18.17
+  (round 2) best, no motion trail      GE   37.08  min   36.75   build  18.41
+  (round 2) best, no depth blur        GE   35.80  min   35.46   build  18.05
+  (round 2) best, 16-bit buffers       GE   26.90  min   26.84   build  18.16
+  (round 2) best, no textures          GE   26.35  min   26.30   build  15.48
+  (round 3) full (as v2b)              GE   74.34  min   73.89   build  17.67
+  (round 3) best fixes together        GE   38.32  min   38.06   build  18.17
+  (round 3) best, no motion trail      GE   36.98  min   36.74   build  18.40
+  (round 3) best, no depth blur        GE   35.72  min   35.46   build  18.05
+  (round 3) best, 16-bit buffers       GE   26.90  min   26.84   build  18.16
+  (round 3) best, no textures          GE   26.35  min   26.29   build  15.48
+Each part alone, GE time per draw (ms; mean, min), 30 x 3 draws; (*) changes the picture, measured only:
+  blur as the PS2 draws it         27.20  min   27.20
+  blur top-left corner first        2.65  min    2.65
+  blur 15-pixel columns            25.94  min   25.94
+  blur 16-row tiles                 2.66  min    2.66
+  blur top-left, 16-row tiles       2.65  min    2.65
+  blur from a copy                 28.64  min   28.64
+  blur, no texture (*)              1.28  min    1.28
+  blur, nearest filter (*)         19.84  min   19.84
+  blur, no depth test (*)          26.88  min   26.88
+  blur, 16-bit buffer (*)          22.48  min   22.48
+  mist as the PS2 draws it          3.28  min    3.28
+  mist, textures in VRAM            3.28  min    3.28
+  small sprites                     0.83  min    0.82
+  small sprites, tex in VRAM        0.72  min    0.72
+  trail as the PS2 draws it         7.48  min    7.47
+  trail 64-pixel columns            1.49  min    1.49
+  trail 32-pixel columns            1.53  min    1.53
+  trail 16-pixel columns            1.36  min    1.35
+  trail, 16-bit buffer (*)          3.66  min    3.66
+Full frame, GE time (ms; mean, min) and CPU time to build its list (ms), 39 frames x 3 rounds per mode:
+  full (as v2b)              GE   74.34  min   73.89   build  17.67
+  best fixes together        GE   38.32  min   38.06   build  18.17
+  best, no motion trail      GE   36.98  min   36.74   build  18.40
+  best, no depth blur        GE   35.72  min   35.46   build  18.05
+  best, 16-bit buffers       GE   26.90  min   26.84   build  18.16
+  best, no textures          GE   26.35  min   26.29   build  15.48
+largest list 360 KB (of 4096); blends with no GE mapping: 0
+Press X (or HOME) to exit.

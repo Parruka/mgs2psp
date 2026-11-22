@@ -1,0 +1,11 @@
+==> new_f_0.log <==
+10446 functions, fetched: region 0 948 (2293664 bytes), 1 502 (1909624), 2 0 (0)
+current placement: trace 1 2858001 I-misses (weighted 2858001) test windows 980311 (weighted 980311), 2858001, test 980311
+current order, hot functions packed: trace 1 2977505 I-misses (weighted 2977505) test windows 1004100 (weighted 1004100), 2977505, test 1004100
+funcs_deck_f.txt: 10446 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 1989112 I-misses (weighted 1989112) test windows 675185 (weighted 675185), 1989112, test 675185
+
+==> new_f_1.log <==
+10253 functions, fetched: region 0 825 (2135316 bytes), 1 454 (1620952), 2 0 (0)
+current placement: trace 1 3541822 I-misses (weighted 3541822) test windows 872675 (weighted 872675), 3541822, test 872675
+current order, hot functions packed: trace 1 3385799 I-misses (weighted 3385799) test windows 822350 (weighted 822350), 3385799, test 822350
+funcs_w01a_f.txt: 10253 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2449205 I-misses (weighted 2449205) test windows 610007 (weighted 610007), 2449205, test 610007

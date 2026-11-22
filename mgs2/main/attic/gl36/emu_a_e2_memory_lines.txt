@@ -1,0 +1,6 @@
+free memory: heap headroom 12512 KB; outside the heap: largest block 512 KB, total 764 KB
+disc: no memory for 177 sectors (361520 bytes of \MODULES\MODULE.IPK)
+end: the machine stopped, code 7 (see log.txt)
+free memory now: heap headroom 368 KB; outside the heap: largest block 116 KB, total 120 KB
+memory at the end: heap block at 0b23bf00, break 0be1e000; malloc arena 12168 KB: in use 12165 KB, free 2 KB in 8 chunks, top 0 KB
+memory at the end: blocks malloc can still give (KB): 368 = 368 KB in 1 blocks

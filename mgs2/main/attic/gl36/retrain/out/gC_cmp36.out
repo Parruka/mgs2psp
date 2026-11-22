@@ -1,0 +1,407 @@
+=== hashes (g1r_*.out)
+g1r_bothC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_bothC.txt equals hashref_gl36.txt byte for byte 
+g1r_cf0chkC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_cf0chkC.txt equals hashref_gl36.txt byte for byte 
+g1r_cf0offC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_cf0offC.txt equals hashref_gl36.txt byte for byte 
+g1r_chkC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_chkC.txt equals hashref_gl36.txt byte for byte 
+g1r_dxC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_dxC.txt equals hashref_gl36.txt byte for byte 
+g1r_l3chkC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_l3chkC.txt equals hashref_gl36.txt byte for byte 
+g1r_l3offC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_l3offC.txt equals hashref_gl36.txt byte for byte 
+g1r_lw2pC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_lw2pC.txt equals hashref_gl36.txt byte for byte 
+g1r_lw2rC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_lw2rC.txt equals hashref_gl36.txt byte for byte 
+g1r_needpC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_needpC.txt equals hashref_gl36.txt byte for byte 
+g1r_needrC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_needrC.txt equals hashref_gl36.txt byte for byte 
+g1r_onC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_onC.txt equals hashref_gl36.txt byte for byte 
+g1r_pC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_pC.txt equals hashref_gl36.txt byte for byte 
+g1r_pxC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_pxC.txt equals hashref_gl36.txt byte for byte 
+g1r_rC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rC.txt equals hashref_gl36.txt byte for byte 
+g1r_rcC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rcC.txt equals hashref_gl36.txt byte for byte 
+g1r_rk15C.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rk15C.txt equals hashref_gl36.txt byte for byte 
+g1r_rnfC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rnfC.txt equals hashref_gl36.txt byte for byte 
+g1r_rx2C.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rx2C.txt equals hashref_gl36.txt byte for byte 
+g1r_rxC.out: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_rxC.txt equals hashref_gl36.txt byte for byte 
+=== pC against rC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 220
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 11 (groups 704, skipping 572, in S 4461), recorded 498 (groups 6492; kept 39, not kept 459), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24200-24300 why not replayed: 0 474 0 0 6 0 17 0 0 0 0 0 1 0 0 0; barriers 4149
+> natreuse: vb 24300-24400 arm 3 reuse 1 turn 3: runs replayed 12 (groups 741, skipping 597, in S 2880), recorded 375 (groups 4667; kept 37, not kept 338), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24300-24400 why not replayed: 0 357 0 0 4 0 13 0 0 0 0 0 1 0 0 0; barriers 2584
+> natreuse: vb 24400-24500 arm 3 reuse 1 turn 4: runs replayed 24 (groups 1255, skipping 922, in S 348), recorded 34 (groups 1438; kept 27, not kept 8), checked 0 (groups 0; S differing 0, boxes diffe
+=== pC against rcC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 220
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB), check mode
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 0 (groups 0, skipping 0, in S 833), recorded 94 (groups 3644; kept 57, not kept 43), checked 7 (groups 357; S differing 0, boxes differin
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 402
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 0 (groups 0, skipping 0, in S 1250), recorded 199 (groups 2835; kept 76, not kept 153), checked 30 (groups 570; S differing 0, boxes diff
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 736
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 0 (groups 0, skipping 0, in S 4593), recorded 498 (groups 6492; kept 50, not kept 459), checked 11 (groups 704; S differing 0, boxes diff
+> natreuse: vb 24200-24300 why not replayed: 0 474 0 0 6 0 17 0 0 0 0 0 1 0 0 0; barriers 4193
+> natreuse: vb 24300-24400 arm 3 reuse 1 turn 3: runs replayed 0 (groups 0, skipping 0, in S 3024), recorded 375 (groups 4667; kept 49, not kept 338), checked 12 (groups 741; S differing 0, boxes diff
+> natreuse: vb 24300-24400 why not replayed: 0 357 0 0 4 0 13 0 0 0 0 0 1 0 0 0; barriers 2632
+> natreuse: vb 24400-24500 arm 3 reuse 1 turn 4: runs replayed 0 (groups 0, skipping 0, in S 624), recorded 34 (groups 1438; kept 50, not kept 8), checked 24 (groups 1255; S differing 0, boxes differi
+=== pC against rk15C 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 438
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+< nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 1, MGS2_NAT_KEEP_CYCLE none (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 15, MGS2_NAT_KEEP_CYCLE none (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turn
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+< natkeep: vb 24000-24100 arm 3 keep 1 turn 0: groups flagged 4587; drawn areas replayed 3528, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PR
+> natkeep: vb 24000-24100 arm 3 keep 15 turn 0: groups flagged 4587; drawn areas replayed 3528, checked 0, differing 0; textures replayed 962, checked 0, differing 0, records 1306; CLUT calls not made
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+< natkeep: vb 24100-24200 arm 3 keep 1 turn 1: groups flagged 3484; drawn areas replayed 2562, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PR
+> natkeep: vb 24100-24200 arm 3 keep 15 turn 1: groups flagged 3484; drawn areas replayed 2562, checked 0, differing 0; textures replayed 1363, checked 0, differing 0, records 1647; CLUT calls not mad
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+=== pC against rnfC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 2
+16084c16084
+< nat: gl34 fast native front end: MGS2_NAT_FAST 1, MGS2_NAT_FAST_CYCLE none (1: arm 3's groups go to the translator's fast front end; by the same turns)
+---
+> nat: gl34 fast native front end: MGS2_NAT_FAST 0, MGS2_NAT_FAST_CYCLE 1,1,0,0 (1: arm 3's groups go to the translator's fast front end; by the same turns)
+alllines unfiltered (times out): lines differing 380
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+< nat: gl34 fast native front end: MGS2_NAT_FAST 1, MGS2_NAT_FAST_CYCLE none (1: arm 3's groups go to the translator's fast front end; by the same turns)
+> nat: gl34 fast native front end: MGS2_NAT_FAST 0, MGS2_NAT_FAST_CYCLE 1,1,0,0 (1: arm 3's groups go to the translator's fast front end; by the same turns)
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+< natkeep: vb 24200-24300 arm 3 keep 1 turn 2: groups flagged 7186; drawn areas replayed 2950, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PR
+> natkeep: vb 24200-24300 arm 3 keep 1 turn 2: groups flagged 0; drawn areas replayed 59, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PRIM wr
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 0 (groups 0, skipping 0, in S 101), recorded 8 (groups 141; kept 1, not kept 8), checked 0 (groups 0; S differing 0, boxes differing 0); 
+=== pC against needrC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 3
+163932a163933
+> sb need: 1031255 converter calls, 5781 descriptors decoded for them; checked 0, differing 0
+163936c163937
+< xlive lazy: 54501170 UNPACKs (1643075844 vectors) left to decode later; quadwords decoded later: 825166 when read, 0 before an UNPACK wrote over them, 21397325 at 85645 flushes (1070 for a full tabl
+---
+> xlive lazy: 54501170 UNPACKs (1643075844 vectors) left to decode later; quadwords decoded later: 825166 when read, 0 before an UNPACK wrote over them, 21374357 at 85578 flushes (1072 for a full tabl
+alllines unfiltered (times out): lines differing 227
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 11 (groups 704, skipping 572, in S 4461), recorded 498 (groups 6492; kept 39, not kept 459), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24200-24300 why not replayed: 0 474 0 0 6 0 17 0 0 0 0 0 1 0 0 0; barriers 4149
+> natreuse: vb 24300-24400 arm 3 reuse 1 turn 3: runs replayed 12 (groups 741, skipping 597, in S 2880), recorded 375 (groups 4667; kept 37, not kept 338), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24300-24400 why not replayed: 0 357 0 0 4 0 13 0 0 0 0 0 1 0 0 0; barriers 2584
+> natreuse: vb 24400-24500 arm 3 reuse 1 turn 4: runs replayed 24 (groups 1255, skipping 922, in S 348), recorded 34 (groups 1438; kept 27, not kept 8), checked 0 (groups 0; S differing 0, boxes diffe
+=== needpC against needrC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 218
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 11 (groups 704, skipping 572, in S 4461), recorded 498 (groups 6492; kept 39, not kept 459), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24200-24300 why not replayed: 0 474 0 0 6 0 17 0 0 0 0 0 1 0 0 0; barriers 4149
+> natreuse: vb 24300-24400 arm 3 reuse 1 turn 3: runs replayed 12 (groups 741, skipping 597, in S 2880), recorded 375 (groups 4667; kept 37, not kept 338), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24300-24400 why not replayed: 0 357 0 0 4 0 13 0 0 0 0 0 1 0 0 0; barriers 2584
+> natreuse: vb 24400-24500 arm 3 reuse 1 turn 4: runs replayed 24 (groups 1255, skipping 922, in S 348), recorded 34 (groups 1438; kept 27, not kept 8), checked 0 (groups 0; S differing 0, boxes diffe
+=== lw2pC against lw2rC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 4
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: totals: runs replayed 19610 (groups 1421319, skipping 1310024), recorded 24417 (groups 808091; kept 4720, not kept 19697), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 3171
+=== pxC against rxC (cycle 1,1,0,0)
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 218
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE 1,1,0,0 (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RC
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+> natreuse: vb 24200-24300 arm 3 reuse 0 turn 2: runs replayed 0 (groups 0, skipping 0, in S 101), recorded 8 (groups 141; kept 1, not kept 8), checked 0 (groups 0; S differing 0, boxes differing 0); 
+> natreuse: vb 24200-24300 why not replayed: 0 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0; barriers 93
+> natreuse: vb 24300-24400 arm 3 reuse 0 turn 3: runs replayed 0 (groups 0, skipping 0, in S 0), recorded 0 (groups 0; kept 0, not kept 0), checked 0 (groups 0; S differing 0, boxes differing 0); boxe
+> natreuse: vb 24300-24400 why not replayed: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; barriers 0
+> natreuse: vb 24400-24500 arm 3 reuse 1 turn 4: runs replayed 23 (groups 1203, skipping 882, in S 342), recorded 33 (groups 1435; kept 27, not kept 6), checked 0 (groups 0; S differing 0, boxes diffe
+=== pxC against rx2C (cycle 0,0,1,1)
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14364; arm 1: 0 of 3233; first picture of a turn: 0 of 67
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 218
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE 0,0,1,1 (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RC
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> natreuse: vb 24000-24100 arm 3 reuse 0 turn 0: runs replayed 0 (groups 0, skipping 0, in S 0), recorded 0 (groups 0; kept 0, not kept 0), checked 0 (groups 0; S differing 0, boxes differing 0); boxe
+> natreuse: vb 24000-24100 why not replayed: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; barriers 0
+> natreuse: vb 24100-24200 arm 3 reuse 0 turn 1: runs replayed 0 (groups 0, skipping 0, in S 0), recorded 0 (groups 0; kept 0, not kept 0), checked 0 (groups 0; S differing 0, boxes differing 0); boxe
+> natreuse: vb 24100-24200 why not replayed: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; barriers 0
+> natreuse: vb 24200-24300 arm 3 reuse 1 turn 2: runs replayed 10 (groups 640, skipping 520, in S 4372), recorded 491 (groups 6415; kept 39, not kept 451), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24200-24300 why not replayed: 0 467 0 0 6 0 17 0 0 0 0 0 1 0 0 0; barriers 4060
+> natreuse: vb 24300-24400 arm 3 reuse 1 turn 3: runs replayed 12 (groups 741, skipping 597, in S 2880), recorded 375 (groups 4667; kept 37, not kept 338), checked 0 (groups 0; S differing 0, boxes di
+> natreuse: vb 24300-24400 why not replayed: 0 357 0 0 4 0 13 0 0 0 0 0 1 0 0 0; barriers 2584
+> natreuse: vb 24400-24500 arm 3 reuse 0 turn 4: runs replayed 1 (groups 52, skipping 40, in S 6), recorded 1 (groups 3; kept 0, not kept 2), checked 0 (groups 0; S differing 0, boxes differing 0); bo
+=== /home/claude/main/build_gl35/tw/x86/out_dx against rxC (cycle 1,1,0,0)
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 2
+632c632
+< split: 685 reference hashes from /home/claude/main/build_gl35/cfg/hashref_gl35.txt
+---
+> split: 685 reference hashes from /home/claude/main/build_gl36/cfg/hashref_gl36.txt
+alllines unfiltered (times out): lines differing 438
+< split: 685 reference hashes from /home/claude/main/build_gl35/cfg/hashref_gl35.txt
+> split: 685 reference hashes from /home/claude/main/build_gl36/cfg/hashref_gl36.txt
+< nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 0, MGS2_NAT_KEEP_CYCLE 15,15,0,0 (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same 
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE 1,1,0,0 (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RC
+> nat: gl35 keeps for fast native groups: MGS2_NAT_KEEP 1, MGS2_NAT_KEEP_CYCLE none (bits: 1 drawn areas, 2 A+D packet, 4 texture of the groups' look-ups, 8 texture of every look-up; by the same turns
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+< natkeep: vb 24000-24100 arm 3 keep 15 turn 0: groups flagged 4587; drawn areas replayed 3528, checked 0, differing 0; textures replayed 6089, checked 0, differing 0, records 2064; CLUT calls not mad
+> natkeep: vb 24000-24100 arm 3 keep 1 turn 0: groups flagged 4587; drawn areas replayed 3528, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PR
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+< natkeep: vb 24100-24200 arm 3 keep 15 turn 1: groups flagged 3484; drawn areas replayed 2562, checked 0, differing 0; textures replayed 18757, checked 0, differing 0, records 4374; CLUT calls not ma
+> natkeep: vb 24100-24200 arm 3 keep 1 turn 1: groups flagged 3484; drawn areas replayed 2562, checked 0, differing 0; textures replayed 0, checked 0, differing 0, records 0; CLUT calls not made 0, PR
+=== rxC against dxC (cycle 1,1,1,1,0,0,0,0)
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14419; arm 1: 0 of 3210; first picture of a turn: 0 of 35
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 3
+> nat: cull study v3: MGS2_NAT_CULL 0, MGS2_NAT_CULL_CYCLE 1,1,1,1,0,0,0,0 (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 0
+< natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+> natcull: totals (v3): effect calls tested 215631, left out 148574 (4554300 vertices); kept: vertex 0 inside 36669, no plane proven 30292, a bad attribute 0, count 0, out of the clamps' range 0, thin
+=== rxC against dxC (cycle 1,1,0,0)
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 14303; arm 1: 0 of 3293; first picture of a turn: 0 of 68
+=== rxC against onC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 3
+> nat: cull study v3: MGS2_NAT_CULL 1, MGS2_NAT_CULL_CYCLE none (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 0
+< natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+> natcull: totals (v3): effect calls tested 436237, left out 294164 (9216184 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thin
+=== rxC against chkC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 3
+> nat: cull study v3: MGS2_NAT_CULL 1, MGS2_NAT_CULL_CYCLE none (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 1
+< natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+> natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; ch
+=== l3offC against l3chkC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 3
+> nat: cull study v3: MGS2_NAT_CULL 1, MGS2_NAT_CULL_CYCLE none (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 1
+< natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+> natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; ch
+=== cf0offC against cf0chkC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 3
+> nat: cull study v3: MGS2_NAT_CULL 1, MGS2_NAT_CULL_CYCLE none (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 1
+< natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+> natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; ch
+=== rxC against cf0offC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 0
+=== rxC against bothC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 425
+> nat: cull study v3: MGS2_NAT_CULL 1, MGS2_NAT_CULL_CYCLE none (bit 1: the effect strips that would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK 1
+< nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 0, MGS2_NAT_REUSE_CYCLE 1,1,0,0 (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RC
+> nat: gl36 reuse of a run's translation from the last picture: MGS2_NAT_REUSE 1, MGS2_NAT_REUSE_CYCLE none (1: a fast run that matches its kept entries is replayed; by the same turns), MGS2_NAT_RCHK 
+< nat: gl36 reuse table: 2304 entries of 64 B (144 KB)
+> nat: gl36 reuse table: 2304 entries of 64 B (144 KB), check mode
+< natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 7 (groups 357, skipping 295, in S 771), recorded 94 (groups 3644; kept 50, not kept 43), checked 0 (groups 0; S differing 0, boxes differ
+< natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 382
+> natreuse: vb 24000-24100 arm 3 reuse 1 turn 0: runs replayed 0 (groups 0, skipping 0, in S 833), recorded 94 (groups 3644; kept 57, not kept 43), checked 7 (groups 357; S differing 0, boxes differin
+> natreuse: vb 24000-24100 why not replayed: 0 76 1 0 0 0 13 0 0 0 0 0 4 0 0 0; barriers 402
+< natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 30 (groups 570, skipping 430, in S 1110), recorded 199 (groups 2835; kept 46, not kept 153), checked 0 (groups 0; S differing 0, boxes di
+< natreuse: vb 24100-24200 why not replayed: 0 177 10 0 1 0 10 0 0 0 0 0 1 0 0 0; barriers 696
+> natreuse: vb 24100-24200 arm 3 reuse 1 turn 1: runs replayed 0 (groups 0, skipping 0, in S 1250), recorded 199 (groups 2835; kept 76, not kept 153), checked 30 (groups 570; S differing 0, boxes diff
+=== rxB against rxC 
+/dev/fd/63: 17664 picture lines, 17664 content; /dev/fd/62: 17664, 17664; same frames: True
+list/frame digests + counts                         : 17664 lines, differ 0; arm 0: 0 of 17664
+dz text (arm, 42, oth, pair, sub, fb, bias, w, aux) : 17664 lines, differ 0; arm 0: 0 of 17664
+content digest                                      : 17664 lines, differ 0; arm 0: 0 of 17664
+natb                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natz                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+natq                                                : 17664 lines, differ 0; arm 0: 0 of 17664
+nats (the translator state, gl35)                   : 17664 lines, differ 0; arm 0: 0 of 17664
+alllines filtered (reuse/keep/cull own lines, natst, times out): lines differing 0
+alllines unfiltered (times out): lines differing 1
+> natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-
+=== natcull totals by arm
+rxC: natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 0, 0 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+dxC: natcull: totals (v3): effect calls tested 215631, left out 148574 (4554300 vertices); kept: vertex 0 inside 36669, no plane proven 30292, a bad attribute 0, count 0, out of the clamps' range 0, thinned 96; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 6016507, 1425538 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+onC: natcull: totals (v3): effect calls tested 436237, left out 294164 (9216184 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 12428524, 3136674 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+chkC: natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; check mode: left-out calls converted 294164, DIFFERING 0, kept calls that drew nothing 56866; vertices read 12428524, 3136674 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+bothC: natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; check mode: left-out calls converted 294164, DIFFERING 0, kept calls that drew nothing 56866; vertices read 12428524, 3136674 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+l3offC: natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 0, 0 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+l3chkC: natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; check mode: left-out calls converted 294164, DIFFERING 0, kept calls that drew nothing 56866; vertices read 12428524, 3136674 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+cf0offC: natcull: totals (v3): effect calls tested 0, left out 0 (0 vertices); kept: vertex 0 inside 0, no plane proven 0, a bad attribute 0, count 0, out of the clamps' range 0, thinned 0; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 0, 0 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+cf0chkC: natcull: totals (v3): effect calls tested 436237, left out 0 (0 vertices); kept: vertex 0 inside 75666, no plane proven 66217, a bad attribute 0, count 0, out of the clamps' range 0, thinned 190; check mode: left-out calls converted 294164, DIFFERING 0, kept calls that drew nothing 56866; vertices read 12428524, 3136674 of them in calls kept; left-out vertices on the clamped path 9216184, check mode: converted through the clamps 9216184
+=== reuse totals by arm
+pC: 
+rC:  runs replayed 19610 (groups 1421319, skipping 1310024), recorded 24417 (groups 808091; kept 4720, not kept 19697), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 317149; boxes recorded 304690, taken 1353708, cut 445947, positions then needed 69799; no table room 0; re
+rcC:  runs replayed 0 (groups 0, skipping 0), recorded 24417 (groups 808091; kept 24330, not kept 19697), checked 19610 (groups 1421319; S DIFFERING 0, boxes DIFFERING 0); in S 428216; boxes recorded 1658399, taken 0, cut 0, positions then needed 0; no table room 0; replays with a group 
+rk15C:  runs replayed 19610 (groups 1421319, skipping 1310024), recorded 24417 (groups 808091; kept 4720, not kept 19697), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 317149; boxes recorded 304690, taken 1353708, cut 445947, positions then needed 69799; no table room 0; re
+rnfC:  runs replayed 9323 (groups 694802, skipping 640170), recorded 11625 (groups 319912; kept 2207, not kept 9418), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 148621; boxes recorded 168990, taken 666829, cut 220596, positions then needed 33902; no table room 0; replays
+rxC:  runs replayed 9323 (groups 694802, skipping 640170), recorded 11625 (groups 319912; kept 2207, not kept 9418), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 148621; boxes recorded 168990, taken 666829, cut 220596, positions then needed 33902; no table room 0; replays
+rx2C:  runs replayed 10094 (groups 714010, skipping 658378), recorded 12985 (groups 500686; kept 2706, not kept 10279), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 169556; boxes recorded 147708, taken 674871, cut 221391, positions then needed 35209; no table room 0; repla
+pxC: 
+dxC:  runs replayed 9323 (groups 694802, skipping 640170), recorded 11625 (groups 319912; kept 2207, not kept 9418), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 148621; boxes recorded 168990, taken 666829, cut 220596, positions then needed 33902; no table room 0; replays
+bothC:  runs replayed 0 (groups 0, skipping 0), recorded 24417 (groups 808091; kept 24330, not kept 19697), checked 19610 (groups 1421319; S DIFFERING 0, boxes DIFFERING 0); in S 428216; boxes recorded 1658399, taken 0, cut 0, positions then needed 0; no table room 0; replays with a group 
+lw2pC: 
+lw2rC:  runs replayed 19610 (groups 1421319, skipping 1310024), recorded 24417 (groups 808091; kept 4720, not kept 19697), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 317149; boxes recorded 304690, taken 1353708, cut 445947, positions then needed 69799; no table room 0; re
+needpC: 
+needrC:  runs replayed 19610 (groups 1421319, skipping 1310024), recorded 24417 (groups 808091; kept 4720, not kept 19697), checked 0 (groups 0; S DIFFERING 0, boxes DIFFERING 0); in S 317160; boxes recorded 304689, taken 1353708, cut 445947, positions then needed 69799; no table room 0; re

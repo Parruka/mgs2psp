@@ -1,0 +1,16 @@
+vblanks in both: 24 (24001..24024); by kind (bit 0 full call, bit 1 reduced call): 1: 12, 2: 12
+transfers started inside a call: all-vblank run 0, skip run 0; records left out by the skip run 3616266
+shown vblanks compared: 12; equal in everything: 1
+  equal by field: calls 12, prims 12, primitive hash 12, textured 1, texture hash 1, render-target reads 1, render-target hash 1
+  primitives drawn in them: 362180 (all-vblank run), textured 351565, render-target reads 395, mipmapped 0
+  vb 24003 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24005 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24007 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24009 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24011 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24013 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24015 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24017 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24019 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24021 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)
+  vb 24023 differs in tex, ht, rt, hr; every call equal (the difference is in DIRECT / path 3 primitives)

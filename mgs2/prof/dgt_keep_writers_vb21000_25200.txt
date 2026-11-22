@@ -1,0 +1,66 @@
+# x86 GEN_DG_TRACE of the reference headers (vgz/W + vp16n VU), MGS2_DG_TRACE=21000, to vb 25200; tools/dgt_report.py, writer sections only (2026-10-20)
+## deck route
+writers inside the draw pipeline of the words game code reads (writer: words, reads; ranges):
+  P121c30                         124 words   1524685 reads  000cc0-000cdcscratchpad 000d40-000f8cscratchpad 000fd0-000ffcscratchpad 001090-00109cscratchpad 002030-002034scratchpad 002190-002194scratchpad 002990-00299cscratchpad 002a00-002a1cscratchpad 002cd0-002d1cscratchpad 002e20-002e3cscratchpad 003e70-003f1cscratchpad 003f80-003fdcscratchpad
+  P120860                          28 words   1238495 reads  1b4700-1b4760 1b052f0-1b052fc 1d052f0-1d052fc
+  P122138                          20 words    645043 reads  1b47c0-1b47e0 1b8b9c-1b8bc4 1b8fa8-1b8fd0
+  P135338                          28 words    382308 reads  1b4760-1b47a0 1b8b7c-1b8ba4 1b8f88-1b8fb0
+  P12c010                          10 words    315274 reads  1b46f0-1b46fc 1b47a0-1b47c0
+  P11fde8                          20 words     89997 reads  140d870-140d8ac 142e160-142e19c 1660800-1660804
+  P13a310                           1 words     35947 reads  000020-000024scratchpad
+  P1394a0                          27 words     29416 reads  1b8b30-1b8b34 1b8bac-1b8c04 1b8f3c-1b8f40 1b8fb8-1b9010 1e50a0-1e50a4
+  P11f4d0                          16 words     11716 reads  1b8b4c-1b8b54 1b8bbc-1b8be4 1b8f58-1b8f60 1b8fc8-1b8ff0
+  P11fa58                         101 words     10533 reads  1396110-139618c 13961d8-13961dc 1396f10-1396f8c 1396fd8-1396fdc 1397d10-1397d8c 1397dd8-1397ddc 1398b10-1398b8c 1398bd8-1398bdc 1399910-139998c 13999d8-13999dc 15eb150-15eb1ac 165d1f0-165d224 165d420-165d454
+  P128d90                          17 words      7599 reads  18e850-18e8cc 119caf4-119caf8
+  P11e5e0                           4 words      5858 reads  1b8b3c-1b8b44 1b8f48-1b8f50
+  P1226c8                          10 words      5858 reads  1b8b5c-1b8b84 1b8f78-1b8f90
+  P13d540                          12 words      5858 reads  1b8b8c-1b8bb4 1b8f98-1b8fc0
+  P12f130                           4 words      5856 reads  1b8b5c-1b8b64 1b8f68-1b8f70
+  P137730                           4 words      2470 reads  1b8b6c-1b8b74 1b8f78-1b8f80
+  P133cc0                           6 words      1980 reads  1b8b6c-1b8b94 1b8f98-1b8fa0
+  P11e0d0                           2 words      1964 reads  000000-00000cscratchpad
+  P12dc90                         478 words       478 reads  1396370-13963ac 1396400-13964ac 1396570-1396594 1396660-139669c 13966f0-139679c 1396860-1396884 1396950-139698c 13969e0-1396a8c 1396b50-1396b74 1397170-13971ac 1397200-13972ac 1397370-1397394 1397460-139749c 13974f0-139759c 1397660-1397684 1397750-139778c 13977e0-139788c 1397950-1397974 1397f70-1397fac 1398000-13980ac 1398170-1398194 1398260-139829c 13982f0-139839c 1398460-1398484 1398550-139858c 13985e0-139868c 1398750-1398774 1398d70-1398dac 1398e00-1398eac 1398f70-1398f94 1399060-139909c 13990f0-139919c 1399260-1399284 1399350-139938c 13993e0-139948c 1399550-1399574 1399b70-1399bac 1399c00-1399cac 1399d70-1399d94 1399e60-1399e9c 1399ef0-1399f9c 139a060-139a084 139a150-139a18c 139a1e0-139a28c 139a350-139a374 139afa0-139afdc 139b030-139b0dc 139b1a0-139b284 1624970-162497c 1624a40-1624a4c 165e6e0-165e71c 165e770-165e81c 165e8e0-165e904 165f000-165f03c 165f090-165f13c 165f200-165f224
+  P11d930                           2 words        42 reads  18db60-18db68
+  P11ee98                           1 words        15 reads  18dc48-18dc4c
+  P11d5f8                           1 words         7 reads  18db98-18db9c
+  P12d688                           5 words         5 reads  13961e0-13961e4 1396fe0-1396fe4 1397de0-1397de4 1398be0-1398be4 13999e0-13999e4
+  P15dbb8                           1 words         5 reads  1b8490-1b8494
+  gen_call                          1 words         5 reads  18db70-18db74
+  P1214a0                           4 words         4 reads  1b052f0-1b052fc 1d052f0-1d052fc
+  P175cd0                           1 words         1 reads  1c9780-1c9784
+  P175b18                           1 words         1 reads  07fdc0-07fdc4
+
+writers inside the draw pipeline of what dma VIF0 reads (59941 reads):
+## w01a route
+writers inside the draw pipeline of the words game code reads (writer: words, reads; ranges):
+  P121c30                          43 words   3444707 reads  000cc0-000cdcscratchpad 002190-002194scratchpad 002990-00299cscratchpad 003e70-003f1cscratchpad 003f80-003fdcscratchpad
+  P120860                          20 words    670496 reads  1b4700-1b4760
+  P122138                          25 words    400300 reads  1b47c0-1b47dc 1b8b6c-1b8bc4 1b8f78-1b8fd0
+  P12c010                           7 words    315101 reads  1b47a0-1b47c0
+  P135338                          32 words    275362 reads  1b4760-1b47a0 1b8b5c-1b8ba4 1b8f68-1b8fb0
+  P11fde8                          19 words     76184 reads  13d9740-13d977c 140d870-140d8ac
+  P11fa58                          36 words     66996 reads  1430a90-1430ac4 14332f0-1433324 1433520-1433554 144eeb0-144eee4 1451710-1451744 1451940-1451974 146c2b0-146c2e4 146eb10-146eb44 146ed40-146ed74
+  P13a310                           1 words     50286 reads  000020-000024scratchpad
+  P1394a0                          37 words     24860 reads  1b8b30-1b8b34 1b8b7c-1b8c04 1b8f3c-1b8f40 1b8f88-1b9010 1e50a0-1e50a4
+  P11f4d0                          22 words     11400 reads  1b8b4c-1b8be4 1b8f58-1b8ff0
+  P11e5e0                           8 words      6164 reads  1b8b3c-1b8b44 1b8f48-1b8f50 1b01380-1b0138c 1d01380-1d0138c
+  P12f130                           4 words      2032 reads  1b8b5c-1b8b64 1b8f68-1b8f70
+  P1226c8                          10 words      2028 reads  1b8b5c-1b8b84 1b8f78-1b8f90
+  P133cc0                           6 words      1980 reads  1b8b6c-1b8b94 1b8f98-1b8fa0
+  P13d540                           6 words      1980 reads  1b8b8c-1b8bb4 1b8fb8-1b8fc0
+  P137730                           4 words      1978 reads  1b8b6c-1b8b74 1b8f78-1b8f80
+  P11e0d0                           2 words      1964 reads  000000-00000cscratchpad
+  P12dc90                          52 words        52 reads  1371a80-1371abc 1371b10-1371bbc 1371c80-1371de4 13ff558-13ff568 1401028-1401038 1402af8-1402b08 1403998-14039a8
+  P11d930                           2 words        20 reads  18db60-18db68
+  P11ee98                           1 words        15 reads  18dc48-18dc4c
+  P1214a0                           8 words         8 reads  1b01350-1b0138c 1d01350-1d0138c
+  P11d5f8                           1 words         7 reads  18db98-18db9c
+  P15dbb8                           1 words         1 reads  1b8490-1b8494
+  gen_call                          1 words         1 reads  18db70-18db74
+
+writers inside the draw pipeline of what dma VIF0 reads (31292 reads):
+## summary lines
+dgt/run_trd.log:dg trace: written inside the pipeline 473245 words: renderer-only 471636, read by game code 1609
+dgt/run_trd.log:dg trace: 306574608 reads outside the draw pipeline of words it wrote, 381213 word/reader pairs (/home/claude/v19/dgt/dgt_d.txt)
+dgtw/run_trw.log:dg trace: written inside the pipeline 434056 words: renderer-only 433760, read by game code 296
+dgtw/run_trw.log:dg trace: 153006781 reads outside the draw pipeline of words it wrote, 372101 word/reader pairs (/home/claude/v19/dgtw/dgt_w.txt)

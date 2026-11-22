@@ -1,0 +1,28 @@
+10472 functions, fetched: region 0 946 (2293712 bytes), 1 482 (1872772), 2 0 (0)
+current placement: trace 1 4102792 I-misses (weighted 4102792) test windows 291062 (weighted 291062), 4102792, test 291062
+current order, hot functions packed: trace 1 3999052 I-misses (weighted 3999052) test windows 296827 (weighted 296827), 3999052, test 296827
+funcs_deck_f.txt: 10472 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2628905 I-misses (weighted 2628905) test windows 194421 (weighted 194421), 2628905, test 194421
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    120041
+  trace 1 window 1        :    199360
+  trace 1 window 2        :    160192
+  trace 1 window 3        :    161107
+  trace 1 window 4        :    168288
+  trace 1 window 5        :    486503
+  trace 1 window 6        :    481823
+  trace 1 window 7        :    446645
+  trace 1 window 8        :    404946
+  trace 1 window 9 (test):    194421
+  sums, training windows: 2628905; test windows: 194421
+current order, hot functions packed: trace 1 3684914 I-misses (weighted 3684914) test windows 379859 (weighted 379859), 3684914, test 379859
+funcs_w01a_f.txt: 10279 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2576705 I-misses (weighted 2576705) test windows 268059 (weighted 268059), 2576705, test 268059
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    345758
+  trace 1 window 1        :    294454
+  trace 1 window 2        :    244921
+  trace 1 window 3        :    447680
+  trace 1 window 4        :    426297
+  trace 1 window 5        :    484438
+  trace 1 window 6        :    333157
+  trace 1 window 7 (test):    268059
+  sums, training windows: 2576705; test windows: 268059

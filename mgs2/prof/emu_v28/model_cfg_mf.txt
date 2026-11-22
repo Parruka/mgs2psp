@@ -1,0 +1,9 @@
+clock 333
+MGS2_HASH_EVERY=500
+MGS2_VFPU_STAT=1
+vblanks 35610
+deck 30500
+prof 31501 31601 all
+prof 32901 33001 all
+prof 33801 33901 all
+prof 35501 35601 all

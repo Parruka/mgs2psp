@@ -1,0 +1,20 @@
+gl34 G4: undefined symbols of each object against gl33's object (psp-nm -u); < only gl33's, > only gl34's
+  ge_gelive.o: > g_ns 
+  ge_vu1conv.o: > g_ns 
+  ge_xconv.o: > g_ns > vc_df0_pos_k 
+  ge_xlate.o: > g_ns > gu_clut_load 
+  ge_xlme.o: > xl_p04_fast 
+  xl_psp.o: > g_nat_fst > g_ns > lw_nh_n > rt_nat_fast_at > vc_km_n > xl_nf_n 
+objects: 45; byte-identical to gl33's objects: 35
+new names and where the ELF defines them: g_ns(B) g_ns(B) g_ns(B) vc_df0_pos_k(T) g_ns(B) gu_clut_load(T) xl_p04_fast(T) g_nat_fst(B) g_ns(B) lw_nh_n(B) rt_nat_fast_at(T) vc_km_n(B) xl_nf_n(B)
+imports of the ELF (sce* names) against gl33's: 133 / 133 names; differences: 0
+  section .lib.stub: gl33 00000154 bytes, gl34 00000154 bytes
+  section .lib.ent: gl33 00000010 bytes, gl34 00000010 bytes
+  section .rodata.sceResident: gl33 0000015c bytes, gl34 0000015c bytes
+  section .rodata.sceNid: gl33 000001c4 bytes, gl34 000001c4 bytes
+  section .sceStub.text: gl33 00000388 bytes, gl34 00000388 bytes
+ge_xme_me.o: gl33 4d964c8c, gl34 4d964c8c; instruction lines differing: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+me_call_chk: PASS

@@ -1,0 +1,297 @@
+diff -ru /home/claude/t30n/boot/xlive_chk.c /home/claude/t31/boot/xlive_chk.c
+--- /home/claude/t30n/boot/xlive_chk.c	2026-11-20 18:36:02.858792326 +0000
++++ /home/claude/t31/boot/xlive_chk.c	2026-11-20 21:42:48.931151669 +0000
+@@ -302,9 +302,9 @@
+     char zt[224] = "";   /* gl29: the arm and its counts, as psp/xl_psp.c dz_txt prints them */
+     if (gx_dz_on) { const GxDzCount *c = &gxl.dc; const int a = gxl.dz; char an[8];
+       if (a == GX_DZ_B) snprintf(an, sizeof an, "B%d", gxl.dzn); else { an[0] = a >= 0 && a < GX_DZ_B ? "OXYW"[a] : '?'; an[1] = 0; }
+-      snprintf(zt, sizeof zt, "; dz %s 42:%ld oth:%ld pair:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", an, (long)c->n42,
+-               (long)c->noth, (long)c->npair, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4], (long)c->fb[5],
+-               (long)c->nbias, (long)c->nw, (unsigned long)c->aux); }
++      snprintf(zt, sizeof zt, "; dz %s 42:%ld oth:%ld pair:%ld sub:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", an, (long)c->n42,
++               (long)c->noth, (long)c->npair, (long)c->nsub, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4],
++               (long)c->fb[5], (long)c->nbias, (long)c->nw, (unsigned long)c->aux); }   /* gl30: sub (X's subset pairs, XS) */
+     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
+             "%ld dropped%s\n", vb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
+             glf.o.nt, gxl.c.dropped, zt);
+diff -ru /home/claude/t30n/ge/gelist.c /home/claude/t31/ge/gelist.c
+--- /home/claude/t30n/ge/gelist.c	2026-11-20 15:37:11.347855555 +0000
++++ /home/claude/t31/ge/gelist.c	2026-11-20 21:42:48.924979793 +0000
+@@ -489,7 +489,7 @@
+ 
+ /* ---- gl29 (MGS2_GL_DZ; gelist.h): the depth arms for the 0x42 decals.  The pairing's keys and triangles live in aux below its lowest
+    byte, not taken (nothing is put while they are in use; the next aux_get may take the same bytes); X and Y's vertex copy is taken
+-   (aux_get), so both passes draw it ---- */
++   (aux_get), so both passes draw it.  gl30: the cheap reject, XS (subset bases) and the linear uv / colour work (dz_pair) ---- */
+ typedef uint64_t DzK;   /* a position as one ordered key: x, y, z (each s16 ^ 0x8000) from the top */
+ static int is42(const GerBatch *b) { return (b->flags & GERF_BLEND) && ((b->ba | b->bb << 2 | b->bc << 4 | b->bd << 6) & 0xff) == 0x42; }
+ static DzK dz_key(const VcVert *v)
+@@ -549,13 +549,64 @@
+     }
+   return n;
+ }
+-/* X / Y for decal batch i (pass 0): its base found and its vertex copy made in aux (L->dz_v, dz_runs, dz_nst): 0, or 1 + GX_DZF_* */
++/* gl30 (gl30_plan.md 1): the cheap reject: one of the n vertices at cv within the offset limit (64 on each axis) of p.  Every base, exact
++   or subset, has one (p minus the offset), so a candidate without one is neither */
++static int dz_near(const VcVert *cv, uint32_t n, const VcVert *p)
++{
++  const int x = p->x, y = p->y, z = p->z;
++  for (uint32_t k = 0; k < n; k++)
++    if ((uint32_t)(cv[k].x - x + 64) <= 128u && (uint32_t)(cv[k].y - y + 64) <= 128u && (uint32_t)(cv[k].z - z + 64) <= 128u) return 1;
++  return 0;
++}
++static int dz_s16(int a) { return a >= -32768 && a <= 32767; }
++static DzK dz_mk(int x, int y, int z) { return (uint64_t)(uint16_t)(x ^ 0x8000) << 32 | (uint32_t)(uint16_t)(y ^ 0x8000) << 16 | (uint16_t)(z ^ 0x8000); }
++/* gl30: key k moved by s times the offset o (s -1: minus, 1: plus), component by component, in *r: 0 when a component leaves s16 (then no
++   position of the other side lies there).  Moving every key by one offset keeps their order and each triangle's */
++static int dz_mv(DzK k, const int *o, int s, DzK *r)
++{
++  const int x = dz_c(k, 32) + s * o[0], y = dz_c(k, 16) + s * o[1], z = dz_c(k, 0) + s * o[2];
++  if (!dz_s16(x) || !dz_s16(y) || !dz_s16(z)) return 0;
++  *r = dz_mk(x, y, z); return 1;
++}
++/* gl30 XS: the nd keys d (ascending, distinct) minus o all among the nb keys b (ascending, distinct): a merge join */
++static int dz_vin(const DzK *d, uint32_t nd, const DzK *b, uint32_t nb, const int *o)
++{
++  uint32_t j = 0; DzK s;
++  for (uint32_t k = 0; k < nd; k++) {
++    if (!dz_mv(d[k], o, -1, &s)) return 0;
++    while (j < nb && b[j] < s) j++;
++    if (j == nb || b[j] != s) return 0;
++    j++;
++  }
++  return 1;
++}
++/* gl30 XS: the nd triangles d (3 keys each, ascending, distinct) minus o all among the nb triangles b: a merge join */
++static int dz_tin(const DzK *d, uint32_t nd, const DzK *b, uint32_t nb, const int *o)
++{
++  uint32_t j = 0; DzK s[3];
++  for (uint32_t k = 0; k < nd; k++) {
++    if (!dz_mv(d[3 * k], o, -1, &s[0]) || !dz_mv(d[3 * k + 1], o, -1, &s[1]) || !dz_mv(d[3 * k + 2], o, -1, &s[2])) return 0;
++    while (j < nb && dz_tlt(b + 3 * j, s)) j++;
++    if (j == nb || b[3 * j] != s[0] || b[3 * j + 1] != s[1] || b[3 * j + 2] != s[2]) return 0;
++    j++;
++  }
++  return 1;
++}
++/* X / Y for decal batch i (pass 0): its base found and its vertex copy made in aux (L->dz_v, dz_runs, dz_nst): 0, -1 (gl30 XS, arm X
++   only: no exact base, a subset base drawn the Y way), or 1 + GX_DZF_*.
++   gl30 (gl30_plan.md 1-3): the same nearest-first walk, exact bases and fallback reasons as gl29's, with (1) the cheap reject (dz_near)
++   before a candidate's keys are made: a rejected one counts as gl29 counted it (matrix words differ: MAT, else VSET), its 34 words compared
++   only while that can still raise the reason; (2) XS: when no candidate is an exact base, the nearest same-matrix one whose distinct
++   positions contain the decal's after one offset (|o| <= 64 each; of those that fit, the smallest largest component, the first in key
++   order on a tie), and whose triangle set contains the decal's after it: the decal's own vertices and strips, each position the base's
++   (the decal's minus the offset), as Y; (3) the uv / colour check and copy by sorted (key, index) arrays and a merge join, in scratch
++   below the bytes aux_get gives the copy next */
+ static int dz_pair(uint32_t i, const GerXform *x, int arm)
+ {
+   const VcVert *dv = (const VcVert *)(x + 1); const uint16_t *dr = (const uint16_t *)(dv + x->nv);
+   uint32_t nd = x->nv, ndt = dz_ntri(dr, x->nst), lo = i > 64 ? i - 64 : 0, j, k, m;
+-  int why = GX_DZF_BASE, off[3] = { 0, 0, 0 };
+-  const GerXform *bx = 0;
++  int why = GX_DZF_BASE, off[3] = { 0, 0, 0 }, soff[3] = { 0, 0, 0 }, sn = 65;
++  const GerXform *bx = 0, *sx = 0;
+   if (nd < 3) return 1 + GX_DZF_BASE;
+   DzK *dk = (DzK *)dz_tmp(L->alow, 8 * (nd + 3 * ndt)), *dt;
+   if (!dk) return 1 + GX_DZF_ROOM;
+@@ -569,46 +620,84 @@
+     if (c->kind != GERK_XFORM || !(c->flags & GERF_ZWRITE) || is42(c)) continue;
+     const GerXform *cx = (const GerXform *)(F->d + c->first);
+     if (!same_w(cx->world + 9, x->world + 9, 3)) continue;   /* (the translation first) */
+-    if (!same_w(cx->world, x->world, 34)) { if (why < GX_DZF_MAT) why = GX_DZF_MAT; continue; }   /* world, proj, vs, vo */
+     const VcVert *cv = (const VcVert *)(cx + 1); const uint16_t *cr = (const uint16_t *)(cv + cx->nv);
++    if (!dz_near(cv, cx->nv, dv)) {   /* gl30: the cheap reject */
++      if (why < GX_DZF_VSET) { const int r = same_w(cx->world, x->world, 34) ? GX_DZF_VSET : GX_DZF_MAT; if (why < r) why = r; }
++      continue;
++    }
++    if (!same_w(cx->world, x->world, 34)) { if (why < GX_DZF_MAT) why = GX_DZF_MAT; continue; }   /* world, proj, vs, vo */
+     uint32_t nb = cx->nv, nbt = dz_ntri(cr, cx->nst);
+     DzK *bk = (DzK *)dz_tmp(top, 8 * (nb + 3 * nbt)), *bt;
+     if (!bk) { why = GX_DZF_ROOM; break; }
+     bt = bk + nb;
+     for (k = 0; k < nb; k++) bk[k] = dz_key(cv + k);
+     dz_sortk(bk, nb); nb = dz_uniq(bk, nb);
+-    int ok = nb == nd;
++    int ok = nb == nd, tris = 0;
+     if (ok) {   /* one offset: the smallest keys' (the order of the keys is the order of the offset ones) */
+       off[0] = dz_c(dk[0], 32) - dz_c(bk[0], 32); off[1] = dz_c(dk[0], 16) - dz_c(bk[0], 16); off[2] = dz_c(dk[0], 0) - dz_c(bk[0], 0);
+       ok = off[0] >= -64 && off[0] <= 64 && off[1] >= -64 && off[1] <= 64 && off[2] >= -64 && off[2] <= 64;
+       for (k = 1; ok && k < nd; k++) ok = dz_eq(dk[k], bk[k], off);
+     }
+-    if (!ok) { if (why < GX_DZF_VSET) why = GX_DZF_VSET; continue; }
+-    nbt = dz_tris(cv, cr, cx->nst, bt); dz_sortt(bt, nbt); nbt = dz_tuniq(bt, nbt);
+-    ok = nbt == ndt;
+-    for (k = 0; ok && k < 3 * ndt; k++) ok = dz_eq(dt[k], bt[k], off);
+-    if (!ok) { if (why < GX_DZF_TRI) why = GX_DZF_TRI; continue; }
+-    bx = cx; break;
++    if (ok) {
++      nbt = dz_tris(cv, cr, cx->nst, bt); dz_sortt(bt, nbt); nbt = dz_tuniq(bt, nbt); tris = 1;
++      ok = nbt == ndt;
++      for (k = 0; ok && k < 3 * ndt; k++) ok = dz_eq(dt[k], bt[k], off);
++      if (ok) { bx = cx; break; }
++      if (why < GX_DZF_TRI) why = GX_DZF_TRI;
++    } else if (why < GX_DZF_VSET) why = GX_DZF_VSET;
++    if (arm == GX_DZ_X && !sx && nb >= nd)   /* gl30 XS: is it a subset base?  Each offset that puts the decal's smallest key on a base key */
++      for (k = 0; k < nb; k++) {
++        int o[3] = { dz_c(dk[0], 32) - dz_c(bk[k], 32), dz_c(dk[0], 16) - dz_c(bk[k], 16), dz_c(dk[0], 0) - dz_c(bk[k], 0) }, a = 0;
++        for (m = 0; m < 3; m++) { const int e = o[m] < 0 ? -o[m] : o[m]; if (e > a) a = e; }
++        if (a > 64 || a >= sn || !dz_vin(dk, nd, bk, nb, o)) continue;
++        if (!tris) { nbt = dz_tris(cv, cr, cx->nst, bt); dz_sortt(bt, nbt); nbt = dz_tuniq(bt, nbt); tris = 1; }
++        if (!dz_tin(dt, ndt, bt, nbt, o)) continue;
++        soff[0] = o[0]; soff[1] = o[1]; soff[2] = o[2]; sn = a;
++      }
++    if (sn <= 64 && !sx) sx = cx;
++  }
++  if (!bx && !sx) return 1 + why;
++  if (!bx) {   /* gl30 XS (the Y way): the decal's vertex on its base position */
++    VcVert *o = (VcVert *)aux_get(x->nv * (uint32_t)sizeof(VcVert), BATCH_WORDS + 3 * x->nst + 16);
++    if (!o) return 1 + GX_DZF_ROOM;
++    for (k = 0; k < x->nv; k++) {
++      o[k] = dv[k]; o[k].x = (int16_t)(dv[k].x - soff[0]); o[k].y = (int16_t)(dv[k].y - soff[1]); o[k].z = (int16_t)(dv[k].z - soff[2]); }
++    L->dz_v = o; L->dz_runs = dr; L->dz_nst = x->nst; L->dc.aux += x->nv * (uint32_t)sizeof(VcVert);
++    return -1;
+   }
+-  if (!bx) return 1 + why;
+-  for (k = 0; k < x->nv; k++)   /* the decal's vertices on one position: one uv and colour */
+-    for (m = k + 1; m < x->nv; m++)
+-      if (dv[k].x == dv[m].x && dv[k].y == dv[m].y && dv[k].z == dv[m].z && (dv[k].u != dv[m].u || dv[k].v != dv[m].v || dv[k].c != dv[m].c))
+-        return 1 + GX_DZF_ATTR;
+   const VcVert *bv = (const VcVert *)(bx + 1); const uint16_t *br = (const uint16_t *)(bv + bx->nv);
+-  const uint32_t n = arm == GX_DZ_X ? bx->nv : x->nv, nst = arm == GX_DZ_X ? bx->nst : x->nst;
+-  VcVert *o = (VcVert *)aux_get(n * (uint32_t)sizeof(VcVert), BATCH_WORDS + 3 * nst + 16);
++  const uint32_t n = arm == GX_DZ_X ? bx->nv : x->nv, nst = arm == GX_DZ_X ? bx->nst : x->nst, cb = n * (uint32_t)sizeof(VcVert);
++  /* gl30: (key, index) of the decal's vertices (and X: of the base's moved by the offset), sorted, in scratch below the copy's bytes
++     (aux_get's own rule puts it at aux + at) */
++  if (x->nv > 0xffffu || n > 0xffffu || cb > L->alow) return 1 + GX_DZF_ROOM;
++  const uint32_t at = (L->alow - cb) & ~15u;
++  DzK *da = (DzK *)dz_tmp(at, 8 * (x->nv + (arm == GX_DZ_X ? n : 0))), *ba;
++  if (!da) return 1 + GX_DZF_ROOM;
++  ba = da + x->nv;
++  for (k = 0; k < x->nv; k++) da[k] = dz_key(dv + k) << 16 | k;
++  dz_sortk(da, x->nv);
++  for (k = 1; k < x->nv; k++)   /* the decal's vertices on one position: one uv and colour (neighbours in key order) */
++    if (da[k] >> 16 == da[k - 1] >> 16) {
++      const VcVert *p = dv + (uint32_t)(da[k] & 0xffffu), *q = dv + (uint32_t)(da[k - 1] & 0xffffu);
++      if (p->u != q->u || p->v != q->v || p->c != q->c) return 1 + GX_DZF_ATTR;
++    }
++  VcVert *o = (VcVert *)aux_get(cb, BATCH_WORDS + 3 * nst + 16);
+   if (!o) return 1 + GX_DZF_ROOM;
+-  for (k = 0; k < n; k++)
+-    if (arm == GX_DZ_X) {   /* the base's vertex (position and pad) with the uv and colour of the decal's vertex on its position */
+-      o[k] = bv[k];
+-      for (m = 0; m < x->nv; m++)
+-        if (dv[m].x - bv[k].x == off[0] && dv[m].y - bv[k].y == off[1] && dv[m].z - bv[k].z == off[2]) {
+-          o[k].u = dv[m].u; o[k].v = dv[m].v; o[k].c = dv[m].c; break; }
+-    } else {   /* Y: the decal's vertex on the base's position */
+-      o[k] = dv[k]; o[k].x = (int16_t)(dv[k].x - off[0]); o[k].y = (int16_t)(dv[k].y - off[1]); o[k].z = (int16_t)(dv[k].z - off[2]);
++  if (arm == GX_DZ_X) {   /* the base's vertex (position and pad) with the uv and colour of the decal's vertex on its position: the first in
++                             the decal's order, as gl29's scan took it (equal keys sort by index) */
++    uint32_t nba = 0; DzK s;
++    for (k = 0; k < n; k++) { o[k] = bv[k]; if (dz_mv(dz_key(bv + k), off, 1, &s)) ba[nba++] = s << 16 | k; }
++    dz_sortk(ba, nba);
++    for (k = 0, m = 0; k < nba; k++) {
++      while (m < x->nv && da[m] >> 16 < ba[k] >> 16) m++;
++      if (m < x->nv && da[m] >> 16 == ba[k] >> 16) {
++        const VcVert *p = dv + (uint32_t)(da[m] & 0xffffu); VcVert *t = o + (uint32_t)(ba[k] & 0xffffu);
++        t->u = p->u; t->v = p->v; t->c = p->c; }
+     }
+-  L->dz_v = o; L->dz_runs = arm == GX_DZ_X ? br : dr; L->dz_nst = nst; L->dc.aux += n * (uint32_t)sizeof(VcVert);
++  } else   /* Y: the decal's vertex on the base's position */
++    for (k = 0; k < n; k++) {
++      o[k] = dv[k]; o[k].x = (int16_t)(dv[k].x - off[0]); o[k].y = (int16_t)(dv[k].y - off[1]); o[k].z = (int16_t)(dv[k].z - off[2]); }
++  L->dz_v = o; L->dz_runs = arm == GX_DZ_X ? br : dr; L->dz_nst = nst; L->dc.aux += cb;
+   return 0;
+ }
+ /* the arm batch i gets: pass 0 chooses (and counts), pass 1 takes pass 0's; O for every batch that is not a target */
+@@ -621,8 +710,8 @@
+   const int a = L->dz;
+   if (a == GX_DZ_X || a == GX_DZ_Y) {
+     const int r = dz_pair(i, (const GerXform *)(F->d + b->first), a);
+-    if (r) { L->dc.fb[r - 1]++; return GX_DZ_O; }
+-    L->dc.npair++;
++    if (r > 0) { L->dc.fb[r - 1]++; return GX_DZ_O; }
++    if (r < 0) L->dc.nsub++; else L->dc.npair++;   /* gl30: XS counted on its own */
+   } else if (a == GX_DZ_B && L->dzn > 0) L->dc.nbias++;
+   else if (a == GX_DZ_W) L->dc.nw++;
+   else return GX_DZ_O;
+diff -ru /home/claude/t30n/ge/gelist.h /home/claude/t31/ge/gelist.h
+--- /home/claude/t30n/ge/gelist.h	2026-11-20 15:34:47.966493976 +0000
++++ /home/claude/t31/ge/gelist.h	2026-11-20 21:42:48.927103205 +0000
+@@ -61,7 +61,11 @@
+    data, so the decal's depth equals the base's.  Y: the decal's own vertices and strips with the base's positions (a diagnostic: does
+    the GE's depth depend on the vertices' order).  W: the depth test ALWAYS and depth writes on in both passes (a diagnostic: the decal
+    whole, and its own depth in the buffer).  B<n>: the viewport's z offset (VPXS+5) sent n steps of its 24-bit word nearer in both
+-   passes.  The pairing's scratch is aux below its lowest byte (not taken); nothing static. */
++   passes.  The pairing's scratch is aux below its lowest byte (not taken); nothing static.
++   gl30 (gl30_plan.md): X first looks for the exact base as above (a candidate examined only when one of its vertices lies within 64 on
++   each axis of the decal's first vertex); when none is found, XS: the nearest same-matrix base whose distinct positions and triangle set
++   contain the decal's after one offset (at most 64 a component), drawn the Y way (the decal's own vertices and strips, each position the
++   base's), counted in nsub; the uv / colour work is linear (sorted (key, index) arrays, a merge join). */
+ enum { GX_DZ_O = 0, GX_DZ_X = 1, GX_DZ_Y = 2, GX_DZ_W = 3, GX_DZ_B = 4 };
+ enum { GX_DZF_BASE = 0, GX_DZF_MAT = 1, GX_DZF_VSET = 2, GX_DZF_TRI = 3, GX_DZF_ATTR = 4, GX_DZF_ROOM = 5, GX_DZF_N = 6 };   /* X and Y's
+                                                  fallbacks (the batch then drawn as O): no candidate with the decal's translation; one with
+@@ -73,6 +77,7 @@
+   int32_t npair, fb[GX_DZF_N];                /* X / Y: drawn from their base; the fallbacks by reason */
+   int32_t nbias, nw;                          /* B: batches biased; W: batches drawn with ALWAYS and Z write */
+   uint32_t aux;                               /* X / Y: aux bytes of the copies */
++  int32_t nsub;                               /* gl30 XS (X only): no exact base, drawn the Y way from a subset base (not in npair or fb) */
+ } GxDzCount;
+ #define GX_DZ_MAX 48
+ typedef struct { int32_t vb0, vb1; int16_t arm, n; } GxDzEnt;
+diff -ru /home/claude/t30n/psp/xl_psp.c /home/claude/t31/psp/xl_psp.c
+--- /home/claude/t30n/psp/xl_psp.c	2026-11-20 19:13:58.926636158 +0000
++++ /home/claude/t31/psp/xl_psp.c	2026-11-20 21:42:48.929117241 +0000
+@@ -235,13 +235,16 @@
+      frame' (the GE idle, every list made given to it, the last one the frame saved), the files and the VRAM read times.
+    MGS2_GL_SHOT_RANGE=<from>:<to>:<step>: a shot (drained as MGS2_GL_SHOT's, no depth) at every step-th vblank hook from..to (the
+      emulator's dense reference; not set on the PSP).
+-   Reads only: nothing here writes a register, game RAM or VRAM. */
++   Reads only: nothing here writes a register, game RAM or VRAM.
++   gl30 (gl30_plan.md): the dz text gains 'sub:' (X's decals paired with a subset base, XS; ge/gelist.h GxDzCount.nsub) after 'pair:', and
++   the window line 'subset' after 'paired'; nothing else here changes. */
+ #define SHOT_MAX 48                      /* MGS2_GL_SHOT's entries (gl28: 16) */
+ static GxDzSched dz_t; static int dz_on;   /* MGS2_GL_DZ: the schedule; 1: on */
+ static long zd_from = -1, zd_mir = -1; static int zd_views;   /* MGS2_GL_ZDUMP */
+ static long sr_from = -1, sr_to = -1, sr_step;   /* MGS2_GL_SHOT_RANGE */
+ typedef struct { int16_t arm, n; } DzLab;
+-typedef struct { int32_t vb0, vb1, lab, fr[2], n42, noth, npair, fb[GX_DZF_N], nbias, nw, r[2], r10; uint32_t aux, us[2], usmax[2]; } DzWin;
++typedef struct { int32_t vb0, vb1, lab, fr[2], n42, noth, npair, fb[GX_DZF_N], nbias, nw, r[2], r10; uint32_t aux, us[2], usmax[2];
++                 int32_t nsub; } DzWin;   /* gl30: nsub, X's subset pairs (XS) */
+ #define DZ_NWIN (2 * GX_DZ_MAX + 4)
+ static DzLab dz_lab[GX_DZ_MAX + 1]; static int dz_nlab, dz_elab[GX_DZ_MAX];   /* the arms named (0: O) and each entry's */
+ static DzWin dz_w[DZ_NWIN]; static int dz_nw, dz_wcur;   /* the windows in vb order; the first whose line is not printed yet */
+@@ -1709,9 +1712,9 @@
+ static GL28D_COLD const char *dz_txt(char *s, int n, int dz, int dzn, const GxDzCount *c)   /* the digest line's part (the twin's alike) */
+ {
+   char a[8];
+-  snprintf(s, n, "; dz %s 42:%ld oth:%ld pair:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", dz_anm(dz, dzn, a), (long)c->n42,
+-           (long)c->noth, (long)c->npair, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4], (long)c->fb[5],
+-           (long)c->nbias, (long)c->nw, (unsigned long)c->aux);
++  snprintf(s, n, "; dz %s 42:%ld oth:%ld pair:%ld sub:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", dz_anm(dz, dzn, a), (long)c->n42,
++           (long)c->noth, (long)c->npair, (long)c->nsub, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4],
++           (long)c->fb[5], (long)c->nbias, (long)c->nw, (unsigned long)c->aux);   /* gl30: sub (X's subset pairs) */
+   return s;
+ }
+ static void dz_wadd(int32_t a, int32_t b, int lab)
+@@ -1775,7 +1778,7 @@
+   int k = dz_win(fvb), t = me ? 0 : 1;
+   if (k < 0) return;
+   DzWin *w = &dz_w[k];
+-  w->fr[t]++; w->n42 += c->n42; w->noth += c->noth; w->npair += c->npair; w->nbias += c->nbias; w->nw += c->nw;
++  w->fr[t]++; w->n42 += c->n42; w->noth += c->noth; w->npair += c->npair; w->nsub += c->nsub; w->nbias += c->nbias; w->nw += c->nw;
+   for (int j = 0; j < GX_DZF_N; j++) w->fb[j] += c->fb[j];
+   if (c->aux > w->aux) w->aux = c->aux;
+   w->us[t] += us; if (us > w->usmax[t]) w->usmax[t] = us;
+@@ -1793,10 +1796,10 @@
+   char a[8], v1[16];
+   if (w->vb1 == 0x7fffffff) snprintf(v1, sizeof v1, "end"); else snprintf(v1, sizeof v1, "%ld", (long)w->vb1);
+   fprintf(f, "picture: gl29 dz window vb %ld-%s arm %s: frames %ld (ME turns %ld, main %ld); 0x42 decals %ld (of other kinds %ld), paired %ld, "
+-          "fallbacks base %ld matrix %ld vertex set %ld triangles %ld uv/colour %ld room %ld, biased %ld, W %ld, the largest copy %lu bytes; "
++          "subset %ld, fallbacks base %ld matrix %ld vertex set %ld triangles %ld uv/colour %ld room %ld, biased %ld, W %ld, the largest copy %lu bytes; "
+           "list build: ME turns %.1f ms (the largest %.2f), main %.1f ms (the largest %.2f); R held %ld vblank hooks (ME turns %ld, main %ld), "
+           "%ld from the window's 10th vblank on\n", (long)w->vb0, v1, dz_anm(dz_lab[w->lab].arm, dz_lab[w->lab].n, a), (long)(w->fr[0] + w->fr[1]),
+-          (long)w->fr[0], (long)w->fr[1], (long)w->n42, (long)w->noth, (long)w->npair, (long)w->fb[0], (long)w->fb[1], (long)w->fb[2], (long)w->fb[3],
++          (long)w->fr[0], (long)w->fr[1], (long)w->n42, (long)w->noth, (long)w->npair, (long)w->nsub, (long)w->fb[0], (long)w->fb[1], (long)w->fb[2], (long)w->fb[3],
+           (long)w->fb[4], (long)w->fb[5], (long)w->nbias, (long)w->nw, (unsigned long)w->aux, w->us[0] / 1000.0, w->usmax[0] / 1000.0,
+           w->us[1] / 1000.0, w->usmax[1] / 1000.0, (long)(w->r[0] + w->r[1]), (long)w->r[0], (long)w->r[1], (long)w->r10);
+ }

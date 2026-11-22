@@ -1,0 +1,60 @@
+# tools/dev/lean/ctxcount.py over /home/claude/gi31/gi_codec.txt (x86 twin of the v31 headers = gl4c / gl5's game code, route c; tools/dev/x86_gi.sh, tools/dev/lean/girun.sh; window vb 31,501-31,600, Otacon call 1; hashes equal prof/hashes_x86_codec_h2.txt at every shared point)
+per step over 100 steps (logic = outside the draw pipeline P11da90; draw = inside it)
+unit     kind                     events      R st      F st      R ld      F ld   PSP instr
+elf logic call same unit              494      2331       510       898       344        8296
+elf logic call indirect                46       449         0       183         0        1496
+elf logic host SYSCALL                 20        57         0         4         0         168
+elf logic host BREAK (cond.)           14       125        43        55        41         480
+elf logic host COP0OP                  29         0         0         0         0           0
+elf logic return                     1397      4235      2609         0         0       13745
+elf logic entry                      1566         0         0     17676      5680       13495
+elf logic write-through              2384         0         0         0         0        4767
+elf logic body R read                   0         0         0         0         0        1369
+elf logic other                         0       204         0         0         0         454
+elf logic TOTAL                                                                         44270  (0.13 ms at 333 MHz, 1 instr / cycle)
+elf draw call same unit             2740     11576         2      9216       877       47319
+elf draw call indirect                62      1044         0       328         0        3292
+elf draw host SYSCALL                 18       102         0         5         0         233
+elf draw return                     2794     16422      4189         0         0       49900
+elf draw entry                      2794         0         0     60080     10174       40770
+elf draw write-through              6824         0         0         0         0       13648
+elf draw body R read                   0         0         0         0         0        6582
+elf draw TOTAL                                                                        161744  (0.49 ms at 333 MHz, 1 instr / cycle)
+stage logic call same unit              667      2267       239       599       223        7524
+stage logic call into ELF              1034      2845       147       449       171        8228
+stage logic call indirect                 8        38         6         4         0         122
+stage logic host BREAK (cond.)           41       430         0       186         0        1474
+stage logic return                      644      2737       629         0         0        7730
+stage logic entry                       697         0         0      9309      1788        6970
+stage logic write-through               697         0         0         0         0        1394
+stage logic body R read                   0         0         0         0         0         922
+stage logic other                         0       237         0         0         0         599
+stage logic TOTAL                                                                         34965  (0.10 ms at 333 MHz, 1 instr / cycle)
+stage draw TOTAL                                                                             0  (0.00 ms at 333 MHz, 1 instr / cycle)
+
+418 functions entered, 5061 entries per step
+    1086 per step  P11f968             34 lines,   29.2 guest instr per entry
+     533 per step  P11fa10             17 lines,   18.0 guest instr per entry
+     438 per step  P120538            178 lines,   91.6 guest instr per entry
+     334 per step  P11fa58            211 lines,  433.4 guest instr per entry
+     267 per step  P165d48             10 lines,   11.0 guest instr per entry
+     256 per step  P11cd68             20 lines,   21.0 guest instr per entry
+     219 per step  P12d688             47 lines,  107.2 guest instr per entry
+     169 per step  P11c828             35 lines,   36.0 guest instr per entry
+     161 per step  P165d78             15 lines,   47.0 guest instr per entry
+     159 per step  S_w00a_P3bec20       3 lines,    4.0 guest instr per entry
+     159 per step  S_w00a_P3bebf0      11 lines,   12.0 guest instr per entry
+      77 per step  P16a8f8             34 lines,   18.2 guest instr per entry
+      61 per step  P158608             14 lines,   16.0 guest instr per entry
+      55 per step  P158650             61 lines,   61.0 guest instr per entry
+      53 per step  S_w00a_P3c2898      21 lines,   22.0 guest instr per entry
+      48 per step  S_w00a_P212c88     106 lines,  905.7 guest instr per entry
+      36 per step  P16a7e0             57 lines,   42.7 guest instr per entry
+      28 per step  P165f38              9 lines,   10.0 guest instr per entry
+      28 per step  P11cbe8             90 lines,   66.8 guest instr per entry
+      27 per step  P168240             28 lines,   29.0 guest instr per entry
+      22 per step  P158cb0           2072 lines, 1152.9 guest instr per entry
+      19 per step  P123b28             13 lines,   14.0 guest instr per entry
+      19 per step  P1238e8            126 lines,   53.5 guest instr per entry
+      17 per step  P166090             26 lines,   27.9 guest instr per entry
+      16 per step  S_w00a_P213760     106 lines,  904.0 guest instr per entry

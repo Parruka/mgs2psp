@@ -1,0 +1,285 @@
+gl32 build report (build agent, 2026-11-21). gl32 = gl31 + native ship meshes in every turn + the ship's vertex cache in turns.
+Built and gated in the container; NOT delivered. Marks: [C] measured in the container (x86 twin, PPSSPP 1.20.4 headless, code),
+[C model] PspProf cost model (ms = (1.65 x instructions + 68 x I-misses + 86 x D-misses) / 333,000), [C PSP gl30] read in gl31's
+report from gl30's PSP log, [I] inferred (basis named), UNKNOWN. Nothing below is a gl32 PSP figure.
+
+RESULT IN ONE PARAGRAPH
+The build is exact and every gate passes: build_gl32/deliver, EBOOT 5646bcec. The twin's hashes and every frame's digests are
+the same with the cache on and off (685/685 hash lines, 17,664 frames); the check mode converted 1,086,665 found entries again
+with 0 differences on the delivered route (1,632,614 with 0 on the cache-everywhere route, 804,657 with 0 on gl31's route,
+1,626,878 with 0 in the PSP's late-walk mode); the emulator gives 62/62 hashes and 916/916 digests equal to the twin, and 454 of
+455 pictures byte-identical to gl31's emulator pictures (the 455th is the known noise frame 24,784). BUT THE COST MODEL SAYS THE
+CACHE IS NOT WORTH ITS CODE [C model]: against this EBOOT's own no-cache arm the cache alone saves 4.1 ms a picture in a
+Media Engine turn of the rain wait and 3.1 ms in a main turn (about 1 percent), and nothing in the rain walk (-0.5 / +0.4 ms);
+leaving the static streams in RAM instead of copying them (my addition, arm 3) saves 11.7 ms more in ME turns only. And this
+EBOOT's no-cache arm is 7 to 13 ms a picture SLOWER than gl31's native arm in the same model (I-cache misses: more code on the
+ship's path), so against gl31 only the arm-3 ME turns of the rain wait come out ahead, by 2.6 ms. Exact identity cost nothing;
+the gain was never there: the per-vertex conversion is 4.7 ms of the ship's 75 ms of work a picture (step 1). I built a second,
+diagnostic ELF without the cache code (in-place streams only): -5.6 ms against gl31 in the ME turn of the rain wait, still
++3.7 ms in the main turn. The lead decides whether gl32 is worth a PSP run; the options are in section 9.
+
+1. WHAT WAS BUILT
+Tree /home/claude/t32 = copy of t31 (100 files, no symlink) with 13 files changed and 1 new (md5, lines added / removed):
+  ge/natvc.h 9cc95ff7 (new, 108 lines: the cache)          ge/xconv.c bace96f4 (+94 -8)      ge/xconv.h ac87ecef (+5)
+  ge/vu1conv.c 9a8692dc (+10: vc_df0_head)                 ge/vu1conv.h a9f6004e (+3)        ge/xlate.c 5fe94135 (+1)
+  ge/xlate.h e05dc12b (+6 -2)   ge/natp04.h 736b665f (+4 -2)   ge/natsnap.h 71fa4427 (+12 -2)   ge/xlme.c 0b916cd5 (+2)
+  boot/nat_stub.h 52365ea1 (+55 -2: the static rule, the generation, three wrappers)       psp/xl_psp.c a07cf08c (+56)
+  twin only: boot/nat_x86.c 972f0a01 (+132 -2), boot/boot_x86.c d0f61aa1 (+2)
+  The whole diff: build_gl32/gl32_vs_t31.diff (840 lines).
+Build folder /home/claude/main/build_gl32. Deliverables in build_gl32/deliver (md5):
+  EBOOT.PBP        5646bcec3d8eb832c17910d21543dba8  (4,353,024 bytes; MGS2T.elf 1d184891; text 4,343,408 = gl31's 4,336,044
+                   + 7,364; bss + 320)
+  ovl_d00t.bin     0ef55c2ffb30160b87b11938abc7664a
+  ovl_d01t.bin     67fb5be5e7d9fb685c5246584733df16
+  ovl_init.bin     920a1a7282503a4241c4c6c5ef4abbe0
+  ovl_n_title.bin  326a23045fba66bf6363ff86e464230f
+  ovl_r_title.bin  f49971f4737211f84e706cd43ed26b27
+  ovl_r_tnk0.bin   a4073237850e3e60ec908d591db22d43
+  ovl_w00a.bin     5d91fd39fe8f82397f126e545bfce1c9
+  ovl_w01a.bin     471abd40d36a9e05b81c91b6380eeffc
+  mgs2.cfg         1f8f336ae32176152802e38a32b532e7  (25,477 bytes; 34 MGS2_ keys)
+  hashref.txt      c9ddb593c61c07c41b0183952c753d94  (685 lines; twin run dx = the delivered keys; the same file with the cache
+                   off, on everywhere, and in the late-walk mode)
+  pad.txt          7bc72aceb89b192298c635ef52b81b8f  (gl31's)
+  README.txt       f1ca809e352e1eb17592ddc08134eaab  (DRAFT, marked so in its 3rd line)
+  MANIFEST.md5     gl31's format and order (with the SLES_503.83 and mgs2disc.pak lines)
+cfg = gl31's ac1b29e2 + a gl32 header + exactly these setting lines changed (non-comment diff vs gl31):
+  MGS2_NAT_CYCLE=3,3,3,3            (was 0,0,3,3)
+  MGS2_NAT_VC_CYCLE=0,0,1,1,3,3     (new)
+  MGS2_NAT_VC_KB=256                (new)
+Everything else as gl31's cfg (FLIPWAIT_FROM=0, DZ X on the whole run, ME_PIC 4, live captures). Code default: no cache (both
+keys absent: no block, no flag, gl31's paths). Objects: 38 of the 45 stage objects are gl31's byte for byte; new are boot_rt,
+ge_vu1conv, ge_xconv, ge_xlate, ge_xlme, gen (three more functions behind wrappers, by objcopy, not compiled), xl_psp.
+PARAM.SFO title "MGS2 harness gl32 vertex cache".
+Arms of MGS2_NAT_VC_CYCLE (by MGS2_OPT_CYCLE's turns of 100 vb from 24,001; bits): 0 = A, native without the cache (gl31's
+arm 3); 1 = B, the vertex cache; 3 = the cache and the static groups' streams left in RAM for the ME (not copied into its
+arena). 2 (in place, no cache) is in the code and not in the delivered cycle. Waiting window turns 29,600-30,500: ME vc1, main
+vc1, ME vc3, main vc3, ME A, main A, ME vc1, main vc1, ME vc3; rain 30,900-31,300: main vc1, ME vc3, main vc3, ME A.
+
+2. STEP 1, WHERE THE SHIP'S TIME GOES [C model] (gl31's ELF, arm 3 minus arm 4 'stubbed, not drawn', 40 pictures a window)
+                                      waiting ME turn   waiting main   rain ME turn   rain main
+  ship drawn - not drawn, a picture       +87.19 ms        +65.13         +37.86        +27.78
+  of it waits (not work)                   12.56                           5.98
+Waiting ME turn (609 groups, 11,545 vertices a picture; work 74.6 ms = about 122 us a group):
+  hand-off: copy plan and copy into the arena 14.44 | front end, record to translator 13.60 | the call, GS state and texture
+  tracking 15.67 | converter per group 11.25 | off-screen cut 2.73 | depth range 2.12 | PER-VERTEX CONVERTER 4.67 (6.3%) |
+  xc_call itself 3.00 | list build for the ship 3.87 | else the rest.
+Rain ME turn (298 groups, 6,400 vertices): hand-off 6.44 (20.2%) | front end 6.25 + 6.77 | per group 3.95 | cut 1.11 | depth
+  1.03 | per vertex 1.76 (5.5%) | xc_call 1.05 | list 1.61 | else 1.47.
+The list build as a whole (gelist.c), ME turn: waiting 20.10 ms a picture of 396.83 (gx_batch 7.41, put_sym 2.81, put 2.49,
+texture 2.22, xf_setup 1.53, xf_rest 1.15, blend 0.67, addr_cmd 0.46, xf_draw 0.41, cut_draw 0.36, all dz_* about 0.42);
+rain 17.86 of 372.16 (gx_batch 7.88, put_sym 2.42, put 2.23, texture 1.99, xf_rest 1.11, blend 0.66, xf_setup 0.42).
+What this said before any code: the vertices are a small part; the per-group work around them is the cost. Files:
+split_me_wait.out, split_main_wait.out, split_me_rain.out, split_main_rain.out, lsplit_me_wait.out, lsplit_me_rain.out.
+
+3. STEP 2, CENSUS ON THE TWIN [C] (route i to vb 37,800, native every turn; census/c2.out, vcensus32.py)
+11,877 keys (streams A, B, C addresses + vertex count); 7,167,004 groups drawn in 12,453 pictures; the plain textured entry
+(P04+0xdf0, 'DF0') is 90.87% of the draws (11,024 keys). By stage visit:
+  vb               pictures  groups a picture  vertices a picture  keys drawn  a stream changed since the key's last draw
+  3,556-20,136       5,584        552              19,849            3,133       4,523 draws (0.147%), 100 keys
+  20,143-23,244      1,417      1,158              24,308                        5,730 (0.349%), 22 keys
+  23,670-29,052      1,153        457               9,742                        1,281 (0.243%), 26 keys
+  29,070-31,559      1,124        550              10,868                            0
+  31,661-37,799      3,069        404              10,825                            0
+  29,490-31,400 (the PSP's deck window): 915 pictures, 533 groups and 10,543 vertices a picture, 1,082 keys (967 DF0), 433 KB at
+  the GE's format; a picture draws 213 KB of distinct meshes (most 348 KB); a key drawn twice in one picture: 1.14%.
+Every change of a stream is in a key whose stream B lies in packet memory (0x1b00000-0x1f00000: built each frame); for DF0 keys
+with all three streams outside packet memory no stream ever changed between two draws on the route. Events on the route: 1,207
+object makes (0x129128), 1,301 colour-buffer frees (0x12cf28), 0 static lightings (0x12cd78).
+Not measured: other routes (UNKNOWN; the check mode and the static check exist to run on them).
+
+4. STEPS 3-5, THE DESIGN AS BUILT
+Exact output first, and it cost nothing: there is no non-exact path in the build.
+ - Static rule (stub, the same on every platform): native arm, the cache key on, the DF0 entry, all three streams sent, each
+   outside packet memory. Such a group is flagged in its 48-byte record and carries the generation (a counter the stub bumps at
+   every object make, colour-buffer free, static lighting, and when the stage's code changes).
+ - The cache (ge/natvc.h, the picture's side, ME-safe): one block; key = the three stream addresses + the vertex count; an
+   entry holds the positions' box and a 'draws nothing' bit when first met (40 bytes), and the converted vertices (16 B each,
+   the GE's format), strips and indices once the group is first drawn (a group the off-screen cut always removes takes no
+   data). Everything that depends on the call is computed per call as before: matrix, cut, depth range, GS state, texture,
+   the alpha byte (patched in the entry if it differs; 0 times on the route). The cached vertices are COPIED into the frame's
+   own vertex memory, so the GE never reads the cache and the frame's bytes are the same with and without it.
+ - Dropped whole: when a group's generation differs from the cache's, when 3 of 4 entries are used, when the data area is full.
+ - Check mode (twin, MGS2_NAT_VC_CHK=1): every found entry is converted again from the streams and compared (box, vertices,
+   strips, indices). Static check (twin, MGS2_NAT_STCHK=8): every static group's three streams are hashed again at each of
+   the next 8 vblanks' starts.
+ - Arm 3's second bit: for a flagged group the main CPU plans no copy of its streams; the ME's walk reads them in RAM (the
+   path gl30n already has for data outside the copy).
+Memory [C]: the block is 256 KB = 2,048 entries (80 KB) + 175 KB of data. On the delivered route to 31,400 (twin and emulator,
+the same counts): most in use 1,492 entries and 174 KB, both in the turn 26,000-26,100 (1,911 different groups, each met once;
+the one drop for want of data, 1 group not stored); on the deck from 29,000 at most 617 entries and 116 KB, 0 drops for want
+of room. The census's simple simulation needed 384-512 KB for the deck; the two-step entry is why 256 KB is enough.
+ - PSP: the block comes from the heap (memalign), because the copy arena is in the ME's eDRAM. gl30's PSP log had about
+   2,732 KB of heap free at its lowest [C PSP gl30]; the block and 16 KB of larger image leave about 2,460 KB [I: 2,732 - 272].
+   If the heap refuses, the log says 'NOT MADE', the cache stays off and the pictures are the same [C code].
+ - Emulator: its heap also holds the 3 MB copy arena and has 140 KB free at its lowest, so there the block is the arena's
+   last 256 KB (arena 2,816 KB instead of 3,072). This is an emulator-only difference and it shows once: see G3.
+ - The frame arena's whole-run maximum was not needed for this placement and was not measured.
+
+5. GATES
+G1 twin [C] (route i to vb 37,800; g1_twin.out). PASS.
+ a3 (native every turn, no cache) vs b3 (cache in every turn, 4,096 KB, check mode): 685/685 hash lines equal, all 17,664
+    frames' list, frame and content digests equal, natb / natq / natz equal; check: 1,632,614 found entries converted again,
+    0 differ; most 1,911 entries, 326 KB.
+ dx (the delivered keys and DZ: the hashref's run) vs da (the same without the cache keys): 685 hash lines, 35,328 picture
+    lines, xlive, natb, natq, natz all equal. Frames 'all 32159906789ce60d', content 'all bd06f6135601acab'.
+ dc (dx + check mode + static check): 1,086,665 compared, 0 DIFFER; 1,161,891 static groups drawn, each hashed again at every
+    vblank's start for 8 vblanks, CHANGED 0; not looked up 0; alpha rewritten 0; drops: generation 49, entries 0, data 11 (10
+    of them after 31,400 in w01a, beyond the PSP's run); not stored 11.
+ g31 (gl31's route, NAT 0,0,3,3 + cache in the native turns + checks) vs gl31's own twin run b: all line classes equal; check
+    804,657 compared, 0 differ; static check 0 changed of 1,052,281.
+ lw2 (the PSP's plan / copy / view walk on the twin, MGS2_NAT_LW=2, cache + in place everywhere, check): hashes, picture,
+    content, natb / natq / natz equal to a3; 1,626,878 compared, 0 differ; data pieces read in the copy 3,789,581, in place
+    5,765,778, partly 0. The 'xlive: vb' lines differ from a3's from vb 2 on: a property of that mode, before any native group.
+    lw2b (the same with bit 2 alone, MGS2_NAT_VC=2): every line class equal to lw2, hashref the same c9ddb593.
+ A property worth knowing: with the first form of the static check (hashed again at the group's next draw) streams did change
+    15 vblanks or more after a draw, at stage changes; the generation covers those (0 differences in check mode).
+G2 read hash [C] (g2_rhcmp.out; 31,399 vblanks each). PASS as gl31. Base (no NAT key) = gl31's base in every vblank. Native
+ every turn = native every turn + the cache keys in every vblank (counts and values). Native every turn = gl31's 0,0,3,3 run
+ in every vblank. Base vs native: counts equal in all; values differ in the same 2 vblanks as gl31 (25,944 and 25,974: the
+ design's known scratchpad pair).
+G3 emulator [C], run e2 = the exact deliverables (inputs.md5 = deliver's): PASS.
+ 62/62 hashes = hashref.txt. 916/916 digest lines = twin dx (whole lines). Ended by itself. 16 'the flip wait kept' lines,
+ 0 'GAVE UP'; 315 'flip wait on' turns, 'lists drawn into the shown buffer 0' in all.
+ Native: 75 'nat turn' lines; the builder run instead 0, recorded with no array 0, early fills 0, dropped 0, partly 0.
+   ONE turn has 'plans undone for the groups' room 41': 25,800-25,900 (ME turn, vc 0). Cause [C]: gl31's emulator run used up
+   to 1,468 KB of a 1,536 KB arena half there; gl32's half is 1,408 KB on the emulator (the block). Its 50 frames' digests
+   equal the twin's (dense run). On the PSP the arena is not smaller, so 0 is expected [I: code read]. rd32.py lists the turn
+   under 'NAT PROBLEM'; the README says so.
+   'groups left untaken 2,984 (pictures 6)': turns 24,000-24,100 (524), 25,000-25,100 (423, as gl31), 29,000-29,100 (2,037,
+   as gl30n's run): stage changes; not a gate item in gl31 either.
+ Cache: 75 'nat vc' lines. Totals = the twin's to 31,400, and equal turn by turn in all 45 turns both print: found 393,659
+   (box only 211,699, with vertices 181,960), not found 6,154, stored 2,365, drawn from the cache 170,781 (56,599 KB of
+   vertices), not looked up 0, alpha rewritten 0, dropped: generation 14, entries 0, data 1; not stored 1; groups flagged
+   static 453,791; events: made 1,006, freed 1,226, lit 0, stage 2.
+ Pictures vs gl31's emulator run e2 (52 names): 51 byte-identical; shot_24784 differs in 7 px by 1 level (the emulator noise
+   known since gl26). All arm-0, arm-1 and arm-3 pictures in the walk are byte-identical to gl31's.
+ Dense run e3 (delivered EBOOT, cfg + MGS2_GL_DIG=0:31400 + a shot every 2 vblanks in the walk): 62/62; 14,592 digest lines,
+   the LIST digest equal to the twin's in all; the FRAME digest differs in 1,154: 1,153 in vb 536-3,021 and 1 at 26,007,
+   exactly gl31's known set (not from gl32); from 24,001 on 3,521 of 3,522 equal. 455 pictures vs gl31's emu_e3: 454
+   byte-identical, shot_24784 the one (237 px, 3 by 2+ levels).
+G4 ME [C]: PASS. xme_rest_chk, xme_me_chk (277 instructions; the file and ge_xme_me.o are gl31's byte for byte), mesec_chk,
+ me_call_chk pass; psp.sh rc 0. Undefined symbols of the 45 stage objects differ from gl31's only by names the build defines
+ itself (boot_rt.o: P129128_orig, P12cd78_orig, P12cf28_orig; ge_xconv.o: vc_df0_head; xl_psp.o: g_nat_ev, g_nat_stc,
+ rt_nat_vc_at, xc_vc, xc_vc_set); the ELF's 133 sce* names are gl31's: no new import, system call or register write; nothing
+ writes flash. The 7 picture objects not recompiled (xlive, gsfront, texconv, texcache, gebatch, gsup2, fxthin) recompiled
+ from t32 equal the stage objects byte for byte. The cache's code keeps the ME rules of design 4.2: memcpy / memset only
+ (me_rt's on the ME), no system call, no static data of its own, no call through a pointer, every offset and count made
+ inside the block; the block is on whole 64-byte lines. NOT TESTABLE HERE: the block passing between the ME's cache and the
+ main CPU's at each turn's change (the emulator has no ME). See section 7.
+G5 memory, emulator [C]: heap headroom at the start 12,608 KB (= gl31), lowest about 140 KB at vb 23,677 (gl31 156), 144 KB at
+ the end (160). Outside the heap as gl31: 224 / 432 KB before the records' arrays, 116 / 216 KB after. The PSP side: section 4.
+G6 reader [C]: build_gl32/rd32.py = rd31.py + the 'nat vc' lines: the block's line, one row a turn (arm, vc, flagged, looked
+ up, found box / vertices / nothing, not found, stored, drawn from the cache, drops, events, entries and KB in use, data read
+ in RAM / in the copy), a 'look' list (a group not looked up, a drop for want of room, vertices not stored), means per ME /
+ main turn and (arm, vc), the totals line. Run on e2: rd32_e2.out (36 of 36 live captures equal to the emulator's frames).
+ Also run on gl31's emulator log as a format check (62/62, 916/916, 0 'nat vc' lines). PSP command line:
+   python3 -I /home/claude/main/build_gl32/rd32.py <LOGS/gl32>/log.txt --bat <LOGS/gl32>/battery.txt --live <LOGS/gl32>
+ (defaults: --ref build_gl32/emu_e3/pic, --twin build_gl32/tw/x86/out_dx.log, --hashref build_gl32/deliver/hashref.txt).
+ For the arms' times use the rain wait only, where the scene stands still: --natfrom 29600 --natto 30500 (9 turns, in
+ order ME vc1, main vc1, ME vc3, main vc3, ME A, main A, ME vc1, main vc1, ME vc3). The default 29,500-31,400 means mix
+ scenes: on the emulator the main-turn 'vc 0' mean has 39.8 pictures a turn against 50.
+G7 reproducible [C]: PASS. A second build (sh rl32.sh <folder>) gave the same EBOOT, 8 overlays, ELF and all 45 stage objects
+ (g7.out; the second folder deleted afterwards).
+
+6. THE MODEL OF A AGAINST B [C model] (this EBOOT, MGS2_NAT_VC = 0 / 1 / 2 / 3 on the whole run; 40 pictures a window;
+   model_totals.out, model_totals_rain.out, model_split.out, model_split_rain.out)
+  ms a picture                     A (vc 0)    vc 1 - A    vc 2 - A    vc 3 - A    gl31's arm 3 - A
+  waiting, ME turn 29,810-29,890    410.05      -4.06      -11.93      -15.79        -13.22
+  waiting, main turn 29,910-29,990  350.32      -3.14       +0.57       -3.12         -8.29
+  rain, ME turn 31,010-31,090       381.05      -0.49       -2.83       -3.39         -8.88
+  rain, main turn 31,110-31,190     318.79      +0.35       +0.58       -0.17         -7.05
+ ('all' windows count waits too, so only differences mean anything. The rain rows are from runs with the rain windows only.)
+ The cache (vc 1 - A, waiting ME turn), by function: vc_df0_pos -3.07, vc_df0_att -1.02, vc_strips -0.46 (the conversion it
+ replaces: 4.55 of the 4.67 ms step 1 found), me_memcpy +1.07 (the copy of the cached vertices into the frame), xc_call +0.49,
+ vc_df0_head +0.26, rt_nat_p04 +0.17 (the static test); instructions -313,651, I-misses -7,765, D-misses -3,553 a picture.
+ In the rain 69 groups a picture are drawn from the cache against 262 in the wait, so there is nothing to gain there.
+ In place (vc 3 - A, waiting ME turn): xc_merge -4.39, me_memcpy -4.02 (net of the +1.07), xc_run -0.46, xc_add -0.36, xm_plan
+ -0.30: the copy plan and the copy, 11.7 ms beyond the cache's 4.1. In main turns nothing is copied in any arm: 0.
+ gl31's arm 3 against this EBOOT's arm A (same vblanks, same game state): instructions nearly equal (-144,384 a picture in the
+ waiting ME turn) but I-misses -46,455 (fully associative -25,613) and D-misses -11,690. By function: xc_call +2.59 ms (it
+ grew from 13,524 to 15,796 bytes and lost its gl20 profile), then 30 unchanged functions with more I-misses each (gl_tex
+ +1.17, ud_eager +1.03, tk_get_um +0.76, gx_batch +0.73, ...), xl_p04_core +0.68, xm_walk +0.50. About 76 more cache lines
+ missed per group: the ship's path was already larger than the 16 KB instruction cache, and it grew.
+ Diagnostic ELF 'variant i' (build_gl32/alt: gl31's converter source, so xc_call is 13,524 bytes again, with gl32's stub,
+ records and in-place copy rule; no cache code; EBOOT 2921f6b6, its four ME gates pass; NOT gated further, NOT a deliverable):
+                                    gl31 arm 3   variant i, no key   variant i, vc 2   gl32 vc 3
+  waiting, ME turn                    396.83      402.64 (+5.81)     391.27 (-5.56)   394.27 (-2.57)
+  waiting, main turn                  342.03      345.72 (+3.69)     346.81 (+4.78)   347.19 (+5.16)
+  rain, ME turn (4-window runs)       372.17      376.78 (+4.61)     373.10 (+0.93)   376.95 (+4.78)
+  rain, main turn (4-window runs)     311.90      315.97 (+4.07)     316.16 (+4.26)   318.62 (+6.72)
+ So of the 13.2 ms, about 7.4 is the cache code in the converter and 5.8 the rest of gl32 (the records' new fields, the
+ stub, three wrapped game functions, where the link puts things). The in-place rule alone is worth about 11.4 ms in ME turns
+ of the wait and costs 4 to 5 ms everywhere else through the code around it.
+ Caveats. A model, not a time; single model estimates have been off by 2x in this port. In a PspProf window the frame lists
+ differ from the twin's (same batches, PRIMs and textures; 12 to 46 more list words a frame; gl31's model runs show the same),
+ and the state hash after the first windows differs from the reference (30,000 in every model log since gl20; in gl32's also
+ 30,500, and 31,000 in the vc 1 / 2 / 3 runs): cause UNKNOWN. The rain rows above therefore come from separate runs whose
+ first window is the rain's (62/62 hashes before it).
+
+7. UNKNOWN UNTIL THE PSP RUN (or a longer study)
+ - Every speed. The model's arms differ by less than its usual error against the PSP.
+ - The cache block between the two CPUs on the real PSP: in ME turns the ME reads and writes it, in main turns the main CPU;
+   the turn's hand-over writes the one's data cache back and drops the other's, as for the texture cache [C code read], but
+   no machine here has two CPUs. A stale line would show as wrong ship vertices in a vc 1 or vc 3 turn: the 916 digests
+   against the twin catch it, and the captures.
+ - The ME reading static streams in place on the PSP (arm 3): on the twin's copy of the PSP walk it is exact (lw2), and no
+   static stream changed within 8 vblanks of its draw on either route; the soonest change seen at all came 15 vblanks after
+   a draw. How many game vblanks the PSP's ME walk lags the record at worst: UNKNOWN to me (the digests would show a miss).
+ - Whether the PSP heap gives the 256 KB (expected: yes, about 2.7 MB free in gl30's log).
+ - 'plans undone' on the PSP in 25,800-25,900 (expected 0).
+ - gl31's own PSP result: I did not have its log.
+ - Other routes than route i: no census; an unhooked write into a static mesh would be a wrong mesh until the next event (the
+   check mode and static check are there to run on any new route first).
+ - Why PspProf windows change the frame lists and the state hash (section 6).
+
+8. DEVIATIONS FROM THE PLAN
+ - Three arms (0,0,1,1,3,3) instead of the plan's two (A / B). Arm 3 adds 'static streams left in RAM for the ME', which the
+   plan did not ask for; I added it when step 1 showed the copy (14.4 ms) is three times the vertices (4.7 ms). It is behind
+   its own bit, proven on the twin's late-walk mode, and MGS2_NAT_VC_CYCLE=0,0,1,1 gives the plan's pure A / B with this EBOOT.
+   With three arms each arm gets 3 turns of the 9 in the rain wait instead of 4 or 5.
+ - The GE does not read the cache: cached vertices are copied into the frame (1.07 ms a picture in the model). Reading them
+   in place would save that copy and would need the cache to outlive the frames that point into it; not built.
+ - The emulator's block comes out of the copy arena (section 4); the PSP's from the heap. So the emulator does not test the
+   PSP's allocation, and shows 41 undone plans in one turn that the PSP should not.
+ - 'Both routes' of step 5 taken as: native every turn (the delivered route), gl31's 0,0,3,3 route, and the PSP's late-walk
+   mode on the twin. No other pad route was run.
+ - Invalidation: the plan's hooks 0x129128 and 0x12cf28, plus 0x12cd78 (static lighting; 0 calls on the route) and a stage
+   signature (four words of the stage code area) for stage loads. No drain of frames in flight at an event: none is needed,
+   because frames hold copies.
+ - The model's no-cache arm is not gl31's arm 3 (section 6): the changed functions lost their gl20 profiles and the path
+   grew. I did not retrain the profile (one change per measurement).
+ - Step 6's model was run with whole-run cache keys (one arm a run), not with the cycle, and the rain windows a second time
+   in runs of their own; two extra arms were modelled (vc 2, and the diagnostic ELF).
+ - An extra ELF was built (variant i) to split the code's cost; it is in build_gl32/alt and in nothing that is delivered.
+ - The first emulator run (e1) used the cfg before a comment was corrected (the cache's 'most in use' figures); e2 and e3
+   use the final cfg. Settings identical.
+ - rl32.sh gained 'T=${T:-/home/claude/t32}' so the variant could be built from its own tree; the delivered build was made
+   before that edit and the second (reproducibility) build after it: same bytes.
+
+9. WHAT THE LEAD CAN DECIDE
+ a) Ship gl32 as built. One PSP run measures A / cache / cache + in place by turns, and, set against gl31's log, the code's
+    cost: 12 turns are 'native, no cache' in both runs (for example 29,400-29,600 and 30,600-30,800). The model expects
+    little or a small loss against gl31.
+ b) Same EBOOT, other cfg. With the delivered cycle the rain wait (29,600-30,500) holds only ONE no-cache ME turn and ONE
+    no-cache main turn (vc 1: 2 and 2; vc 3: 2 and 1): thin for differences of 1 to 4 percent. MGS2_NAT_VC_CYCLE=0,0,3,3
+    gives 3 no-cache and 2 vc-3 ME turns and 2 and 2 main turns there, and drops the cache-alone arm, which the model says
+    is too small to see. 0,0,2,2 times the in-place rule alone (bit 2 alone passed the twin's late-walk run lw2b and the
+    model; it has NOT had an emulator gate run: one 8-minute run). The hashref and the digests do not depend on this key
+    [C: twin runs a3, b3, dx, dc give the same hashes and frames], so only mgs2.cfg and the README change.
+ c) Drop the cache, keep the in-place rule: variant i is that build in substance (needs its own gates: twin late-walk is
+    covered by lw2b's logic, emulator 62/62 and digests not run).
+ d) Attack the real cost instead: the ship's path is larger than the instruction cache, and everything written since gl20
+    (the stub, natp04's walk, xl_p04_core, the new xc_call) runs without a profile [I: rl32.sh uses build_gl20's gcda and
+    -fprofile-partial-training; the model's I-miss rise came with no rise in instructions]. A new training run for these
+    objects is one lever, exact by construction, and the model can score it before any PSP run.
+
+10. FILES
+build_gl32/deliver (the package). Scripts: tw32.sh tw_run.sh tw_part.sh (twin), xt32.sh rh32.sh rh_all.sh rhcmp.py (read
+hash), rl32.sh (PSP build), em32.sh em32p.sh (emulator), rd32.py (reader), g1cmp32.py vcsum32.py (twin compare), piccmp32.py
+covchk32.py covchk2.py, split32.py lsplit32.py cost32.py armA32.py mtot32.py (model), census32.py vcensus32.py (census).
+Outputs: g1_twin.out g2_rhcmp.out g3_e2_pic.out g3_e3_pic.out g4_syms.out g7.out rd32_e2.out psp.out rl32.out, split_*.out
+lsplit_*.out model_totals*.out model_split*.out, census/c2.out. Logs: emu_e1 emu_e2 emu_e3 (pictures: container only),
+tw* (twin), xt32 (read hash), model/. cfg: cfg/mgs2_gl32.cfg; test variants in cfg_emu/. Variant: alt/ (tree t32i, build b,
+variant_i_vs_t32.diff). Copied to /mnt/project-files/mgs2/main/attic/gl32: this report, the README draft, the manifest,
+the cfg, the scripts, the two diffs and the text outputs. No game data, dump or picture left the container.

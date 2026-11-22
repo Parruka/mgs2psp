@@ -1,0 +1,220 @@
+--- nat/native_w00a.c.h3r
++++ nat/native_w00a.c
+@@ -992,5 +992,162 @@
+           nat_cs_n[0], nat_cs_n[1], nat_cs_n[2], nat_cs_n[3], nat_cs_n[4], nat_cs_n[5], nat_cs_n[6], nat_cs_n[7], g_cs_m3);
+ }
+ #endif
++/* rain.c's streak loop in place (task #167, rain_study.md section 10; the rules in native_w00a.h): g0r_call at 0x31b3c4 decides for the
++   whole loop, g0r_entry at each entry's start (L31b3c8) says whether that entry runs in place */
++#define NAT_H3R 65536u
++#define NAT_G0R 131072u
++int g0r_ok, g0r_d; uint32_t g0r_old, g0r_new;
++static int32_t g0r_n, g0r_pass, g0r_p[32]; static uint32_t g0r_o[32], g0r_w[32], g0r_w2[32];
++long g0r_cnt[8];   /* calls in place; calls translated: G0R or H3R off, sizes / not plain / ranges meet, a second-set prim shown, a poll due;
++                      entries in place; polls skipped */
++static inline uint32_t g0r_rd(uint32_t a) { return *(const uint32_t *)GEN_RAM(a); }
++static int g0r_meet(const uint32_t *b, int nb, uint32_t a, uint32_t n)   /* b: sorted 1 KB buffers (offsets under the mask); one meets [a, a + n) */
++{
++  int lo = 0, hi = nb; const uint32_t m = a & (GUEST_SIZE - 1);
++  while (lo < hi) { int md = (lo + hi) >> 1; if (b[md] + 1024u <= m) lo = md + 1; else hi = md; }
++  return lo < nb && b[lo] < m + n;
++}
++/* ac: the act (r17), sp: its frame (r29), r20: the new buffers' slot (176 / 180), r21: the vertices moved, r22 / r23: the two vectors
++   path A loads.  1: the loop's entries but the last go in place (g0r_entry); 0: the loop is translated */
++int g0r_call(int32_t ac_, int32_t sp_, int32_t r20, int32_t r21, int32_t r22, int32_t r23)
++{
++  const uint32_t ac = (uint32_t)ac_, sp = (uint32_t)sp_;
++  int32_t n, m, s152, s156, j, k, v, f, nb = 0; uint32_t base, p1, p2, B[96]; int64_t P;
++  struct nat_q qa, qb, q1, q2;
++#if defined(__psp__)
++  if ((g_opt2 & (NAT_G0R | NAT_H3R)) != (NAT_G0R | NAT_H3R)) goto off;   /* nothing more when off: the PSP's turns time the translation */
++#endif
++  if ((sp & 15u) || (ac & 15u) || !nat_plain(sp - 16u, 304) || !nat_plain(ac, 432)) goto bad;
++  n = (int32_t)g0r_rd(ac + 392u); m = (int32_t)g0r_rd(ac + 396u); base = g0r_rd(sp + 160u);
++  s152 = (int32_t)g0r_rd(sp + 152u); s156 = (int32_t)g0r_rd(sp + 156u);
++  if (n < 2 || n > 32 || m != 2 * n || base != ac + 432u || !nat_plain(base, 64u * (uint32_t)n)) goto bad;
++  if (r21 < 0 || s152 < 0 || r21 + s152 != 32 || (r20 != 176 && r20 != 180) || s156 != 356 - r20) goto bad;
++  if (!nat_plain(0x1f8730u, 16) || !nat_plain((uint32_t)r22 & ~15u, 16) || !nat_plain((uint32_t)r23 & ~15u, 16)) goto bad;
++  /* the entries' prims (+164 to +191: the hide bits, the flip word +180, the buffer words +184 / +188) and buffers: old and new of the
++     first set (1 KB each, read and written in place), the second set's new (left as it is), quadword aligned as the copies take them */
++  for (j = 0; j < n; j++) {
++    p1 = g0r_rd(base + 32u * (uint32_t)j + 16u); p2 = g0r_rd(base + 32u * (uint32_t)(n + j) + 16u);
++    if ((p1 & 3u) || (p2 & 3u) || !nat_plain(p1 + 164u, 28) || !nat_plain(p2 + 164u, 28)) goto bad;
++    g0r_o[j] = g0r_rd(p1 + (uint32_t)s156 + 8u); g0r_w[j] = g0r_rd(p1 + (uint32_t)r20 + 8u); g0r_w2[j] = g0r_rd(p2 + (uint32_t)r20 + 8u);
++    if (!nat_plain(g0r_o[j] & ~15u, 1024) || !nat_plain(g0r_w[j] & ~15u, 1024) || !nat_plain(g0r_w2[j] & ~15u, 1024)) goto bad;
++    if (j < n - 1) { NAT_MASK(g0r_rd(p2 + 184u) & ~15u, 1024); NAT_MASK(g0r_rd(p2 + 188u) & ~15u, 1024); }   /* x86 dev, both modes */
++  }
++#if !defined(__psp__)
++  if ((g_opt2 & (NAT_G0R | NAT_H3R)) != (NAT_G0R | NAT_H3R)) goto off;
++#endif
++  /* the 3n buffers meet neither each other nor the game data the loop reads or writes: the act and its entries, the frame (with the
++     copies' 16 bytes below it), the three vectors, the prims' +164 to +191 */
++  for (j = 0; j < n; j++) {
++    uint32_t t[3] = { g0r_o[j], g0r_w[j], g0r_w2[j] };
++    for (int i = 0; i < 3; i++) {   /* insertion into the sorted list */
++      uint32_t x = (t[i] & ~15u) & (GUEST_SIZE - 1); k = nb++;
++      while (k > 0 && B[k - 1] > x) { B[k] = B[k - 1]; k--; }
++      B[k] = x;
++    }
++  }
++  for (k = 1; k < nb; k++) if (B[k] - B[k - 1] < 1024u) goto bad;
++  if (g0r_meet(B, nb, ac, 432u + 64u * (uint32_t)n) || g0r_meet(B, nb, sp - 16u, 304) || g0r_meet(B, nb, 0x1f8730u, 16)
++      || g0r_meet(B, nb, (uint32_t)r22 & ~15u, 16) || g0r_meet(B, nb, (uint32_t)r23 & ~15u, 16)) goto bad;
++  for (j = 0; j < 2 * n; j++) if (g0r_meet(B, nb, g0r_rd(base + 32u * (uint32_t)j + 16u) + 164u, 28)) goto bad;
++  for (j = 0; j < n - 1; j++) if ((g0r_rd(g0r_rd(base + 32u * (uint32_t)(n + j) + 16u) + 164u) & 0xf000u) != 0xf000u) goto shown;
++  /* the polls: per entry the two copies in (17 each), the vertex loop's and the fill loop's, the two copies out and the offsets loop's,
++     and the loop's own between entries; none may reach k_poll_at, so the in-place entries' time can be added at their start */
++  nat_qplan(&qa, 0x70000000, 64); nat_qplan(&qb, 0x70002000, 64);
++  v = r21 > 0 ? r21 - 1 : 0; f = s152 > 0 ? s152 - 1 : 0; P = n - 1;
++  for (j = 0; j < n; j++) {
++    nat_qplan(&q1, (int32_t)g0r_w[j], 64); nat_qplan(&q2, (int32_t)g0r_w2[j], 64);
++    g0r_p[j] = qa.P + qb.P + q1.P + v + q2.P; P += g0r_p[j] + v + f;
++  }
++  if (NAT_NOW() + (uint64_t)P * K_POLL_CYCLES >= k_poll_at) goto poll;
++  for (j = 0; j < n; j++) { g0r_o[j] &= ~15u; g0r_w[j] &= ~15u; }
++  g0r_n = n; g0r_cnt[0]++;
++  return 1;
++off:
++  g0r_cnt[1]++; return 0;
++bad:
++  g0r_cnt[2]++; return 0;
++shown:
++  g0r_cnt[3]++; return 0;
++poll:
++  g0r_cnt[4]++; return 0;
++}
++int g0r_entry(int32_t j)   /* at L31b3c8 with r18 = j: 1 = this entry in place (g0r_old / g0r_new), its skipped polls' time added */
++{
++  if (g0r_pass == 2 || j < 0 || j >= g0r_n - 1) return 0;
++  g0r_old = g0r_o[j]; g0r_new = g0r_w[j]; NAT_ADV((uint64_t)g0r_p[j] * K_POLL_CYCLES);
++  g0r_cnt[5]++; g0r_cnt[6] += g0r_p[j];
++  return 1;
++}
++#ifdef NAT_CHECK
++/* x86 dev: the whole state before the loop (every register, VU0's, the time, all 32 MB and the act's locals) is kept; after the in-place
++   pass it is put back and the translation runs the loop from it; at 0x31b6fc both results are compared: every register, VU0's, the time,
++   the locals and all RAM but the second set's new buffers of the in-place entries.  The run goes on from the translation's state. */
++static struct nat_cc g0r_pre, g0r_fast; static struct nat_bs_l g0r_lpre; static uint8_t *g0r_ram0, *g0r_ram1;
++static uint32_t g0r_sk[32]; static int g0r_skn; static long g0r_cn, g0r_cbad;
++void g0r_chk_pre(const struct nat_bs_l *l)
++{
++  ncc_save(&g0r_pre); g0r_lpre = *l;
++  if (!g0r_ram0) { g0r_ram0 = malloc(GUEST_SIZE); g0r_ram1 = malloc(GUEST_SIZE); }
++  memcpy(g0r_ram0, GEN_BASE, GUEST_SIZE); g0r_pass = 1;
++  g0r_skn = g0r_n - 1; for (int j = 0; j < g0r_skn; j++) g0r_sk[j] = (g0r_w2[j] & ~15u) & (GUEST_SIZE - 1);
++}
++static void g0r_bad_at(const char *what, int i, uint64_t got, uint64_t want)
++{
++  extern long g_hash_vb;
++  if (g0r_cbad < 40) fprintf(stderr, "natchk rain: check %ld (after the hash of vb %ld): %s[%d] translation %016llx in place %016llx\n", g0r_cn,
++                             g_hash_vb, what, i, (unsigned long long)got, (unsigned long long)want);
++  g0r_cbad++;
++}
++static int g0r_skip(uint32_t a) { for (int j = 0; j < g0r_skn; j++) if (a - g0r_sk[j] < 1024u) return 1; return 0; }
++int g0r_chk_end(struct nat_bs_l *l)
++{
++  struct nat_cc *g = &g0r_pre; long bad0 = g0r_cbad; uint32_t u, v;
++  if (g0r_pass == 1) {   /* the in-place pass is done: keep its state, put the state before back, the translation runs from it */
++    ncc_save(&g0r_fast); g0r_fast.l = *l; memcpy(g0r_ram1, GEN_BASE, GUEST_SIZE); memcpy(GEN_BASE, g0r_ram0, GUEST_SIZE);
++    ncc_load(&g0r_pre); *l = g0r_lpre; g0r_pass = 2;
++    return 1;
++  }
++  if (g0r_pass != 2) return 0;
++  g0r_pass = 0; ncc_save(g);   /* g0r_pre is free again: the translation's state */
++  for (int i = 0; i < 32; i++) { if (g->R[i] != g0r_fast.R[i]) g0r_bad_at("R", i, g->R[i], g0r_fast.R[i]); if (g->RH[i] != g0r_fast.RH[i]) g0r_bad_at("RH", i, g->RH[i], g0r_fast.RH[i]); }
++  for (int i = 0; i < 32; i++) { memcpy(&u, &g->F[i], 4); memcpy(&v, &g0r_fast.F[i], 4); if (u != v) g0r_bad_at("F", i, u, v); }
++  memcpy(&u, &g->ACC, 4); memcpy(&v, &g0r_fast.ACC, 4); if (u != v) g0r_bad_at("ACC", 0, u, v);
++  if (g->LO != g0r_fast.LO) g0r_bad_at("LO", 0, g->LO, g0r_fast.LO);
++  if (g->HI != g0r_fast.HI) g0r_bad_at("HI", 0, g->HI, g0r_fast.HI);
++  if (g->LO1 != g0r_fast.LO1) g0r_bad_at("LO1", 0, g->LO1, g0r_fast.LO1);
++  if (g->HI1 != g0r_fast.HI1) g0r_bad_at("HI1", 0, g->HI1, g0r_fast.HI1);
++  if (g->CC != g0r_fast.CC) g0r_bad_at("CC", 0, g->CC, g0r_fast.CC);
++  if (g->t != g0r_fast.t) g0r_bad_at("time", 0, g->t, g0r_fast.t);
++  for (int i = 0; i < 32; i++) for (int k = 0; k < 4; k++) {
++    if (g->vf[i].u[k] != g0r_fast.vf[i].u[k]) g0r_bad_at("VF", 4 * i + k, g->vf[i].u[k], g0r_fast.vf[i].u[k]);
++    if (g->vn[i].u[k] != g0r_fast.vn[i].u[k]) g0r_bad_at("VN", 4 * i + k, g->vn[i].u[k], g0r_fast.vn[i].u[k]);
++  }
++  for (int i = 0; i < 16; i++) if (g->vi[i] != g0r_fast.vi[i]) g0r_bad_at("VI", i, g->vi[i], g0r_fast.vi[i]);
++  for (int k = 0; k < 4; k++) if (g->vacc[k] != g0r_fast.vacc[k]) g0r_bad_at("VACC", k, g->vacc[k], g0r_fast.vacc[k]);
++  if (g->vq != g0r_fast.vq || g->vp != g0r_fast.vp || g->vireg != g0r_fast.vireg || g->vr != g0r_fast.vr) g0r_bad_at("Q / P / I / R", 0, g->vr, g0r_fast.vr);
++  if (g->vmac != g0r_fast.vmac || g->vstat != g0r_fast.vstat || g->vclip != g0r_fast.vclip || g->vcms != g0r_fast.vcms || g->gvmac != g0r_fast.gvmac)
++    g0r_bad_at("VU0 flags", 0, g->vclip, g0r_fast.vclip);
++  for (int i = 0; i < 32; i++) if (l->r[i] != g0r_fast.l.r[i]) g0r_bad_at("local r", i, l->r[i], g0r_fast.l.r[i]);
++  for (int i = 0; i < 32; i++) { memcpy(&u, &l->f[i], 4); memcpy(&v, &g0r_fast.l.f[i], 4); if (u != v) g0r_bad_at("local f", i, u, v); }
++  for (uint32_t c = 0; c < GUEST_SIZE; c += 4096) if (memcmp(GEN_BASE + c, g0r_ram1 + c, 4096))
++    for (uint32_t i = c; i < c + 4096; i++) if (GEN_BASE[i] != g0r_ram1[i] && !g0r_skip(i)) { g0r_bad_at("RAM byte", (int)i, GEN_BASE[i], g0r_ram1[i]); break; }
++  g0r_cn++;
++  if (g0r_cbad != bad0) g0r_cbad = bad0 + 1;   /* count calls, not fields */
++  return 0;
++}
++__attribute__((destructor)) static void g0r_chk_report(void)
++{
++  fprintf(stderr, "natchk rain: %ld calls checked, %ld different; calls in place %ld, translated %ld (G0R or H3R off), %ld (sizes / not plain "
++          "/ ranges meet), %ld (a second-set prim shown), %ld (poll due); entries in place %ld, polls skipped %ld\n", g0r_cn, g0r_cbad,
++          g0r_cnt[0], g0r_cnt[1], g0r_cnt[2], g0r_cnt[3], g0r_cnt[4], g0r_cnt[5], g0r_cnt[6]);
++}
++#elif !defined(__psp__)
++__attribute__((destructor)) static void g0r_report(void)
++{
++  fprintf(stderr, "native rain: calls in place %ld, translated %ld (G0R or H3R off), %ld (sizes / not plain / ranges meet), %ld (a second-set "
++          "prim shown), %ld (poll due); entries in place %ld, polls skipped %ld\n", g0r_cnt[0], g0r_cnt[1], g0r_cnt[2], g0r_cnt[3], g0r_cnt[4],
++          g0r_cnt[5], g0r_cnt[6]);
++}
++#endif
+ #define static
+ #endif
+--- nat/native_w00a.h.h3r
++++ nat/native_w00a.h
+@@ -38,7 +38,52 @@
+ #ifdef NAT_CHECK
+ void nat_cs_chk_swap(const struct nat_bs_l *l); void nat_cs_chk_cmp(const struct nat_bs_l *l);
+ #endif
++/* rain.c (0x31af28, task #167, rain_study.md section 10): with OPT2_G0R and OPT2_H3R its streak loop (0x31b3c8 up to 0x31b6fc) does every
++   entry but the last in place in RAM: the vertex and fill loops read the first set's old buffer and write its new buffer themselves
++   (g0r_old / g0r_new where the translation has the scratchpad's 0x70000000 / 0x70002000), and the entry's four copies and the second set's
++   offsets loop are skipped, their polls' time added.  The last entry runs as translated, so the scratchpad, what the copies leave in the
++   registers, VU0 and the time end as the translation leaves them; only the second set's new buffers of the other entries are left as
++   they were (the hidden prims' drawing is all that reads them).  The hooks in the act (wpl/gen_s_w00a.h): G0R_START at 0x31b3c4,
++   G0R_ENTRY at L31b3c8, G0R_D on the copies, the scratchpad bases and the offsets loop, G0R_END at L31b6fc */
++extern int g0r_ok, g0r_d; extern uint32_t g0r_old, g0r_new;
++int g0r_call(int32_t ac, int32_t sp, int32_t r20, int32_t r21, int32_t r22, int32_t r23);
++int g0r_entry(int32_t j);
++#define G0R_D g0r_d
++#define G0R_OLD g0r_old
++#define G0R_NEW g0r_new
++#define G0R_ENTRY() ((void)(g0r_d = g0r_ok ? g0r_entry(r18) : 0))
++#ifdef GEN_DG_TRACE   /* the read-hash proof: the loop's own loads (the scratchpad in one mode, the buffers in the other) are left out in both */
++extern int g_rh_off;
++#define G0R_RH(v) ((void)(g_rh_off = (v)))
+ #else
++#define G0R_RH(v) ((void)0)
++#endif
++#ifdef NAT_CHECK   /* x86 dev: the in-place pass, then the translation from the same state; at 0x31b6fc both are compared */
++void g0r_chk_pre(const struct nat_bs_l *l); int g0r_chk_end(struct nat_bs_l *l);
++#define G0R_LSAVE(l) do { (l).r[1] = r1; (l).r[2] = r2; (l).r[3] = r3; (l).r[4] = r4; (l).r[5] = r5; (l).r[6] = r6; (l).r[7] = r7; (l).r[8] = r8; \
++  (l).r[16] = r16; (l).r[17] = r17; (l).r[18] = r18; (l).r[19] = r19; (l).r[20] = r20; (l).r[21] = r21; (l).r[22] = r22; (l).r[23] = r23; \
++  (l).r[29] = r29; (l).r[30] = r30; (l).r[31] = r31; (l).f[0] = f0; (l).f[1] = f1; (l).f[2] = f2; (l).f[3] = f3; (l).f[20] = f20; \
++  (l).f[21] = f21; (l).f[22] = f22; } while (0)
++#define G0R_LLOAD(l) do { r1 = (int32_t)(l).r[1]; r2 = (l).r[2]; r3 = (int32_t)(l).r[3]; r4 = (l).r[4]; r5 = (int32_t)(l).r[5]; \
++  r6 = (int32_t)(l).r[6]; r7 = (l).r[7]; r8 = (l).r[8]; r16 = (int32_t)(l).r[16]; r17 = (l).r[17]; r18 = (int32_t)(l).r[18]; \
++  r19 = (int32_t)(l).r[19]; r20 = (int32_t)(l).r[20]; r21 = (int32_t)(l).r[21]; r22 = (int32_t)(l).r[22]; r23 = (int32_t)(l).r[23]; \
++  r29 = (int32_t)(l).r[29]; r30 = (int32_t)(l).r[30]; r31 = (int32_t)(l).r[31]; f0 = (l).f[0]; f1 = (l).f[1]; f2 = (l).f[2]; f3 = (l).f[3]; \
++  f20 = (l).f[20]; f21 = (l).f[21]; f22 = (l).f[22]; } while (0)
++#define G0R_START() do { struct nat_bs_l l_; G0R_RH(1); g0r_d = 0; g0r_ok = g0r_call(r17, r29, r20, r21, r22, r23); \
++  if (g0r_ok) { memset(&l_, 0, sizeof l_); G0R_LSAVE(l_); g0r_chk_pre(&l_); } } while (0)
++#define G0R_END(lab) do { if (g0r_ok) { struct nat_bs_l l_; memset(&l_, 0, sizeof l_); G0R_LSAVE(l_); \
++  if (g0r_chk_end(&l_)) { G0R_LLOAD(l_); goto lab; } } G0R_RH(0); g0r_ok = 0; g0r_d = 0; } while (0)
++#else
++#define G0R_START() do { G0R_RH(1); g0r_d = 0; g0r_ok = g0r_call(r17, r29, r20, r21, r22, r23); } while (0)
++#define G0R_END(lab) do { G0R_RH(0); g0r_ok = 0; g0r_d = 0; } while (0)
++#endif
++#else
++#define G0R_D 0
++#define G0R_OLD 0u
++#define G0R_NEW 0u
++#define G0R_ENTRY() ((void)0)
++#define G0R_START() ((void)0)
++#define G0R_END(lab) ((void)0)
+ #define NAT_LS_GUARD(prim, r16, r23) ((void)0)
+ #define NAT_LS_FLUSH() ((void)0)
+ #define NAT_LS_PREPOLL() ((void)0)

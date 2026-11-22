@@ -1,0 +1,13 @@
+/home/claude/main/build_gl31/emu_e3/pic (reference) against emu_e3/pic: 455 names in both, only in the reference 0, only in the new 0 []
+  live  arm 3, in 29490-31400                                      against the reference's shot of the same frame 36
+  live  arm 3, in 29490-31400                                      byte-identical                   36
+  live  arm 3, in 29490-31400                                      pictures                         36
+  shot  arm 0, outside 29490-31400                                 byte-identical                   4
+  shot  arm 0, outside 29490-31400                                 pictures                         4
+  shot  arm 3, in 29490-31400                                      byte-identical                   413
+  shot  arm 3, in 29490-31400                                      pictures                         413
+  shot  arm 3, outside 29490-31400                                 byte-identical                   1
+  shot  arm 3, outside 29490-31400                                 differing                        1
+  shot  arm 3, outside 29490-31400                                 pictures                         2
+differing pictures (name, frame vb, class, pixels with any channel different, luma by 2+, 6+, over 8, largest luma difference):
+   ('shot_24784.bmp', 24784, 'arm 3, outside 29490-31400', 60, 0, 0, 0, 1)

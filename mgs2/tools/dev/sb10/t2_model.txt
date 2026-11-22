@@ -1,0 +1,17 @@
+T2 model (sb10m2/d no PGO, EBOOT e1c979e3, 80 steps; fitcmp.py; raw: t2_model_raw.txt), 2026-11-02 02:5x
+Same build, OPT2_C7 off -> on:
+  deck   (30,810-30,890): 166.18 -> 165.85 (-0.33)  [no P07 call in the window: vc_p07_rec, xl_lane_p07 0.00; history/layout]
+  inside (33,410-33,490): 105.97 -> 105.72 (-0.25)  [same]
+  codec  (31,510-31,590):  98.00 ->  93.55 (-4.45, -4.5%): instr 53.44 -> 54.75 (+1.31), I 26.60 -> 20.89 (-5.71), D 17.96 -> 17.92
+    vc_p07_rec 10.13 -> 8.55 (I 1.78 -> 0.69, D 1.52 -> 1.03); xc_lit 2.87 -> 1.95; gb_xform_in/at 0.60 -> 0; xc_pass 0.12 -> 0;
+    xc_state 0.52 -> 0.34; translator 10.36 -> 9.10 (call -0.23, xl_lane_p07 -0.16, ud_eager -0.09); texture map 7.10 -> 6.25;
+    frame + batches 4.21 -> 3.68; GS front end 2.01 -> 1.63; texture cache 3.49 -> 3.19;
+    the hold's own: xc_hold_test 0.01 -> 1.14 (instr 0.55, D 0.47: the streams' first reads, moved from vc_p07_rec), xc_hold 0.05 -> 1.07,
+    xc_held_run 0.04 -> 0.78 (placement): +2.89.
+T2's code present but off (sb10m2) against the T1-only build (sb10m, T1 on):
+  deck 164.27 -> 166.18 (+1.91: instr +0.52, I +0.58, D +0.82), inside 104.93 -> 105.97 (+1.04), codec 97.19 -> 98.00 (+0.81)
+  translator instr (the slot bookkeeping, runs either way): deck 10.93 -> 11.31, inside 6.80 -> 7.02, codec 4.89 -> 5.17 ms;
+  the rest is the layout of a build without PGO (I and D misses moving in unrelated code).
+Net against the T1-only build: deck +1.58, inside +0.79, codec -3.64 [layout part settles with PGO in the PSP build].
+Trims seen: the bookkeeping only while P07's program is resident (deck/inside ~0.2-0.4 ms instr); hold7_test's per-vertex checks of UV z and
+the strip can go (the run's fallback rebuilds exactly), keeping the bone check (~0.2-0.3 ms [I]).

@@ -1,0 +1,1004 @@
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/boot/nat_stub.h t34/boot/nat_stub.h
+--- t33/boot/nat_stub.h	2026-11-21 03:05:35.076717610 +0000
++++ t34/boot/nat_stub.h	2026-11-21 11:28:19.188843794 +0000
+@@ -44,6 +44,11 @@
+    arm 3 (native) flags its groups.  g_nat_stc: groups flagged */
+ int g_nat_inpl; long g_nat_stc;
+ static int nat_inpl_all, nat_inpl_ncyc; static uint8_t nat_inpl_cyc[32];
++/* gl34, the fast native front end (ge/natsnap.h NATG_FAST; ge/xlate.h xl_p04_fast).  MGS2_NAT_FAST=1 for the whole run,
++   MGS2_NAT_FAST_CYCLE=<a>,<b>,... by MGS2_OPT_CYCLE's turns (as MGS2_NAT_CYCLE): 1: every group arm 3 records is flagged, and the
++   picture's walk hands it to the fast front end.  0 (the default): gl33's path.  g_nat_fst: groups flagged */
++int g_nat_fast; long g_nat_fst;
++static int nat_fast_all, nat_fast_ncyc; static uint8_t nat_fast_cyc[32];
+ static uint32_t nat_seq_seen;
+ #ifndef __psp__
+ static int nat_cap_dev;          /* dev (x86): MGS2_NAT_CAP=<n>: the array's entries (the fallback's test) */
+@@ -75,6 +80,13 @@
+     if (nat_inpl_ncyc && !nat_ncyc) { nat_from = f; nat_turn = n; } }
+   if (g_nat_cfg) fprintf(stderr, "nat: gl33 static streams in place: MGS2_NAT_INPL %d, MGS2_NAT_INPL_CYCLE %s (1: a static group's streams stay in "
+                          "RAM for the ME's walk; by the same turns)\n", nat_inpl_all, nat_inpl_ncyc ? getenv("MGS2_NAT_INPL_CYCLE") : "none");
++  nat_fast_all = (e = getenv("MGS2_NAT_FAST")) ? atoi(e) & 1 : 0;
++  if ((e = getenv("MGS2_NAT_FAST_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
++    char *p = (char *)e;
++    while (nat_fast_ncyc < 32 && *p) { nat_fast_cyc[nat_fast_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
++    if (nat_fast_ncyc && !nat_ncyc && !nat_inpl_ncyc) { nat_from = f; nat_turn = n; } }
++  if (g_nat_cfg) fprintf(stderr, "nat: gl34 fast native front end: MGS2_NAT_FAST %d, MGS2_NAT_FAST_CYCLE %s (1: arm 3's groups go to the "
++                         "translator's fast front end; by the same turns)\n", nat_fast_all, nat_fast_ncyc ? getenv("MGS2_NAT_FAST_CYCLE") : "none");
+ #ifndef __psp__
+   if ((e = getenv("MGS2_NAT_CAP"))) { nat_cap_dev = atoi(e); if (nat_cap_dev < 0 || nat_cap_dev > NAT_MAXGRP) nat_cap_dev = 0; }
+   if (g_nat_cfg && !((e = getenv("MGS2_NAT_NOMEM")) && atoi(e)))   /* (dev: MGS2_NAT_NOMEM=1: no arrays, the PSP's case when its block is refused) */
+@@ -99,6 +111,12 @@
+   if (nat_inpl_ncyc && vb > nat_from) return nat_inpl_cyc[((vb - nat_from - 1) / nat_turn) % nat_inpl_ncyc];
+   return nat_inpl_all;
+ }
++int rt_nat_fast_at(long vb)   /* gl34: the fast front end's switch at vblank vb */
++{
++  if (nat_set < 0) nat_setup();
++  if (nat_fast_ncyc && vb > nat_from) return nat_fast_cyc[((vb - nat_from - 1) / nat_turn) % nat_fast_ncyc];
++  return nat_fast_all;
++}
+ #ifndef __psp__
+ void nat_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh, uint32_t dest, uint32_t end, uint32_t qwc);   /* dev: boot/nat_x86.c's counts */
+ #endif
+@@ -109,7 +127,7 @@
+ {
+   uint32_t mesh, desc, qwc, cap, dest, end, d, blk, fog, clip, pre, cur[3], key = 0, vq = 0, kq; int32_t ng; int b, arm, i, r30, stub; NatBuf *s; NatGrp *g;
+   static NatGrp tmp;
+-  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); }
++  if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); }
+   arm = g_nat_arm;
+   if (arm <= 0) return 0;
+   if (arm == 4) { g_nat_c[NC_STUBC]++; return 1; }
+@@ -161,6 +179,7 @@
+       for (k = 0; k < 3; k++) { uint32_t a = g->s[k] & (GUEST_SIZE - 1); if ((g->s[k] >> 28) || (a >= NAT_PKT0 && a < NAT_PKT1)) break; }
+       if (k == 3) { g->flags |= NATG_INPL; g_nat_stc++; }
+     }
++    if (stub && g_nat_fast) { g->flags |= NATG_FAST; g_nat_fst++; }   /* gl34 */
+     if (stub) g->key = key;
+ #ifndef __psp__
+     else {   /* shadow: the group's own packet address, as the builder places it */
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/boot/nat_x86.c t34/boot/nat_x86.c
+--- t33/boot/nat_x86.c	2026-11-21 03:25:33.107246066 +0000
++++ t34/boot/nat_x86.c	2026-11-21 12:09:47.481166187 +0000
+@@ -27,6 +27,8 @@
+    others, by the vblanks since the draw (the PSP's ME reads them in RAM up to a step after the record).  A "natinpl:" line each 100
+    vblanks with groups drawn, and "natst:" at the exit. ---- */
+ extern long g_nat_stc;
++extern long g_nat_fst, xl_nf_n[8], lw_nh_n[3]; int rt_nat_fast_at(long vb);   /* gl34 */
++#include "../ge/vu1conv.h"
+ static long ninp_vb0 = -1, ninp_st0, ninp_drawn, ninp_drawn0;
+ typedef struct { uint32_t s[3]; uint8_t n[3], bad; long vb; uint64_t h; uint32_t seq; } StE;
+ #define ST_RING (1 << 16)
+@@ -87,6 +89,13 @@
+   fprintf(stderr, "natinpl: vb %ld-%ld%s arm %d inpl %d turn %ld: groups flagged static %ld (drawn %ld)\n", ninp_vb0, vb, last ? " (exit)" : "", arm,
+           rt_nat_inpl_at(ninp_vb0 + 1), turn, g_nat_stc - ninp_st0, ninp_drawn - ninp_drawn0);
+   ninp_st0 = g_nat_stc; ninp_drawn0 = ninp_drawn;
++  { static long f0, n0[8], k0[4]; if (vc_km_chk < 0) { const char *e = getenv("MGS2_NAT_XMCHK"); vc_km_chk = e ? atoi(e) : 0; }   /* gl34 */
++    fprintf(stderr, "natfast: vb %ld-%ld%s arm %d fast %d turn %ld: groups flagged %ld; the fast front end took %ld, declined: state %ld, entry %ld, "
++            "buffers %ld, stream counts %ld, material tag %ld, tables full %ld, path 1 busy %ld; transforms taken from the last keyed call %ld, "
++            "computed and kept %ld, taken ones checked %ld, differing %ld\n", ninp_vb0, vb, last ? " (exit)" : "", arm, rt_nat_fast_at(ninp_vb0 + 1), turn,
++            g_nat_fst - f0, xl_nf_n[0] - n0[0], xl_nf_n[1] - n0[1], xl_nf_n[2] - n0[2], xl_nf_n[3] - n0[3], xl_nf_n[4] - n0[4], xl_nf_n[5] - n0[5],
++            xl_nf_n[6] - n0[6], xl_nf_n[7] - n0[7], vc_km_n[0] - k0[0], vc_km_n[1] - k0[1], vc_km_n[2] - k0[2], vc_km_n[3] - k0[3]);
++    f0 = g_nat_fst; for (int k = 0; k < 8; k++) n0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) k0[k] = vc_km_n[k]; }
+ }
+ static void nat_report(void);
+ static void nat_xfer(uint32_t tadr)
+@@ -184,6 +193,9 @@
+ {
+   if (g_nat_cfg && ninp_vb0 >= 0) ninp_line(k_vblanks, 1);
+   if (g_nat_cfg) fprintf(stderr, "natinpl: totals: groups flagged static %ld (drawn %ld)\n", g_nat_stc, ninp_drawn);
++  if (g_nat_cfg) fprintf(stderr, "natfast: totals: groups flagged %ld; taken %ld, declined %ld %ld %ld %ld %ld %ld %ld; transforms taken %ld, kept %ld, checked %ld, DIFFERING %ld\n",
++                         g_nat_fst, xl_nf_n[0], xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], vc_km_n[2], vc_km_n[3]);
++  if (g_nat_cfg) fprintf(stderr, "natfast: totals: pointers by their own hints (MGS2_NAT_LW=2's views) %ld, checked %ld, DIFFERING %ld\n", lw_nh_n[0], lw_nh_n[2], lw_nh_n[1]);
+   if (st_win > 0) {
+     fprintf(stderr, "natst: static groups drawn %ld, each hashed again at every vblank's start for %ld vblanks: CHANGED %ld; by the vblanks since the draw:",
+             st_n, st_win, st_bad);
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/boot/xlive_chk.c t34/boot/xlive_chk.c
+--- t33/boot/xlive_chk.c	2026-11-21 02:56:27.579933055 +0000
++++ t34/boot/xlive_chk.c	2026-11-21 12:09:44.468890581 +0000
+@@ -265,6 +265,8 @@
+         if (o->t[i].kind == 1) { if (glf.tdata[i]) hd = nb_h(2166136261u, glf.tdata[i], glf.tsize[i]); if (glf.tpal[i]) hp = nb_h(2166136261u, glf.tpal[i], o->t[i].npal * 4); }
+         fprintf(stderr, "natt: %d kind %u t %08x data %08x pal %08x\n", i, o->t[i].kind, ht, hd, hp); } } }
+   fprintf(stderr, "natb: vb %ld df0 %u state %08x mat %08x xf %08x vert %08x strip %08x other %u %08x\n", vb, k, h[0], h[1], h[2], h[3], h[4], nall, hall);
++  { uint32_t sd[5]; xl_state_dig(sd);   /* gl34: the translator's state at the picture's end */
++    fprintf(stderr, "nats: vb %ld vm %08x gs %08x front %08x vif %08x counts %08x\n", vb, sd[0], sd[1], sd[2], sd[3], sd[4]); }
+   { /* "natz:" the content digest (gl_digest_c) with the Z of each sprite's first vertex set to 0 (the GS and the GE draw a sprite at its
+        second vertex's Z: the first's is not drawn) */
+     static GlFrame fz; static GerVert *zv; static int zcap;
+@@ -1059,6 +1061,8 @@
+         M.view = &nlw_v; if (c->used > nlw_used_max) nlw_used_max = c->used; if ((uint32_t)nx > nlw_ext_max) nlw_ext_max = (uint32_t)nx; } }
+   }
+   if (r) { nlw_p.nat_g[0] = g[0]; nlw_p.nat_g[1] = g[1]; nlw_p.nat_n[0] = n[0]; nlw_p.nat_n[1] = n[1]; nlw_p.nat_b = -1; }
++  nlw_p.ch_i = -1;   /* gl34 (no clock here: the chains are not timed) */
++  { static int hc = -1; if (hc < 0) { const char *e = getenv("MGS2_NAT_HCHK"); hc = e ? atoi(e) : 0; } nlw_p.nh_chk = hc; }   /* gl34 (ge/xlme.c lw_nptr_h) */
+   xm_walk(&nlw_p, 1, chcr, madr, qwc, tadr, g_xl_lane, g_opt);
+   M.view = 0;
+   if (r && nlw_p.nat_b >= 0) { g_nat[nlw_p.nat_b].cur += (uint32_t)nlw_p.nat_used; nlw_direct += nlw_p.nat_used; }
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/gelive.c t34/ge/gelive.c
+--- t33/ge/gelive.c	2026-11-21 02:56:27.577057342 +0000
++++ t34/ge/gelive.c	2026-11-21 11:27:18.399450493 +0000
+@@ -11,6 +11,7 @@
+ #include "gelist.h"
+ #include "fxthin.h"   /* task #114 */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
++#include "natsplit.h"   /* gl34: NS_MARK */
+ 
+ static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
+ {
+@@ -379,7 +380,7 @@
+     if (r1 != r2 || s1 != s2 || memcmp(&b1, &b2, sizeof b1) || (r1 > 0 && memcmp(d1, d2, s1))) gl_need_diff++;
+   } else
+ #endif
+-  if (gl_need) xl_vm_need(c);
++  if (gl_need) { if (!(c->rec && c->rec->nf)) xl_vm_need(c); }   /* gl34: a fast native group's converter reads only what its call decoded (xlate.h XlRec nf) */
+   else if (!c->rec) xl_vm_sync();
+   uint8_t *blob = gb_room(&f->o, cap);
+   if (!blob) { f->n.conv_full++; return; }
+@@ -390,6 +391,7 @@
+   if (!r) { f->n.conv_empty++; return; }
+   if (gb_xform_in(&f->o, &b, size)) { f->n.conv_full++; return; }
+   f->n.conv++;
++  NS_MARK(NS_LIST);
+   if (b.kind == GERK_LIT) { f->lit_ok = 1; f->lit_base = f->o.room; f->n.lit_calls++; }
+ }
+ void gl_pass(GlFrame *f, const XlCall *c, int pass)
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/natp04.h t34/ge/natp04.h
+--- t33/ge/natp04.h	2026-11-21 02:56:27.576751962 +0000
++++ t34/ge/natp04.h	2026-11-21 12:08:57.676608735 +0000
+@@ -28,20 +28,27 @@
+        NATP_BAD_CNT = -2,        /* a count over its cap */
+        NATP_BAD_PTR = -3 };      /* a pointer out of EE RAM / the scratchpad, or not in one piece */
+ 
++#ifdef NATP_PTRH                   /* (a walk with a view of a copy: ge/xlme.c) */
++#define NATP_PF(a, n, s) (fh ? NATP_PTRH((a), (n), (s)) : NATP_PTR((a), (n)))
++#else
++#define NATP_PF(a, n, s) ((void)fh, NATP_PTR((a), (n)))
++#endif
+ static inline __attribute__((always_inline)) int nat_p04_group(const NatGrp *g)
+ {
+   int q0 = (g->flags & NATG_FULL) != 0, nr = 4 + q0, all = 1, j, k; XlP04 x; uint32_t key = g->key, ad[5];
++  const int fh = (g->flags & NATG_FAST) != 0;   /* gl34: the pointers by NATP_PTRH (a hint per kind of pointer; the same answers) */
+   if (g->n[0] > 128u || g->n[1] > 128u || g->n[2] > 64u) return NATP_BAD_CNT;   /* the UNPACK's count field: 2 n, 2 n, 4 n <= 256 */
+-  if (q0) { x.stc[0] = NATT_S11; x.unp[0] = NATT_BLK; x.qwc[0] = 24; ad[0] = g->blk & 0xfffffff0u; if (!(x.dp[0] = NATP_PTR(ad[0], 24))) return NATP_BAD_PTR; }
+-  x.stc[q0] = NATT_S11; x.unp[q0] = NATT_MAT; x.qwc[q0] = 8; ad[q0] = g->mat & 0xfffffff0u; if (!(x.dp[q0] = NATP_PTR(ad[q0], 8))) return NATP_BAD_PTR;
++  if (q0) { x.stc[0] = NATT_S11; x.unp[0] = NATT_BLK; x.qwc[0] = 24; ad[0] = g->blk & 0xfffffff0u; if (!(x.dp[0] = NATP_PF(ad[0], 24, 0))) return NATP_BAD_PTR; }
++  x.stc[q0] = NATT_S11; x.unp[q0] = NATT_MAT; x.qwc[q0] = 8; ad[q0] = g->mat & 0xfffffff0u; if (!(x.dp[q0] = NATP_PF(ad[q0], 8, 1))) return NATP_BAD_PTR;
+   for (k = 0; k < 3; k++) {
+     uint32_t n = g->n[k]; j = q0 + 1 + k; x.stc[j] = NATT_S31;
+     if (g->s[k] && n) {
+       x.unp[j] = k == 2 ? NATT_C | ((4 * n) & 0xffu) << 16 : (k ? NATT_B : NATT_A) | ((2 * n) & 0xffu) << 16; x.qwc[j] = n; ad[j] = g->s[k] & 0xfffffff0u;
+-      if (!(x.dp[j] = NATP_PTR(ad[j], n))) return NATP_BAD_PTR; }
++      if (!(x.dp[j] = NATP_PF(ad[j], n, 2 + k))) return NATP_BAD_PTR; }
+     else { x.unp[j] = 0; x.qwc[j] = 0; x.dp[j] = 0; ad[j] = 0; all = 0; }   /* not sent: CNT 0, the slot's STCYCL and a NOP */
+   }
+   x.hunp = NATT_HDR; x.mscal = g->mscal; x.hdr = g->hdr; x.tadr = key; x.q0 = q0;
++  if (all && (g->flags & NATG_FAST) && xl_p04_fast(&x)) return NATP_CORE;   /* gl34: the fast front end (0: not its form) */
+   if (all && xl_p04_core(&x)) return NATP_CORE;   /* lane 1's case: every slot a REF (runtime/ee_io.h lane_p04's tests hold by construction) */
+   /* the generic walk's order: each tag's TTE words, then its data (a REF's where it lies; the CNT's: the header, MSCAL and three NOPs) */
+   for (j = 0; j < nr; j++) {
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/natsnap.h t34/ge/natsnap.h
+--- t33/ge/natsnap.h	2026-11-21 02:56:27.603982908 +0000
++++ t34/ge/natsnap.h	2026-11-21 11:24:48.894392195 +0000
+@@ -20,9 +20,13 @@
+ 
+ enum { NATG_FULL = 1,            /* the full template: q0, the constant block's REF, first (the call's first two groups) */
+        NATG_PKT = 2,             /* x86 shadow modes only: the builder ran too, the group's packet lies at key (the walk steps over it) */
+-       NATG_INPL = 4 };          /* gl33 (boot/nat_stub.h's rule; MGS2_NAT_INPL): a static group, the P04+df0 entry with its three streams sent
++       NATG_INPL = 4,            /* gl33 (boot/nat_stub.h's rule; MGS2_NAT_INPL): a static group, the P04+df0 entry with its three streams sent
+                                     from outside packet memory: the main CPU's copy plan leaves the three streams in RAM, where the ME's
+                                     walk reads them (ge/xlme.c xc_nat) */
++       NATG_FAST = 8 };          /* gl34 (MGS2_NAT_FAST, MGS2_NAT_FAST_CYCLE; boot/nat_stub.h flags every group of a pipeline call in a
++                                    fast turn): the walk hands the group to the translator's fast front end (ge/xlate.h xl_p04_fast),
++                                    which leaves the same translator state and makes the same converter call as xl_p04_core, or
++                                    declines (then xl_p04_core takes it as always) */
+ #define NAT_DF0_MSCAL 0x140001beu   /* gl33: MSCAL to P04+0xdf0 (pc 0x1be), the plain textured entry */
+ typedef struct {                 /* 48 B */
+   uint32_t key;                  /* the order key: the RAM address (as the packet control holds it) of the next packet item at the call
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/natsplit.h t34/ge/natsplit.h
+--- t33/ge/natsplit.h	1970-01-01 00:00:00.000000000 +0000
++++ t34/ge/natsplit.h	2026-11-21 12:08:17.116555122 +0000
+@@ -0,0 +1,53 @@
++/* natsplit.h (gl34): the ME's time inside the native ship path and the walk, for the turn lines "nat split" and "me chains"
++   (psp/xl_psp.c; MGS2_NAT_SPLIT=1).  Logs only: nothing here changes what is drawn.
++   The native path's stages are timed on one group in NS_EVERY (ge/xlme.c lw_nat picks it and sets g_ns.clk for that group only): each
++   NS_MARK(k) adds the ticks since the mark before to stage k, so a stage's figure is the code between two marks plus one clock read.
++   Every other group pays one load and one branch a mark.  The clock is the walk's (the ME's Count through ME_CALLP; 0 in a turn the
++   main CPU walks: not timed).  cal_t / cal_n: pairs of back-to-back reads (one pair each merge run), the cost of a read.
++   The chains: the game sends each chain of the frame's list (re/mesh_packets.md 1: {kind, start} at [0x1b9348] + 12 + 16 i) as a
++   VIF1 transfer of its own, the first while the list is still the frame's [C twin, vb 29,850-29,852: 12 transfers, each tadr a
++   start of the list read at the first].  The main CPU reads the list at a transfer whose tadr is the list's first start, keeps
++   it, and sends each record its transfer's place in it (XmeRec.chi; -1: not in the list).  The walk reads the clock at a
++   transfer's start, before its xl_flush (the held calls' conversion: slot NS_CH_FLUSH) and at its end: three reads a transfer.
++   NS_CH_OTHER: the transfers not in the list (and every transfer of another channel). */
++#ifndef MGS2_NATSPLIT_H
++#define MGS2_NATSPLIT_H
++#include <stdint.h>
++enum { NS_PTR,     /* the walk's part of a group: its record, the five pointers (ge/natp04.h), up to the translator's entry */
++       NS_REG,     /* the translator's front end: the group's UNPACKs registered (block, material, header copied; the streams' descriptors) */
++       NS_AD,      /* the call's A+D packet: the GIF, the GS registers, the CLUT tracking */
++       NS_PRE,     /* the rest of the call before the converter: PRIM from the tag template, the call's record */
++       NS_GS,      /* the host's call (gelive.c gl_call) up to the converter and its GS state (xconv.c xc_gs) */
++       NS_XF,      /* the group's transform from the constant block (vu1conv.c vc_xform) */
++       NS_POS,     /* per vertex: the positions and their box (vc_df0_pos) */
++       NS_CUT,     /* the cut's test (xc_df0_off) */
++       NS_ATT,     /* per vertex: UVs, colours, flags (vc_df0_att) */
++       NS_TEX,     /* the texture's lookup (texcache) */
++       NS_STRIP,   /* per vertex: the strips and their indices */
++       NS_GX,      /* per group: the GE transform, the batch's data laid, its state */
++       NS_ZR,      /* the depth range */
++       NS_LIST,    /* the batch into the frame (gebatch.c gb_xform_in) */
++       NS_BACK,    /* the way back to the translator (a cut call: with its depth-range note) */
++       NS_DREW,    /* the drawn areas' tracking (gsfront.c gf_drew) */
++       NS_END,     /* back in the walk: the group's end */
++       NS_N };
++#define NS_EVERY 32          /* about: the pick's step is 24 .. 39 groups (lw_nat), so that it does not keep time with the calls' groups */
++#define NS_CH 24             /* chains of a frame's list kept (12 seen in the rain) */
++enum { NS_CH_FLUSH = NS_CH, NS_CH_OTHER, NS_CH_N };
++typedef struct {
++  uint32_t (*clk)(void);     /* the timed group's clock; 0: no group is being timed */
++  uint32_t last;
++  uint64_t t[NS_N];          /* ticks by stage (the timed groups only) */
++  long n, nv, ncut;          /* timed groups, their vertices (the header's counts), those the cut left out */
++  long seen;                 /* groups of the timed walks' merge runs */
++  int cd;                    /* groups to the next pick */
++  uint64_t cal_t; long cal_n;
++  /* the chains */
++  int ch_on, ch_cur; uint32_t ch_last; long ch_c0, ch_g0;
++  uint64_t ch_t[NS_CH_N], ch_nat[NS_CH_N]; long ch_calls[NS_CH_N], ch_grp[NS_CH_N], ch_n[NS_CH_N];
++} NatSplit;
++extern NatSplit g_ns;
++#include "me_rt.h"            /* ME_CALLP */
++#define NS_CLK() ME_CALLP(g_ns.clk)()
++#define NS_MARK(k) do { if (g_ns.clk) { uint32_t ns_t_ = NS_CLK(); g_ns.t[k] += (uint32_t)(ns_t_ - g_ns.last); g_ns.last = ns_t_; } } while (0)
++#endif
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/vu1conv.c t34/ge/vu1conv.c
+--- t33/ge/vu1conv.c	2026-11-21 02:56:27.577533109 +0000
++++ t34/ge/vu1conv.c	2026-11-21 11:30:52.487809118 +0000
+@@ -3,6 +3,7 @@
+ #include <math.h>
+ #include <string.h>
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
++#include "natsplit.h"   /* gl34: NS_MARK */
+ 
+ static const uint32_t *vq(const uint8_t *vm, uint32_t qa) { return (const uint32_t *)(vm + ((qa & 0x3ffu) << 4)); }
+ /* a float as the VU reads it: no denormals, and an exponent of 255 is the largest finite value */
+@@ -99,12 +100,24 @@
+    C's u | v << 16 its u, v; a UV is negative when bit 15 or 31 of C's word is set.  Kind 3 (plus ROW, which may leave 16 bits) as
+    vc_df0_rec.  The box only when the count is returned (no position off 16 bits, no negative UV) */
+ typedef uint32_t __attribute__((may_alias)) vc_w32;
+-int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
++/* gl34 (vu1conv.h vc_df0_pos_k): the transform of the last call that came with a key */
++static VcXform vc_km; static const void *vc_km_src; static uint32_t vc_km_gen;
++long vc_km_n[4];
++#ifndef __psp__
++int vc_km_chk = -1;   /* (-1: the host has not set it) */
++#endif
++static inline __attribute__((always_inline)) int df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen)
+ {
+   const uint32_t *h = vq(vm, top + 0x14);
+   int n = (int)(h[0] & 0xffff);
+   if (n > max) return -1;
+-  vc_xform(vm, top, 0, 32768.0f, x);
++  if (xsrc && xsrc == vc_km_src && xgen == vc_km_gen) {
++    *x = vc_km; vc_km_n[0]++;
++#ifndef __psp__
++    if (vc_km_chk > 0) { VcXform e; vc_xform(vm, top, 0, 32768.0f, &e); vc_km_n[2]++; if (memcmp(&e, x, sizeof e)) vc_km_n[3]++; }
++#endif
++  } else { vc_xform(vm, top, 0, 32768.0f, x); if (xsrc) { vc_km = *x; vc_km_src = xsrc; vc_km_gen = xgen; vc_km_n[1]++; } }
++  NS_MARK(NS_XF);
+   x->n = n; x->clip = h[3] != 0;
+   const vc_w32 *wc = (const vc_w32 *)p[2];
+   int lx = 32767, ly = 32767, lz = 32767, hx = -32768, hy = -32768, hz = -32768, bad = 0;
+@@ -133,6 +146,14 @@
+   b[0] = (int16_t)lx; b[1] = (int16_t)ly; b[2] = (int16_t)lz; b[3] = (int16_t)hx; b[4] = (int16_t)hy; b[5] = (int16_t)hz;
+   return n;
+ }
++int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
++{
++  return df0_pos(vm, top, p, kind, row, x, v, b, max, 0, 0);
++}
++int vc_df0_pos_k(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen)
++{
++  return df0_pos(vm, top, p, kind, row, x, v, b, max, xsrc, xgen);
++}
+ void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n)
+ {
+   const uint32_t a = vc_a2(x->alpha) << 24;
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/vu1conv.h t34/ge/vu1conv.h
+--- t33/ge/vu1conv.h	2026-11-21 02:56:27.577579914 +0000
++++ t34/ge/vu1conv.h	2026-11-21 11:26:51.511493709 +0000
+@@ -43,6 +43,15 @@
+    vc_df0_flag: vertex i's flag word as vc_df0_att writes it */
+ int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max);
+ void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n);
++/* gl34: vc_df0_pos for a call of the fast native front end (ge/xlate.h XlRec xsrc, xgen): a call whose key (xsrc, xgen) is the last
++   keyed call's takes that call's VcXform as vc_xform left it (the key says the matrix at T + 0 .. 3 and abs 2 .. 5 hold what they held
++   then), any other computes it and keeps it.  The same bytes as vc_df0_pos.  vc_km_n: [0] taken, [1] computed and kept; x86, with
++   vc_km_chk: [2] taken ones computed again, [3] of those differing */
++int vc_df0_pos_k(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen);
++extern long vc_km_n[4];
++#ifndef __psp__
++extern int vc_km_chk;
++#endif
+ static inline uint16_t vc_df0_flag(const void *const *p, const uint8_t *kind, const uint32_t *row, int i)
+ {
+   typedef int16_t __attribute__((may_alias)) h16;
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xconv.c t34/ge/xconv.c
+--- t33/ge/xconv.c	2026-11-21 02:56:27.577602457 +0000
++++ t34/ge/xconv.c	2026-11-21 11:27:18.397775791 +0000
+@@ -11,6 +11,7 @@
+ #include <string.h>
+ #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
++#include "natsplit.h"   /* gl34: NS_MARK */
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
+@@ -233,6 +234,7 @@
+     if (k) { idx[ni] = idx[ni - 1]; ni++; idx[ni++] = runs[2 * k]; }
+     for (int j = 0; j < runs[2 * k + 1]; j++) idx[ni++] = (uint16_t)(runs[2 * k] + j);
+   }
++  NS_MARK(NS_STRIP);
+   GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
+   gx.nv = n; gx.nst = nst; gx.nidx = ni;
+   uint32_t o = 0, need = sizeof gx + n * sizeof *v + nst * 4 + ni * 2;
+@@ -243,7 +245,9 @@
+   memcpy(blob + o, runs, nst * 4); o += nst * 4;
+   memcpy(blob + o, idx, ni * 2); o += ni * 2;
+   xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = nst;
+-  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }   /* GERF_ZWRITE has ZTEST; sb14:
++  NS_MARK(NS_GX);
++  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }
++  NS_MARK(NS_ZR);   /* GERF_ZWRITE has ZTEST; sb14:
+                                                                                      x, v, n are Dx, Dv, Dn */
+   *size = o; return 1;
+ }
+@@ -1094,13 +1098,17 @@
+   if (c3m_on) c3m_kind(k);   /* sb13 */
+ #endif
+   XcGs d; xc_gs(c->gr, &d);
++  NS_MARK(NS_GS);
+   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
+     Datt = 1; Dbox_ok = 0; Dvp = Dv;   /* sb14 */
+     if (c->rec) {   /* sb1 lane: the streams from the game's data */
+       const XlRec *r = c->rec; xc_rec_calls++;
+       if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
+         if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
+-        Dn = vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024); Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
++        Dn = r->nf ? vc_df0_pos_k(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024, r->xsrc, r->xgen)   /* gl34: a fast native group */
++                   : vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024);
++        Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
++        NS_MARK(NS_POS);
+ #ifndef __psp__   /* (x86 only: no check arrays or code in the PSP's hot path) */
+         if (xc_c3_chk) {   /* the two passes against vc_df0_rec: every output the same; the flags read from the stream the same as converted */
+           static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex; int16_t eb[6];
+@@ -1131,6 +1139,7 @@
+     } else
+     Dn = vc_df0(c->vm, c->top, &Dx, Dv, Dfl, 1024);
+     int off = Dn > 0 && h->cut && xc_df0_off(&d);
++    if (g_ns.clk) { NS_MARK(NS_CUT); g_ns.nv += Dn > 0 ? Dn : 0; g_ns.ncut += off; }
+ #ifndef __psp__
+     if (c3m_on) {   /* sb13: reads only, before the depth range takes the call (sb14: with the whole input) */
+       if (!Datt && Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn);
+@@ -1139,9 +1148,11 @@
+     if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+       xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
+     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
++    NS_MARK(NS_ATT);
+   }
+   XcTex t; memset(&t, 0, sizeof t); t.index = -1;
+   if (d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
++  NS_MARK(NS_TEX);
+   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
+           k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
+   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xlate.c t34/ge/xlate.c
+--- t33/ge/xlate.c	2026-11-21 02:56:27.577740878 +0000
++++ t34/ge/xlate.c	2026-11-21 11:41:00.492209824 +0000
+@@ -7,6 +7,8 @@
+ #include "xlate.h"
+ #include "gsfront.h"
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
++#include "gsup.h"    /* gl34: gu_clut_load (xl_p04_fast) */
++#include "natsplit.h"   /* gl34: NS_MARK */
+ 
+ static XlStats St;
+ #ifdef XL_CENSUS
+@@ -68,6 +70,7 @@
+ static uint32_t VPsrc[2048];   /* guest address each micro instruction was uploaded from, as gsref names entries */
+ static struct { int cl, wl, mode; uint32_t mask, row[4], col[4], base, ofst, tops, itops, dbf; } V;
+ static uint32_t vcmd, vsrc0, ub[1024], dq[4], dqsrc; static int vleft, vn, dqn;
++uint32_t xl_vm_wgen;   /* gl34 (xlate.h) */
+ static uint32_t usrc; static int uvert;   /* task #114: XlCall.src so far; the command is an UNPACK to T + 0x100 */
+ 
+ /* UNPACKs decoded when read (xl_vif1_span): a descriptor for each UNPACK whose data a span held whole, with where the data lies (guest RAM,
+@@ -278,6 +281,7 @@
+ {
+   int c = (w >> 24) & 0x7f, num = (w >> 16) & 0xff; if (!num) num = 256;
+   uint32_t imm = w & 0xffff, a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
++  xl_vm_wgen++;   /* gl34 */
+   { uint32_t last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl);   /* sb10 T2 */
+     if (a < 64 || a + last >= 1024) { lo_touch(a, last); if ((c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + (uint32_t)num <= 1024) lo_src(a, (uint32_t)num, p); } }
+   if (ud_n == UD_N) { XC(St.full_ud++); vm_all(); }
+@@ -312,6 +316,7 @@
+   uint32_t a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
+   if (ud_eager_on && (c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + num <= 1024) {
+     const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
++    xl_vm_wgen++;   /* gl34 */
+     for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
+     own_fill_i(a, num, 0);
+     if (a < 64) { lo_touch(a, num - 1); lo_src(a, num, p); }   /* sb10 T2 (a + num <= 1024: no wrap) */
+@@ -342,6 +347,7 @@
+   int bits = 32 >> vl, ne = vn_ + 1; if (vn_ == 3 && vl == 3) { bits = 16; ne = 1; usn = 1; }
+   { uint32_t a0 = addr & 0x3ff, last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl); if (a0 < 64 || a0 + last >= 1024) lo_touch(a0, last); }   /* sb10 T2 */
+   uint64_t bitpos = 0; int cyc = 0; uint32_t a = addr; up_census(w);
++  xl_vm_wgen++;   /* gl34 */
+   for (int k = 0; k < num; k++) {
+     uint32_t e[4];
+     for (int j = 0; j < 4; j++) {
+@@ -466,7 +472,8 @@
+     if (!kick_vm(c.ad_qa)) St.ad_bad++;
+     c.ad = 1;
+   }
+-  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0;
++  NS_MARK(NS_AD);
++  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0; xl_vm_wgen++;
+     if (d < 64) lo_touch(d, 0); }   /* sb10 T2 */
+   int dctx = 3;   /* the contexts the call may draw in: the template's, else both */
+   if (r) {   /* the template's PRIM, as the geometry tag sets it (PRE) */
+@@ -500,9 +507,12 @@
+   }
+   if (rec) c.lane = rec->lane;
+   c.vm = VM; c.gr = gr;
++  NS_MARK(NS_PRE);
+   if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
++  NS_MARK(NS_BACK);
+   if (r && r->passes) passes(&c, r->passes);
+   gf_drew(&F, dctx);   /* after the callbacks: the call reads its texels before it draws */
++  NS_MARK(NS_DREW);
+ }
+ 
+ /* the end of a command's data: STMASK, STROW, STCOL, an UNPACK decoded now */
+@@ -540,8 +550,8 @@
+   switch (c) {
+     case 0x00: case 0x10: case 0x11: case 0x13: case 0x06: case 0x07: return;   /* NOP FLUSHE FLUSH FLUSHA MSKPATH3 MARK */
+     case 0x01: V.cl = imm & 0xff; V.wl = imm >> 8 & 0xff; return;
+-    case 0x02: V.ofst = imm & 0x3ff; V.dbf = 0; V.tops = V.base; return;
+-    case 0x03: V.base = imm & 0x3ff; return;
++    case 0x02: V.ofst = imm & 0x3ff; V.dbf = 0; V.tops = V.base; xl_vm_wgen++; return;
++    case 0x03: V.base = imm & 0x3ff; xl_vm_wgen++; return;
+     case 0x04: V.itops = imm & 0x3ff; return;
+     case 0x05: V.mode = imm & 3; return;
+     case 0x14: case 0x15: call(imm, 0, 0); return;
+@@ -637,6 +647,7 @@
+ int xl_p04_core(const XlP04 *g)
+ {
+   int q0 = g->q0, nr = 4 + q0;
++  NS_MARK(NS_PTR);
+   if (vleft || V.mode >= 2) return 0;
+   { int cl = V.cl, wl = V.wl, ok; V.cl = 3; V.wl = 1;
+     ok = ud_ok(g->unp[nr - 3]) && ud_ok(g->unp[nr - 2]) && ud_ok(g->unp[nr - 1]); V.cl = cl; V.wl = wl; if (!ok) return 0; }
+@@ -656,11 +667,118 @@
+   memcpy(R.row, V.row, 16);
+   R.lane = 1;
+   vcmd = g->mscal; vn = 0; dqn = 0; St.cmds[0x14]++;
++  NS_MARK(NS_REG);
+   call(g->mscal & 0xffff, 0, ok ? &R : 0);
+   St.cmds[0x00] += 3; vcmd = 0;
+   xl_lane_groups[1]++;
+   return 1;
+ }
++/* gl34 (xlate.h): xl_p04_core and call() for the one form, each step in their order.  What the general code does and this leaves out
++   changes no state: tests that the form answers, the search for the entry's rule, the descriptor's kind read back, the A+D packet
++   read back from the VU memory model (it was just copied there: the same bytes at g->dp), the GIF's general forms, the GS front end's
++   vertex cases.  A register that needs one of those (PRIM .. XYZ3, FOG, TEX2, TRXDIR, HWREG) goes to gf_reg and gs_write as always */
++long xl_nf_n[8];
++static const uint32_t *nf_blk[2]; static uint32_t nf_gen[2], nf_top[2];   /* by V.dbf: the block last copied to that buffer by a fast group */
++static inline __attribute__((always_inline)) void nf_copy(uint32_t a, const uint32_t *p, uint32_t num)   /* ud_eager's copy: num quadwords to a, VM owns them */
++{
++  const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
++  for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
++  own_fill_i(a, num, 0);
++  XC(St.eg_cmds++); XC(St.eg_vec += num);
++}
++int xl_p04_fast(const XlP04 *g)
++{
++  const int q0 = g->q0, nr = 4 + q0; const uint32_t T = V.tops, To = V.dbf ? V.base : V.base + V.ofst, n = g->hdr[0] & 0xffff;
++  const uint32_t *const mat = g->dp[q0]; uint32_t num[3], nl, nreg;
++  NS_MARK(NS_PTR);
++  /* the form */
++  if (vleft || V.mode || (V.mask & 0xff) != 0x10 || !ud_eager_on || !ud_mark_on) { xl_nf_n[1]++; return 0; }
++  if (g->mscal != 0x140001beu || VPsrc[0x1be] != XL_DF0) { xl_nf_n[2]++; return 0; }
++  if (T < 64 || To < 64 || T + 0x1e0 > 1024 || To + 0x1e0 > 1024 || (T < To ? To - T : T - To) < 0x1e0) { xl_nf_n[3]++; return 0; }
++  num[0] = 2 * g->qwc[q0 + 1]; num[1] = 2 * g->qwc[q0 + 2]; num[2] = 4 * g->qwc[q0 + 3];
++  if (n > num[0] || n > num[1] || n > num[2] || !num[0] || !num[1] || !num[2] ||
++      0x100 + 3 * (num[0] - 1) >= 0x1e0 || 0x101 + 3 * (num[1] - 1) >= 0x1e0 || 0x102 + 3 * (num[2] - 1) >= 0x1e0) { xl_nf_n[4]++; return 0; }
++  /* the material's tag: PACKED, EOP, no PRE, 1 .. 7 registers, each A+D (0xe) or a NOP (0xf), NLOOP x NREG <= 7 */
++  nreg = mat[1] >> 28; nl = (mat[0] & 0x7fff) * nreg;
++  if (nl < 1 || nl > 7 || (mat[0] & 0x8000u) == 0 || (mat[1] & 0x0c004000u) != 0) { xl_nf_n[5]++; return 0; }
++  for (uint32_t k = 0; k < nreg; k++) if ((mat[2] >> (4 * k) & 0xe) != 0xe) { xl_nf_n[5]++; return 0; }
++  if (ud_n + 3 > UD_N || (rc_dirty && rc_n == RC_N)) { xl_nf_n[6]++; return 0; }
++  if (G[1].nloop) { xl_nf_n[7]++; return 0; }
++  xl_nf_n[0]++;
++  static XlRec R;
++  /* the REFs: STCYCL and the UNPACK (the block and the material copied, the streams' descriptors), as xl_p04_core counts them */
++  St.words += 2u * (uint32_t)nr + 10u + (q0 ? 96u : 0u) + 32u + 4u * (g->qwc[q0 + 1] + g->qwc[q0 + 2] + g->qwc[q0 + 3]);
++  St.cmds[1] += nr + 1; St.cmds[0x6c] += 2 + q0; St.cmds[0x6d] += 2; St.cmds[0x75]++; St.cmds[0x14]++;
++#ifdef XL_CENSUS
++  for (int j = 0; j < nr; j++) { V.cl = (int)(g->stc[j] & 0xff); V.wl = (int)(g->stc[j] >> 8 & 0xff); St.wd[g->unp[j] >> 24 & 0x7f] += 4 * g->qwc[j]; up_census(g->unp[j]); }
++  V.cl = V.wl = 1; St.wd[0x6c] += 4; up_census(g->hunp);
++#endif
++  if (q0) { nf_copy(T, g->dp[0], 24); nf_blk[V.dbf & 1] = g->dp[0]; nf_gen[V.dbf & 1] = xl_vm_wgen; nf_top[V.dbf & 1] = T; }
++  nf_copy(T + 0xe8, mat, 8);
++  if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
++  for (uint32_t s = 0; s < 3; s++) {   /* ud_new for CL 3, WL 1, MODE 0, not wrapping, above the constants */
++    Ud *d = &UD[ud_n++]; const uint16_t id = (uint16_t)ud_n; const uint32_t a = T + 0x100 + s; uint16_t *q = own + a; int k = (int)num[s];
++    d->p = g->dp[q0 + 1 + s]; d->addr = (uint16_t)a; d->num = (uint16_t)num[s]; d->nw = (uint16_t)(4 * g->qwc[q0 + 1 + s]); d->rc = (uint16_t)(rc_n - 1);
++    d->fmt = (uint8_t)(s == 2 ? 0x15 : 0x0d); d->md = 0; d->cl = 3; d->wl = 1; d->mask = V.mask;
++    XC(St.lz_cmds++); XC(St.lz_vec += num[s]); ud_vecs += num[s];
++    for (; k >= 4; k -= 4, q += 12) { q[0] = id; q[3] = id; q[6] = id; q[9] = id; }
++    for (; k > 0; k--, q += 3) *q = id;
++    R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)(s == 2 ? 4 : 2);
++  }
++  V.cl = V.wl = 1;
++  nf_copy(T + 0x14, g->hdr, 1);   /* the CNT: the header */
++  vsrc0 = g->tadr + 16 * (uint32_t)nr + 16; usrc = 0;
++  memcpy(R.row, V.row, 16); R.lane = 1; R.nf = 1;
++  R.xgen = xl_vm_wgen; R.xsrc = nf_gen[V.dbf & 1] == xl_vm_wgen && nf_top[V.dbf & 1] == T ? nf_blk[V.dbf & 1] : 0;
++  vcmd = g->mscal; vn = 0; dqn = 0;
++  NS_MARK(NS_REG);
++  /* call(0x1be, 0, &R) */
++  XlCall c;
++  c.pc = 0x1be; c.cont = 0; c.top = T; c.itop = V.itops; c.src = 0;
++  V.tops = To; V.dbf = !V.dbf;
++  c.entry = last_entry = XL_DF0;
++  St.calls++; last_cont = 0;
++  { const XlRule *r; int i = ent_index(XL_DF0, &r); if (i < 64) St.ent_n[i]++; XC(if (i < 64) St.ent_uq[i] += St.uq_open; St.uq_open = 0); }
++  c.ad_qa = (0xe8 + T) & 0x3ff; c.ad = 1; St.ad_kicks++;
++  { Gif *gp = &G[1]; uint32_t ri = 0;   /* kick_vm(T + 0xe8): the tag, then nl quadwords (A+D or NOP), to the EOP */
++    F.path = 1; XC(St.gq[1] += 1 + nl);
++    gp->eop = 1; gp->flg = 0; gp->nreg = (int)nreg; gp->regs = mat[2] | (uint64_t)mat[3] << 32; gp->ri = 0; gp->nloop = 0;
++    St.gif_tags[1]++; ME_BEAT();
++    for (uint32_t k = 1; k <= nl; k++) {
++      const uint32_t *q = mat + 4 * k; const uint32_t d = mat[2] >> (4 * ri) & 0xf, r = q[2] & 0xff; const uint64_t v = q[0] | (uint64_t)q[1] << 32;
++      if (++ri == nreg) ri = 0;
++      if (d != 0xe) continue;   /* a NOP */
++      if (r > 0x17 ? r != 0x53 && r != 0x54 : r >= 0x06 && r != 0x0a && r != 0x0c && r != 0x0d && r < 0x16) {   /* gf_reg's and gs_write's plain case */
++        F.gr[r] = v; F.dirty = 1;
++        if (r < 0x08 && F.up) gu_clut_load(F.up, F.gr, (int)(r & 1));
++        gr[r] = v;
++      } else if (r == 0x16 || r == 0x17) {   /* TEX2: TEX0's CLUT fields */
++        const uint64_t M = 0xFFFFFFE003F00000ull;
++        F.gr[r - 0x10] = (F.gr[r - 0x10] & ~M) | (v & M); F.gr[r] = v; F.dirty = 1;
++        if (F.up) gu_clut_load(F.up, F.gr, (int)(r & 1));
++        gr[r - 0x10] = (gr[r - 0x10] & ~M) | (v & M); gr[r] = v;
++      } else { gf_reg(&F, (int)r, v); gs_write((int)r, v); }
++    }
++  }
++  NS_MARK(NS_AD);
++  int dctx = 3;
++  c.tag_qa = (0x15 + T) & 0x3ff;
++  { const uint32_t *t = vmq(c.tag_qa);
++    if (t[1] >> 14 & 1) { gs_write(0x00, t[1] >> 15 & 0x7ff); gf_reg(&F, 0x00, t[1] >> 15 & 0x7ff);
++      uint64_t at = (F.gr[0x1a] & 1) ? F.gr[0x00] : F.gr[0x1b]; dctx = 1 << (int)(at >> 9 & 1); } }
++  gf_unknown(&F, GF_U_ALL);
++  for (uint32_t k = 0; k < 4; k++) vmq(T + k);
++  vmq(T + 0x14); for (uint32_t k = 2; k < 6; k++) vmq(k);
++  c.rec = &R; c.lane = 1; c.vm = VM; c.gr = gr;
++  NS_MARK(NS_PRE);
++  if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
++  NS_MARK(NS_BACK);
++  gf_drew(&F, dctx);
++  NS_MARK(NS_DREW);
++  St.cmds[0x00] += 3; vcmd = 0;
++  xl_lane_groups[1]++;
++  return 1;
++}
+ /* sb2, Stage B lane 2 (xlate.h) */
+ long xl_lane_groups[5];
+ int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp)
+@@ -781,7 +899,7 @@
+ void xl_need(int on) { vm_all(); need_on = on; }
+ static void (*flush_fn)(void *); static void *flush_ctx;   /* sb4: xl_on_flush */
+ void xl_on_flush(void (*fn)(void *ctx), void *ctx) { flush_fn = fn; flush_ctx = ctx; }
+-void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
++void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); xl_vm_wgen++; }   /* (sb10 T2: the game's data may change after the transfer) */
+ void xl_vm_sync(void) { vm_all(); }
+ const uint32_t *xl_vm_q(uint32_t qa) { return vmq(qa); }
+ void xl_vm_logical(uint8_t *out)
+@@ -789,11 +907,39 @@
+   memcpy(out, VM, sizeof VM);
+   if (ud_n) for (uint32_t qa = 0; qa < 1024; qa++) if (own[qa]) { const Ud *d = &UD[own[qa] - 1]; ud_vec(d, ud_k(d, qa), (uint32_t *)(out + (qa << 4))); }
+ }
++#ifndef __psp__
++/* gl34 (x86, the twin's "nats:" line): the translator's state folded, for a run against a run: h[0] the VU memory model as a read
++   sees it (xl_vm_logical), h[1] the GS registers, h[2] the GS front end (its registers, vertex state and flags), h[3] the VIF and GIF
++   state, h[4] the counters.  Not folded: which quadwords wait for their decode (own, the descriptors) */
++static uint32_t sd_h(uint32_t h, const void *p, size_t n) { const uint8_t *b = p; for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 16777619u; } return h; }
++void xl_state_dig(uint32_t *h)
++{
++  static uint8_t lv[16384];
++  for (int k = 0; k < 5; k++) h[k] = 2166136261u;
++  xl_vm_logical(lv); h[0] = sd_h(h[0], lv, sizeof lv);
++  h[1] = sd_h(h[1], gr, sizeof gr);
++  h[2] = sd_h(h[2], F.gr, sizeof F.gr); h[2] = sd_h(h[2], &F.cur, sizeof F.cur); h[2] = sd_h(h[2], &F.q, sizeof F.q); h[2] = sd_h(h[2], F.vq, sizeof F.vq);
++  h[2] = sd_h(h[2], &F.vqn, sizeof F.vqn); h[2] = sd_h(h[2], F.vqu, sizeof F.vqu); h[2] = sd_h(h[2], &F.curu, sizeof F.curu); h[2] = sd_h(h[2], &F.dirty, sizeof F.dirty);
++  h[2] = sd_h(h[2], &F.path, sizeof F.path); h[2] = sd_h(h[2], &F.unk, sizeof F.unk);
++  for (int k = 0; k < 4; k++) { h[3] = sd_h(h[3], &G[k].nloop, sizeof(int)); h[3] = sd_h(h[3], &G[k].flg, sizeof(int)); h[3] = sd_h(h[3], &G[k].nreg, sizeof(int));
++    h[3] = sd_h(h[3], &G[k].ri, sizeof(int)); h[3] = sd_h(h[3], &G[k].eop, sizeof(int)); h[3] = sd_h(h[3], &G[k].regs, sizeof(uint64_t)); }
++  h[3] = sd_h(h[3], &V.cl, sizeof V.cl); h[3] = sd_h(h[3], &V.wl, sizeof V.wl); h[3] = sd_h(h[3], &V.mode, sizeof V.mode); h[3] = sd_h(h[3], &V.mask, sizeof V.mask);
++  h[3] = sd_h(h[3], V.row, sizeof V.row); h[3] = sd_h(h[3], V.col, sizeof V.col); h[3] = sd_h(h[3], &V.base, sizeof V.base); h[3] = sd_h(h[3], &V.ofst, sizeof V.ofst);
++  h[3] = sd_h(h[3], &V.tops, sizeof V.tops); h[3] = sd_h(h[3], &V.itops, sizeof V.itops); h[3] = sd_h(h[3], &V.dbf, sizeof V.dbf);
++  h[3] = sd_h(h[3], &vcmd, sizeof vcmd); h[3] = sd_h(h[3], &vsrc0, sizeof vsrc0); h[3] = sd_h(h[3], &vleft, sizeof vleft); h[3] = sd_h(h[3], &vn, sizeof vn);
++  h[3] = sd_h(h[3], &dqn, sizeof dqn); h[3] = sd_h(h[3], &usrc, sizeof usrc); h[3] = sd_h(h[3], &last_entry, sizeof last_entry); h[3] = sd_h(h[3], &last_cont, sizeof last_cont);
++  h[3] = sd_h(h[3], xl_vgen, sizeof xl_vgen);
++  h[4] = sd_h(h[4], &St.words, sizeof St.words); h[4] = sd_h(h[4], St.cmds, sizeof St.cmds); h[4] = sd_h(h[4], &St.calls, sizeof St.calls);
++  h[4] = sd_h(h[4], St.gif_tags, sizeof St.gif_tags); h[4] = sd_h(h[4], &St.ad_kicks, sizeof St.ad_kicks); h[4] = sd_h(h[4], &St.ad_bad, sizeof St.ad_bad);
++  h[4] = sd_h(h[4], St.ent, sizeof St.ent); h[4] = sd_h(h[4], St.ent_n, sizeof St.ent_n); h[4] = sd_h(h[4], xl_lane_groups, sizeof xl_lane_groups);
++}
++#endif
+ void xl_reset(void)
+ {
+   memset(&St, 0, sizeof St); memset(gr, 0, sizeof gr); memset(G, 0, sizeof G); memset(VM, 0, sizeof VM); memset(VPsrc, 0, sizeof VPsrc);
+   memset(&V, 0, sizeof V); V.cl = V.wl = 1; vleft = vn = dqn = 0; last_entry = 0; last_cont = 0; usrc = 0; uvert = 0;
+   lo_all();   /* sb10 T2 */
++  xl_vm_wgen++;   /* gl34 */
+   memset(own, 0, sizeof own); ud_n = rc_n = 0; rc_dirty = 1; ud_vecs = 0; memset(EC, 0, sizeof EC);
+   gf_reset(&F, prim_fn, prim_ctx); F.up = up_map;
+ }
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xlate.h t34/ge/xlate.h
+--- t33/ge/xlate.h	2026-11-21 02:56:27.577812431 +0000
++++ t34/ge/xlate.h	2026-11-21 11:30:52.486405906 +0000
+@@ -40,7 +40,13 @@
+    3 / 1 for the positions, 3 / 2 for the attributes: P04+25f0's and +2870's), else 0.  Given with every prim; the converter checks what it
+    reads (ge/vu1conv.h vc_fpos_rec).  For P04+25f0 and +2870 the translator has decoded the quadwords they read besides (T + 0x10 to 0x15,
+    abs 2 to 5) */
+-typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4]; } XlRec;
++typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4];
++                 /* gl34 (xl_p04_fast's calls only; 0 from every other front): xsrc: where the constant block now at the call's T was
++                    copied from, with xgen the value xl_vm_wgen had then and has now: until xl_vm_wgen moves, T + 0 .. 3 (the matrix)
++                    hold xsrc's first four quadwords and abs 2 .. 5 are unchanged, so two calls with the same (xsrc, xgen) have the
++                    same transform (ge/vu1conv.c vc_df0_pos keeps the last one).  nf 1: the call came from xl_p04_fast (the quadwords
++                    its converter reads are decoded: ge/gelive.c gl_call asks for no more) */
++                 const void *xsrc; uint32_t xgen; uint8_t nf; } XlRec;
+ typedef struct {
+   uint32_t entry;               /* 0 when the micro code at the start address was never uploaded, or for an MSCNT after an entry
+                                    without a known continuation */
+@@ -133,6 +139,20 @@
+    group no packet holds).  hdr and dp stay valid until the transfer's end (xl_flush).  Returns as xl_lane_p04 */
+ typedef struct { const uint32_t *dp[5]; uint32_t stc[5], unp[5], qwc[5]; uint32_t hunp, mscal; const uint32_t *hdr; uint32_t tadr; int q0; } XlP04;
+ int xl_p04_core(const XlP04 *g);
++/* gl34, the fast front end for native ship groups (NATG_FAST, ge/natp04.h): xl_p04_core + call() for the one form nearly every group
++   has, in one piece of code with the general machinery left out: a group made by nat_p04_group with every slot sent (stc / unp the
++   template's words), MSCAL to P04+df0, STMOD 0, the template's mask, both VU buffers apart and above the constants, each stream
++   inside its buffer, a material packet of one PACKED A+D tag with EOP and 1 to 7 registers, no GIF packet open on path 1.  It leaves
++   the translator as xl_p04_core leaves it (the VU memory model as a read sees it, the descriptors, the GS registers and front end,
++   the GIF state, the counters) and makes the same converter call, with XlRec.xsrc / xgen / nf set.  0: not that form (nothing
++   changed, counted in xl_nf_n): the caller goes on to xl_p04_core.  xl_nf_n: [0] groups taken, [1..7] declined by reason (xlate.c) */
++int xl_p04_fast(const XlP04 *g);
++extern long xl_nf_n[8];
++#ifndef __psp__
++void xl_state_dig(uint32_t *h);   /* gl34 (x86): the translator's state folded (xlate.c), for the twin's "nats:" line */
++#endif
++extern uint32_t xl_vm_wgen;   /* gl34: moves with every write to the VU memory model other than xl_p04_fast's own (an UNPACK registered,
++                                 copied or done, a rule's copy), with BASE and OFFSET, and at xl_flush and xl_reset */
+ /* sb2, Stage B lane 2: a P12e8b8 group (runtime/ee_io.h lane_p06): q0 as above, dp the data of its nine slots after the constant block
+    (0: a slot not sent, its tag a CNT of 0 with the slot's STCYCL and a NOP).  As xl_lane_p04, for every P06 entry (XlCall.rec lane 2) */
+ int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xlme.c t34/ge/xlme.c
+--- t33/ge/xlme.c	2026-11-21 02:58:55.624497622 +0000
++++ t34/ge/xlme.c	2026-11-21 12:09:30.221520940 +0000
+@@ -32,6 +32,7 @@
+ #undef lw3_miss
+ /* ---- native step 1: ship-mesh groups from records (xlme.h XmPic; ge/natp04.h the front end) ---- */
+ static long lw_nat_in, lw_nat_out, lw_nat_part;
++NatSplit g_ns;   /* gl34 (ge/natsplit.h) */
+ /* n quadwords at guest address a in one piece, as lw_ptr, the view's reads counted apart: whole in the copy, or whole outside it */
+ static inline __attribute__((always_inline)) const uint32_t *lw_nptr(uint32_t a, uint32_t n)
+ {
+@@ -45,23 +46,68 @@
+   lw_nat_out++;
+   return (const uint32_t *)(k >= XV_SPR ? v->spr + (k - XV_SPR) : v->mem + k);
+ }
++/* gl34 (the fast front end's groups, NATG_FAST): lw_nptr with a hint of its own for each kind of pointer (the block, the material and the
++   three streams lie apart, so the view's one hint misses at nearly every pointer and the look-up searches the extents).  The same answer
++   as lw_nptr whatever the hints hold: a hint only says where the search starts (an index out of range: the whole list), and the view's
++   own hint is not touched.  lw_nh_chk > 0 (the host's switch MGS2_NAT_HCHK): each answer against lw_nptr's, lw_nh_n[1] the differing */
++static int lw_nh[5]; long lw_nh_n[3]; int lw_nh_chk;
++static inline __attribute__((always_inline)) const uint32_t *lw_nptr_h1(uint32_t a, uint32_t n, int s, long *cnt)
++{
++  uint32_t k; XmView *v = lw_view; const XvExt *x; int i, lo, hi, vn;
++  if (!(a & 0x80000000u)) { k = a & (lw_size - 1) & ~15u; if (k + 16 * n > lw_size) return 0; if (!v) return (const uint32_t *)(lw_mem + k); }
++  else { uint32_t o = a & 0x3ff0; if (o + 16 * n > 0x4000u) return 0; if (!v) return (const uint32_t *)(lw_spr + o); k = XV_SPR + o; }
++  x = v->x; vn = v->n; i = lw_nh[s]; lo = 0; hi = vn;
++  if ((unsigned)i < (unsigned)vn) {
++    if (x[i].a0 <= k) {
++      if (k < x[i].a1) goto in;
++      if (i + 1 == vn || k < x[i + 1].a0) { i++; goto out; }   /* between the hint's extent and the next: i the first above k */
++      lo = i + 1; }
++    else hi = i;
++  }
++  while (lo < hi) { int m = (lo + hi) >> 1; if (x[m].a1 <= k) lo = m + 1; else hi = m; }
++  i = lo;                                                       /* the first extent ending above k (vn: none) */
++  if (i < vn && x[i].a0 <= k) { lw_nh[s] = i; goto in; }
++  lw_nh[s] = i - 1;
++out:
++  if (i < vn && x[i].a0 - k < 16 * n) { cnt[2]++; return 0; }
++  cnt[1]++;
++  return (const uint32_t *)(k >= XV_SPR ? v->spr + (k - XV_SPR) : v->mem + k);
++in:
++  if (x[i].a1 - k < 16 * n) { cnt[2]++; return 0; }
++  cnt[0]++;
++  return (const uint32_t *)(v->arena + x[i].off + (k - x[i].a0));
++}
++static inline __attribute__((always_inline)) const uint32_t *lw_nptr_h(uint32_t a, uint32_t n, int s)
++{
++  long c[3] = { 0, 0, 0 }; const uint32_t *p = lw_nptr_h1(a, n, s, c);
++  lw_nh_n[0]++;
++  if (lw_nh_chk > 0) { const uint32_t *q = lw_nptr(a, n); lw_nh_n[2]++; if (p != q) lw_nh_n[1]++; return q; }   /* (lw_nptr counted the read) */
++  lw_nat_in += c[0]; lw_nat_out += c[1]; lw_nat_part += c[2];
++  return p;
++}
+ #define NATP_PTR(a, n) lw_nptr((a), (n))
++#define NATP_PTRH(a, n, s) lw_nptr_h((a), (n), (s))
+ #define NATP_SPAN(p, nw, a) xl_vif1_span((p), (nw), (a))
+ #include "natp04.h"
+ /* the groups of buffer b from *cur whose key is at or below RAM offset a (all of them: a = 0xffffffff), in order, to the translator.
+    Returns the quadwords of the packet to step over (x86 shadow: the last group's own packet lies at a), else 0 */
+ static inline __attribute__((always_inline)) uint32_t lw_nat(XmPic *x, int b, int *cur, uint32_t a)
+ {
+-  const NatGrp *g = x->nat_g[b]; int n = x->nat_n[b], i = *cur; uint32_t skip = 0, c0 = 0;
++  const NatGrp *g = x->nat_g[b]; int n = x->nat_n[b], i = *cur, i0 = i; uint32_t skip = 0, c0 = 0; const int ns = x->ns_on && x->nat_clk;
+   if (i >= n || (g[i].key & (lw_size - 1) & ~15u) > a) return 0;
++  lw_nh_chk = x->nh_chk;
+   if (x->nat_clk) c0 = ME_CALLP(x->nat_clk)();
++  if (ns) { uint32_t c1 = ME_CALLP(x->nat_clk)(); g_ns.cal_t += (uint32_t)(c1 - c0); g_ns.cal_n++; c0 = c1; }   /* gl34: a pair of reads */
+   do {
++    if (ns && --g_ns.cd <= 0) { g_ns.cd = 24 + (int)((g_ns.n * 5) & 15); g_ns.n++; g_ns.clk = x->nat_clk; g_ns.last = ME_CALLP(x->nat_clk)(); }   /* gl34: this group timed by stage */
+     int rc = nat_p04_group(&g[i]);
++    if (g_ns.clk) { NS_MARK(NS_END); g_ns.clk = 0; }
+     if (rc == NATP_CORE) x->nat_core++; else if (rc == NATP_FED) x->nat_fed++; else x->nat_bad++;
+     skip = (g[i].flags & NATG_PKT) && (g[i].key & (lw_size - 1) & ~15u) == a ? 7u + (g[i].flags & NATG_FULL) : 0;
+     i++;
+   } while (i < n && (g[i].key & (lw_size - 1) & ~15u) <= a);
+-  if (x->nat_clk) x->nat_t += ME_CALLP(x->nat_clk)() - c0;
++  if (x->nat_clk) { uint32_t d = ME_CALLP(x->nat_clk)() - c0; x->nat_t += d;
++    if (ns) { g_ns.seen += i - i0; g_ns.ch_nat[g_ns.ch_cur] += d; g_ns.ch_grp[g_ns.ch_cur] += i - i0; } }
+   x->nat_runs++; *cur = i;
+   return skip;
+ }
+@@ -103,6 +149,15 @@
+   }
+   if (tadr != nx) x->lw_bad++;
+ }
++/* gl34 (ge/natsplit.h): the walk's time by chain.  lw_ch_to: the clock read, the time and the converter calls since the last read
++   to the slot that ends; i: the slot that begins (-1: the transfer's end) */
++static void lw_ch_to(XmPic *x, int i)
++{
++  NatSplit *s = &g_ns; uint32_t t = ME_CALLP(x->nat_clk)(); int c = s->ch_cur;
++  s->ch_t[c] += (uint32_t)(t - s->ch_last); s->ch_calls[c] += x->calls - s->ch_c0; s->ch_n[c]++;
++  s->ch_last = t; s->ch_c0 = x->calls;
++  if (i >= 0) s->ch_cur = i;
++}
+ static void lw_walk(XmPic *x, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int lanes, uint32_t opt)   /* ge/xlive.c walk(), VIF1 */
+ {
+   XlvMem *m = x->m; uint32_t asp[2], nasp = 0, guard = 0;
+@@ -163,8 +218,11 @@
+    run), as xlv_dma does it otherwise (its xl_flush included) */
+ void xm_walk(XmPic *p, int ch, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int lanes, uint32_t opt)
+ {
+-  if (p->lw_on && ch == 1 && lanes && p->m->fast) { lw_walk(p, chcr, madr, qwc, tadr, lanes, opt); xl_flush(); }
++  const int ns = p->ns_on && p->nat_clk;   /* gl34: the walk's time by chain (ge/natsplit.h) */
++  if (ns) { NatSplit *s = &g_ns; s->ch_last = ME_CALLP(p->nat_clk)(); s->ch_c0 = p->calls; s->ch_cur = ch == 1 && (unsigned)p->ch_i < NS_CH ? p->ch_i : NS_CH_OTHER; }
++  if (p->lw_on && ch == 1 && lanes && p->m->fast) { lw_walk(p, chcr, madr, qwc, tadr, lanes, opt); if (ns) lw_ch_to(p, NS_CH_FLUSH); xl_flush(); }
+   else xlv_dma(p->m, ch, chcr, madr, qwc, tadr);
++  if (ns) lw_ch_to(p, -1);
+ }
+ 
+ /* ---- task #180 (step 4b): a transfer's copy (xlme.h xm_copy) ---- */
+@@ -216,11 +274,11 @@
+ static void xc_nat(XmCopy *c, const NatGrp *g)
+ {
+   if (g->n[0] > 128u || g->n[1] > 128u || g->n[2] > 64u) return;
+-  if (g->flags & NATG_FULL) xc_run(c, 1, g->blk & 0xfffffff0u, 24);
+-  xc_run(c, 1, g->mat & 0xfffffff0u, 8);
++  if (g->flags & NATG_FULL) { xc_run(c, 1, g->blk & 0xfffffff0u, 24); c->nat_qw += 24; }
++  xc_run(c, 1, g->mat & 0xfffffff0u, 8); c->nat_qw += 8;
+   if (g->flags & NATG_INPL) return;   /* gl33: a static group's three streams stay in RAM (ge/natsnap.h NATG_INPL): the walk reads them
+                                          there (lw_nptr's "outside the copy" path) */
+-  for (int k = 0; k < 3; k++) if (g->s[k] && g->n[k]) xc_run(c, 1, g->s[k] & 0xfffffff0u, g->n[k]);
++  for (int k = 0; k < 3; k++) if (g->s[k] && g->n[k]) { xc_run(c, 1, g->s[k] & 0xfffffff0u, g->n[k]); c->nat_qw += g->n[k]; }
+ }
+ static int xc_walk(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* ge/xlive.c walk()'s chain rules */
+ {
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xlme.h t34/ge/xlme.h
+--- t33/ge/xlme.h	2026-11-21 02:56:27.577932422 +0000
++++ t34/ge/xlme.h	2026-11-21 12:09:30.221008226 +0000
+@@ -27,6 +27,7 @@
+ #include "gelist.h"
+ #include "xlview.h"   /* task #180 */
+ #include "natsnap.h"  /* native step 1 */
++#include "natsplit.h" /* gl34 */
+ 
+ #define XM_F_LANES 1u   /* the translator's lanes (OPT_XL_LANE, LANE2, LANE3, LANE4 within XmPic.lanes), OPT_XL_EAGER and OPT_XL_MARK */
+ #define XM_F_STEP0 2u   /* OPT2_TX_UMEMO, OPT2_GU_LDID, OPT2_TX_FRONT (with the x86 check modes chk_um, chk_li, chk_uf) */
+@@ -65,7 +66,12 @@
+                                                                       count or pointer out of range); drawn at the walk's end; run lanes
+                                                                       stopped at a key */
+   long nat_in, nat_out, nat_part;   /* the groups' data pieces found in the transfer's copy, outside it (RAM as it is), partly (dropped) */
++  /* gl34 (ge/natsplit.h): ns_on 1: the split's timers run in the walks that have a clock (nat_clk).  ch_i: the transfer's place in
++     its frame's chain list, set by the host before xm_walk; -1: none */
++  int ns_on, ch_i;
++  int nh_chk;                       /* gl34: lw_nptr_h's check (ge/xlme.c) */
+ } XmPic;
++extern long lw_nh_n[3];             /* gl34 (ge/xlme.c lw_nptr_h): hinted look-ups, of them differing from lw_nptr's, checked */
+ 
+ extern long xm_lw7_miss[8], xm_lw3_miss[8];  /* lanes 4 and 3: why a recognizer declined (lw_lanes.h) */
+ #ifndef __psp__
+@@ -130,6 +136,7 @@
+      xm_plan: nat_b the buffer bound (-1: none), nat_cur the groups taken; the host gives them room in the arena (xm_nat_room) */
+   const NatGrp *nat_g[2]; int nat_n[2], nat_b, nat_cur;
+   long nat_grp;                        /* groups planned */
++  uint64_t nat_qw;                     /* gl34: the quadwords their ranges asked for (before the merge with the transfer's own) */
+ } XmCopy;
+ /* 0: the copy made, its extents ext[*x0 .. *x0 + *nx); else nothing kept: 1 the ranges did not fit, 2 the extents, 3 the arena, 4 the
+    chain did not end */
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xme.c t34/ge/xme.c
+--- t33/ge/xme.c	2026-11-21 02:56:27.577991999 +0000
++++ t34/ge/xme.c	2026-11-21 12:09:30.221240325 +0000
+@@ -74,6 +74,7 @@
+         p->nat_b = r->nb; p->nat_g[r->nb] = (const NatGrp *)(const void *)(x->fc.arena + r->noff); p->nat_n[r->nb] = r->ngn[r->nb]; } }
+     else for (int b = 0; b < 2; b++) if (r->ngn[b] > 0 && x->nat_g[b]) { p->nat_g[b] = x->nat_g[b] + r->ng0[b]; p->nat_n[b] = r->ngn[b]; }
+     p->nat_used = 0;
++    p->ns_on = x->ns_on; p->ch_i = r->chi; p->nh_chk = x->nh_chk;   /* gl34 (ge/natsplit.h, ge/xlme.c lw_nptr_h) */
+     xm_walk(p, r->ch, r->chcr, r->madr, r->qwc, r->tadr, r->lanes, r->opt);
+     if (r->nx < 0 && (p->nat_n[0] | p->nat_n[1])) { XS(x)->nat_b = p->nat_b; XS(x)->nat_used = (uint32_t)p->nat_used; }
+     p->nat_n[0] = p->nat_n[1] = 0;
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/ge/xme.h t34/ge/xme.h
+--- t33/ge/xme.h	2026-11-21 02:56:27.578040704 +0000
++++ t34/ge/xme.h	2026-11-21 12:09:30.220660053 +0000
+@@ -56,7 +56,9 @@
+ enum { XME_AT_WALK = 0x100, XME_AT_LAY = 0x200, XME_AT_RESFULL = 0x300, XME_AT_GEWAIT = 0x301, XME_AT_END = 0x310, XME_AT_LIST = 0x311,
+        XME_AT_BEGIN = 0x312, XME_AT_TKFRAME = 0x313, XME_AT_IDLE = 0x500, XME_AT_HANG = 0x600 };
+ typedef struct { int ch, lanes, restart, x0, nx, t, now; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+-                 int nb, ng0[2], ngn[2]; uint32_t noff; } XmeRec;   /* native step 1 (xlme.h XmPic): the ship-mesh groups the record's walk
++                 int nb, ng0[2], ngn[2]; uint32_t noff;
++                 int chi;                        /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none) */
++               } XmeRec;   /* native step 1 (xlme.h XmPic): the ship-mesh groups the record's walk
+                                                  draws.  A record with a copy (nx >= 0): nb the packet buffer its plan bound (-1: none),
+                                                  ngn[nb] groups from index ng0[nb] of that buffer's array, which the ME copies into the
+                                                  arena at noff as it copies the extents (REC).  A record walked from RAM (nx -1): nb -1,
+@@ -124,6 +126,8 @@
+   const NatGrp *nat_g[2];     /* native step 1: the two packet buffers' group arrays (boot/nat_stub.h g_nat[].g; 0: none), the main
+                                  CPU's to write; each starts on a 64-byte line of its own and ends on one */
+   int nat_t_on;               /* 1: the merge runs timed on the ME and the emulator's thread (MGS2_NAT_T; never in the main CPU's turns) */
++  int nh_chk;                 /* gl34: > 0: the hinted pointer look-ups checked against the plain ones (ge/xlme.c lw_nptr_h; MGS2_NAT_HCHK) */
++  int ns_on;                  /* gl34: 1: the native path's split and the walk's time by chain (ge/natsplit.h; MGS2_NAT_SPLIT; needs nat_t_on) */
+   void *fm[2]; GxList *fl[2]; /* gl23: the two frame memories (each: the arena, then its list's block) and their lists; fm[1] 0: one only */
+   uint32_t fm_arena, fm_nb, fm_nv;   /* gl23: the arena's bytes, batches and vertices (gb_arena) */
+   /* shared words, on lines of their own (step 4d-3: no line holds bytes one core writes through its cache and bytes the other writes;
+diff -ruN '--exclude=*.o' '--exclude=*.elf' t33/psp/xl_psp.c t34/psp/xl_psp.c
+--- t33/psp/xl_psp.c	2026-11-21 02:58:55.627897180 +0000
++++ t34/psp/xl_psp.c	2026-11-21 12:09:30.223661957 +0000
+@@ -113,6 +113,8 @@
+ extern NatBuf g_nat[2]; extern uint32_t g_nat_bseq[2]; extern int g_nat_cfg; extern long g_nat_c[NC_N];
+ extern void (*g_nat_sync)(int b); int rt_nat_arm_at(long vb, long *turn);
+ int rt_nat_inpl_at(long vb); extern long g_nat_stc; static long nat_stc0;   /* gl33: static streams in place (boot/nat_stub.h) */
++int rt_nat_fast_at(long vb); extern long g_nat_fst;   /* gl34: the fast native front end (boot/nat_stub.h) */
++#include "../ge/vu1conv.h"   /* gl34: vc_km_n */
+ #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
+ #include <pspiofilemgr.h>
+ #include "hle_me.h"
+@@ -2296,6 +2298,10 @@
+   const char *e; uint32_t one = ((uint32_t)NAT_MAXGRP * (uint32_t)sizeof(NatGrp) + 63u) & ~63u;
+   (void)rt_nat_arm_at(0, 0);   /* (the schedule read, its line printed) */
+   mq->nat_t_on = !((e = mgs2_getenv("MGS2_NAT_T")) && !atoi(e));
++  mq->nh_chk = (e = mgs2_getenv("MGS2_NAT_HCHK")) ? atoi(e) : 0;   /* gl34 (ge/xlme.c lw_nptr_h): a check for the emulator's runs */
++  mq->ns_on = mq->nat_t_on && (e = mgs2_getenv("MGS2_NAT_SPLIT")) && atoi(e) > 0;   /* gl34 (ge/natsplit.h), before the ME starts */
++  fprintf(stderr, "nat split (gl34, MGS2_NAT_SPLIT; the lines 'nat split' and 'me chains' of each ME turn): %s; a group in about %d timed by stage\n",
++          mq->ns_on ? "on" : "off", NS_EVERY);
+   if (!g_nat_cfg) { fprintf(stderr, "native step 1: off (no arm in MGS2_NAT or MGS2_NAT_CYCLE): the builder 0x1214a0 runs as always\n"); return; }
+   if (!mq_m4) { fprintf(stderr, "native step 1: the groups are drawn only by mode 4's loop (MGS2_ME_PIC=4): arm 3 stubs the builder and "
+                         "NOTHING DRAWS its groups in this run\n"); return; }
+@@ -2323,6 +2329,10 @@
+ }
+ /* a line per turn (ME turn: mq_tend; main CPU turn: mq_tstart), the counts since the turn before */
+ static long nat_c0[NC_N], nat_t0n[16]; static uint64_t nat_t0t, nat_w0[2];
++static uint32_t ns_cha[NS_CH]; static int ns_chn; static long ns_ch_lists, ns_ch_unl, ns_ch_in;
++static NatSplit ns_s0; static long ns_fst0, ns_nf0[8], ns_km0[4], ns_l0[3], ns_nh0[3]; static uint64_t ns_rec0, ns_wk0, ns_b0, ns_q0, ns_nb0;   /* gl34: the counts at the turn's start */
++static const char *const ns_name[NS_N] = { "walk and pointers", "register", "A+D packet", "call's rest", "host call and GS state", "transform", "positions",
++  "cut test", "attributes", "texture", "strips", "GE transform and batch data", "depth range", "into the frame", "way back", "drawn areas", "walk's end" };
+ static void nat_t0set(void)
+ {
+   for (int k = 0; k < NC_N; k++) nat_c0[k] = g_nat_c[k];
+@@ -2333,6 +2343,9 @@
+   nat_t0n[15] = xmp.nat_part; nat_t0t = xmp.nat_t; nat_w0[0] = mq_wus[MW_FILL]; nat_w0[1] = mq_wus[MW_NOW];
+   nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
+   nat_stc0 = g_nat_stc;   /* gl33 */
++  ns_s0 = g_ns; ns_fst0 = g_nat_fst; for (int k = 0; k < 8; k++) ns_nf0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) ns_km0[k] = vc_km_n[k];   /* gl34 */
++  for (int k = 0; k < 3; k++) ns_nh0[k] = lw_nh_n[k];
++  ns_wk0 = mq->t_k[XE_WALK]; ns_rec0 = mq->t_k[XE_REC]; ns_b0 = xmc.bytes; ns_q0 = xmc.nat_qw; ns_nb0 = mq->n_natb; ns_l0[0] = ns_ch_lists; ns_l0[1] = ns_ch_unl; ns_l0[2] = ns_ch_in;
+ }
+ static void nat_tline(const char *who, long vb0, long vb, int me)
+ {
+@@ -2367,6 +2380,36 @@
+           (unsigned)((two ? two_ah : two_an ? two_an : xmc.arena_n) >> 10));
+   fprintf(stderr, "nat inpl vb %ld-%ld %s arm %d inpl %d (gl33; 1: a static group's three streams stay in RAM): groups flagged static %ld\n",
+           vb0, vb, who, arm, rt_nat_inpl_at(vb0 + 1), g_nat_stc - nat_stc0);
++  /* gl34: the fast front end's counts (the picture's side counts the groups it drew in the turn; the flags are the recorder's) */
++  fprintf(stderr, "nat fast vb %ld-%ld %s arm %d fast %d (gl34; 1: arm 3's groups go to the fast front end): groups flagged %ld; the picture's side: "
++          "taken %ld, declined: state %ld, entry %ld, buffers %ld, stream counts %ld, material tag %ld, tables full %ld, path 1 busy %ld; "
++          "transforms taken from the last keyed call %ld, computed and kept %ld; pointers by their own hints %ld (MGS2_NAT_HCHK %d: checked %ld, "
++          "differing %ld)\n", vb0, vb, who, arm, rt_nat_fast_at(vb0 + 1), g_nat_fst - ns_fst0,
++          xl_nf_n[0] - ns_nf0[0], xl_nf_n[1] - ns_nf0[1], xl_nf_n[2] - ns_nf0[2], xl_nf_n[3] - ns_nf0[3], xl_nf_n[4] - ns_nf0[4],
++          xl_nf_n[5] - ns_nf0[5], xl_nf_n[6] - ns_nf0[6], xl_nf_n[7] - ns_nf0[7], vc_km_n[0] - ns_km0[0], vc_km_n[1] - ns_km0[1],
++          lw_nh_n[0] - ns_nh0[0], mq->nh_chk, lw_nh_n[2] - ns_nh0[2], lw_nh_n[1] - ns_nh0[1]);
++  if (me && mq->ns_on) {   /* gl34 (ge/natsplit.h): the ME's time inside the native path, and the walks' time by chain */
++    const NatSplit *s = &g_ns; long n = s->n - ns_s0.n, seen = s->seen - ns_s0.seen, cn = s->cal_n - ns_s0.cal_n; double us = (double)mq_tdiv / 1000.0, sum = 0;
++    double nat = (double)(xmp.nat_t - nat_t0t) / mq_tdiv;
++    fprintf(stderr, "nat split vb %ld-%ld me turn arm %d fast %d (gl34; ticks a ms %u): groups in the timed merge runs %ld, of them timed by stage %ld "
++            "(vertices %ld, left out by the cut %ld); clock read pairs %ld, mean %.3f us a read; us a timed group by stage (each holds one read):",
++            vb0, vb, arm, rt_nat_fast_at(vb0 + 1), (unsigned)mq_tdiv, seen, n, s->nv - ns_s0.nv, s->ncut - ns_s0.ncut, cn,
++            cn ? (double)(s->cal_t - ns_s0.cal_t) / us / (double)cn : 0.0);
++    for (int k = 0; k < NS_N; k++) { double v = n ? (double)(s->t[k] - ns_s0.t[k]) / us / (double)n : 0.0; sum += v; fprintf(stderr, " %s %.2f%s", ns_name[k], v, k + 1 < NS_N ? "," : ";"); }
++    fprintf(stderr, " sum %.2f; the turn's native time %.2f ms = %.2f us a group; hand-off: the ME's records %.1f ms, the plans' bytes %lu KB, of them asked "
++            "for by the groups' data %lu KB, the groups' array %lu KB\n", sum, nat, seen ? nat * 1000.0 / (double)seen : 0.0,
++            (double)(mq->t_k[XE_REC] - ns_rec0) / mq_tdiv, (unsigned long)((xmc.bytes - ns_b0) >> 10), (unsigned long)((xmc.nat_qw - ns_q0) >> 6),
++            (unsigned long)((mq->n_natb - ns_nb0) >> 10));
++    fprintf(stderr, "me chains vb %ld-%ld me turn arm %d fast %d (gl34; a chain is a transfer of the frame's list): lists read %ld, transfers in a list "
++            "%ld, not in one %ld; chain: transfers, ms, converter calls, native ms (groups):", vb0, vb, arm, rt_nat_fast_at(vb0 + 1),
++            ns_ch_lists - ns_l0[0], ns_ch_in - ns_l0[2], ns_ch_unl - ns_l0[1]);
++    for (int k = 0; k < NS_CH_N; k++) { long w = s->ch_n[k] - ns_s0.ch_n[k];
++      if (!w && k < NS_CH) continue;
++      if (k < NS_CH) fprintf(stderr, " %d:", k); else fprintf(stderr, k == NS_CH_FLUSH ? " the transfers' ends (held calls):" : " other transfers:");
++      fprintf(stderr, " %ld, %.2f, %ld, %.2f (%ld);", w, (double)(s->ch_t[k] - ns_s0.ch_t[k]) / mq_tdiv, s->ch_calls[k] - ns_s0.ch_calls[k],
++              (double)(s->ch_nat[k] - ns_s0.ch_nat[k]) / mq_tdiv, s->ch_grp[k] - ns_s0.ch_grp[k]); }
++    fprintf(stderr, " the ME's walks %.1f ms\n", (double)(mq->t_k[XE_WALK] - ns_wk0) / mq_tdiv);
++  }
+ }
+ static int mq_fill(int why)
+ {
+@@ -2398,6 +2441,22 @@
+   mp_nrec = 0; mp_late_runs++; mp_chn = 0;
+   if (wait) mq_arena_wait();
+ }
++/* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list.  The list is read at the transfer whose tadr is the list's
++   first start (the frame's first chain: the list is still the frame's then) and kept for the frame's other transfers */
++static int ns_chain(const MpRec *r)
++{
++  uint32_t a, lp, n;
++  if (!mq->ns_on || r->ch != 1 || (r->tadr & 0x80000000u) || !M.mem) return -1;
++  a = r->tadr & (XL_GSZ - 1) & ~15u;
++  lp = *(const uint32_t *)(M.mem + 0x1b9348) & (XL_GSZ - 1) & ~3u;
++  if (lp && lp + 12 + 16 * NS_CH + 16 <= XL_GSZ) {
++    n = *(const uint32_t *)(M.mem + lp);
++    if (n && n <= NS_CH && (*(const uint32_t *)(M.mem + lp + 16) & (XL_GSZ - 1) & ~15u) == a) {
++      for (uint32_t i = 0; i < n; i++) ns_cha[i] = *(const uint32_t *)(M.mem + lp + 16 + 16 * i) & (XL_GSZ - 1) & ~15u;
++      ns_chn = (int)n; ns_ch_lists++; ns_ch_in++; return 0; } }
++  for (int i = 1; i < ns_chn; i++) if (ns_cha[i] == a) { ns_cha[i] = 0xffffffffu; ns_ch_in++; return i; }   /* once: an old list names no later frame's transfer */
++  ns_ch_unl++; return -1;
++}
+ static void mq_rec(const MpRec *r, int now)   /* a record to the ME as its transfer ends; now: the main CPU waits for its copy (or walk) */
+ {
+   XmeE e; uint32_t s;
+@@ -2405,6 +2464,7 @@
+   e.r.ch = r->ch; e.r.lanes = r->lanes; e.r.restart = r->restart; e.r.x0 = r->x0; e.r.nx = r->nx; e.r.t = r->t; e.r.now = now;
+   e.r.chcr = r->chcr; e.r.madr = r->madr; e.r.qwc = r->qwc; e.r.tadr = r->tadr; e.r.opt = r->opt; e.r.opt2 = r->opt2;
+   e.r.nb = r->nb; e.r.ng0[0] = r->ng0[0]; e.r.ng0[1] = r->ng0[1]; e.r.ngn[0] = r->ngn[0]; e.r.ngn[1] = r->ngn[1]; e.r.noff = r->noff;   /* native step 1 */
++  e.r.chi = ns_chain(r);   /* gl34 */
+   if (r->nx >= 0 && r->nb >= 0 && !now) nat_unf[r->nb] = 1;
+   s = mq_post(&e);
+   if (now) mq_wait(s, MW_NOW);
+@@ -2602,6 +2662,12 @@
+             nat_n_dirg, nat_n_room, nat_n_sync, mq->n_natrec, mq->n_natg, (unsigned long long)mq->n_natb, xmp.nat_runs, xmp.nat_core, xmp.nat_fed,
+             xmp.nat_bad, xmp.nat_late, xmp.nat_stop, xmp.nat_in, xmp.nat_out, xmp.nat_part);
+   if (g_nat_cfg) fprintf(f, "static streams in place totals (gl33): groups flagged static %ld\n", g_nat_stc);
++  if (g_nat_cfg) fprintf(f, "fast native front end totals (gl34): groups flagged %ld; taken %ld, declined: state %ld, entry %ld, buffers %ld, stream counts "
++                         "%ld, material tag %ld, tables full %ld, path 1 busy %ld; transforms taken %ld, computed and kept %ld; pointers by their own hints %ld "
++                         "(checked %ld, differing %ld); nat split: groups timed by "
++                         "stage %ld of %ld, clock read pairs %ld; chain lists read %ld, transfers in a list %ld, not in one %ld\n", g_nat_fst, xl_nf_n[0],
++                         xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], lw_nh_n[0], lw_nh_n[2], lw_nh_n[1], g_ns.n, g_ns.seen,
++                         g_ns.cal_n, ns_ch_lists, ns_ch_in, ns_ch_unl);
+   fprintf(f, "picture display (gl27): flip wait MGS2_GL_FLIPWAIT %d (from vb %ld): ME turns: lists held for the screen %ld (%.2f s), lists drawn "
+           "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld%s", flip_cfg, flip_from, flip_hold[0],
+           flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1], fbc_from < 0 ? "\n" : "");

@@ -1,0 +1,53 @@
+--- /mnt/project-files/mgs2/runtime/guest.h	2026-10-20 20:14:24.159111000 +0000
++++ rt/guest.h	2026-10-23 11:50:03.857046271 +0000
+@@ -117,6 +117,19 @@
+ #endif
+ static inline uint32_t F2I(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
+ static inline float I2F(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
++#ifdef M1DEN   /* dev (audit M1, /home/claude/m1den): every lwc1 / mtc1 site of the generated code, denormal operands recorded per site (m1den.c) */
++extern unsigned long m1_nload, m1_nmtc1; extern int g_m1_ps2;
++float m1_den(unsigned site, uint32_t pc, uint32_t a, uint32_t u, int kind); void m1_rule(int sub, float a, float b);
++static inline float M1CHK(unsigned site, uint32_t pc, uint32_t a, const void *p, int kind)
++{ uint32_t u; memcpy(&u, p, 4); m1_nload++; if (__builtin_expect(!(u & 0x7f800000u) && (u & 0x7fffffu), 0)) return m1_den(site, pc, a, u, kind);
++  return *(const float *)p; }
++#define M1RDF(site, pc, a) ({ uint32_t a_m1 = (a); M1CHK(site, pc, a_m1, MM(a_m1), 0); })
++#define M1RDFS(site, pc, sp, k) M1CHK(site, pc, (uint32_t)(sp) + (k), MMS(sp, k), 2)
++#define M1RDFB(site, pc, b, k) ({ uint32_t a_m1 = (uint32_t)(b) + (uint32_t)(k); M1CHK(site, pc, a_m1, MM(a_m1), 0); })
++static inline float M1I2F(unsigned site, uint32_t pc, uint32_t u)
++{ m1_nmtc1++; if (__builtin_expect(!(u & 0x7f800000u) && (u & 0x7fffffu), 0)) return m1_den(site, pc, 0, u, 1); return I2F(u); }
++#define M1_DEN(x) (!(F2I(x) & 0x7f800000u) && (F2I(x) & 0x7fffffu))
++#endif
+ static inline int32_t F2INT(float f) { if (f >= 2147483648.0f) return 0x7fffffff; if (f <= -2147483648.0f) return (int32_t)0x80000000; return (int32_t)f; }
+ static inline float CLP(float r) { if (r > 3.4028234663852886e38f) return 3.4028234663852886e38f; if (r < -3.4028234663852886e38f) return -3.4028234663852886e38f; return r; }
+ static inline float FDIV(float a, float b)   /* R5900 FPU: x/0 = +-Fmax (sign = xor), overflow clamps */
+@@ -143,9 +155,17 @@
+ /* The asm makes the kept operand opaque: otherwise gcc folds what follows at compile time when that operand is a constant, and its folding
+    rounds to nearest (0 + 280.0, then / 90.0 gave 0x40471c72 where the PSP's round toward zero gives 0x40471c71: d00t P297800, vb 4250). */
+ static inline float FADD(float a, float b)
+-{ uint32_t ua = F2I(a) << 1, ub = F2I(b) << 1; if (!ua != !ub) { float r = ub ? b : a; FZ_NOTE(a, b, 0); __asm__("" : "+x"(r)); return r; } return a + b; }
++{ uint32_t ua = F2I(a) << 1, ub = F2I(b) << 1; if (!ua != !ub) { float r = ub ? b : a; FZ_NOTE(a, b, 0);
++#ifdef M1DEN
++  if (M1_DEN(r)) { m1_rule(0, a, b); if (g_m1_ps2) r = a + b; }
++#endif
++  __asm__("" : "+x"(r)); return r; } return a + b; }
+ static inline float FSUB(float a, float b)
+-{ uint32_t ua = F2I(a) << 1, ub = F2I(b) << 1; if (!ua != !ub) { float r = ub ? I2F(F2I(b) ^ 0x80000000u) : a; FZ_NOTE(a, b, 1); __asm__("" : "+x"(r)); return r; }
++{ uint32_t ua = F2I(a) << 1, ub = F2I(b) << 1; if (!ua != !ub) { float r = ub ? I2F(F2I(b) ^ 0x80000000u) : a; FZ_NOTE(a, b, 1);
++#ifdef M1DEN
++  if (M1_DEN(r)) { m1_rule(1, a, b); if (g_m1_ps2) r = a - b; }
++#endif
++  __asm__("" : "+x"(r)); return r; }
+   return a - b; }
+ #endif
+ /* EE hardware registers reached by the recompiled code (`lui $1, 0x1000/0x1001` + lw/sw, model/recomp.py): timer 0 count (0x10000000, the
+@@ -206,3 +226,10 @@
+ #endif
+ #endif
+ #include "vu0.h"
++#ifdef M1VGT   /* dev (audit M1, /home/claude/m1den): every vu_vgrp run in a window of vblanks logged (m1den.c m1_vgnote) */
++extern volatile long *m1_vgk; extern long m1_vga, m1_vgb; void m1_vgpre(void); void m1_vgnote(uint32_t pc, uint32_t fb);
++#define M1VG(pc, ...) do { int m1w_ = *m1_vgk >= m1_vga && *m1_vgk <= m1_vgb; uint32_t m1fb_ = g_vgrp_fb; if (__builtin_expect(m1w_, 0)) m1_vgpre(); \
++  vu_vgrp(__VA_ARGS__); if (__builtin_expect(m1w_, 0)) m1_vgnote(pc, g_vgrp_fb - m1fb_); } while (0)
++#else
++#define M1VG(pc, ...) vu_vgrp(__VA_ARGS__)
++#endif

@@ -1,0 +1,36 @@
+# M1 standing check on v30's indoor route (x86, 2026-10-26; speed_notes §40 "Use for a new route"). Build A = v30's headers (psp/v30.sh hdr: WP, the leaner generator's form) with every lwc1 / mtc1 site recorded (tools/dev/m1den: rewrite.py now also takes RDFB, mm_base.py's base + offset load; guest_m1.patch's M1RDFB), linked with v30's x86 reference objects; build B = the same binary with MGS2_M1_PS2=1. Route: play/pad_w01af.txt on v30's pack to vb 37800, MGS2_PKT_HASH=1:37801 (VIF1 + GIF data hashed every vblank). psp/v30.sh m1 (container /home/claude/v30/m1, ephemeral).
+
+## result
+A against the reference, every 100 (ee iop vfb): 0 of 378 differ (378 / 378 lines)
+A against the reference, dense (ee vfb vuh): 0 of 685 differ (685 / 685 lines)
+B against A, every 100 (ee iop; vfb apart): 0 of 378 differ (378 / 378 lines)
+B against A, dense (ee; vuh): 0 of 685 differ (685 / 685 lines)
+vuh B against A: 0 of 311 differ
+VIF1 + GIF data per vblank, B against A: 0 of 37799 vblanks differ (A 37799, B 37799 lines)
+vfb B against A, every 100: 221 of 378 differ (first at vb 15800; at vb 37800 A 567556, B 600972); dense: 435 of 685 differ (first at vb 15794).
+So B equals A in everything the game keeps or sends on this route too; only the count of VFPU group fallbacks differs (B 33,416 more by vb 37800, the same surplus as on the free route by 36500; B - A is 33,416 already at vb 28700 and stays so at 29000, 30500, 31800 and 37800: all from the shared start). The zero rule acts at the same 4 places as on the earlier routes, all at vb 15785-28678 (the shared start, the arctangent P11cf88 of speed_notes §40); none in the route's own part (vb 30501-37800).
+
+## m1 report lines (A, then B)
+m1: mode PSP rule; float loads 853031578, mtc1 377394947; denormal loads 19455180 (stack 58518), denormal mtc1 52491022; sites 1753 (dropped 0); zero-rule uses 81478 at 4 places
+m1: rule add at 0x55aaba6d93af n 6636 vb 15785-28477 first 00000000 0015def4
+m1: rule sub at 0x55aaba6d940d n 6636 vb 15785-28477 first 00000000 0015def4
+m1: rule add at 0x55aaba6d94d1 n 34103 vb 15793-28678 first 00000000 0031685c
+m1: rule sub at 0x55aaba6d952b n 34103 vb 15793-28678 first 00000000 0031685c
+m1: mode PS2 (DAZ); float loads 853031578, mtc1 377394947; denormal loads 19455180 (stack 58518), denormal mtc1 52491022; sites 1753 (dropped 0); zero-rule uses 81478 at 2 places
+m1: rule add at 0x5577d65c03af n 40739 vb 15785-28678 first 00000000 0015def4
+m1: rule sub at 0x5577d65c040d n 40739 vb 15785-28678 first 00000000 0015def4
+
+## sites A (tools/dev/m1den/sites.py with M1W = the rewritten v30 headers)
+sites 1753, uses 71946202
+  int    mtc1  sites  1396  uses    52491022
+  int    lwc1  sites   261  uses    19318956
+  float  lwc1  sites     3  uses       77706
+  int    lwc1s sites    91  uses       58405
+  float  lwc1s sites     2  uses         113
+float-operand sites: 5, uses 77819; functions 3
+  by function: elf P11cf88 43603, elf P11ce30 34103, d00t P28dd68 113
+  elf P11cf88 pc 11cfa8 lwc1: n 34103 vb 15793-28678 a 001b47c8 u 0031685c (last 001b47c8 0031d90c) | CC = f0 < f3
+  elf P11ce30 pc 11ce70 lwc1: n 34103 vb 15793-28678 a 001b47c8 u 0031685c (last 001b47c8 0031d90c) | CC = f4 < f0
+  elf P11cf88 pc 11cfa0 lwc1: n 9500 vb 15765-28618 a 001b47d8 u 0000000b (last 001b47d8 0000000b) | CC = f2 < f3
+  d00t P28dd68 pc 28e338 lwc1s: n 65 vb 4258-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f29
+  d00t P28dd68 pc 28e38c lwc1s: n 48 vb 4260-4326 a 001b47c0 u 001e0000 (last 001b47c0 001e0000) | f0 = f0 * f28

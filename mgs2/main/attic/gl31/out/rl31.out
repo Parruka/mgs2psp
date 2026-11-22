@@ -1,0 +1,41 @@
+recipe check: ge_xlate.o from main's source equals gl29's stage object
+recipe check: boot_rt.o from main's source equals gl29's stage object
+ge_xme <- /home/claude/t31/ge/xme.c
+ge_xme_me <- /home/claude/t31/psp/xme_me.c
+ge_xlme <- /home/claude/t31/ge/xlme.c
+ge_xlate <- /home/claude/t31/ge/xlate.c (relabelled, directives only)
+boot_rt <- /home/claude/t31/boot/boot.c (relabelled, directives only)
+ge_gelist <- /home/claude/t31/ge/gelist.c (relabelled, plain -E)
+ge_gelive <- /home/claude/t31/ge/gelive.c (relabelled, plain -E)
+ge_xconv <- /home/claude/t31/ge/xconv.c (relabelled, plain -E)
+xl_psp <- /home/claude/t31/psp/xl_psp.c
+xme_me undef: xme_rest xme_rest_halt xme_rest_init xme_run 
+xme_me_chk: PASS
+gen.o: P1214a0 in .text.hot.P1214a0 at 0x00000000: 00000000 W P1214a0;00000000 T P1214a0_orig;
+ge_gelist.o equals gl30's stage object
+ge_gelive.o equals gl23's and gl30's stage object
+ge_xconv.o equals gl23's and gl30's stage object
+against the parents (cmp): ge_xme_me =gl30 ge_xme_me =gl30n ge_xlme =gl30n ge_xlate =gl30n boot_rt =gl30n gen =gl30n 
+psp.sh rc 0
+61216 ovl_init.bin
+465008 ovl_n_title.bin
+10544 ovl_r_title.bin
+10816 ovl_r_tnk0.bin
+4401856 ovl_w00a.bin
+3497168 ovl_w01a.bin
+024bedf5fb710257fd71a7bb1c61ce25  EBOOT.PBP
+08b979b5116bd498d2035ffe438bf8d6  ovl_d00t.bin
+11ea73b0ec4093de77e98358fa43bc51  ovl_d01t.bin
+b25edabbaf13485e4d8791bf55f3230e  ovl_init.bin
+8c25f9dcb408febd1c3f4b1e71cb35e9  ovl_n_title.bin
+cc9a8ce72e3eb4b687f5e498ecf54600  ovl_r_title.bin
+b9f8e1fe64db1d19b6e8de66b5c22f89  ovl_r_tnk0.bin
+5d168552544d004caf591af08cb26881  ovl_w00a.bin
+9e3cedc293aa07bfe818d1ffdaa77bdd  ovl_w01a.bin
+psp.sh: done 4 s
+xme_rest_chk: PASS
+mesec_chk rc 0: mesec_chk: PASS
+
+real	1m48.068s
+user	1m43.848s
+sys	0m2.093s

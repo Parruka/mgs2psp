@@ -1,0 +1,38 @@
+--- /mnt/project-files/mgs2/runtime/kernel.h	2026-10-24 13:24:42.825180000 +0000
++++ /home/claude/lean/kz/rt/kernel.h	2026-10-24 18:24:34.937614494 +0000
+@@ -139,6 +139,17 @@
+ static void k_call_handler(KHandler *h, int cause)
+ {
+   KCtx save; DGX_NOTE(h->dmac ? 1 : 0); k_save(&save); k_in_intr++;
++#ifdef K_HZERO   /* dev (lean_plan.md 1b): a handler starts in a fresh register file, as a thread does (k_thread_main) */
++  { static const KCtx z; k_load(&z); }
++#endif
++#ifdef K_HPOISON   /* dev (lean_plan.md 1b): a handler starts with a pattern in every register but zero, to show it never uses the thread's */
++  { static KCtx z; static int i0; int i; union { uint32_t u; float f; } c;
++    if (!i0) { i0 = 1; for (i = 0; i < 32; i++) { if (i) { z.R[i] = (int32_t)(0xdead0000u | (uint32_t)i << 8); z.RH[i] = (int32_t)(0xbeef0000u | (uint32_t)i << 8); }
++        c.u = 0x7e000000u | (uint32_t)i << 8; z.F[i] = c.f; }
++      z.HI = (int32_t)0xdead4100u; z.LO = (int32_t)0xdead4200u; z.HI1 = (int32_t)0xdead4300u; z.LO1 = (int32_t)0xdead4400u;
++      c.u = 0x7e004500u; z.ACC = c.f; z.CC = 1; z.SAR = 0x2a; }
++    k_load(&z); }
++#endif
+   R[4] = cause; R[5] = (int32_t)h->arg; R[6] = 0; R[29] = (int32_t)(K_ISTACK - 0x100 * k_in_intr); R[31] = K_EXIT_RA;
+   if (!guest_call(h->fn)) k_fatal("handler not translated", (int)h->fn);
+   k_in_intr--; K_POLL_KICK(); k_load(&save);
+@@ -173,6 +184,17 @@
+ {
+   KCtx save; uint32_t fn = k_al[al].fn, arg = k_al[al].arg;
+   k_al[al].used = 0; DGX_NOTE(2); k_save(&save); k_in_intr++;
++#ifdef K_HZERO   /* dev (lean_plan.md 1b): a handler starts in a fresh register file, as a thread does (k_thread_main) */
++  { static const KCtx z; k_load(&z); }
++#endif
++#ifdef K_HPOISON   /* dev (lean_plan.md 1b): a handler starts with a pattern in every register but zero, to show it never uses the thread's */
++  { static KCtx z; static int i0; int i; union { uint32_t u; float f; } c;
++    if (!i0) { i0 = 1; for (i = 0; i < 32; i++) { if (i) { z.R[i] = (int32_t)(0xdead0000u | (uint32_t)i << 8); z.RH[i] = (int32_t)(0xbeef0000u | (uint32_t)i << 8); }
++        c.u = 0x7e000000u | (uint32_t)i << 8; z.F[i] = c.f; }
++      z.HI = (int32_t)0xdead4100u; z.LO = (int32_t)0xdead4200u; z.HI1 = (int32_t)0xdead4300u; z.LO1 = (int32_t)0xdead4400u;
++      c.u = 0x7e004500u; z.ACC = c.f; z.CC = 1; z.SAR = 0x2a; }
++    k_load(&z); }
++#endif
+   R[4] = al; R[5] = (int32_t)(K_NOW() & 0xffff); R[6] = (int32_t)arg; R[29] = (int32_t)(K_ISTACK - 0x100 * k_in_intr); R[31] = K_EXIT_RA;
+   if (!guest_call(fn)) k_fatal("alarm handler not translated", (int)fn);
+   k_in_intr--; K_POLL_KICK(); k_load(&save);

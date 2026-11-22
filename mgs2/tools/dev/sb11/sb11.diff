@@ -1,0 +1,1257 @@
+diff -ruN ge.orig/c1model.c ge/c1model.c
+--- ge.orig/c1model.c	1970-01-01 00:00:00.000000000 +0000
++++ ge/c1model.c	2026-11-02 03:01:26.347422131 +0000
+@@ -0,0 +1,310 @@
++/* c1model.c (sb11, task #134; x86 only): C1 for the codec faces (P07) sized before any GE code.  For each P07 call the picture code
++   converts (xconv.c xc_lit), with its exact results in hand, this file
++   - counts what the GE would have to represent (the census): the clamp abs 3 x, the alpha, the three lights' lengths and colours times
++     those lengths, the ambient, pass 2's kind, the bones per vertex, the bone offsets and the slots they name, the weight sums, the
++     bone matrices' column lengths, a 1-bone vertex's normal length;
++   - computes the same vertices as the GE would under C1's mapping (stagec_notes.md 1.7), in PPSSPP 1.20.4's software GPU arithmetic
++     (GPU/Common/VertexDecoderCommon.cpp ComputeSkinMatrix and the S16 skin steps; GPU/Software/Lighting.cpp ProcessSIMD;
++     TransformUnit.cpp's texture-matrix mapping): bones as float24 (rounded to nearest) with x 2048 in the 3 x 3 for the GE's s16 / 32768
++     positions, 8-bit weights / 128, the skin matrix blended first, world identity; three directional lights (direction normalised,
++     diffuse colour = the PS2's colour row times the direction's length rounded to 8 bits), global ambient = abs 31 rounded, material
++     white, the integer light sum ((2 c + 1) factors, ceil(512 d + 1) capped at 512, each light's term >> 19, the sum clamped at 255);
++     pass 3 from the normalised skinned normal through a float24 texture matrix (rows s R, translation o);
++   - compares those with today's exact vertices: positions (world units, and GE pixels through the call's own transform), colours
++     (levels, GE minus exact; also with the ambient one level up), pass 3's UVs.
++   It only reads: every run with it stays exact.  MGS2_C1_MODEL=1 turns it on; c1m_report prints the totals. */
++#include <math.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include "vu1conv.h"
++#include "c1model.h"
++
++int c1m_on;
++static const uint32_t *Q(const uint8_t *vm, uint32_t qa) { return (const uint32_t *)(vm + ((qa & 0x3ffu) << 4)); }
++static float F(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
++static uint32_t U(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
++/* the GE's 24-bit floats: the top 24 bits, rounded to nearest (what a driver would send) */
++static float f24(float f) { uint32_t u = U(f); if ((u & 0x7f800000u) == 0x7f800000u) return f; u = (u + 0x80u) & ~0xffu; return F(u); }
++
++/* ---- the totals ---- */
++#define NV 8
++typedef struct { uint32_t v; long n; } Val;
++static void val_add(Val *t, int k, uint32_t v) { for (int i = 0; i < k; i++) { if (t[i].n && t[i].v == v) { t[i].n++; return; } if (!t[i].n) { t[i].v = v; t[i].n = 1; return; } } t[k - 1].n++; }
++static struct {
++  long calls, verts, fast, any, nbh[5], uv2h[4], p3h[3], noslot, elig, elig_v, why[8];
++  Val cmax[NV], alpha[NV];
++  double llen_min[3], llen_max[3], ld_max, amb_min, amb_max, coll_min, coll_max, orth_max, n1_dev;
++  long ld_frac, ld_over, ld_neg, amb_frac, amb_over, off_unal, off_out, wsum_bad, slots[9], wdup;
++  /* the model */
++  double dp_max, dp_sum, ds_max; long dp_n, dsh[6], ds_n, behind;
++  long dch[2][11]; double dc_sum[2]; long dc_n, dc_max[2];
++  long dch1[11], dch2[11];   /* bias 0, by bones: 1 and 2-4 */
++  double du_max, du_sum; long du_n, duh[6];
++  /* the cache's census (sb11 b): calls by the number of distinct slots; the streams' addresses as the key, a 64-bit hash of the bytes */
++  long nslot[9], ck_nosp, ck_new, ck_same, ck_diff, ck_cseen, ck_bytes, ck_keys, ck_keyv, ck_full;
++} T;
++#define CK (1u << 21)
++typedef struct { uint64_t key, h; } Ce;
++static Ce *ckt, *cct;   /* by key; by content alone */
++static uint64_t hb(uint64_t h, const void *p, size_t len) { const uint8_t *b = (const uint8_t *)p; for (size_t i = 0; i < len; i++) { h ^= b[i]; h *= 0x100000001b3ull; } return h; }
++static uint64_t fin(uint64_t h) { h ^= h >> 33; h *= 0xff51afd7ed558ccdull; h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33; return h ? h : 1; }
++/* find or add: 0 new, 1 same value, 2 another value (replaced) */
++static int ck_put(Ce *t, uint64_t key, uint64_t h)
++{
++  for (uint32_t i = (uint32_t)key & (CK - 1), k = 0; k < CK; k++, i = (i + 1) & (CK - 1)) {
++    if (!t[i].key) { t[i].key = key; t[i].h = h; return 0; }
++    if (t[i].key == key) { if (t[i].h == h) return 1; t[i].h = h; return 2; }
++  }
++  T.ck_full++; return 0;
++}
++static int first = 1;
++static void init(void)
++{
++  first = 0;
++  for (int j = 0; j < 3; j++) { T.llen_min[j] = 1e30; T.llen_max[j] = 0; }
++  T.amb_min = 1e30; T.amb_max = -1e30; T.coll_min = 1e30; T.coll_max = 0; T.ld_max = -1e30;
++}
++
++/* vertex i's input words: the streams (sp: A, B as halfwords, F as two words) or the VU memory (T + 0x100 + 7 i) */
++typedef struct { int32_t p[3], n[3]; uint32_t w[4], o[4]; } In;
++static void get_in(const uint8_t *vm, uint32_t top, const void *const *sp, int i, In *r)
++{
++  if (sp) {
++    const int16_t *a = (const int16_t *)sp[0] + 4 * i, *b = (const int16_t *)sp[1] + 4 * i; const uint32_t *f = (const uint32_t *)sp[5] + 2 * i;
++    for (int j = 0; j < 3; j++) { r->p[j] = a[j]; r->n[j] = b[j]; }
++    for (int j = 0; j < 4; j++) { r->w[j] = f[0] >> (8 * j) & 0xff; r->o[j] = f[1] >> (8 * j) & 0xff; }
++  } else {
++    const uint32_t *a = Q(vm, top + 0x100 + 7 * (uint32_t)i), *b = Q(vm, top + 0x101 + 7 * (uint32_t)i);
++    const uint32_t *w = Q(vm, top + 0x105 + 7 * (uint32_t)i), *o = Q(vm, top + 0x106 + 7 * (uint32_t)i);
++    for (int j = 0; j < 3; j++) { r->p[j] = (int32_t)a[j]; r->n[j] = (int32_t)b[j]; }
++    for (int j = 0; j < 4; j++) { r->w[j] = w[j]; r->o[j] = o[j]; }
++  }
++}
++static int bucket_px(double d) { return d < 1.0 / 64 ? 0 : d < 1.0 / 16 ? 1 : d < 0.25 ? 2 : d < 0.5 ? 3 : d < 1 ? 4 : 5; }
++
++void c1m_call(const uint8_t *vm, uint32_t top, const void *const *sp, int n, const VcLit *L, const void *v1, const void *v3)
++{
++  if (first) init();
++  if (n <= 0 || L->kind != 4) return;
++  T.calls++; T.verts += n; T.fast += L->fast; T.any += !L->fast;
++  const uint32_t *h = Q(vm, top);
++  const int nb = (int)(h[2] & 0xffff); const uint32_t fl = h[3] & 0xffff;
++  if (nb >= 1 && nb <= 4) T.nbh[nb]++;
++  T.uv2h[L->uv2 < 0 ? 3 : L->uv2]++; T.p3h[L->p3 < 0 ? 2 : L->p3 > 0]++;
++  /* the constants as the program reads them (vu1conv.c p07_main) */
++  float l[3][3], c[3][3], amb[3], R[3][2] = { { 0 } }, s[2] = { 0 }, o[2] = { 0 };
++  for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) { l[j][k] = F(Q(vm, 24 + j)[k]); c[j][k] = F(Q(vm, 28 + j)[k]); }
++  for (int k = 0; k < 3; k++) amb[k] = F(Q(vm, 31)[k]);
++  const float cmax = F(Q(vm, 3)[0]);
++  val_add(T.cmax, NV, Q(vm, 3)[0]); val_add(T.alpha, NV, (uint32_t)L->amin);
++  if (L->p3 > 0) {
++    for (int j = 0; j < 3; j++) for (int k = 0; k < 2; k++) R[j][k] = F(Q(vm, 16 + j)[k]);
++    for (int k = 0; k < 2; k++) { s[k] = F(Q(vm, top + 0xfe)[k]); o[k] = F(Q(vm, top + 0xff)[k]); }
++  }
++  /* light j: direction = column j of abs 24..26 (d_j = sum over rows of l[row][j] n[row]), colour = row j of abs 28..30 */
++  float dir[3][3], len[3]; int LD[3][3], AMB[3]; int ok = 1, why = -1;
++  for (int j = 0; j < 3; j++) {
++    double q = (double)l[0][j] * l[0][j] + (double)l[1][j] * l[1][j] + (double)l[2][j] * l[2][j];
++    len[j] = (float)sqrt(q);
++    if (len[j] < T.llen_min[j]) T.llen_min[j] = len[j];
++    if (len[j] > T.llen_max[j]) T.llen_max[j] = len[j];
++    for (int r = 0; r < 3; r++) dir[j][r] = len[j] > 0 ? f24(l[r][j] / len[j]) : (r == 2 ? 1.0f : 0.0f);
++    for (int k = 0; k < 3; k++) {
++      double v = (double)c[j][k] * len[j];
++      if (v > T.ld_max) T.ld_max = v;
++      if (v < 0) { T.ld_neg++; ok = 0; why = 0; }
++      if (v >= 255.5) { T.ld_over++; ok = 0; why = 1; }
++      if (v != floor(v)) T.ld_frac++;
++      LD[j][k] = v < 0 ? 0 : v >= 255 ? 255 : (int)floor(v + 0.5);
++    }
++  }
++  for (int k = 0; k < 3; k++) {
++    if (amb[k] < T.amb_min) T.amb_min = amb[k];
++    if (amb[k] > T.amb_max) T.amb_max = amb[k];
++    if (amb[k] != floorf(amb[k])) T.amb_frac++;
++    if (amb[k] < 0 || amb[k] >= 255.5f) { T.amb_over++; ok = 0; why = 2; }
++    AMB[k] = amb[k] < 0 ? 0 : amb[k] >= 255 ? 255 : (int)floorf(amb[k] + 0.5f);
++  }
++  if (cmax != 255.0f) { ok = 0; why = 3; }
++  if (nb < 1 || nb > 4) { ok = 0; why = 4; }
++  /* the bones: every vertex's pairs b < nb; each slot's matrix as the GE gets it */
++  In in[64];
++  int used = 0;
++  for (int i = 0; i < n && i < 64; i++) {
++    get_in(vm, top, sp, i, &in[i]);
++    unsigned ws = 0;
++    for (int b = 0; b < nb; b++) {
++      const uint32_t of = in[i].o[b];
++      if (of & 3) { T.off_unal++; ok = 0; why = 5; }
++      if (of > 28) { T.off_out++; ok = 0; why = 6; }
++      if (!(of & 3) && of <= 28) used |= 1 << (of >> 2);
++      ws += in[i].w[b];
++      for (int b2 = 0; b2 < b; b2++) if (in[i].o[b2] == of) T.wdup++;
++    }
++    if (nb > 1 && ws != 128) T.wsum_bad++;
++  }
++  if (n > 64) { ok = 0; why = 7; }
++  int top_slot = 0; for (int k = 0; k < 8; k++) if (used >> k & 1) top_slot = k + 1;
++  T.slots[top_slot]++;
++  float B[8][12];
++  for (int k = 0; k < 8; k++) {
++    if (!(used >> k & 1)) continue;
++    const uint32_t a = 32 + 4 * (uint32_t)k;
++    double cl[3];
++    for (int col = 0; col < 4; col++) {
++      const uint32_t *cc = Q(vm, a + (uint32_t)col);
++      for (int r = 0; r < 3; r++) B[k][3 * col + r] = f24(col < 3 ? F(cc[r]) * 2048.0f : F(cc[r]));
++      if (col < 3) cl[col] = sqrt((double)F(cc[0]) * F(cc[0]) + (double)F(cc[1]) * F(cc[1]) + (double)F(cc[2]) * F(cc[2]));
++    }
++    for (int col = 0; col < 3; col++) { if (cl[col] < T.coll_min) T.coll_min = cl[col]; if (cl[col] > T.coll_max) T.coll_max = cl[col]; }
++    for (int x = 0; x < 3; x++) for (int y = x + 1; y < 3; y++) {
++      const uint32_t *p = Q(vm, a + (uint32_t)x), *q = Q(vm, a + (uint32_t)y);
++      double d = ((double)F(p[0]) * F(q[0]) + (double)F(p[1]) * F(q[1]) + (double)F(p[2]) * F(q[2])) / (cl[x] * cl[y] + 1e-30);
++      if (fabs(d) > T.orth_max) T.orth_max = fabs(d);
++    }
++  }
++  if (!ok) { if (why >= 0) T.why[why]++; return; }
++  T.noslot += !used;
++  T.elig++; T.elig_v += n;
++  T.nslot[__builtin_popcount((unsigned)used)]++;
++  if (!sp || !sp[0] || !sp[1] || !sp[2] || !sp[5]) T.ck_nosp++;
++  else {
++    if (!ckt) { ckt = (Ce *)calloc(CK, sizeof(Ce)); cct = (Ce *)calloc(CK, sizeof(Ce)); }
++    const struct { const void *p[6]; int n, nb; } kk = { { sp[0], sp[1], sp[2], sp[3], 0, sp[5] }, n, nb };
++    const uint64_t key = fin(hb(0xcbf29ce484222325ull, &kk, sizeof kk));
++    uint64_t h = 0xcbf29ce484222325ull;
++    for (int s2 = 0; s2 < 6; s2++) if (s2 != 4 && sp[s2]) { h = hb(h, sp[s2], 8 * (size_t)n); T.ck_bytes += 8 * n; }
++    h = fin(h);
++    const int r = ckt ? ck_put(ckt, key, h) : 0;
++    if (r == 0) { T.ck_new++; T.ck_keys++; T.ck_keyv += n; } else if (r == 1) T.ck_same++; else T.ck_diff++;
++    if (cct && ck_put(cct, h, 1) == 1) T.ck_cseen++;
++  }
++  /* the call's own transform for the pixel distances (xconv.c xc_xform: GE x = 0.9375 vs0 X / W, y = 0.53125 vs1 Y / W) */
++  const VcXform *x = &L->x;
++  const int t1 = L->uv16 ? 2 : 3;
++  for (int i = 0; i < n; i++) {
++    const In *v = &in[i];
++    /* exact: today's vertex */
++    float pe[3]; uint32_t ce;
++    if (t1 == 2) { const VcVertS *e = (const VcVertS *)v1 + i; pe[0] = e->x; pe[1] = e->y; pe[2] = e->z; ce = e->c; }
++    else { const VcVertF *e = (const VcVertF *)v1 + i; pe[0] = e->x; pe[1] = e->y; pe[2] = e->z; ce = e->c; }
++    /* GE: weights by slot, the skin matrix blended first, then the s16 / 32768 position and normal through it */
++    float w[8] = { 0 };
++    if (nb == 1) w[v->o[0] >> 2] = 1.0f;
++    else for (int b = 0; b < nb; b++) w[v->o[b] >> 2] += (float)v->w[b];
++    if (nb > 1) for (int k = 0; k < 8; k++) w[k] = w[k] * (1.0f / 128.0f);
++    float S[12] = { 0 };
++    for (int k = 0; k < top_slot; k++) if (w[k] != 0.0f) for (int e = 0; e < 12; e++) S[e] = S[e] + w[k] * B[k][e];
++    const float fp[3] = { v->p[0] * (1.0f / 32768.0f), v->p[1] * (1.0f / 32768.0f), v->p[2] * (1.0f / 32768.0f) };
++    const float fn[3] = { v->n[0] * (1.0f / 32768.0f), v->n[1] * (1.0f / 32768.0f), v->n[2] * (1.0f / 32768.0f) };
++    float pg[3], ng[3];
++    for (int r = 0; r < 3; r++) {
++      pg[r] = ((fp[0] * S[r] + fp[1] * S[3 + r]) + fp[2] * S[6 + r]) + S[9 + r];
++      ng[r] = (fn[0] * S[r] + fn[1] * S[3 + r]) + fn[2] * S[6 + r];
++    }
++    /* positions: world units, then pixels */
++    double dp = sqrt(((double)pg[0] - pe[0]) * (pg[0] - pe[0]) + ((double)pg[1] - pe[1]) * (pg[1] - pe[1]) + ((double)pg[2] - pe[2]) * (pg[2] - pe[2]));
++    if (dp > T.dp_max) T.dp_max = dp;
++    T.dp_sum += dp; T.dp_n++;
++    double Xe = (double)pe[0] * x->world[0] + (double)pe[1] * x->world[3] + (double)pe[2] * x->world[6] + x->world[9];
++    double Ye = (double)pe[0] * x->world[1] + (double)pe[1] * x->world[4] + (double)pe[2] * x->world[7] + x->world[10];
++    double We = (double)pe[0] * x->world[2] + (double)pe[1] * x->world[5] + (double)pe[2] * x->world[8] + x->world[11];
++    double Xg = (double)pg[0] * x->world[0] + (double)pg[1] * x->world[3] + (double)pg[2] * x->world[6] + x->world[9];
++    double Yg = (double)pg[0] * x->world[1] + (double)pg[1] * x->world[4] + (double)pg[2] * x->world[7] + x->world[10];
++    double Wg = (double)pg[0] * x->world[2] + (double)pg[1] * x->world[5] + (double)pg[2] * x->world[8] + x->world[11];
++    if (We > 0 && Wg > 0) {
++      double dx = fabs(0.9375 * x->vs[0] * (Xg / Wg - Xe / We)), dy = fabs(0.53125 * x->vs[1] * (Yg / Wg - Ye / We)), d = dx > dy ? dx : dy;
++      if (d > T.ds_max) T.ds_max = d;
++      T.dsh[bucket_px(d)]++; T.ds_n++;
++    } else T.behind++;
++    /* the normal as the GE lights it (world identity: normalised, (0, 0, 1) if zero) */
++    float nl = sqrtf((ng[0] * ng[0] + ng[1] * ng[1]) + ng[2] * ng[2]), nn[3];
++    for (int r = 0; r < 3; r++) nn[r] = nl > 0 ? ng[r] / nl : (r == 2 ? 1.0f : 0.0f);
++    if (nb == 1) {   /* the PS2 does not normalise a 1-bone normal: its length, before the GE's normalising */
++      const uint32_t a = 32 + v->o[0];
++      double m[3] = { 0, 0, 0 };
++      for (int r = 0; r < 3; r++) for (int col = 0; col < 3; col++) m[r] += (double)F(Q(vm, a + (uint32_t)col)[r]) * (v->n[col] / 4096.0);
++      double dev = fabs(sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]) - 1.0);
++      if (dev > T.n1_dev) T.n1_dev = dev;
++    }
++    /* the light sum, PPSSPP's integer form, with the ambient as is (0) and one level up (1) */
++    for (int bias = 0; bias < 2; bias++) {
++      int col[3];
++      for (int k = 0; k < 3; k++) { int a = AMB[k] + bias; if (a > 255) a = 255; col[k] = (511 * (2 * a + 1)) >> 10; }
++      for (int j = 0; j < 3; j++) {
++        float dl = sqrtf((dir[j][0] * dir[j][0] + dir[j][1] * dir[j][1]) + dir[j][2] * dir[j][2]), dn[3];
++        for (int r = 0; r < 3; r++) dn[r] = dl > 0 ? dir[j][r] / dl : (r == 2 ? 1.0f : 0.0f);
++        const float d = (dn[0] * nn[0] + dn[1] * nn[1]) + dn[2] * nn[2];
++        if (!(d > 0.0f)) continue;
++        int att = (int)ceilf(256 * 2 * d + 1); if (att > 512) att = 512;
++        for (int k = 0; k < 3; k++) col[k] += (int)(((int64_t)(2 * LD[j][k] + 1) * 511 * att) >> 19);
++      }
++      for (int k = 0; k < 3; k++) {
++        const int g = col[k] > 255 ? 255 : col[k], e = (int)(ce >> (8 * k) & 0xff), dd = g - e;
++        const int bi = dd < -5 ? 0 : dd > 5 ? 10 : dd + 5;
++        T.dch[bias][bi]++; T.dc_sum[bias] += dd;
++        if (abs(dd) > T.dc_max[bias]) T.dc_max[bias] = abs(dd);
++        if (!bias) { if (nb == 1) T.dch1[bi]++; else T.dch2[bi]++; }
++      }
++    }
++    T.dc_n += 3;
++    /* pass 3: the texture matrix on the normalised skinned normal (PPSSPP: Normalized(), world identity) */
++    if (L->p3 > 0 && v3) {
++      const VcVertF *e = (const VcVertF *)v3 + i;
++      float m[12];
++      for (int r = 0; r < 3; r++) { m[3 * r] = f24(s[0] * R[r][0]); m[3 * r + 1] = f24(s[1] * R[r][1]); m[3 * r + 2] = 0; }
++      m[9] = f24(o[0]); m[10] = f24(o[1]); m[11] = 1;
++      const float src[3] = { ng[0] / nl, ng[1] / nl, ng[2] / nl };
++      float uv[2];
++      for (int k = 0; k < 2; k++) uv[k] = ((src[0] * m[k] + src[1] * m[3 + k]) + src[2] * m[6 + k]) + m[9 + k];
++      double du = fabs((double)uv[0] - e->u), dv = fabs((double)uv[1] - e->v), d = du > dv ? du : dv;
++      if (d > T.du_max) T.du_max = d;
++      T.du_sum += d; T.du_n++;
++      const double t = d * 256;   /* texels of a 256-texel texture */
++      T.duh[t < 1.0 / 64 ? 0 : t < 1.0 / 16 ? 1 : t < 0.25 ? 2 : t < 0.5 ? 3 : t < 1 ? 4 : 5]++;
++    }
++  }
++  (void)fl;
++}
++
++static void pvals(FILE *f, const char *name, const Val *t, int asfloat)
++{
++  fprintf(f, " %s", name);
++  for (int i = 0; i < NV && t[i].n; i++) { if (asfloat) fprintf(f, " %g x%ld", (double)F(t[i].v), t[i].n); else fprintf(f, " %u x%ld", t[i].v, t[i].n); }
++  fprintf(f, ";");
++}
++void c1m_report(FILE *f)
++{
++  if (!c1m_on || first) return;
++  fprintf(f, "c1 census: P07 calls %ld (%ld vertices; fast %ld, the exact form %ld); bones 1/2/3/4: %ld %ld %ld %ld; pass 2 none/1/2/-1: %ld %ld %ld %ld; "
++          "pass 3 none/normal/other: %ld %ld %ld\n", T.calls, T.verts, T.fast, T.any, T.nbh[1], T.nbh[2], T.nbh[3], T.nbh[4],
++          T.uv2h[0], T.uv2h[1], T.uv2h[2], T.uv2h[3], T.p3h[0], T.p3h[1], T.p3h[2]);
++  fprintf(f, "c1 census:"); pvals(f, "clamp abs 3 x", T.cmax, 1); pvals(f, "alpha", T.alpha, 0); fprintf(f, "\n");
++  fprintf(f, "c1 census: light lengths %.6g..%.6g, %.6g..%.6g, %.6g..%.6g; colour x length max %.6g, not whole %ld, from 255.5 %ld, below 0 %ld (of %ld); "
++          "ambient %.6g..%.6g, not whole %ld, outside 0..255 %ld\n", T.llen_min[0], T.llen_max[0], T.llen_min[1], T.llen_max[1], T.llen_min[2],
++          T.llen_max[2], T.ld_max, T.ld_frac, T.ld_over, T.ld_neg, 9 * T.calls, T.amb_min, T.amb_max, T.amb_frac, T.amb_over);
++  fprintf(f, "c1 census: bone offsets not a multiple of 4 %ld, above 28 %ld; pairs naming a slot twice %ld; 2-4 bone weight sums other than 128 %ld; "
++          "highest slot 0..8: %ld %ld %ld %ld %ld %ld %ld %ld %ld; bone columns' lengths %.6g..%.6g, largest |cos| between columns %.3g; "
++          "1-bone normal length - 1 up to %.3g\n", T.off_unal, T.off_out, T.wdup, T.wsum_bad, T.slots[0], T.slots[1], T.slots[2], T.slots[3],
++          T.slots[4], T.slots[5], T.slots[6], T.slots[7], T.slots[8], T.coll_min, T.coll_max, T.orth_max, T.n1_dev);
++  fprintf(f, "c1 model: calls C1 takes %ld (%ld vertices); left: light colour below 0 %ld, above 255 %ld, ambient %ld, clamp not 255 %ld, bones %ld, "
++          "offset %ld / %ld, over 64 %ld; no slot %ld\n", T.elig, T.elig_v, T.why[0], T.why[1], T.why[2], T.why[3], T.why[4], T.why[5], T.why[6], T.why[7], T.noslot);
++  fprintf(f, "c1 model: positions: world distance max %.4g, mean %.4g; GE pixels (larger of x, y) max %.4g, below 1/64 %ld, 1/64-1/16 %ld, 1/16-1/4 %ld, "
++          "1/4-1/2 %ld, 1/2-1 %ld, from 1 %ld; behind the eye %ld\n", T.dp_max, T.dp_n ? T.dp_sum / T.dp_n : 0, T.ds_max, T.dsh[0], T.dsh[1],
++          T.dsh[2], T.dsh[3], T.dsh[4], T.dsh[5], T.behind);
++  for (int b = 0; b < 2; b++) {
++    fprintf(f, "c1 model: colour, GE - exact, ambient +%d: mean %.3f, max |d| %ld; -5 or below .. +5 or above:", b, T.dc_n ? T.dc_sum[b] / T.dc_n : 0, T.dc_max[b]);
++    for (int k = 0; k < 11; k++) fprintf(f, " %ld", T.dch[b][k]);
++    fprintf(f, "\n");
++  }
++  fprintf(f, "c1 model: colour (ambient +0) 1 bone:"); for (int k = 0; k < 11; k++) fprintf(f, " %ld", T.dch1[k]);
++  fprintf(f, "; 2-4 bones:"); for (int k = 0; k < 11; k++) fprintf(f, " %ld", T.dch2[k]); fprintf(f, "\n");
++  fprintf(f, "c1 census b: distinct slots per call 0..8:"); for (int k = 0; k < 9; k++) fprintf(f, " %ld", T.nslot[k]);
++  fprintf(f, "; cache by the streams' addresses: calls without streams %ld, new keys %ld (%ld vertices, %ld KB at 24 bytes), same bytes %ld, "
++          "other bytes %ld, bytes seen before under any key %ld; bytes hashed a call %.1f; table full %ld\n", T.ck_nosp, T.ck_new, T.ck_keyv,
++          T.ck_keyv * 24 / 1024, T.ck_same, T.ck_diff, T.ck_cseen, T.elig ? (double)T.ck_bytes / T.elig : 0, T.ck_full);
++  fprintf(f, "c1 model: pass 3 UVs: %ld vertices, max |d| %.4g, mean %.4g; in texels of a 256 texture: below 1/64 %ld, 1/64-1/16 %ld, 1/16-1/4 %ld, "
++          "1/4-1/2 %ld, 1/2-1 %ld, from 1 %ld\n", T.du_n, T.du_max, T.du_n ? T.du_sum / T.du_n : 0, T.duh[0], T.duh[1], T.duh[2], T.duh[3], T.duh[4], T.duh[5]);
++}
+diff -ruN ge.orig/c1model.h ge/c1model.h
+--- ge.orig/c1model.h	1970-01-01 00:00:00.000000000 +0000
++++ ge/c1model.h	2026-11-02 02:53:56.387624808 +0000
+@@ -0,0 +1,12 @@
++/* c1model.h (sb11, task #134; x86 only): C1 for the codec faces sized before any GE code (c1model.c) */
++#ifndef C1MODEL_H
++#define C1MODEL_H
++#include <stdint.h>
++#include <stdio.h>
++#include "vu1conv.h"
++extern int c1m_on;   /* MGS2_C1_MODEL=1 */
++/* one converted P07 call: vm and top as the converter read them, sp the slot's streams (A, B, C, D, E, F) or 0 for the VU memory's
++   vertices, n its vertices, L its record, v1 pass 1's vertices, v3 pass 3's (0 when not drawn) */
++void c1m_call(const uint8_t *vm, uint32_t top, const void *const *sp, int n, const VcLit *L, const void *v1, const void *v3);
++void c1m_report(FILE *f);
++#endif
+diff -ruN ge.orig/gelist.c ge/gelist.c
+--- ge.orig/gelist.c	2026-10-30 17:19:38.456943102 +0000
++++ ge/gelist.c	2026-11-02 04:57:21.406616487 +0000
+@@ -18,7 +18,11 @@
+   C_ZBP = 0x9e, C_ZBW = 0x9f, C_TBP0 = 0xa0, C_TBW0 = 0xa8, C_CBP = 0xb0, C_CBW = 0xb1, C_TSIZE0 = 0xb8, C_TMODE = 0xc2, C_TPSM = 0xc3,
+   C_CLOAD = 0xc4, C_CMODE = 0xc5, C_TFILTER = 0xc6, C_TWRAP = 0xc7, C_TFUNC = 0xc9, C_TFLUSH = 0xcb, C_FOG1 = 0xcd, C_FOG2 = 0xce,
+   C_FOGC = 0xcf, C_PSM = 0xd2, C_CLEAR = 0xd3, C_SCISSOR1 = 0xd4, C_SCISSOR2 = 0xd5, C_MINZ = 0xd6, C_MAXZ = 0xd7, C_AFUNC = 0xdb,
+-  C_ZFUNC = 0xde, C_BMODE = 0xdf, C_FIXA = 0xe0, C_FIXB = 0xe1, C_ZMASK = 0xe7
++  C_ZFUNC = 0xde, C_BMODE = 0xdf, C_FIXA = 0xe0, C_FIXB = 0xe1, C_ZMASK = 0xe7,
++  /* sb11 C1 (c1_draw): the GE's skinning, lighting and texture matrix */
++  C_LIGHTEN0 = 0x18, C_BOFS = 0x2a, C_BONED = 0x2b, C_TGENN = 0x40, C_TGEND = 0x41, C_RNORM = 0x51, C_MATUPD = 0x53, C_EMIS = 0x54,
++  C_MAMB = 0x55, C_MDIF = 0x56, C_MSPEC = 0x57, C_MALPHA = 0x58, C_AMBC = 0x5c, C_AMBA = 0x5d, C_LMODE = 0x5e, C_LTYPE0 = 0x5f,
++  C_LX0 = 0x63, C_LAC0 = 0x8f, C_LDC0 = 0x90, C_LSC0 = 0x91, C_TMAP = 0xc0
+ };
+ enum {   /* pspgu.h values */
+   G_NEVER = 0, G_ALWAYS = 1, G_EQUAL = 2, G_NOTEQUAL = 3, G_LESS = 4, G_LEQUAL = 5, G_GREATER = 6, G_GEQUAL = 7,
+@@ -46,6 +50,7 @@
+ static void hash(uint32_t x) { for (int k = 0; k < 4; k++) { L->dig ^= x >> 8 * k & 0xff; L->dig *= 0x100000001b3ull; } }
+ static void put(uint32_t c, uint32_t a) { uint32_t w = c << 24 | (a & 0xffffff); L->w[L->n++] = w; if (L->dig_on) hash(w); }
+ static void putf(uint32_t c, float f) { uint32_t u; memcpy(&u, &f, 4); put(c, u >> 8); }
++static void putr(uint32_t c, float f) { uint32_t u; memcpy(&u, &f, 4); put(c, (u + 0x80u) >> 8); }   /* sb11 C1: rounded to the nearest */
+ static void put_sym(uint32_t c, uint32_t a, int region, uint32_t off)
+ {
+   L->w[L->n++] = c << 24 | (a & 0xffffff);
+@@ -133,9 +138,14 @@
+ }
+ /* a transform batch's matrices, viewport, fog and (ts: 0 for none) texture scale and offset; the world matrix only when the last batch
+    set another GerXform's (a P06 call's passes share theirs; a two-pass batch's second pass) */
++static void xf_rest(const GerXform *x, int fog, const float *ts);
+ static void xf_setup(const GerXform *x, int fog, const float *ts)
+ {
+   if (L->s_xf != x) { put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, x->world[k]); L->s_xf = x; }
++  xf_rest(x, fog, ts);
++}
++static void xf_rest(const GerXform *x, int fog, const float *ts)   /* (xf_setup's after the world matrix; sb11 C1's too) */
++{
+   if (!L->s_have_proj || memcmp(L->s_proj, x->proj, sizeof L->s_proj)) {
+     put(C_PROJN, 0); for (int k = 0; k < 16; k++) putf(C_PROJD, x->proj[k]);
+     memcpy(L->s_proj, x->proj, sizeof L->s_proj); L->s_have_proj = 1;
+@@ -227,6 +237,102 @@
+   L->c.lit_passes++;
+   return 0;
+ }
++/* ---- sb11 C1 (stagec_notes.md 1.9; replay_fmt.h GERL_C1): a P07 pass the GE skins, lights and maps (pass 3) itself.  WORLD identity and
++   VIEW the call's world matrix, so the GE lights in the skinned space as the VU program does; the call's bones from bone 0 (its slots
++   packed, xconv.c xc_lit_c1); its lights directional and diffuse only (no light ambient or specular) and the global ambient on a white
++   material, no vertex colour; pass 3's texture coordinates from the texture matrix on the normalized normal, the pass's texture scale
++   and offset folded into it (the GE does not apply them in that mode); passes 1 and 2 by their UVs as today.  Bones, light vectors and
++   the texture matrix rounded to the nearest float24 (putr); VIEW as WORLD is elsewhere (putf, the same bits as the exact form's world).
++   Each part is sent when it differs from what the list set; a batch that is not C1 sets LIGHTING 0, texture map mode 0 and VIEW identity
++   again (c1_off), and the frame's end the first two: a frame without C1 passes has the words it had before ---- */
++static const uint8_t IDW = 0;   /* L->s_xf: WORLD identity */
++typedef uint32_t __attribute__((may_alias)) gu32a;
++static int same_w(const void *a, const void *b, int n)   /* c1opt: n words equal (memcmp compared them byte by byte) */
++{
++  const gu32a *p = (const gu32a *)a, *q = (const gu32a *)b; uint32_t d = 0;
++  for (int k = 0; k < n; k++) d |= p[k] ^ q[k];
++  return !d;
++}
++static int same12(const void *a, const void *b)   /* c1opt2: 12 words equal, leaving at the first that differs (most bones differ in their
++                                                     first word; the loop of same_w cost 70 instructions a matrix on the PSP) */
++{
++  const gu32a *p = (const gu32a *)a, *q = (const gu32a *)b;
++  return p[0] == q[0] && p[1] == q[1] && p[2] == q[2] && p[3] == q[3] && p[4] == q[4] && p[5] == q[5] && p[6] == q[6] && p[7] == q[7] &&
++         p[8] == q[8] && p[9] == q[9] && p[10] == q[10] && p[11] == q[11];
++}
++static const float ID12[12] = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
++#define C1_WORDS 200u   /* a bound for a C1 pass's own words: VIEW, WORLD 26; lighting 1 + the frame's set 18 + ambient 2 + lights 15; bones
++                           8 x 13; the texture matrix and its mode 14 */
++static void c1_off(int xf)   /* (xf: a transform batch, which reads VIEW) */
++{
++  const uint32_t n0 = L->n;
++  if (L->s_light == 1) { put(C_LIGHTING, 0); L->s_light = 0; }
++  if (L->s_tmap == 1) { put(C_TMAP, 0); L->s_tmap = 0; }
++  if (xf && !L->s_vid) { put(C_VIEWN, 0); for (int k = 0; k < 12; k++) putf(C_VIEWD, ID12[k]); L->s_vid = 1; }
++  L->c.c1_words += L->n - n0;
++}
++static int c1_draw(const GerBatch *b, int tex)
++{
++  const uint8_t *p0 = F->d + b->first; const GerLit *p = (const GerLit *)p0;
++  const GerXform *x = (const GerXform *)(p0 + p->xf); const GerC1 *g = (const GerC1 *)(p0 + p->vtx);
++  const int pass = (int)(p->pass & 15), nw = (int)g->nw;
++  const uint8_t *v = (const uint8_t *)g + g->voff[pass - 1]; const uint16_t *runs = (const uint16_t *)(p0 + p->run);
++  if (room() < BATCH_WORDS + C1_WORDS + 3 * p->nst + RESERVE) return -1;
++  const uint32_t n0 = L->n;
++  if (L->s_xf != &IDW) { put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, ID12[k]); L->s_xf = &IDW; }
++  if (L->s_vid || (L->s_vx != x && !same12(L->s_viewm, x->world))) {
++    put(C_VIEWN, 0); for (int k = 0; k < 12; k++) putf(C_VIEWD, x->world[k]); memcpy(L->s_viewm, x->world, sizeof L->s_viewm); L->s_vid = 0; }
++  L->s_vx = x;
++  if (L->s_light != 1) { put(C_LIGHTING, 1); L->s_light = 1; }
++  if (!L->s_c1set) {   /* once a frame */
++    put(C_MATUPD, 0); put(C_EMIS, 0); put(C_MAMB, 0xffffff); put(C_MALPHA, 0xff); put(C_MDIF, 0xffffff); put(C_MSPEC, 0);
++    put(C_LMODE, 0); put(C_RNORM, 0);
++    for (uint32_t j = 0; j < 3; j++) { put(C_LTYPE0 + j, 0); put(C_LAC0 + 3 * j, 0); put(C_LSC0 + 3 * j, 0); }
++    put(C_LIGHTEN0 + 3, 0);
++    L->s_c1set = 1;
++  }
++  if (L->s_c1g != g) {   /* (another pass of the call the list set last: its ambient, lights and bones are what the GE holds; only
++                            c1_draw sets them) */
++  if (!L->s_have_amb || L->s_amb != g->amb) { put(C_AMBC, g->amb & 0xffffff); put(C_AMBA, g->amb >> 24); L->s_amb = g->amb; L->s_have_amb = 1; }
++  for (uint32_t j = 0; j < 3; j++) {
++    const int on = g->lcol[j] != 0;
++    en(C_LIGHTEN0 + j, on, &L->s_len[j]);
++    if (!on) continue;
++    if (!L->s_have_l[j] || L->s_lcol[j] != g->lcol[j] || !same_w(L->s_ldir[j], g->ldir[j], 3)) {
++      put(C_LDC0 + 3 * j, g->lcol[j]); for (uint32_t r = 0; r < 3; r++) putr(C_LX0 + 3 * j + r, g->ldir[j][r]);
++      L->s_lcol[j] = g->lcol[j]; memcpy(L->s_ldir[j], g->ldir[j], sizeof L->s_ldir[j]); L->s_have_l[j] = 1; }
++  }
++  for (int k = 0, at = -1; k < nw; k++) {   /* the bones that differ from what the GE holds, BOFS where a run of them starts */
++    if (k < L->s_nbone && same12(L->s_bone[k], g->bone[k])) continue;
++    if (at != k) put(C_BOFS, 12u * (uint32_t)k);
++    for (int e = 0; e < 12; e++) putr(C_BONED, g->bone[k][e]);
++    memcpy(L->s_bone[k], g->bone[k], sizeof L->s_bone[k]); at = k + 1; L->c.c1_bones++;
++  }
++  if (nw > L->s_nbone) L->s_nbone = nw;   /* (the bones after the run kept: the GE keeps them) */
++  L->s_c1g = g;
++  }
++  float ts[4] = { p->su, p->sv, p->tu, p->tv };
++  const int tm = pass == 3 && tex;
++  if (tm) {   /* u = (row 0 . n + o0) su + tu, v = (row 1 . n + o1) sv + tv, q = 1 */
++    float m[12];
++    for (int j = 0; j < 3; j++) { m[3 * j] = g->tgen[3 * j] * ts[0]; m[3 * j + 1] = g->tgen[3 * j + 1] * ts[1]; m[3 * j + 2] = g->tgen[3 * j + 2]; }
++    m[9] = g->tgen[9] * ts[0] + ts[2]; m[10] = g->tgen[10] * ts[1] + ts[3]; m[11] = g->tgen[11];
++    if (!L->s_have_tgen || !same12(L->s_tgen, m)) {
++      put(C_TGENN, 0); for (int k = 0; k < 12; k++) putr(C_TGEND, m[k]); memcpy(L->s_tgen, m, sizeof m); L->s_have_tgen = 1; }
++  }
++  if (L->s_tmap != tm) { put(C_TMAP, tm ? 1u | 2u << 8 : 0u); L->s_tmap = tm; }   /* (1: the texture matrix, 2: the normalized normal) */
++  L->c.c1_words += L->n - n0;
++  xf_rest(x, (b->flags & GERF_FOG) != 0, tex && !tm ? ts : 0);
++  vtype(p->vtype);
++  uint32_t at = 0xffffffffu;
++  for (uint32_t k = 0; k < p->nst; k++) {
++    if (runs[2 * k] != at) addr_cmd(C_VADDR, v + (uint32_t)runs[2 * k] * p->stride);
++    put(C_PRIM, (uint32_t)G_TRIANGLE_STRIP << 16 | runs[2 * k + 1]); at = (uint32_t)runs[2 * k] + runs[2 * k + 1];
++    L->c.prims++; L->c.lit_strips++;
++  }
++  L->c.lit_passes++; L->c.c1_passes++;
++  return 0;
++}
+ /* a sprite batch cut as the player's draw_cut (exact: the same pixels, u and v kept linear in x and y): asc puts the top-left corner
+    first (colour and z stay the second vertex's, as the GE takes them), cw / ch cut each sprite into columns / rows of at most that
+    many pixels */
+@@ -279,6 +385,10 @@
+   const GerBatch *b = &F->b[i];
+   if (b->kind == GERK_THROUGH && (b->entry == DF0_ENTRY || b->entry == FX_ENTRY)) return 0;
+   if (room() < BATCH_WORDS + RESERVE) return -1;
++  const int c1 = b->kind == GERK_LIT && (((const GerLit *)(F->d + b->first))->pass & GERL_C1);   /* sb11 C1 */
++  if (!c1 && (L->s_light == 1 || L->s_tmap == 1 || (!L->s_vid && b->kind != GERK_THROUGH))) {
++    if (room() < BATCH_WORDS + 16 + RESERVE) return -1;
++    c1_off(b->kind != GERK_THROUGH); }
+   int tex = (b->flags & GERF_TEX) != 0;
+   if (tex && (b->tex >= F->nt || (F->t[b->tex].kind == 1 && (!F->tdata[b->tex] || (F->t[b->tex].psm != 16 && !F->tpal[b->tex]))))) { tex = 0; L->c.tex_none++; }
+   int cut = 0;   /* 1: the depth blur (sprites sampling the frame being drawn), 2: the motion trail (the other frame) */
+@@ -313,7 +423,7 @@
+   L->c.batches++;
+   if (b->kind == GERK_XFORMF) return fx_draw(b, tex);
+   if (b->kind == GERK_XFORM) return xf_draw(b, tex);
+-  if (b->kind == GERK_LIT) return lit_draw(b, tex);
++  if (b->kind == GERK_LIT) return c1 ? c1_draw(b, tex) : lit_draw(b, tex);
+   en(C_FOG, 0, &L->s_fog);
+   if (cut == 1) return cut_draw(b, 1, 0, 16);   /* top-left first, 16-row tiles (v3's fastest exact cut) */
+   if (cut == 2) return cut_draw(b, 0, 16, 0);   /* 16-pixel columns */
+@@ -343,6 +453,10 @@
+   l->s_tex = l->s_ten = l->s_blend = l->s_bsig = l->s_at = l->s_afunc = l->s_zt = l->s_zfunc = l->s_zmask = l->s_shade = -1;
+   l->s_tfunc = l->s_sc0 = l->s_sc1 = l->s_fog = l->s_clip = l->s_vtype = -1; l->s_base = 0xffffffffu;
+   l->s_have_proj = l->s_have_vp = l->s_have_ts = l->s_have_fogp = 0; l->s_draw = draw; l->s_xf = 0;
++  l->s_light = l->s_tmap = 0; l->s_vid = 1; l->s_c1set = l->s_have_amb = l->s_have_tgen = l->s_nbone = 0;   /* sb11 C1 (LIGHTING 0 and VIEW
++                                                    identity below; the texture map mode sceGuInit's 0) */
++  for (int j = 0; j < 3; j++) { l->s_len[j] = -1; l->s_have_l[j] = 0; }
++  l->s_c1g = l->s_vx = 0;
+   if (l->cap < 128 || l->cap_aux < 64) return -1;
+   /* the frame's depth: the through vertices in place */
+   if (f->zs != 1 || f->zo != 0)
+@@ -375,6 +489,8 @@
+   }
+   if (l->s_fog == 1) put(C_FOG, 0);
+   if (l->s_clip == 1) put(C_CLIP, 0);
++  if (l->s_tmap == 1) put(C_TMAP, 0);   /* sb11 C1: sceGuInit's mode again, and no lighting */
++  if (l->s_light == 1) put(C_LIGHTING, 0);
+   if (l->ret) put(C_RET, 0); else { put(C_FINISH, 0); put(C_END, 0); }
+   l->c.words = l->n; l->c.aux = l->naux;
+   return r;
+diff -ruN ge.orig/gelist.h ge/gelist.h
+--- ge.orig/gelist.h	2026-10-30 17:19:38.457342758 +0000
++++ ge/gelist.h	2026-11-02 04:32:49.699263026 +0000
+@@ -46,6 +46,8 @@
+   long tex_none;                              /* textured batches whose texture is missing (drawn untextured) */
+   long dropped;                               /* batches left out: no room in the list or aux */
+   long lit_passes, lit_strips;                /* P06 passes drawn (GERK_LIT batches) and their strips */
++  long c1_passes, c1_bones, c1_words;         /* sb11 C1: P07 passes the GE skins and lights (GERL_C1), bone matrices sent, the words of
++                                                 their own state (lights, bones, the texture matrix, VIEW / WORLD and their restores) */
+ } GxCount;
+ 
+ typedef struct {
+@@ -60,6 +62,12 @@
+   uint32_t s_base, s_proj[16], s_vp[6], s_ts[4], s_fogp[3];
+   const void *s_xf;                           /* the GerXform whose world matrix the list set last */
+   int s_have_proj, s_have_vp, s_have_ts, s_have_fogp, s_draw;
++  /* sb11 C1 (gelist.c c1_draw): LIGHTING and the texture map mode as set (the frame starts with 0, 0), VIEW identity (1, the frame's
++     set-up) or s_viewm; what the C1 passes set */
++  int s_light, s_tmap, s_vid, s_c1set, s_len[3], s_have_amb, s_have_tgen, s_nbone, s_have_l[3];
++  uint32_t s_viewm[12], s_amb, s_lcol[3], s_ldir[3][3], s_tgen[12], s_bone[8][12];
++  const void *s_c1g, *s_vx;                   /* c1opt: the GerC1 whose bones, lights and ambient the list set last (its other passes need
++                                                 none of them again), the GerXform whose world VIEW holds (0: none this frame) */
+ } GxList;
+ 
+ /* aux == (uint8_t *)words and cap_aux == 4 cap: one block for both (above) */
+diff -ruN ge.orig/gelive.c ge/gelive.c
+--- ge.orig/gelive.c	2026-11-02 02:21:07.018793689 +0000
++++ ge/gelive.c	2026-11-02 03:47:43.776527416 +0000
+@@ -131,8 +131,30 @@
+         }
+     } else if (b->kind == GERK_LIT) {   /* each call once: its pass 1 (the passes draw the same positions) */
+       const GerLit *p = (const GerLit *)(f->o.d + b->first);
+-      if (p->pass != 1) continue;
++      if ((p->pass & 15) != 1) continue;
+       const GerXform *lx = (const GerXform *)((const uint8_t *)p + p->xf);
++      if (p->pass & GERL_C1) {   /* sb11 C1: the positions skinned by the call's bones, as the GE does (a float sum: the check's) */
++        const GerC1 *g = (const GerC1 *)((const uint8_t *)p + p->vtx); const uint8_t *v = (const uint8_t *)g + g->voff[0];
++        const uint16_t *runs = (const uint16_t *)((const uint8_t *)p + p->run); const int nw = (int)g->nw, w2 = (nw + 1) & ~1;
++        int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2;
++        for (uint32_t s = 0; s < p->nst; s++)
++          for (uint32_t k = runs[2 * s] + 2u; k < (uint32_t)runs[2 * s] + runs[2 * s + 1]; k++) {
++            int out = 0;
++            for (uint32_t j = k - 2; j <= k; j++) {
++              const uint8_t *q = v + j * p->stride; int16_t h[3]; memcpy(h, q + w2 + 10, 6);
++              float pp[3] = { 0, 0, 0 }, w;
++              for (int e = 0; e < nw; e++) {
++                if (!q[e]) continue;
++                const float a = q[e] / 128.0f, *m = g->bone[e];
++                for (int r = 0; r < 3; r++) pp[r] += a * (m[r] * (h[0] / 32768.0f) + m[3 + r] * (h[1] / 32768.0f) + m[6 + r] * (h[2] / 32768.0f) + m[9 + r]);
++              }
++              float gz = zc_depth(lx, pp, &w) * zs + zo;
++              if (w > 0 && (gz < 0 || gz > 65535)) out = 1;
++            }
++            if (out) { if (wr) f->n.out_w++; else f->n.out_o++; }
++          }
++        continue;
++      }
+       const uint8_t *v = (const uint8_t *)p + p->vtx; const uint16_t *runs = (const uint16_t *)((const uint8_t *)p + p->run);
+       int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2, fl = (p->vtype & 0x180) == 0x180, at = (p->vtype & 3) == 3 ? 12 : 8;
+       for (uint32_t s = 0; s < p->nst; s++)
+@@ -255,6 +277,7 @@
+      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
+   uint32_t bound; int npd;
+   if (c->rec && (c->rec->lane == 4 ? f->stepc7 : f->stepc) && xc_hold_test(c, &bound, &npd)) {   /* (sb10 T2: lane 4 by its own switch) */
++    if (f->h.c1 && c->rec->lane == 4) bound = xc_c1_hold_bound(c, bound);   /* sb11 C1: the room a C1 call may take */
+     if (f->nheld >= f->hold_max) { f->hflush[2]++; gl_flush(f); }
+     if (c->rec->lane == 4 && !xc_hold7_room()) { f->hflush_log++; gl_flush(f); }   /* sb10 T2: the room for the call's copies */
+     uint32_t left = gb_left(&f->o), need = (bound + 63) & ~63u;
+@@ -381,7 +404,12 @@
+     const uint8_t *p = o->d + b.first; b.first = 0; h = hw(h, &b, sizeof b);
+     if (b.kind == GERK_LIT) {
+       const GerLit *l = (const GerLit *)p;
+-      h = hw(h, l, sizeof *l); h = hw(h, p + l->xf, sizeof(GerXform)); h = hw(h, p + l->vtx, l->nv * l->stride); h = hw(h, p + l->run, l->nst * 4);
++      h = hw(h, l, sizeof *l); h = hw(h, p + l->xf, sizeof(GerXform));
++      if (l->pass & GERL_C1) {   /* sb11 C1: its GerC1, then the pass's vertices */
++        const GerC1 *g = (const GerC1 *)(p + l->vtx);
++        h = hw(h, g, GERC1_SIZE(g->nw)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
++      } else h = hw(h, p + l->vtx, l->nv * l->stride);
++      h = hw(h, p + l->run, l->nst * 4);
+     } else {
+       const GerXform *x = (const GerXform *)p;
+       uint32_t sz = b.kind == GERK_XFORM ? (uint32_t)sizeof *x + x->nv * (uint32_t)sizeof(VcVert) + x->nst * 4 + x->nidx * 2 :
+diff -ruN ge.orig/replay_fmt.h ge/replay_fmt.h
+--- ge.orig/replay_fmt.h	2026-10-30 17:19:38.462572866 +0000
++++ ge/replay_fmt.h	2026-11-02 03:35:13.154538399 +0000
+@@ -77,4 +77,22 @@
+   uint32_t stride, nv, nst, pass;      /* bytes a vertex; vertices; strips; the pass (1 .. 3) */
+   float su, sv, tu, tv;                /* sceGuTexScale / sceGuTexOffset for the pass's GE texture */
+ } GerLit;
++/* sb11 C1 (stagec_notes.md 1.7-1.9; ge/xconv.c xc_lit_c1): a P07 pass whose GerLit.pass has GERL_C1 is drawn by the GE's own skinning,
++   lighting and texture matrix.  Its GerLit's vtx is then its call's GerC1 (shared by the call's passes), whose voff[pass - 1] says where,
++   counted from the GerC1, the pass's vertices are: weights (nw bytes, 8-bit, 128 = 1.0, padded to 2 bytes), UV1 or (pass 2's own) UV2
++   (16-bit), the normal and the position (16-bit), as vtype says (GU_WEIGHTS(nw) | GU_WEIGHT_8BIT | GU_TEXTURE_16BIT | GU_NORMAL_16BIT |
++   GU_VERTEX_16BIT | GU_TRANSFORM_3D).  The GerXform's world is the GE's view matrix (the world matrix identity: the GE lights in the
++   bones' space, the PS2's).  Passes 1 and 2 map the texture by UV with the GerLit's scale and offset; pass 3 by the texture matrix from
++   the normalised normal (the GE's uv scale is not used then: the list folds the GerLit's into the matrix) */
++#define GERL_C1 0x10u                  /* GerLit.pass: the pass number in bits 0-3 */
++typedef struct {
++  int32_t voff[3];                     /* pass k's vertices: byte offset from this GerC1 (k = pass - 1) */
++  uint32_t nw;                         /* weights a vertex, 1..8: the bones bone[0 .. nw - 1] */
++  uint32_t lcol[3];                    /* the three directional lights' diffuse colours (0: the light off) */
++  uint32_t amb;                        /* the global ambient: colour | alpha << 24 */
++  float ldir[3][3];                    /* the lights' directions */
++  float tgen[12];                      /* pass 3's texture matrix (rows x, y, z, w; 3 values each), before the pass's scale and offset */
++  float bone[8][12];                   /* GE bone k: rows x, y, z, w; only the first nw are in the data (GERC1_SIZE) */
++} GerC1;
++#define GERC1_SIZE(nw) ((uint32_t)(sizeof(GerC1) - sizeof(((GerC1 *)0)->bone) + (uint32_t)(nw) * 48u))
+ #endif
+diff -ruN ge.orig/vu1conv.c ge/vu1conv.c
+--- ge.orig/vu1conv.c	2026-10-31 21:34:21.919788026 +0000
++++ ge/vu1conv.c	2026-11-02 05:02:13.789582425 +0000
+@@ -894,3 +894,212 @@
+   return p07_main(vm, top, &r, L, v1, v3, flags, rgba, max, 1);
+ }
+ int vc_p07_uv2_rec(const void *d, const VcLit *L, const void *v1, void *v2) { return p06_uv2(0, 0, (const p6h16 *)d, 4, L, v1, v2); }
++/* sb11 C1 (vu1conv.h): p07_main's checks and constants, as it reads them, and the GE's form of them.  The constants (abs 3, the lights
++   and colours abs 24 .. 31, with passes 2 and 3 abs 16 .. 18 and T + 0xfe, 0xff) are an object's, the same for all its calls: the last
++   outcome is kept with the words it came from (C1m) and taken again while they are all equal (c1opt, 2026-11-02: the same results) */
++static struct {
++  int have, p23, r;                    /* r: the constants' outcome, 0 or -8 or -9 */
++  uint32_t key[33];
++  float cmax; uint32_t a1;
++  float ldir[3][3]; uint32_t lcol[3], amb; float tgen[12];
++} C1m;
++static int p7_c1k(const uint8_t *vm, uint32_t top, int p23, uint32_t *key)   /* the words the constants come from */
++{
++  int nk = 0;
++  for (int j = 0; j < 3; j++) for (int c = 0; c < 3; c++) { key[nk++] = vq(vm, 24 + j)[c]; key[nk++] = vq(vm, 28 + j)[c]; }
++  for (int c = 0; c < 3; c++) key[nk++] = vq(vm, 31)[c];
++  key[nk++] = vq(vm, 0x03)[0]; key[nk++] = vq(vm, 0x03)[1];
++  if (p23) {
++    for (int j = 0; j < 3; j++) for (int c = 0; c < 2; c++) key[nk++] = vq(vm, 16 + j)[c];
++    for (int c = 0; c < 2; c++) { key[nk++] = vq(vm, top + 0xfe)[c]; key[nk++] = vq(vm, top + 0xff)[c]; }
++  }
++  return nk;
++}
++static uint32_t p7_c1x(const uint8_t *vm, uint32_t top, int p23)   /* c1opt2: 0 when p7_c1k's words equal C1m.key (straight-line, no gather) */
++{
++  const uint32_t *K = C1m.key, *a = vq(vm, 24), *b = vq(vm, 28), *q = vq(vm, 31), *t = vq(vm, 0x03);
++  uint32_t d = (a[0] ^ K[0]) | (b[0] ^ K[1]) | (a[1] ^ K[2]) | (b[1] ^ K[3]) | (a[2] ^ K[4]) | (b[2] ^ K[5]) |
++               (a[4] ^ K[6]) | (b[4] ^ K[7]) | (a[5] ^ K[8]) | (b[5] ^ K[9]) | (a[6] ^ K[10]) | (b[6] ^ K[11]) |
++               (a[8] ^ K[12]) | (b[8] ^ K[13]) | (a[9] ^ K[14]) | (b[9] ^ K[15]) | (a[10] ^ K[16]) | (b[10] ^ K[17]) |
++               (q[0] ^ K[18]) | (q[1] ^ K[19]) | (q[2] ^ K[20]) | (t[0] ^ K[21]) | (t[1] ^ K[22]);
++  if (p23) {
++    const uint32_t *r = vq(vm, 16), *u = vq(vm, top + 0xfe), *w = vq(vm, top + 0xff);
++    d |= (r[0] ^ K[23]) | (r[1] ^ K[24]) | (r[4] ^ K[25]) | (r[5] ^ K[26]) | (r[8] ^ K[27]) | (r[9] ^ K[28]) |
++         (u[0] ^ K[29]) | (w[0] ^ K[30]) | (u[1] ^ K[31]) | (w[1] ^ K[32]);
++  }
++  return d;
++}
++static void p7_c1m(const uint8_t *vm, uint32_t top, int p23)   /* the constants as p07_main reads them, into C1m (C1m.r -8: p07_main's fast
++                                                                 form would not take them, -9: the GE cannot) */
++{
++  P7F k; uint32_t mx = 0, neg = 0;   /* (p07_main's) */
++  C1m.r = 0;
++  for (int j = 0; j < 3; j++) for (int c = 0; c < 3; c++) {
++    const uint32_t lu = vq(vm, 24 + j)[c], cu = vq(vm, 28 + j)[c];
++    mx = p7_mx(p7_mx(mx, lu), cu); k.l[j][c] = vfl(lu); k.c[j][c] = vfl(cu);
++    neg |= (cu & 0x7f800000u) ? cu : 0;
++  }
++  for (int c = 0; c < 3; c++) { const uint32_t u = vq(vm, 31)[c]; mx = p7_mx(mx, u); k.amb[c] = vfl(u); }
++  const uint32_t *A = vq(vm, 0x03);
++  mx = p7_mx(mx, A[0]); k.cmax = vfl(A[0]);
++  k.a1 = (uint32_t)p6_ftoi(vc_vu(1.0f * vfl(A[1]))) & 0xffu; k.a2 = k.a1 >= 0x80 ? 0xffu : k.a1 * 2;
++  if (p23) {
++    for (int j = 0; j < 3; j++) for (int c = 0; c < 2; c++) { const uint32_t u = vq(vm, 16 + j)[c]; mx = p7_mx(mx, u); k.r[j][c] = vfl(u); }
++    for (int c = 0; c < 2; c++) {
++      const uint32_t su = vq(vm, top + 0xfe)[c], ou = vq(vm, top + 0xff)[c];
++      mx = p7_mx(p7_mx(mx, su), ou); k.s[c] = vfl(su); k.o[c] = vfl(ou);
++    }
++  }
++  C1m.cmax = k.cmax; C1m.a1 = k.a1;
++  if (mx >= 0x49800000u || (neg >> 31)) { C1m.r = -8; return; }
++  /* the GE's: its clamp is 255; a light's colour and the ambient are 8 bits */
++  if (k.cmax != 255.0f) { C1m.r = -9; return; }
++  for (int j = 0; j < 3; j++) {   /* light j: d_j = column j of abs 24..26 . n (p7_loop's d0 = l00 n0 + l10 n1 + l20 n2), colour row j */
++    const float x = k.l[0][j], y = k.l[1][j], z = k.l[2][j], q = (x * x + y * y) + z * z, len = q > 0.0f ? sqrtf(q) : 0.0f;
++    uint32_t col = 0;
++    for (int c = 0; c < 3; c++) {
++      const float v = k.c[j][c] * len;   /* (>= 0: neg) */
++      if (!(v < 255.5f)) { C1m.r = -9; return; }
++      col |= (uint32_t)(int32_t)(v + 0.5f) << (8 * c);
++    }
++    C1m.lcol[j] = len > 0.0f ? col : 0;
++    C1m.ldir[j][0] = len > 0.0f ? x / len : 0.0f; C1m.ldir[j][1] = len > 0.0f ? y / len : 0.0f; C1m.ldir[j][2] = len > 0.0f ? z / len : 0.0f;
++  }
++  uint32_t amb = 0;
++  for (int c = 0; c < 3; c++) { const float a = k.amb[c]; if (!(a < 255.5f) || a < 0.0f) { C1m.r = -9; return; } amb |= (uint32_t)(int32_t)(a + 0.5f) << (8 * c); }
++  C1m.amb = amb | k.a2 << 24;
++  for (int j = 0; j < 3; j++) {   /* pass 3: u = (r00 n0 + r10 n1 + r20 n2) s0 + o0 (p7_loop), so row j = (r[j][0] s0, r[j][1] s1, 0) */
++    C1m.tgen[3 * j] = p23 ? k.r[j][0] * k.s[0] : 0.0f; C1m.tgen[3 * j + 1] = p23 ? k.r[j][1] * k.s[1] : 0.0f; C1m.tgen[3 * j + 2] = 0.0f;
++  }
++  C1m.tgen[9] = p23 ? k.o[0] : 0.0f; C1m.tgen[10] = p23 ? k.o[1] : 0.0f; C1m.tgen[11] = 1.0f;
++}
++int vc_p07_c1(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint16_t *num, VcLit *L, VcP7C1 *o)
++{
++  const uint32_t *h = vq(vm, top);
++  const int n = (int)(h[0] & 0xffff);
++  const uint32_t fl = h[3] & 0xffff, nb = h[2] & 0xffff, q0 = (top + 0x100) & 0x3ffu;
++  const int p23 = (fl & 0x210) == 0x210;
++#define P7S(s, kd, m) (p[s] && kind[s] == (kd) && num[s] >= (m))
++  if (!P7S(0, 2, n) || !P7S(1, 2, n) || !P7S(2, 2, n) || (p23 && !P7S(3, 2, n)) || !P7S(5, 5, 2 * n) || p[4]) return -8;
++#undef P7S
++  if (!n || n > 64 || vc_p06_exact || (fl & 0xd04) || (vq(vm, top + 1)[0] & 0xffff) || nb < 1 || nb > 4 || ((fl & 0x210) && !p23) ||
++      q0 + 7u * (uint32_t)n > 1024u || (top & 0x3ffu) + 0x100u + 7u * (uint32_t)n > 1024u)
++    return -8;
++  if (!C1m.have || C1m.p23 != p23 || p7_c1x(vm, top, p23)) {   /* c1opt2: the key compared in place, gathered only when it changed */
++    uint32_t key[33]; p7_c1k(vm, top, p23, key); p7_c1m(vm, top, p23); memcpy(C1m.key, key, sizeof key); C1m.p23 = p23; C1m.have = 1; }
++  if (C1m.r) return C1m.r;
++  o->nb = (int)nb;
++  o->ldir = (const float (*)[3])C1m.ldir; o->lcol = C1m.lcol; o->amb = C1m.amb; o->tgen = C1m.tgen;   /* (C1m's, until the next call) */
++  memset(L, 0, sizeof *L);   /* (p07_main's L but uv2, du, dv) */
++  L->kind = 4; L->n = n; L->hy = fl; L->uv16 = 1; L->fast = 1;
++  vc_xform(vm, 0, 8, 1.0f, &L->x);
++  L->x.n = n; L->x.clip = 1;
++  L->p3 = p23;
++  L->fog = -1;
++  if (L->x.fog_a == 0.0f) { float f = L->x.fog_b > 0.0f ? L->x.fog_b : 0.0f; f = f < C1m.cmax ? f : C1m.cmax; L->fog = (int)((uint32_t)p6_ftoi(f * 16.0f) >> 4 & 0xff); }
++  L->amin = (int)C1m.a1;
++  return n;
++}
++int vc_p07_bone(const uint8_t *vm, uint32_t m, float *b)
++{
++  if (m > 60u) return 0;
++  const p6u32 *c = (const p6u32 *)(vm + (m << 4)); uint32_t bad = 0;   /* p7_mok's test without its branches: the floats are then as vfl
++                                                                          reads them (zeros and normals below 2^20) */
++  /* c1opt2: unrolled (the loops cost 273 instructions a bone on the PSP) */
++#define C1BT(i) ((uint32_t)((c[i] & 0x7fffffffu) != 0) & (uint32_t)((c[i] & 0x7fffffffu) - 0x00800000u >= 0x49000000u))
++  bad = C1BT(0) | C1BT(1) | C1BT(2) | C1BT(4) | C1BT(5) | C1BT(6) | C1BT(8) | C1BT(9) | C1BT(10) | C1BT(12) | C1BT(13) | C1BT(14);
++#undef C1BT
++  if (bad) return 0;
++  const p6f32 *f = (const p6f32 *)c;
++  b[0] = f[0] * 2048.0f; b[1] = f[1] * 2048.0f; b[2] = f[2] * 2048.0f; b[3] = f[4] * 2048.0f; b[4] = f[5] * 2048.0f; b[5] = f[6] * 2048.0f;
++  b[6] = f[8] * 2048.0f; b[7] = f[9] * 2048.0f; b[8] = f[10] * 2048.0f; b[9] = f[12]; b[10] = f[13]; b[11] = f[14];
++  return 1;
++}
++typedef uint16_t __attribute__((may_alias)) c1u16;
++/* (vu1conv.h) the slots each vertex names (offset / 4, with a weight above 0 or the one bone) and the checks */
++int vc_p07_c1s(const void *const *p, VcLit *L, VcP7C1 *k)
++{
++  const int n = L->n, nb = k->nb, p23 = L->p3 > 0;
++  const p6h16 *C = (const p6h16 *)p[2], *D = (const p6h16 *)p[3];
++  const p6u32 *F = (const p6u32 *)p[5];
++  const uint32_t bm = nb >= 4 ? 0xffffffffu : (1u << (8 * nb)) - 1u;   /* the bones' bytes of a word of F */
++  uint32_t used = 0, bad = 0, uv = 0, z = 0, z2 = 0, var = 0, u2 = 0, du0 = 0, dv0 = 0;
++  if (p23) { du0 = (uint32_t)(int32_t)D[0] - (uint32_t)(int32_t)C[0]; dv0 = (uint32_t)(int32_t)D[1] - (uint32_t)(int32_t)C[1]; }
++  const p6h16 *A = (const p6h16 *)p[0];   /* c1opt2: the box of the positions and the weights' sums, for xconv.c xc_c1_zin */
++  int x0 = 32767, y0 = 32767, z0 = 32767, x1 = -32768, y1 = -32768, z1 = -32768, s0 = nb == 1 ? 128 : 0x7fff, s1 = nb == 1 ? 128 : 0;
++  for (int i = 0; i < n; i++) {
++    const uint32_t fw = F[2 * i] & bm, fb = F[2 * i + 1] & bm;
++    const int px = A[4 * i], py = A[4 * i + 1], pz = A[4 * i + 2];
++    x0 = px < x0 ? px : x0; x1 = px > x1 ? px : x1; y0 = py < y0 ? py : y0; y1 = py > y1 ? py : y1; z0 = pz < z0 ? pz : z0; z1 = pz > z1 ? pz : z1;
++    if (nb != 1) { const uint32_t t = (fw & 0x00ff00ffu) + (fw >> 8 & 0x00ff00ffu); const int ws = (int)((t & 0xffffu) + (t >> 16)); s0 = ws < s0 ? ws : s0; s1 = ws > s1 ? ws : s1; }
++    bad |= fb & 0xe3e3e3e3u;   /* an offset not a multiple of 4, or 32 and above (with the first: above 28) */
++    if (nb == 1) used |= 1u << (fb >> 2 & 7);
++    else   /* c1opt2: the 4 bytes unrolled (a byte above nb is 0 in fw, so it adds nothing) */
++      used |= (uint32_t)((fw & 0xffu) != 0) << (fb >> 2 & 7) | (uint32_t)((fw >> 8 & 0xffu) != 0) << (fb >> 10 & 7) |
++              (uint32_t)((fw >> 16 & 0xffu) != 0) << (fb >> 18 & 7) | (uint32_t)((fw >> 24) != 0) << (fb >> 26 & 7);
++    const uint32_t U0 = (uint32_t)(int32_t)C[4 * i], U1 = (uint32_t)(int32_t)C[4 * i + 1];
++    uv |= U0 | U1; z |= (uint32_t)(uint16_t)C[4 * i + 2] ^ 0x1000u;
++    if (p23) {
++      const uint32_t V0 = (uint32_t)(int32_t)D[4 * i], V1 = (uint32_t)(int32_t)D[4 * i + 1];
++      var |= ((V0 - U0) ^ du0) | ((V1 - U1) ^ dv0); z2 |= (uint32_t)(uint16_t)D[4 * i + 2] ^ 0x1000u; u2 |= V0 | V1;
++    }
++  }
++  if (bad || (uv >> 15) || z || !used) return -8;
++  L->uv2 = !p23 ? 0 : z2 ? -1 : var ? 2 : 1;
++  L->du = L->uv2 == 1 ? (int)du0 : 0; L->dv = L->uv2 == 1 ? (int)dv0 : 0;
++  if (L->uv2 == 2 && (u2 >> 15)) return -8;   /* pass 2's own UV2 above 32767 */
++  int nw = 0;
++  for (int s = 0; s < 8; s++) if (used >> s & 1) { k->idx[s] = (uint8_t)nw; k->slot[nw++] = (uint8_t)s; } else k->idx[s] = 0;
++  const int st = ((nw + 1) & ~1) + 16;
++  const uint32_t a1 = ((uint32_t)(n * st) + 15u) & ~15u;
++  k->nw = nw; k->stride = st; k->v2 = L->uv2 == 2 ? a1 : 0;
++  k->blo[0] = (int16_t)x0; k->blo[1] = (int16_t)y0; k->blo[2] = (int16_t)z0; k->bhi[0] = (int16_t)x1; k->bhi[1] = (int16_t)y1; k->bhi[2] = (int16_t)z1;
++  k->smin = (uint16_t)s0; k->smax = (uint16_t)s1;
++  return n;
++}
++/* (vu1conv.h) the vertices; with zf each one's w as xconv.c's depth range takes it */
++int vc_p07_c1b(const void *const *p, const VcLit *L, const VcP7C1 *k, uint8_t *v, uint16_t *flags, const float (*zf)[4], float zt, float *zw,
++               long *zn)
++{
++  const int n = L->n, nb = k->nb, w2h = (k->nw + 1) >> 1, st = k->stride, own2 = L->uv2 == 2;
++  const p6h16 *A = (const p6h16 *)p[0], *B = (const p6h16 *)p[1], *C = (const p6h16 *)p[2], *D = (const p6h16 *)p[3];
++  const p6u32 *F = (const p6u32 *)p[5];
++  const uint32_t a1 = ((uint32_t)(n * st) + 15u) & ~15u;
++  float lo = 3.0e38f, hi = 0; long cnt = 0;
++  for (int i = 0; i < n; i++) {
++    union { uint32_t w[2]; uint8_t b[8]; } wb; uint32_t m = 0;
++    wb.w[0] = wb.w[1] = 0;
++    const uint32_t fw = F[2 * i], fb = F[2 * i + 1];
++    if (nb == 1) { const uint32_t j = k->idx[fb >> 2 & 7]; wb.b[j] = 128; m = 1u << j; }
++    else for (int b = 0; b < nb; b++) {
++      const uint32_t w = fw >> (8 * b) & 0xffu, j = k->idx[fb >> (8 * b + 2) & 7], t = wb.b[j] + w;
++      if (t > 255u) return -8;
++      wb.b[j] = (uint8_t)t; m |= (uint32_t)(w != 0) << j;
++    }
++    c1u16 *h = (c1u16 *)(v + st * i);   /* the weights' halfwords, then UV1, the normal, the position */
++    h[0] = (uint16_t)wb.w[0];
++    if (w2h > 1) { h[1] = (uint16_t)(wb.w[0] >> 16); if (w2h > 2) { h[2] = (uint16_t)wb.w[1]; if (w2h > 3) h[3] = (uint16_t)(wb.w[1] >> 16); } }
++    c1u16 *e = h + w2h;
++    e[0] = (uint16_t)C[4 * i]; e[1] = (uint16_t)C[4 * i + 1]; e[2] = (uint16_t)B[4 * i]; e[3] = (uint16_t)B[4 * i + 1]; e[4] = (uint16_t)B[4 * i + 2];
++    e[5] = (uint16_t)A[4 * i]; e[6] = (uint16_t)A[4 * i + 1]; e[7] = (uint16_t)A[4 * i + 2];
++    flags[i] = (uint16_t)A[4 * i + 3];
++    if (own2) {   /* pass 2's copy: UV2 */
++      c1u16 *h2 = (c1u16 *)(v + a1 + st * i), *e2 = h2 + w2h;
++      for (int q = 0; q < w2h; q++) h2[q] = h[q];
++      e2[0] = (uint16_t)D[4 * i]; e2[1] = (uint16_t)D[4 * i + 1];
++      for (int q = 2; q < 8; q++) e2[q] = e[q];
++    }
++    if (zf) {   /* w = t + the weights' sum of each slot's bone w row . (p, 1), the slots in ascending order (xconv.c xc_zr_c1's first form) */
++      const float p0 = A[4 * i], p1 = A[4 * i + 1], p2 = A[4 * i + 2];
++      float w = zt;
++      for (uint32_t mm = m; mm; mm &= mm - 1) {
++        const int j = __builtin_ctz(mm);
++        w += (float)wb.b[j] * (zf[j][0] * p0 + zf[j][1] * p1 + zf[j][2] * p2 + zf[j][3]);
++      }
++      if (w > 0) { if (w < lo) lo = w; if (w > hi) hi = w; cnt++; }
++    }
++  }
++  for (uint32_t o = (uint32_t)(n * st); o < a1; o++) { v[o] = 0; if (own2) v[a1 + o] = 0; }
++  if (zf) { zw[0] = lo; zw[1] = hi; *zn = cnt; }
++  return n;
++}
+diff -ruN ge.orig/vu1conv.h ge/vu1conv.h
+--- ge.orig/vu1conv.h	2026-10-31 21:34:21.920609868 +0000
++++ ge/vu1conv.h	2026-11-02 05:02:13.789059573 +0000
+@@ -158,4 +158,37 @@
+ int vc_p07_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint16_t *num, VcLit *L, void *v1, void *v3,
+                uint16_t *flags, uint32_t *rgba, int max);
+ int vc_p07_uv2_rec(const void *d, const VcLit *L, const void *v1, void *v2);
++/* sb11 C1 (stagec_notes.md 1.7-1.9; ge/xconv.c xc_lit_c1): a lane 4 P07 call drawn by the GE's own skinning, lighting and texture
++   matrix.  vc_p07_c1: the call's header and constants as p07_main reads them, without its vertex loop.  -8: p07_main's fast form would
++   not take the call (or a stream it reads is missing: vc_p07_rec's -8); -9: it would, but the GE cannot draw it (the clamp abs 3 x not
++   255, a light colour times its direction's length or the ambient outside 0..255); else n, with L as vc_p07_rec gives it but for uv2,
++   du, dv (vc_p07_c1v's) and k the GE's constants: the bones a vertex (nb), each light's direction (column j of abs 24..26, normalised)
++   and colour (row j of abs 28..30 times that column's length, rounded; 0: off), the ambient (abs 31, rounded; the GE's alpha, the PS2's
++   doubled, in bits 24-31), pass 3's matrix (TGEN rows: s R[.][j], translation o, q 1) */
++typedef struct {
++  const float (*ldir)[3]; const uint32_t *lcol; uint32_t amb; const float *tgen; int nb;   /* vc_p07_c1 (c1opt2: ldir, lcol and tgen
++                                                     point at its constants, which the next call may change) */
++  int nw, stride; uint32_t v2; uint8_t slot[8], idx[8];              /* vc_p07_c1s (idx: each slot's place among slot[]) */
++  int16_t blo[3], bhi[3]; uint16_t smin, smax;                        /* vc_p07_c1s (c1opt2): the box of the positions, the least and
++                                                     largest sum of a vertex's weights (a 1-bone call's 128) */
++} VcP7C1;
++int vc_p07_c1(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint16_t *num, VcLit *L, VcP7C1 *k);
++/* vc_p07_c1s and vc_p07_c1b: the call's GE vertices from its streams (p as vc_p07_rec's, after vc_p07_c1 took the call: L->n, L->p3 and
++   k->nb set), in two steps so the bones can be read between them (c1opt, 2026-11-02; the first form, vc_p07_c1v, did both in one).
++   vc_p07_c1s reads the slots and the checks: k->slot[0 .. k->nw - 1] the slots the call names in ascending order (offset / 4, with a
++   weight above 0 or the one bone), k->idx each slot's place among them, k->stride = align2(nw) + 16 bytes, k->v2 the offset of pass 2's
++   own copy (uv2 2; else 0); L->uv2, du, dv as p07_main gives them.  Returns n, or -8 where p07_main would not take the call (a UV1 above
++   32767 or its z other than 1.0) or the GE cannot (a bone offset not a multiple of 4 or above 28, a UV2 above 32767 for uv2 2).
++   vc_p07_c1b writes the vertices: its weights by slot place (a 1-bone call's 128, the others' bytes summed by slot), UV1 (16-bit), the
++   normal and the position (16-bit, as the streams hold them: the GE reads s / 32768, the bones carry the rest), at v, and with uv2 2
++   pass 2's own copy with UV2 at v + k->v2 (n x stride rounded up to 16; the pads zeroed); flags[i]: stream A's w (the strip flags).
++   With zf (each slot place's bone w row, 4 floats, and the translation zt), each vertex's w = zt + sum over its slots in ascending
++   order of weight x (zf[j] . (p, 1)), and of those above 0 the least and largest in zw[0], zw[1] and their count in *zn (xconv.c's
++   depth range).  Returns n, or -8 (a slot's weights above 255 in a vertex) */
++int vc_p07_c1s(const void *const *p, VcLit *L, VcP7C1 *k);
++int vc_p07_c1b(const void *const *p, const VcLit *L, const VcP7C1 *k, uint8_t *v, uint16_t *flags, const float (*zf)[4], float zt, float *zw,
++               long *zn);
++/* the bone matrix at abs m (32 + 4 s) as the GE takes it: GE rows (the images of x, y, z, then the translation), x 2048 in the 3 x 3 (the
++   GE reads 16-bit positions as s / 32768, the PS2 12.4); 0 where p7_loop would not take it (m above 60, or p7_mok) */
++int vc_p07_bone(const uint8_t *vm, uint32_t m, float *b12);
+ #endif
+diff -ruN ge.orig/xconv.c ge/xconv.c
+--- ge.orig/xconv.c	2026-11-02 02:21:07.019764284 +0000
++++ ge/xconv.c	2026-11-02 05:39:21.152792692 +0000
+@@ -2,8 +2,12 @@
+    pictures and the MGS2GE replays were checked with; gsref GSREF_XLCONV=1 compares the two batch by batch. */
+ #include "xconv.h"
+ #include "vu1conv.h"
++#ifndef __psp__
++#include "c1model.h"   /* sb11 C1 census and GE model (x86 only) */
++#endif
+ #include <stddef.h>
+ #include <string.h>
++#include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
+@@ -398,6 +402,139 @@
+ static uint8_t Sv[16384] __attribute__((aligned(64)));   /* the scratch VU memory: a held call's rebuilt memory, or its image when pass 3 is drawn */
+ static void sv_rebuild(const XcHeld *r);
+ static void sv7_rebuild(const XcHeld *r);   /* sb10 T2: a held P07 call's vertices in Sv (vc_p07_rec -8) */
++/* ---- sb11 C1 (stagec_notes.md 1.7-1.9; xconv.h XcHost.c1): a lane 4 P07 call drawn by the GE's own skinning, lighting and texture
++   matrix.  Its blob: [GerXform][a GerLit a pass][pass 1's vertices][pass 2's own (uv2 2)][GerC1 with its nw bones][strips], each part
++   from a 16-byte boundary, the pads zeroed; each GerLit's vtx is the GerC1 (ge/replay_fmt.h).  The vertices are built at each call:
++   checking a kept copy against the streams would read the same bytes as building it ---- */
++#define C1_GXL(np) ((uint32_t)(sizeof(GerXform) + (uint32_t)(np) * sizeof(GerLit)))
++#define VT_C1(nw) (0x342u | ((uint32_t)(nw) - 1u) << 14)   /* GU_WEIGHTS(nw) | GU_WEIGHT_8BIT | GU_VERTEX_16BIT | GU_NORMAL_16BIT | GU_TEXTURE_16BIT */
++static uint32_t xc_c1_bound(uint32_t n, uint32_t hy)   /* (a vertex at most 8 weights + 16 bytes; passes 1 and 2's; the strips at most n) */
++{
++  const uint32_t np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);
++  return ((C1_GXL(np) + 15u) & ~15u) + 2 * ((n * 24u + 15u) & ~15u) + ((GERC1_SIZE(8) + 15u) & ~15u) + n * 4u;
++}
++uint32_t xc_c1_hold_bound(const XlCall *c, uint32_t bound)
++{
++  const uint32_t *hd = vq(c->vm, c->top), b1 = xc_c1_bound(hd[0] & 0xffff, hd[3] & 0xffff);
++  return b1 > bound ? b1 : bound;
++}
++/* the depth range (XcZr) of a C1 call: w, the GE's view z, of each vertex skinned as the GE does it, sum_k a_k (row . bone_k (p / 32768))
++   + t over its slots k (a_k its weight / 128, row and t the view matrix's w row), in float as xc_zr_lit's (it differs from the exact
++   form's w by rounding only, far less than the depth map's margin, gelist.h gx_depth_map).  vc_p07_c1b computes it as it writes the
++   vertices (c1opt; xc_lit_c1 gives it each bone's w row, xc_c1_zf), this merges the call's range [lo, hi] of its cnt vertices in front.
++   (A bound by each bone over the box of the call's positions was 18% of the map's width too wide in most face frames on x86: the
++   faces' depth precision, so it is not used) */
++static void xc_c1_zf(const VcXform *x, const GerC1 *g, float zf[8][4])
++{
++  const float a = x->world[2], b = x->world[5], c = x->world[8];
++  for (int k = 0; k < (int)g->nw; k++) {   /* bone k's w row, for p as the stream holds it and a weight as a whole number */
++    const float *m = g->bone[k];
++    for (int col = 0; col < 3; col++) zf[k][col] = (m[3 * col] * a + m[3 * col + 1] * b + m[3 * col + 2] * c) * (1.0f / (32768.0f * 128.0f));
++    zf[k][3] = (m[9] * a + m[10] * b + m[11] * c) * (1.0f / 128.0f);
++  }
++}
++/* c1opt2: 1 when every w of the call lies inside the range the depth range keeps so far for its projection, by a bound over the box of
++   its positions and the least and largest sum of a vertex's weights (vc_p07_c1s): w - t = sum_k a_k (zf_k . (p, 1)) with a_k >= 0 summing
++   to the vertex's S, each zf_k . (p, 1) inside [the least, the largest of that affine function over the box], so w - t inside S times
++   [the least of those over the slots, the largest]; widened by 1e-5 of the magnitudes (float rounding of w and of this bound is below
++   2e-6 of them).  Its exact w then cannot move the range and all lie in front (cnt n), so vc_p07_c1b need not compute them: the result
++   is the same.  x86 codec route: 77% of the C1 calls (70% of their vertices) were inside by this bound, 93% by their exact w; the bound
++   never missed an exact w.  c1opt3: the box as its centre q and half extents e (exact: halved sums of int16), so a slot's least and
++   largest over it are d - r and d + r with d = zf . (q, 1) and r = |zf| . e (the same bound as c1opt2's min and max of the corners'
++   products, without a branch per axis: 570 instructions a call on the PSP model before, 188 now, codec window).  A NaN or an infinity in any slot's
++   terms makes chk not finite: no (and a NaN zt fails the tests) */
++static int xc_c1_zin(const XcZr *z, const VcXform *x, const VcP7C1 *k, const float zf[8][4], float zt)
++{
++  if (!z->on || x->pa != z->pa || x->pb != z->pb || x->vs[2] != z->vs2 || x->vo[2] != z->vo2) return 0;
++  const float q0 = 0.5f * (float)((int)k->blo[0] + k->bhi[0]), q1 = 0.5f * (float)((int)k->blo[1] + k->bhi[1]),
++              q2 = 0.5f * (float)((int)k->blo[2] + k->bhi[2]);
++  const float e0 = 0.5f * (float)((int)k->bhi[0] - k->blo[0]), e1 = 0.5f * (float)((int)k->bhi[1] - k->blo[1]),
++              e2 = 0.5f * (float)((int)k->bhi[2] - k->blo[2]);
++  const float m0 = fabsf(q0) + e0, m1 = fabsf(q1) + e1, m2 = fabsf(q2) + e2;   /* the largest |p| on each axis */
++  float mn = 3.0e38f, mx = -3.0e38f, big = 0, chk = 0;
++  for (int j = 0; j < k->nw; j++) {
++    const float *f = zf[j], a0 = fabsf(f[0]), a1 = fabsf(f[1]), a2 = fabsf(f[2]);
++    const float d = f[3] + f[0] * q0 + f[1] * q1 + f[2] * q2, r = a0 * e0 + a1 * e1 + a2 * e2;
++    const float a = fabsf(f[3]) + a0 * m0 + a1 * m1 + a2 * m2, dl = d - r, dh = d + r;
++    mn = dl < mn ? dl : mn; mx = dh > mx ? dh : mx; big = a > big ? a : big; chk += (dh - dl) + a;
++  }
++  if (!(chk - chk == 0)) return 0;
++  const float s0 = (float)k->smin, s1 = (float)k->smax, E = 1e-5f * (fabsf(zt) + s1 * big) + 1e-30f;
++  const float blo = zt + (mn >= 0 ? s0 * mn : s1 * mn) - E, bhi = zt + (mx >= 0 ? s1 * mx : s0 * mx) + E;
++  return blo > 0 && blo >= z->wmin && bhi <= z->wmax;
++}
++static void xc_zr_c1(XcZr *z, const VcXform *x, float lo, float hi, long cnt)
++{
++  if (!cnt) return;
++  z->calls++; z->verts += cnt;
++  if (z->on && x->pa == z->pa && x->pb == z->pb && x->vs[2] == z->vs2 && x->vo[2] == z->vo2) {
++    if (lo < z->wmin) z->wmin = lo;
++    if (hi > z->wmax) z->wmax = hi;
++    return;
++  }
++  xc_zr_end(z);
++  z->pa = x->pa; z->pb = x->pb; z->vs2 = x->vs[2]; z->vo2 = x->vo[2]; z->wmin = lo; z->wmax = hi; z->on = 1;
++}
++/* -8: today's path takes the call (vc_p07_c1 -8 or -9, vc_p07_c1s or vc_p07_c1b -8, a bone p7_loop would not take), counted in St.c1_fall;
++   -5 no room;
++   0 nothing drawn; 1 the batch (pass 1's), as xc_lit */
++static int xc_lit_c1(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap,
++                     uint32_t *size, uint32_t fogcol, uint32_t hy, uint16_t *fl, uint16_t *runs)
++{
++  const XlRec *rr = c->rec; VcLit L; VcP7C1 k;
++  const int n = vc_p07_c1(c->vm, c->top, rr->p, rr->kind, rr->num, &L, &k);
++  if (n < 0) { St.c1_fall[n == -9]++; return -8; }
++  const int np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);
++  if (cap < xc_c1_bound((uint32_t)n, hy)) return -5;
++  const uint32_t o1 = C1_GXL(np), ov = (o1 + 15u) & ~15u;
++  if (vc_p07_c1s(rr->p, &L, &k) < 0) { St.c1_fall[2]++; return -8; }
++  const uint32_t a1 = ((uint32_t)(n * k.stride) + 15u) & ~15u, og = ov + (L.uv2 == 2 ? 2 * a1 : a1), gsz = GERC1_SIZE(k.nw);
++  GerC1 *g = (GerC1 *)(blob + og);
++  for (int j = 0; j < k.nw; j++) if (!vc_p07_bone(c->vm, 32u + 4u * k.slot[j], g->bone[j])) { St.c1_fall[3]++; return -8; }
++  g->nw = (uint32_t)k.nw;
++  xc_state(d, ti, c->entry, b);   /* c1opt2: here (it sets only b), as its flags say whether the depth range takes the call */
++  const int zneed = h->zr && (b->flags & GERF_ZWRITE) && b->ztst >= 2;
++  float zf[8][4], zw[2] = { 0, 0 }; long zn = 0; int zin = 0;   /* the depth range as the vertices are written (xc_zr_c1) */
++  if (zneed) { xc_c1_zf(&L.x, g, zf); zin = xc_c1_zin(h->zr, &L.x, &k, zf, L.x.world[11]); }
++  if (vc_p07_c1b(rr->p, &L, &k, blob + ov, fl, zneed && !zin ? (const float (*)[4])zf : 0, L.x.world[11], zw, &zn) < 0) { St.c1_fall[2]++; return -8; }
++  g->voff[0] = g->voff[2] = (int32_t)ov - (int32_t)og; g->voff[1] = L.uv2 == 2 ? (int32_t)(ov + k.v2) - (int32_t)og : g->voff[0];
++  memcpy(g->lcol, k.lcol, sizeof g->lcol); g->amb = k.amb;
++  memcpy(g->ldir, k.ldir, sizeof g->ldir); memcpy(g->tgen, k.tgen, sizeof g->tgen);
++  const int nst = vc_strips(fl, n, runs, 128);
++  if (!nst) return 0;
++  const uint32_t orun = (og + gsz + 15u) & ~15u, end = orun + (uint32_t)nst * 4u;
++  memset(blob + og + gsz, 0, orun - og - gsz); memcpy(blob + orun, runs, (size_t)nst * 4);
++  GerXform gx; xc_xform(&L.x, d, t, 8, h, fogcol, &gx);   /* (xc_lit's: UV1 16-bit) */
++  if (L.fog >= 0) { gx.fog1 = (float)L.fog / 255.0f * 1099511627776.0f; gx.fog2 = 1.0f / 1099511627776.0f; }
++  gx.nv = (uint32_t)n; gx.nst = (uint32_t)nst; gx.nidx = 0;
++  memcpy(blob, &gx, sizeof gx);
++  memset(blob + o1, 0, ov - o1);
++  memset(&Lp, 0, sizeof Lp);
++  int kk = 0;
++  for (int pass = 1; pass <= 3; pass++) {
++    if ((pass == 2 && !(hy & 0x10)) || (pass == 3 && !(hy & 0x700))) continue;
++    const uint32_t at = (uint32_t)(sizeof gx + kk++ * sizeof(GerLit));
++    GerLit p; memset(&p, 0, sizeof p);
++    p.xf = -(int32_t)at; p.vtx = (int32_t)og - (int32_t)at; p.run = (int32_t)orun - (int32_t)at;
++    p.vtype = VT_C1(k.nw); p.stride = (uint32_t)k.stride; p.nv = (uint32_t)n; p.nst = (uint32_t)nst; p.pass = (uint32_t)pass | GERL_C1;
++    p.su = gx.su; p.sv = gx.sv; p.tu = gx.tu; p.tv = gx.tv;   /* pass 1's; xc_pass writes the others' */
++    memcpy(blob + at, &p, sizeof p);
++    if (pass == 1 || (pass == 2 && L.uv2 > 0) || (pass == 3 && L.p3 > 0)) Lp.rec[pass] = at;
++    Lp.uvk[pass] = pass == 3 ? 1 : 8; Lp.du[pass] = pass == 2 ? L.du : 0; Lp.dv[pass] = pass == 2 ? L.dv : 0;   /* (pass 3: float UVs' scale,
++                                                    which the list folds into the texture matrix) */
++  }
++  Lp.on = 1; Lp.entry = c->entry; Lp.top = c->top; Lp.amin = L.amin;
++  b->kind = GERK_LIT; b->twopass = (uint8_t)xc_twopass(d, t, L.amin); b->count = (uint32_t)nst;   /* (xc_state above) */
++  b->first = (uint32_t)sizeof gx;
++  if (h->zr && (b->flags & GERF_ZWRITE)) {
++    if (b->ztst < 2) h->zr->always++;
++    else if (zin) { xc_zr_c1(h->zr, &L.x, h->zr->wmin, h->zr->wmax, n); St.c1_zin++; St.c1_zin_v += n; }   /* (the range unchanged) */
++    else xc_zr_c1(h->zr, &L.x, zw[0], zw[1], zn);
++  }
++  St.face_v += n; St.face_nopass[2] += L.uv2 < 0; St.face_own2 += L.uv2 == 2; St.face_nopass[3] += L.p3 < 0;
++  St.c1_calls++; St.c1_v += n; St.c1_nw[k.nw]++; St.c1_bytes += end;
++  *size = end; return 1;
++}
+ static int xc_lit(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size,
+                   uint32_t fogcol)
+ {
+@@ -409,6 +546,10 @@
+   int np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);   /* a record for each pass the program draws */
+   uint32_t o1 = (uint32_t)(sizeof(GerXform) + np * sizeof(GerLit));
+   if (n0 <= 64 && cap < o1 + n0 * (24 + 24 + 24 + 4)) return -5;
++  if (p7 && h->c1 && c->rec && c->rec->lane == 4 && !(Hr && xc_held_force)) {   /* sb11 C1: the GE's skinning and lighting, where it can */
++    const int r = xc_lit_c1(c, h, d, ti, t, b, blob, cap, size, fogcol, hy, fl, runs);
++    if (r != -8) return r;
++  }
+   VcLit L; int n; const XlRec *rr = 0;   /* sb2: a lane's streams, when the call's vertices come from them */
+   if (p7 && c->rec && c->rec->lane == 4) {   /* sb5 lane 4: the vertices from the slot's streams, else the VU memory decoded */
+     rr = c->rec;
+@@ -466,6 +607,9 @@
+     }
+   } else n = vc_p06(c->vm, c->top, c->entry, &L, blob + o1, v3, fl, 0, 64);
+   if (n < 0) { St.face_unseen += n == -7; return n; }
++#ifndef __psp__
++  if (p7 && c1m_on) c1m_call(c->vm, c->top, rr ? rr->p : 0, n, &L, blob + o1, L.p3 > 0 ? v3 : 0);   /* sb11: reads only */
++#endif
+   if (p7) {
+     St.face_v += n; St.face_exact += !L.fast; St.face_nopass[2] += L.uv2 < 0; St.face_own2 += L.uv2 == 2; St.face_nopass[3] += L.p3 < 0;
+ #ifdef XC_P7CHK
+diff -ruN ge.orig/xconv.h ge/xconv.h
+--- ge.orig/xconv.h	2026-11-02 02:21:07.019137300 +0000
++++ ge/xconv.h	2026-11-02 05:02:13.787112528 +0000
+@@ -58,6 +58,9 @@
+   const XcThin *thin; int nthin;   /* task #114: the effects thinned this frame (0: none): a 25f0 / 2870 call whose XlCall.src lies in
+                               one of these ranges draws 1 strip in keep; the others' triangles are not drawn (class 0) and their
+                               vertices get no clip position.  The call's minimum alpha (two passes or one) stays its whole one */
++  int c1;                  /* sb11 C1 (stagec_notes.md 1.7-1.9): 1: a lane 4 P07 call is drawn by the GE's skinning, lighting and
++                              texture matrix (xconv.c xc_lit_c1; ge/replay_fmt.h GERL_C1) where the GE can draw it, else as today;
++                              0 (older hosts): as today */
+ } XcHost;
+ /* counters since the start, for a report */
+ typedef struct {
+@@ -79,6 +82,12 @@
+                                                 fast form converted again in the exact form, and those whose output differs */
+   long thin_calls, thin_strips, thin_drop, thin_tris;   /* task #114: effect calls thinned, their strips, the strips left out, their
+                                                 triangles (not in tris[]) */
++  long c1_calls, c1_v, c1_nw[9], c1_fall[4];   /* sb11 C1 (XcHost.c1): P07 calls drawn by the GE's skinning and lighting, their
++                                                vertices, by weights a vertex (1..8); calls left to today's path: vc_p07_c1 -8 (the fast
++                                                form's own conditions), -9 (the clamp, a light or the ambient), the vertices (vc_p07_c1s or
++                                                vc_p07_c1b -8: an offset, a slot's weights, a UV), a bone matrix (p7_mok's test) */
++  long long c1_bytes;                         /* their data bytes (64-bit: above 2 GB on the codec route, the PSP's long is 32-bit) */
++  long c1_zin, c1_zin_v;                      /* c1opt2: C1 calls (and vertices) whose w the depth range took by the bound alone (xc_c1_zin) */
+ } XcStats;
+ const XcStats *xc_stats(void);
+ /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
+@@ -105,6 +114,9 @@
+    after xc_call gave the call's pass 1: 1, the pass's batch in *b, whose data is in the call's blob (blob: where it lies now; b->first
+    its offset in the blob, as above; the pass's texture scale written there); 0: the pass is not drawn (counted in XcStats) */
+ int xc_pass(const XlCall *c, int pass, const XcHost *h, GerBatch *b, uint8_t *blob);
++/* sb11 C1: the larger of bound (xc_hold_test's, for a lane 4 call it takes) and the most data the call takes in its blob drawn by C1
++   (xconv.c xc_lit_c1): the room a host reserves for a held call while XcHost.c1 is on (ge/gelive.c gl_call) */
++uint32_t xc_c1_hold_bound(const XlCall *c, uint32_t bound);
+ 
+ /* sb4, step c (renderer_notes 11.29): a P06 call of Stage B lane 2 (its vertices in the game's data, XlCall.rec) converted at the end of
+    its transfer instead of at the call, the held calls one after another.  At the call the host asks xc_hold_test (no side effects); when
+diff -ruN boot.orig/boot.c boot/boot.c
+--- boot.orig/boot.c	2026-11-01 22:05:42.220306860 +0000
++++ boot/boot.c	2026-11-02 03:48:13.486464224 +0000
+@@ -31,7 +31,7 @@
+ 
+ static long n_sys, max_vblanks = 600, verbose_from = -10;   /* BOOT_VERBOSE=<vblank>: log every kernel call for 3 vblanks from there */
+ uint32_t g_opt = ~0u;                                             /* runtime/host_time.h OPT_*: all on (OPT_LITE since v21, speed_notes §34) */
+-uint32_t g_opt2 = ~0u;                                            /* sb9: runtime/host_time.h OPT2_*: all on */
++uint32_t g_opt2 = OPT2_DEFAULT;                                   /* sb9: runtime/host_time.h OPT2_*: all on (sb11: but C1) */
+ long g_hash_vb = -1; SPRS uint64_t g_hash_ee, g_hash_iop;                /* the last state hash (the PSP shows it on screen) */
+ #ifdef __psp__
+ void host_vb_begin(long vb);    /* psp/main_psp.c: a guest vblank started: the host time since the last one is one game step */
+diff -ruN boot.orig/xlive_chk.c boot/xlive_chk.c
+--- boot.orig/xlive_chk.c	2026-11-02 02:21:07.024264050 +0000
++++ boot/xlive_chk.c	2026-11-02 05:02:13.787870487 +0000
+@@ -99,6 +99,7 @@
+ #include "../ge/gelive.h"
+ #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
+ #include "../ge/fxthin.h"    /* task #114 */
++#include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../runtime/host_time.h"   /* sb3: g_opt's OPT_CLIP_FAST (boot.c MGS2_OPT, MGS2_OPT_CYCLE), as psp/xl_psp.c reads it */
+ #if defined(__has_include)
+ #if __has_include(<valgrind/callgrind.h>)
+@@ -149,6 +150,7 @@
+ static GlFrame glf; static int gb_on, gb_now; static char ger_pre[200]; static long ger_vb[64]; static int ger_n;
+ /* MGS2_XLIVE_GX: the PSP harness's frames and GE lists */
+ static int gx_on, gx_seen; static long gx_from = -1, gx_to = -1, gx_count, gx_n, gx_fail, gx_first = -1, gx_wmax, gx_amax, gx_bmax, gx_drop;
++static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
+ static uint64_t gx_all = 0xcbf29ce484222325ull, gx_call = 0xcbf29ce484222325ull; static GxList gxl; static GxHost gxh;   /* gx_call: sb4's
+                                                        content digests (gelive.h gl_digest_c) folded as gx_all */
+ static uint8_t *gx_arena, *gx_pool, *gx_lb; static uint32_t gx_pool_n, gx_listn = GL_PSP_LIST;
+@@ -170,6 +172,7 @@
+   if (gx_frame(&gxl, &gxh, &F, d) && ++gx_fail <= 50)
+     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", vb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+   gx_drop += gxl.c.dropped; if (gxl.c.words > gx_wmax) gx_wmax = gxl.c.words; if (gxl.c.aux > gx_amax) gx_amax = gxl.c.aux;
++  gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
+   if (4 * gxl.c.words + gxl.c.aux > gx_bmax) gx_bmax = 4 * gxl.c.words + gxl.c.aux;
+   if (dg) {
+     uint64_t g = gl_digest(&glf, &gxl); gx_all = (gx_all ^ g) * 0x100000001b3ull; gx_n++;
+@@ -851,6 +854,7 @@
+     fprintf(stderr, "xlive gb: P07 held (sb10 T2): %ld calls; slots copied at the hold %ld, placed at the run %ld; vertices rebuilt %ld; "
+             "placed memory checked %ld, differing %ld%s\n", xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb, xc_c7_n, xc_c7_diff,
+             xc_c7_chk ? " (MGS2_C7_CHK)" : "");
++    c1m_report(stderr);   /* sb11 (MGS2_C1_MODEL=1) */
+     fprintf(stderr, "xlive gb: P06: calls %ld (+0 %ld, +358 %ld, +738 %ld, +ab0 %ld), batches %ld, empty %ld, bad %ld; vertices %ld, exact "
+               "form %ld; passes 2 and 3 drawn %ld / %ld (pass 2 with its own vertices %ld), not drawn %ld (a UV2 z not 1.0) / %ld (from "
+               "T+0x104); cull bit %ld; light ramps %ld\n", x->calls[3], x->lit_kind[0], x->lit_kind[1], x->lit_kind[2], x->lit_kind[3],
+@@ -860,7 +864,13 @@
+               "passes 2 and 3 drawn %ld / %ld (pass 2 with its own vertices %ld), not drawn %ld (a UV2 z not 1.0) / %ld (flags 0x100 or 0x400); "
+               "fast form checked against the exact form (XC_P7CHK) %ld calls, differing %ld\n", x->calls[4], x->batches[4], x->empty[4], x->bad[4],
+               x->face_unseen, x->face_v, x->face_exact, x->face_pass[2], x->face_pass[3], x->face_own2, x->face_nopass[2], x->face_nopass[3],
+-              x->face_chk, x->face_chkdiff); }
++              x->face_chk, x->face_chkdiff);
++    if (x->c1_calls || x->c1_fall[0] || x->c1_fall[1] || x->c1_fall[2] || x->c1_fall[3] || gx_c1p)   /* sb11 C1 (g_opt2 OPT2_C1) */
++      fprintf(stderr, "xlive gb: P07 C1 (the GE's skinning and lighting): calls %ld, vertices %ld, by weights a vertex 1..8 %ld %ld %ld %ld %ld "
++              "%ld %ld %ld, data %ld KB; to today's path: %ld (its fast form's conditions), %ld (the clamp, a light, the ambient), %ld (an "
++              "offset, a slot's weights, a UV), %ld (a bone); in the GE lists: passes %ld, bone matrices sent %ld, their own words %ld; the depth range by the bound alone %ld calls, %ld vertices\n",
++              x->c1_calls, x->c1_v, x->c1_nw[1], x->c1_nw[2], x->c1_nw[3], x->c1_nw[4], x->c1_nw[5], x->c1_nw[6], x->c1_nw[7], x->c1_nw[8],
++              (long)(x->c1_bytes >> 10), x->c1_fall[0], x->c1_fall[1], x->c1_fall[2], x->c1_fall[3], gx_c1p, gx_c1b, gx_c1w, x->c1_zin, x->c1_zin_v); }
+ }
+ 
+ /* the options, at the first transfer or vblank */
+@@ -964,6 +974,7 @@
+       fprintf(stderr, "xlive mode: the lanes follow g_opt's lane bits at each transfer (MGS2_SB_LANE_OPT), within mask %d\n", lane_base); }
+     xc_held_force = getenv("MGS2_SB_FORCE") && atoi(getenv("MGS2_SB_FORCE")); xc_held_poison = getenv("MGS2_SB_POISON") && atoi(getenv("MGS2_SB_POISON"));
+     vc_p06_exact = getenv("MGS2_SB_P6EXACT") && atoi(getenv("MGS2_SB_P6EXACT"));
++    c1m_on = getenv("MGS2_C1_MODEL") && atoi(getenv("MGS2_C1_MODEL"));   /* sb11 */
+     xc_c7_chk = getenv("MGS2_C7_CHK") && atoi(getenv("MGS2_C7_CHK"));   /* sb10 T2: each held P07 call's placed memory against its own */
+     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
+       "the rebuilt VU memory (MGS2_SB_FORCE)" : "", xc_held_poison ? " the records' images and the scratch memory poisoned (MGS2_SB_POISON)" : "", vc_p06_exact ? " P06 in "
+@@ -991,7 +1002,7 @@
+   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
+   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
+     skip_now = skip_on && k == 2;
+-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.ram = M.mem; gl_begin(&glf);
++    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.ram = M.mem; gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_line(vb - 1);
+   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);
+diff -ruN psp.orig/main_psp.c psp/main_psp.c
+--- psp.orig/main_psp.c	2026-11-02 02:21:18.297181191 +0000
++++ psp/main_psp.c	2026-11-02 03:48:13.488753853 +0000
+@@ -190,14 +190,15 @@
+ static Win w_cur, w_deck;
+ /* the configurations boot.c opt_window cycles through (its cfg[] order), plus anything else */
+ #ifdef MGS2_GL
+-#define NCFG 26
++#define NCFG 27
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+                                             "SPR bulk off", "native forms off", "reduced renderer off", "GS one-loop walk off", "native sort key off",
+                                             "stage table off", "translator off", "picture off", "GE overlap off", "VU sync by scan",
+                                             "block tex conv off", "area memo off", "flags-only test off", "palette memo off", "V4-8 decode off",
+-                                            "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off", "face hold off" };
++                                            "codec speedups off", "texture memo off", "CLUT by identity off", "texture front off", "face hold off",
++                                            "face GE lighting on" };
+                               /* 17-21: codec_speed.md A-D (2026-10-30); 22-23: sb9's g_opt2 switches (stagec_notes.md 0.3, 0.4); 24, 25:
+-                                 sb10's T1, T2 (step 1) */
++                                 sb10's T1, T2 (step 1); 26: sb11's C1 switched on (off by default) */
+ #else
+ #define NCFG 13
+ static const char *const cfg_name[NCFG] = { "all speedups on", "GS bulk walk off", "poll scan skip off", "all off (= v1)", "other", "VIF0 fast off",
+@@ -314,7 +315,9 @@
+   }
+   g_step_cfg = cfg_index(g_opt);        /* boot.c opt_window chose the configuration of the step that starts now */
+ #ifdef MGS2_GL
+-  if (g_step_cfg == 0 && g_opt2 != ~0u) g_step_cfg = g_opt2 == ~1u ? 22 : g_opt2 == ~2u ? 23 : g_opt2 == ~4u ? 24 : g_opt2 == ~8u ? 25 : 4;   /* sb9, sb10: g_opt2's switches */
++  if (g_step_cfg == 0 && g_opt2 != OPT2_DEFAULT)   /* sb9, sb10: g_opt2's switches, each off; sb11: C1 on */
++    g_step_cfg = g_opt2 == (OPT2_DEFAULT & ~1u) ? 22 : g_opt2 == (OPT2_DEFAULT & ~2u) ? 23 : g_opt2 == (OPT2_DEFAULT & ~4u) ? 24 :
++                 g_opt2 == (OPT2_DEFAULT & ~8u) ? 25 : g_opt2 == ~0u ? 26 : 4;
+ #endif
+ #ifdef MGS2_XL
+   { void xl_psp_vblank(uint32_t full, uint32_t reduced); xl_psp_vblank(g_dg_calls[0], g_dg_calls[1]); }   /* psp/xl_psp.c: shown frames only */
+diff -ruN psp.orig/xl_psp.c psp/xl_psp.c
+--- psp.orig/xl_psp.c	2026-11-02 02:21:07.022327420 +0000
++++ psp/xl_psp.c	2026-11-02 05:02:13.788503022 +0000
+@@ -90,6 +90,7 @@
+ static long shot_vb[16]; static int shot_n;
+ static uint32_t gl_texkb = GL_PSP_TEXKB, gl_vol_n; static uint8_t *gl_vol; static void *gl_pool; static int gl_hold;
+ static long gx_words_max, gx_aux_max, gx_both_max, gx_drop; static uint64_t gx_words_sum;
++static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
+ static uint32_t gl_addr(void *ctx, const void *p) { (void)ctx; return (uint32_t)(uintptr_t)p; }
+ static void gl_line(FILE *f, const GlCount *n, int64_t db, int64_t tb, const char *what)   /* as boot/xlive_chk.c's gb_line; db, tb: n's data
+                                                                                      and texture bytes (64-bit sums for the totals) */
+@@ -185,6 +186,7 @@
+   if (gx_frame(&gxl, &gxh, &gxf, d) && ++gl_listfail <= 50)
+     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", fvb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+   gx_words_sum += gxl.c.words; gx_drop += gxl.c.dropped;
++  gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
+   if (gxl.c.words > gx_words_max) gx_words_max = gxl.c.words;
+   if (gxl.c.aux > gx_aux_max) gx_aux_max = gxl.c.aux;
+   if (4 * gxl.c.words + gxl.c.aux > gx_both_max) gx_both_max = 4 * gxl.c.words + gxl.c.aux;
+@@ -232,6 +234,7 @@
+       glf.h.cut = (g_opt & OPT_GL_CUT) != 0; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0;
+       glf.stepc = (g_opt & OPT_XL_STEPC) != 0;   /* sb4: step c (renderer_notes 11.29) */
+       glf.stepc7 = (g_opt2 & OPT2_C7) != 0;      /* sb10 T2: and lane 4's P07 calls */
++      glf.h.c1 = (g_opt2 & OPT2_C1) != 0;        /* sb11 C1: the faces skinned and lit by the GE */
+       gl_begin(&glf); gl_now = 1;
+       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
+     }
+@@ -414,6 +417,12 @@
+             glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late);
+     fprintf(f, "picture: P07 held (sb10 T2): %ld calls; slots copied at the hold %ld, placed at the run %ld; vertices rebuilt %ld\n",
+             xc_c7_held, xc_c7_snap, xc_c7_put, xc_c7_rb);
++    if (x->c1_calls || x->c1_fall[0] || x->c1_fall[1] || x->c1_fall[2] || x->c1_fall[3] || gx_c1p)   /* sb11 C1 (g_opt2 OPT2_C1) */
++      fprintf(f, "picture: P07 C1 (the GE's skinning and lighting): calls %ld, vertices %ld, by weights a vertex 1..8 %ld %ld %ld %ld %ld %ld "
++              "%ld %ld, data %ld KB; to today's path: %ld (its fast form's conditions), %ld (the clamp, a light, the ambient), %ld (an offset, "
++              "a slot's weights, a UV), %ld (a bone); in the GE lists: passes %ld, bone matrices sent %ld, their own words %ld; the depth range by the bound alone %ld calls, %ld vertices\n",
++              x->c1_calls, x->c1_v, x->c1_nw[1], x->c1_nw[2], x->c1_nw[3], x->c1_nw[4], x->c1_nw[5], x->c1_nw[6], x->c1_nw[7], x->c1_nw[8],
++              (long)(x->c1_bytes >> 10), x->c1_fall[0], x->c1_fall[1], x->c1_fall[2], x->c1_fall[3], gx_c1p, gx_c1b, gx_c1w, x->c1_zin, x->c1_zin_v);
+     if (glf.ft) { const FxThin *t = glf.ft;   /* task #114 */
+       fprintf(f, "picture: thinned effects (sheets 1 in %d, splash 1 in %d): scans %ld, actors walked %ld, names read %ld, cache emptied %ld; "
+               "blocks found: sheets %ld, splash %ld; bad %ld, over %ld; calls thinned %ld, their strips %ld, left out %ld (%ld triangles)\n",
+diff -ruN runtime.orig/host_time.h runtime/host_time.h
+--- runtime.orig/host_time.h	2026-11-02 02:21:07.016755545 +0000
++++ runtime/host_time.h	2026-11-02 03:48:13.485578538 +0000
+@@ -106,6 +106,11 @@
+ #define OPT2_C7 8u                      /* sb10, Stage C step 1 T2 (stagec_notes.md, step 1), MGS2_GL builds (ge/gelive.c gl_call, ge/xconv.c
+                                            hold7): lane 4's P07 calls held to the end of their transfer (step c for the codec faces); off:
+                                            converted at the call, as gl13.  The same batches */
++#define OPT2_C1 16u                     /* sb11, Stage C step 1 C1 (stagec_notes.md 1.9), MGS2_GL builds (ge/xconv.c xc_lit_c1, ge/gelist.c
++                                           c1_draw): the codec faces' P07 calls skinned, lit and (pass 3) mapped by the GE itself where it
++                                           can; off: today's exact vertices.  A different picture (the GE's rounding), so off by default
++                                           (OPT2_DEFAULT) until Ffm's OK */
++#define OPT2_DEFAULT (~OPT2_C1)         /* g_opt2 at the start: every switch on but C1 */
+ extern uint32_t g_opt2;
+ #if defined(__psp__) || defined(GEN_DG_TRACE)   /* (x86 GEN_DG_TRACE: boot.c keeps the draw pipeline's depth) */
+ void host_enter(int k);

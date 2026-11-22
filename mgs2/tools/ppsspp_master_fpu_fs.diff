@@ -1,0 +1,151 @@
+# PPSSPP master 83e616eaf97bd493f91944e5eced70d914b4bc18 (2026-10-28), on top of tools/ppsspp_master_vfpu_rn.diff: PPSSPP_FPU_FS=1 runs the FPU's
+# add / sub / mul / div / sqrt / compares as the PSP-3000 under FCR31 FS (denormal results flushed, denormal inputs used exactly, x +- 0 = x
+# for a denormal x, 0 - x = -x; probe 11, speed_notes §25), as tools/ppsspp_mgs2.diff does for 1.20.4. Master runs FS as FTZ + DAZ, which
+# made the harness's VFPU group fallback count (vfb) 50 higher from vb 15,794 on (2026-10-29). Dev tool only, never shipped.
+# Run: PPSSPP_VFPU_RN=1 PPSSPP_FPU_FS=1 PPSSPPHeadless <game>/EBOOT.PBP --memstick=<dir> --graphics=software (tools/dev/ppsspp_master_run.sh).
+diff --git a/Core/MIPS/IR/IRCompFPU.cpp b/Core/MIPS/IR/IRCompFPU.cpp
+index 990ce8e..fef4e75 100644
+--- a/Core/MIPS/IR/IRCompFPU.cpp
++++ b/Core/MIPS/IR/IRCompFPU.cpp
+@@ -15,6 +15,8 @@
+ // Official git repository and contact information can be found at
+ // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
+ 
++#include <cstdlib>
++
+ #include "Core/MemMap.h"
+ #include "Core/MIPS/MIPS.h"
+ #include "Core/MIPS/MIPSCodeUtils.h"
+@@ -52,6 +54,10 @@
+ #define DISABLE { Comp_Generic(op); return; }
+ #define INVALIDOP { Comp_Generic(op); return; }
+ 
++// local change (MGS2 port): PPSSPP_FPU_FS=1 sends the FPU's add / sub / mul / div / sqrt / compares to the interpreter, which runs
++// them as the PSP-3000 does under FCR31 FS (Interpreter.cpp, Mgs2FpuMode); the VFPU stays here.
++static bool Mgs2FpuFs() { static const bool on = [] { const char *e = getenv("PPSSPP_FPU_FS"); return e && *e == '1'; }(); return on; }
++
+ namespace MIPSComp {
+ 
+ void IRFrontend::Comp_FPU3op(MIPSOpcode op) {
+@@ -61,6 +67,8 @@ void IRFrontend::Comp_FPU3op(MIPSOpcode op) {
+ 	int fs = _FS;
+ 	int fd = _FD;
+ 
++	if (Mgs2FpuFs())
++		DISABLE;
+ 	switch (op & 0x3f) {
+ 	case 0: ir.Write(IROp::FAdd, fd, fs, ft); break; //F(fd) = F(fs) + F(ft); //add
+ 	case 1: ir.Write(IROp::FSub, fd, fs, ft); break; //F(fd) = F(fs) - F(ft); //sub
+@@ -103,6 +111,8 @@ void IRFrontend::Comp_FPULS(MIPSOpcode op) {
+ 
+ void IRFrontend::Comp_FPUComp(MIPSOpcode op) {
+ 	CONDITIONAL_DISABLE(FPU_COMP);
++	if (Mgs2FpuFs())
++		DISABLE;
+ 
+ 	int opc = op & 0xF;
+ 	if (opc >= 8) opc -= 8; // alias
+@@ -151,6 +161,8 @@ void IRFrontend::Comp_FPU2op(MIPSOpcode op) {
+ 
+ 	switch (op & 0x3f) {
+ 	case 4:	//F(fd)	   = sqrtf(F(fs));            break; //sqrt
++		if (Mgs2FpuFs())
++			DISABLE;
+ 		ir.Write(IROp::FSqrt, fd, fs);
+ 		break;
+ 	case 5:	//F(fd)    = fabsf(F(fs));            break; //abs
+diff --git a/Core/MIPS/Interpreter.cpp b/Core/MIPS/Interpreter.cpp
+index 3dae884..0e24741 100644
+--- a/Core/MIPS/Interpreter.cpp
++++ b/Core/MIPS/Interpreter.cpp
+@@ -16,6 +16,11 @@
+ // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
+ 
+ #include <cmath>
++#include <cstdlib>
++#if defined(__GNUC__) && (defined(__SSE__) || defined(__x86_64__))
++#include <xmmintrin.h>
++#define MGS2_FPU_FS_HOST 1
++#endif
+ 
+ #include "Common/Data/Convert/SmallDataConvert.h"
+ #include "Common/Math/math_util.h"
+@@ -58,6 +63,28 @@
+ #define HI mips->hi
+ #define LO mips->lo
+ 
++#ifdef MGS2_FPU_FS_HOST
++// local change (MGS2 port, PPSSPP_FPU_FS=1, as the port's patched 1.20.4): the PSP-3000's FPU under FCR31 FS flushes denormal
++// results only and uses denormal inputs exactly in add / sub / mul / div / sqrt / compares, and gives x itself for x +- 0 even
++// when x is a denormal, -x for 0 - x (probe 11 on the PSP); master runs FS as FTZ + DAZ. IRCompFPU.cpp sends those ops here then.
++static bool Mgs2FpuFs() { static const bool on = [] { const char *e = getenv("PPSSPP_FPU_FS"); return e && *e == '1'; }(); return on; }
++struct Mgs2FpuMode {
++	u32 csr = 0;
++	bool on;
++	explicit Mgs2FpuMode(const MIPSState *mips) : on(Mgs2FpuFs()) {
++		if (!on) return;
++		static const u32 rc[4] = { 0, 3, 2, 1 };   // MIPS RN RZ RP RM -> x86 RC
++		csr = _mm_getcsr();
++		_mm_setcsr((csr & ~0xE040u) | (rc[mips->fcr31 & 3] << 13) | ((mips->fcr31 & 0x01000000) ? 0x8000u : 0u));
++		asm volatile("" ::: "memory");
++	}
++	~Mgs2FpuMode() { if (on) { asm volatile("" ::: "memory"); _mm_setcsr(csr); } }
++};
++#define MGS2_FPU_MODE Mgs2FpuMode mgs2FpuMode(mips)
++#else
++#define MGS2_FPU_MODE do {} while (0)
++#endif
++
+ static inline void DelayBranchTo(MIPSState *mips, u32 where) {
+ 	if (!mips->space->IsValidAddress(where) || (where & 3) != 0) {
+ 		Core_ExecException(where, PC, ExecExceptionType::JUMP);
+@@ -1149,7 +1176,10 @@ namespace MIPSInt {
+ 		switch (op & 0x3f)
+ 		{
+ 		case 4:	//sqrt
++		{
++			MGS2_FPU_MODE;
+ 			F(fd) = sqrtf(F(fs));
++		}
+ 			// A negative input gives a positive NaN, not the host's (cpu/fpu/roundmode).
+ 			if (F(fs) < 0.0f) {
+ 				FsI(fd) = 0x7FC00000;
+@@ -1194,6 +1224,7 @@ namespace MIPSInt {
+ 		int fs = _FS;
+ 		int ft = _FT;
+ 		bool cond;
++		MGS2_FPU_MODE;
+ 		switch (op & 0xf)
+ 		{
+ 		case 0: //f
+@@ -1249,11 +1280,28 @@ namespace MIPSInt {
+ 		int ft = _FT;
+ 		int fs = _FS;
+ 		int fd = _FD;
++		MGS2_FPU_MODE;
+ 
+ 		switch (op & 0x3f)
+ 		{
+-		case 0: F(fd) = F(fs) + F(ft); break; // add.s
+-		case 1: F(fd) = F(fs) - F(ft); break; // sub.s
++		case 0: // add.s
++		case 1: // sub.s
++#ifdef MGS2_FPU_FS_HOST
++			if (Mgs2FpuFs()) {
++				// local change (MGS2 port): x +- 0 and 0 - x as the PSP-3000 under FS; Inf - Inf gives the positive default NaN
++				const u32 a = FI(fs), b = FI(ft);
++				if ((mips->fcr31 & 0x01000000) && ((a & 0x7fffffff) == 0) != ((b & 0x7fffffff) == 0)) {
++					FI(fd) = (b & 0x7fffffff) == 0 ? a : ((op & 1) ? (b ^ 0x80000000) : b);
++					break;
++				}
++				F(fd) = (op & 1) ? F(fs) - F(ft) : F(fs) + F(ft);
++				if (my_isnan(F(fd)) && !my_isnan(F(fs)) && !my_isnan(F(ft)))
++					FI(fd) = 0x7fc00000;
++				break;
++			}
++#endif
++			F(fd) = (op & 1) ? F(fs) - F(ft) : F(fs) + F(ft);
++			break;
+ 		case 2: // mul.s
+ 			if ((my_isinf(F(fs)) && F(ft) == 0.0f) || (my_isinf(F(ft)) && F(fs) == 0.0f)) {
+ 				// Must be positive NAN, see #12519.

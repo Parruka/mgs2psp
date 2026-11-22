@@ -1,0 +1,18 @@
+crash catcher: off (emulator)
+dry run (MGS2_EXC_DRY: a made-up record, no exception; the run goes on) at t 1333 s, vb 33650: address error on load or fetch (Cause 00000010) in thread "user_main" (id 00000114), EPC 08b915f0, BadVAddr 00000002, Status 60000013 (interrupts on)
+ zr 00000000  at 01010101  v0 02020202  v1 03030303
+ a0 04040404  a1 05050505  a2 06060606  a3 07070707
+ t0 08080808  t1 09090909  t2 0a0a0a0a  t3 0b0b0b0b
+ t4 0c0c0c0c  t5 0d0d0d0d  t6 0e0e0e0e  t7 0f0f0f0f
+ s0 10101010  s1 11111111  s2 12121212  s3 13131313
+ s4 14141414  s5 15151515  s6 16161616  s7 17171717
+ t8 18181818  t9 19191919  k0 1a1a1a1a  k1 1b1b1b1b
+ gp 1c1c1c1c  sp 0bddf968  fp 1e1e1e1e  ra 08b84424
+ lo 00000000  hi 00000000
+ code at EPC-16: 680dc906 8c42d814 50440003 2406008c 680dc96e 00000000 686ad2d6 afbe00a8
+ stack at SP (the thread's 0bd9c000-0bfc0000):
+  00000000 01010101 02020202 03030303 04040404 05050505 06060606 07070707
+  08080808 09090909 0a0a0a0a 0b0b0b0b 0c0c0c0c 0d0d0d0d 0e0e0e0e 0f0f0f0f
+  10101010 11111111 12121212 13131313 14141414 15151515 16161616 17171717
+ EBOOT code 08804000-08becfd0, overlay arena 08bf8000-09058000
+ Media Engine: mode 0 (1 on), heartbeat 0, state 0, commands 0 pushed, 0 consumed, checkpoints 0, idle polls 0, last command 00000000 00000000, its exception EPC 00000000; power switch 0, parks 0, last power flags 000010e4

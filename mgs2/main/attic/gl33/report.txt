@@ -1,0 +1,273 @@
+gl33 build report (build agent, 2026-11-21). gl33 = gl31's tree + the in-place rule for the ship's static streams (behind its
+own cfg key, in turns), native in every turn, on a FRESH profile-guided build and code order trained on that tree.
+Built and gated in the container; NOT delivered. Marks: [C] measured in the container (x86 twin, PPSSPP 1.20.4 headless with
+PPSSPP_VFPU_RN=1, or read in code), [C model] PspProf cost model (ms = (1.65 x instructions + 68 x I-misses + 86 x D-misses) /
+333,000; a picture = a window's total / 40), [I] inferred (basis named), UNKNOWN. Nothing below is a gl33 PSP figure.
+
+RESULT IN ONE PARAGRAPH
+gl33 is ahead of gl31 in all four deck windows of the model, and in both controls [C model]. The retrain alone (gl33 with
+the rule off against gl31's ELF, both native in every turn): -24.5 ms a picture in the rain wait's ME turn, -21.4 in its main
+turn, -21.7 / -18.5 in the rain walk (5.8 to 6.2 percent), -6.8 / -5.7 on the steady deck and -6.7 / -5.7 in the opening (4.5
+to 4.7 percent). Nearly all of it is instruction-cache misses: 31 percent fewer a picture in the rain windows, 25 percent
+fewer before them. The rule alone (gl33 in place against gl33 plain, same ELF): -11.6 ms in the rain wait's ME turn, -3.9 in
+the rain walk's ME turn, nothing in main turns (+0.2 / +0.2) and nothing where no ship is drawn (+0.05 / -0.25). Together
+against gl31: -36.1 / -21.2 / -25.6 / -18.4 ms a picture. Every gate passes: twin 685/685 hash lines and all 17,664 frames'
+digests equal with the rule on and off; emulator 62/62 hashes and 916/916 digests equal to the twin, pictures equal to gl31's
+emulator pictures but the known noise frame; ME gates pass; a second build reproduces the EBOOT byte for byte. Functions left
+without a profile: 1, with 1,008 instructions of 14.0 billion in eight windows (gl20: 4 functions, 0.06 percent). The package
+is build_gl33/deliver, EBOOT c3f3f7bd. Three things the lead should know before a PSP run: the emulator's heap margin is
+thinner (section 5, G5); the rule's safety on the real ME rests on gl25's two-hook rule and a twin check, not on a test here
+(section 7); and the plan's turn order puts gl33's PLAIN turns on the vblanks where gl31 ran the BUILDER, so I also gated the
+swapped order as an alternative cfg (section 9).
+
+1. WHAT WAS BUILT
+Tree /home/claude/t33 = copy of t31 (99 files, no symlink) with 6 files changed (md5, lines added / removed against t31); no
+vertex cache code (none of gl32's natvc.h, xconv, vu1conv or event wrappers):
+  ge/natsnap.h 8bc0ea35 (+5 -1: flag NATG_INPL, the plain textured entry's MSCAL word)
+  boot/nat_stub.h b80df560 (+24 -1: keys MGS2_NAT_INPL and MGS2_NAT_INPL_CYCLE, rt_nat_inpl_at, the flagging in the stub)
+  ge/xlme.c f27500fb (+2: a flagged group's streams are not planned for the copy)
+  psp/xl_psp.c 38206a47 (+5: the 'nat inpl' line a turn and the totals line)
+  twin only: boot/nat_x86.c 2e2aa89d (+80: the static check, the 'natinpl:' and 'natst:' lines), boot/boot_x86.c b52c977e (+3)
+  The whole diff: build_gl33/gl33_vs_t31.diff (254 lines).
+The rule [C code]: with the key on for the turn, the stub flags a group when its entry is the plain textured one (MSCAL word
+0x140001be), all three streams are sent, and each stream's address has top nibble 0 and lies outside packet memory
+[0x1b00000, 0x1f00000). For a flagged group the ME-turn plan copies the material only; the ME's walk reads the three streams
+in the game's memory. In main-CPU turns nothing is copied in either arm. Default off: without the keys no group is flagged.
+Deliverables in build_gl33/deliver (md5):
+  EBOOT.PBP        c3f3f7bd300319be2663513e962f9468  (4,388,020 bytes; gl31 4,345,664. MGS2T.elf 47bf66d8; text 4,378,420 =
+                   gl31's 4,336,044 + 42,376; data 7,412 as gl31; bss + 128)
+  ovl_d00t.bin 6ea2f879  ovl_d01t.bin 5e446542  ovl_init.bin bfbf9504  ovl_n_title.bin 2e0054f9  ovl_r_title.bin 45b8ea12
+  ovl_r_tnk0.bin 288da015  ovl_w00a.bin 5b8e04a9  ovl_w01a.bin 459cac1e   (sizes as gl31's, all eight relinked)
+  mgs2.cfg         0181666557f6c914f72b6669fde5e085  (25,027 bytes; 33 MGS2_ keys)
+  hashref.txt      c9ddb593c61c07c41b0183952c753d94  (= gl32's hashref byte for byte; see G1 for why)
+  pad.txt          7bc72aceb89b192298c635ef52b81b8f  (gl31's)
+  README.txt       868e7b82d39d7d297ae7a3fd3f012044  (DRAFT, marked so in its 4th line)   MANIFEST.md5
+cfg = a gl33 header + gl31's file (ac1b29e2) with its last setting line replaced (non-comment diff vs gl31):
+  MGS2_NAT_CYCLE=3,3,3,3 (was 0,0,3,3)          native in every turn from vb 24,001
+  MGS2_NAT_INPL_CYCLE=0,0,1,1 (new)             the rule by the same turns of 100 vblanks: plain, plain, in place, in place;
+                                                each arm meets one ME turn and one main turn every 400 vblanks
+Everything else is gl31's (FLIPWAIT_FROM=0, DZ X in the whole run, ME_PIC 4, the 16 shots, the live captures).
+
+2. THE FRESH PROFILE AND ORDER (gl20's method on t33)
+All builds go through one link farm (build_gl33/m: boot, boot_g0, ge, psp, runtime from t33; gen, rt, tools, cfg from main)
+and one shadow folder (m/build_mg), so the profile ids of static functions are the same in every build [C].
+Training [C]: cfg = the delivery cfg without the shots (cfg/mgs2_gl33pgo.cfg: native every turn, MGS2_NAT_INPL_CYCLE=0,0,1,1,
+so both in-place arms are in the counts). Five instrumented builds, five runs, every hash line of each run equal to the
+twin's reference: game (gen.o) 124/124, runtime half rtb (boot_rt.o, gen_dispatch.o) 124/124, runtime half pic (the 15
+picture objects and xl_psp.o) 124/124, w00a 63/63 (counts from vb 29,100 to 31,550), w01a 124/124 (31,600 to 37,790). The rtb
+and pic logs carry the twin's native totals (calls recorded 427,940, groups 2,233,651, flagged static 1,053,381; groups' data
+in the copy 3,231,173, read from RAM 1,515,339, partly 0) and 139 'nat turn' + 139 'nat inpl' lines each.
+Use build u (no order) [C]: ELF text 4,378,420. pgochk on it: every profiled object compiles with 0 profile warnings (no
+dropped profile, no missing one; -Wmissing-profile on); gen.o, gen_s_w00a.o, gen_s_w01a.o, boot_rt.o and gen_dispatch.o come
+out equal to the build's.
+What the new profiles changed [C]: 17 of the 45 objects differ from gl31's stage objects (gen.o, boot_rt.o, xl_psp.o, 13
+picture objects, main_psp.o by its title string). gen_s_w00a.o, gen_s_w01a.o, gen_dispatch.o and ge_xlive.o come out byte
+for byte as gl31's (gl20's) although their .gcda files are new: the stages' own code was already trained on the same scenes.
+So the retrain acts through gen.o (the game's main code), boot_rt.o, the picture code, and the order.
+Order [C model, layout_sim on PspProf traces of u: deck route 8 windows 327 MB, inside route 8 windows 244 MB; gl20's
+windows and weights; I-misses of a 2-way 16 KB cache summed over the windows]:
+                                   train      test (held-out windows)
+  u as the linker placed it        6,399,823  1,852,986
+  hot functions packed             6,376,872  1,854,685
+  first-fetch order                5,706,168  1,657,499
+  the search's start (gl20's order for the 1,922 functions still hot + 41 newly hot)   6,444,855   1,862,881
+  the search (40,000 moves, 4 threads, seed 1)   4,438,317   1,285,192   (-30.6 % against u as linked, train and test alike)
+  fully associative LRU, 256 lines (build_gl20/fa, FF8's fa.c)   4,865,500   1,381,500
+The search ends 8.8 percent under the fully associative LRU figure (test: 7.0 percent under), as in gl20 (12.5 percent
+under): by gl20's rule FF8's lopt is skipped (it also takes one region and 4,096 units; MGS2 has one ELF order shared by two
+routes plus two overlays). Hot functions 1,007 in the ELF, 502 in w00a, 454 in w01a; 0 left to the linker; the ELF's order
+file is the same from both routes. The relinked build's placements give the search's figures exactly (deck 1,989,112, inside
+2,449,205: new_f.out). Order files: build_gl33/ord/final (layout_elf.ld 578a78d7, layout_w00a.ld 44816e6f, layout_w01a.ld
+a0b0f20c). The final build = u's objects relinked with them (rl33.sh; no compile).
+Functions left without a profile [C], tools/pgo_lost.py over eight model windows of the final build (the four deck windows,
+plain and in place; 14,015,702,539 instructions; 1,350 functions of profiled objects ran):
+  GCC dropped profiles: 0.   Ran with all counts zero: 1 function, S_w00a_P26bed0, 1,008 instructions (0.000 %), 72 I-misses.
+  hot 1,120 functions 94.02 % of the instructions; profiled but not hot 229 functions 0.46 % (the largest:
+  vup_f28803a2_166 29.7 M instructions, gl_bmp 18.8 M = the captures inside the windows); outside the profiled objects 5.51 %.
+  (gl20: 4 functions dropped by GCC + 4 untrained = 5 that ran, 0.25 % before its fix, 0.06 % after.)
+
+3. THE MODEL [C model] (PspProf, the interpreter; windows of 80 vblanks = 40 pictures; ms a picture)
+Runs: gl31's ELF with native in every turn ('gl31 arm 3': build_gl32/model/m32n3 and build_gl33/model/m31r, m31c1, m31c2),
+gl33's ELF with the rule off in the whole run (plain: g33p, g33pr, g33pc1, g33pc2) and on in the whole run (in place: g33i,
+g33ir, g33ic2); the same cfg otherwise (cfg_emu/mgs2_m33_p.cfg, mgs2_m33_i.cfg).
+                                       gl31 arm 3  gl33 plain  gl33 in place   retrain alone    rule alone   both
+  rain wait, ME turn 29,810-29,890       396.83      372.37      360.78       -24.47 (-6.2 %)    -11.59      -36.06 (-9.1 %)
+  rain wait, main turn 29,910-29,990     342.03      320.67      320.87       -21.36 (-6.2 %)     +0.19      -21.17 (-6.2 %)
+  rain walk, ME turn 31,010-31,090       372.17      350.49      346.61       -21.68 (-5.8 %)     -3.89      -25.56 (-6.9 %)
+  rain walk, main turn 31,110-31,190     311.90      293.38      293.54       -18.52 (-5.9 %)     +0.16      -18.36 (-5.9 %)
+  rain walk in a run of its own, ME      372.10      350.44      346.96       -21.65              -3.48      -25.14
+  rain walk in a run of its own, main    312.23      293.94      293.83       -18.29              -0.11      -18.40
+  control: steady deck d01t, ME 27,410-27,490     147.29   140.47   140.52     -6.82 (-4.6 %)     +0.05       -6.77
+  control: steady deck d01t, main 27,510-27,590   126.16   120.45   120.20     -5.71 (-4.5 %)     -0.25       -5.96
+  control: opening, ME 16,010-16,090              142.47   135.75   (the rule cannot act)   -6.71 (-4.7 %)
+  control: opening, main 16,110-16,190            124.51   118.86                           -5.65 (-4.5 %)
+I-misses a picture, gl31 arm 3 -> gl33 plain: rain wait 347,263 -> 241,036 (-30.6 %) and 321,383 -> 219,540 (-31.7 %); rain
+walk 316,688 -> 216,998 (-31.5 %) and 280,262 -> 190,078 (-32.2 %); steady deck 117,905 -> 88,949 (-24.6 %) and 107,957 ->
+82,258 (-23.8 %); opening 118,921 -> 89,253 (-24.9 %) and 110,444 -> 83,173 (-24.7 %). In the rain wait's ME turn gl33's
+2-way count (241,036) is under the model's fully associative count for the same window (242,647).
+The retrain's other parts in the rain wait's ME turn: instructions -465,510 a picture (-1.0 %, 2.3 ms), D-misses -1,818. In
+the main-turn and control windows D-misses rise by 1,400 to 3,400 a picture (0.4 to 0.9 ms, inside the totals above).
+The rule, where it acts (rain wait ME turn, model_split.out): me_memcpy -5.1 ms, xc_merge -4.2, xm_walk -0.6, xm_plan -0.4,
+xc_add -0.3: instructions -900,813 and D-misses -26,965 a picture. Its cost where it cannot gain: the stub's test, +26,000
+instructions a picture in a main turn (+0.13 ms).
+How to read these: (a) a model, not a PSP time. (b) The emulator has no ME: in an ME-turn window the ME's picture work is
+counted as main-CPU work, so those windows overstate a PSP step, and the rule's gain there is work the PSP's ME does while
+the main CPU waits for the fill: on the PSP it should show in the turn lines' 'waits: fills' and in the ME's 'fills' time. (c)
+PspProf's windows run the interpreter, which shifts the emulator's timing: after a run's first window the game state leaves
+the reference (hash lines after it differ: g33p 2 of 62, g33i 3, the steady-deck runs 1 of 55; the rain-alone and opening
+runs 0), each build in its own way. So the first window of each run is the exact comparison; later windows compare the same
+scene in slightly different states. The rain walk was therefore also run alone (rows 5 and 6): the same figures within 0.6
+ms. (d) The noise between two runs that do the same work: the rule in the steady deck, +0.05 and -0.25 ms.
+Not measured: the split of the retrain's gain between the profile and the order (build_gl33/u, the use build without the
+order, is kept; layout_sim puts the order alone at -30.6 % I-misses against u as linked).
+Plan's condition 'delivered only if gl33 is ahead of gl31 in the deck windows': met in all four, plain and in place.
+
+4. THE RULE'S SAFETY, AS FAR AS THE CONTAINER CAN SHOW IT
+On the PSP an ME walk reads the game's memory after the game has moved on. Read in code [C] (psp/xl_psp.c mq_frame, gl25's
+rule lchk4): a hook with records waits for the walk before it, and so does the second hook after the walk's own, so what a
+walk reads in RAM must stay unchanged for two vblank hooks after its transfer. Caches [C code, the two call sites read, not
+every path followed]: the main CPU writes its whole data cache back before it hands the ME a step (psp/xl_psp.c mq_cpu_wb)
+and the ME drops its own before a walk (ge/xme.c XME_C_ALL), as for the RAM reads gl31 already makes.
+Twin check [C] (MGS2_NAT_STCHK=<n>: every flagged group's three streams hashed at the draw and again at each of the next n
+vblank starts, and at each of the next 6 pipeline calls):
+  delivered order, n = 8 (run ai): 1,052,281 flagged groups drawn, changed 0.
+  swapped order, n = 8 (run dxa): 869,645 drawn, changed 126, all at the 8th vblank; by pipeline calls 0.
+  rule in every turn, n = 16 (run a1): 1,921,926 drawn, changed 1,722, by vblanks since the draw: 8: 126, 9: 280, 10: 268,
+  11: 317, 12: 188, 13: 153, 14: 52, 15: 36, 16: 302; at 1 to 7 vblanks: 0; by pipeline calls (1 to 6): 0.
+So no flagged stream changes within 7 vblanks of its draw; the first changes come at 8 (memory reused at stage changes), 6
+vblanks beyond the two the PSP needs [I: the reach is from reading the code, not from a PSP log].
+The PSP's own order of work, on the twin [C]: MGS2_NAT_LW=2 (the plan / copy / late walk as the PSP does it) with the rule in
+every turn against the same without the rule and against the plain run: every line class equal (17,664 frames; 37,831 xlive
+lines); data pieces taken from the copy 3,789,581, read outside it 5,765,778, partly 0 (plain: 9,555,359 from the copy).
+
+5. GATES
+G1 twin [C]: PASS. Runs to vb 37,800 (route i): a3 (native every turn, plain), ai (+ MGS2_NAT_INPL_CYCLE=0,0,1,1), dx (the
+ delivered keys: + DZ X whole run; the hash reference), a1 (rule in every turn), lw2i / lw2p (late walk with and without the
+ rule), g31 (gl31's 0,0,3,3 with the rule in turns), dxa (the swapped order).
+ 685/685 hash lines in a3, ai, dx, a1, dxa. hashref = c9ddb593 = gl32's byte for byte, not gl31's 177108d4: the state hash
+ follows native-in-every-turn (the builder's packets are no longer written from 24,001 on, so it leaves gl31's at vb 24,100),
+ and the rule changes no state (it only changes what is copied for the ME). g31 gives gl31's hashref 685/685.
+ Pictures: a3 = ai = a1, dx = dxa, a3 = gl32's a3, dx = gl32's dx, g31 = gl31's twin run b: 17,664 frames each, list / frame
+ / content digests, the dz text and the natb / natz / natq lines all equal (g1_twin*.out, g_alt.out).
+ Note: a3, ai, dx, lw2i, lw2p and g31 ran before the twin-only pipeline-call check was added to the twin binary (shared code
+ unchanged); a1 and dxa ran with the final one.
+G2 read hash [C]: PASS (g2_rhcmp.out; 31,399 vblanks each). Base = gl31's base in every vblank; native every turn = gl32's;
+ native every turn = the same with the rule in turns = the same with the rule in every turn (counts and values); base against
+ native: counts equal in all, values differ in 2 vblanks (25,944 and 25,974), as in gl31 and gl32.
+G3 emulator [C]: PASS. Run e2 = the exact deliverables (inputs.md5 = deliver's): 62/62 hashes = hashref.txt; 916/916 digest
+ lines = twin dx (list, frame, dz text). Ended by itself. 16 'the flip wait kept' lines, 0 'GAVE UP'.
+ Native: 75 'nat turn' lines, all arm 3; the builder run instead 0, recorded with no array 0, early fills 0, dropped 0,
+   partly 0, plans undone for the groups' room 0 (gl32 had 41 in one turn: no cache block here). 'groups left untaken 2,984
+   (pictures 6)' at the stage changes, as gl32.
+ In place: 75 'nat inpl' lines. Groups flagged static 543,036 = the twin's sum over the same turns; equal turn by turn in 43
+   of the 45 turns the twin prints; in the other two (26,000 and 29,000) the same 1,264 groups are booked differently: the
+   twin cuts its line at the next picture with records, after that picture's groups are flagged (boot/nat_x86.c, read).
+   By turn kind: ME in-place turns 256,419 flagged, main in-place turns 284,296, ME plain turns 2,321 (the first picture of a
+   turn is recorded under the turn before), main plain turns 0. The groups' data in ME turns: plain 877,809 from the copy
+   and 23,793 read from RAM; in place 513,589 from the copy and 749,226 read from RAM; partly 0. Rain wait, a turn: plain
+   about 130,000 / 1,700, in place 48,800 / 83,900.
+ Pictures against gl31's emulator run e2 (52 names): 51 byte-identical; shot_24784 differs in 126 px by 1 level (the
+   emulator noise frame known since gl26).
+ Dense run e3 (the package's EBOOT, cfg + MGS2_GL_DIG=0:31400 + a shot every 2 vblanks in the walk): 62/62; 14,592 digest
+   lines: the LIST digest equal to the twin's in all, the FRAME digest differs in 1,154 (1,153 in vb 536-3,021 and 26,007:
+   the set known since gl31); from 24,001 on 3,521 of 3,522 equal. Against gl31's dense emulator run: list and frame digests
+   equal in all 14,592. 455 pictures against gl31's emu_e3: 454 byte-identical, shot_24784 the one (60 px by 1 level).
+G4 ME [C]: PASS. xme_rest_chk, xme_me_chk, mesec_chk, me_call_chk pass (psp.sh rc 0). ge_xme_me.o is gl31's byte for byte.
+ Undefined symbols of the 45 objects against gl31's stage objects: the only new names are xl_psp.o's g_nat_stc and
+ rt_nat_inpl_at, both defined in the build; the ELF's 133 sce* names and its stub sections' sizes are gl31's: no new import,
+ system call or register write; nothing writes flash (g4_syms.out). The rule adds no ME code path: the walk's read of data
+ outside the copy is gl31's; the planner skips three copies.
+G5 memory, emulator [C]: the run ends by itself with no allocation failure, but the margin is thinner than gl31's. Heap
+ headroom at the start 12,576 KB (gl31 12,608: the ELF is 42 KB larger). The break's highest point is 0be5c000 at vb 23,677
+ (gl31 0be52000, + 40 KB), which leaves about 116 to 132 KB there (gl31 156) [I: from the start's headroom and the break].
+ At the end the log says 'headroom about 64 KB at its lowest' and 'blocks malloc can still give: 64 32 16 16 = 128 KB in 4
+ blocks' (gl31: 160 KB in 1 block): the end report leaves a free top of 75 KB that newlib does not grow for a larger request
+ [I: the probe is a largest-single-block search], so 64 KB is the largest block, not the free room. Outside the heap as gl31
+ (224 / 432 KB before the records' arrays, 116 / 216 KB after). The PSP has more: gl30's PSP run had about 2.7 MB of heap free
+ at its lowest [C PSP gl30, from gl32's README]. The emulator's margin shrinks with every KB of code added.
+G6 reader [C]: build_gl33/rd33.py = rd31.py + the 'nat inpl' lines: one row a turn (arm, inpl, the window's step parts, the
+ ME's walks / records / fills / idle and the waits for copies and fills, calls, groups, flagged static, data in the copy /
+ read from RAM), the means by picture turn, arm and inpl for all turns and for --natfrom / --natto, the totals. Run on e2:
+ rd33_e2.out (62/62, 916/916, 75 + 75 lines parsed, 0 turns with a problem, 36 of 36 live captures equal to the emulator's
+ frames); on gl31's emulator log as a format check (rd33_gl31fmt.out: 75 'nat turn', 0 'nat inpl'). PSP command line:
+   python3 -I /home/claude/main/build_gl33/rd33.py <LOGS/gl33>/log.txt --bat <LOGS/gl33>/battery.txt --live <LOGS/gl33>
+ (defaults: --ref build_gl33/emu_e3/pic, --twin build_gl33/tw/x86/out_dx.log, --hashref build_gl33/deliver/hashref.txt).
+ For the arms' times use the rain wait, where the scene stands still: --natfrom 29600 --natto 30500 (9 turns: ME plain, main
+ plain, ME in place, main in place, ME plain, main plain, ME in place, main in place, ME plain).
+G7 reproducible [C]: PASS (g7.out). A second PGO=use build from the tree and the profiles, relinked with the order: EBOOT,
+ ELF and all 8 overlays equal to the first; 53 objects, 0 differing; deliver's 9 files = psp's.
+
+6. WHAT THE PSP RUN WOULD MEASURE
+Inside the run: in-place turns against plain turns, ME and main apart (the rule). In main turns the two arms do the same
+work, so their difference is the run's noise.
+Against gl31's log: gl31 drew natively in turns 2 and 3 of every four, which are gl33's IN-PLACE turns in the delivered
+order. So on the same vblanks: gl33's in-place MAIN turns against gl31's native main turns = the retrain alone (the rule is
+idle there, +0.2 ms in the model); gl33's in-place ME turns against gl31's native ME turns = retrain + rule. gl33's plain
+turns fall on gl31's builder turns. See section 9 for the swapped order.
+
+7. UNKNOWN UNTIL THE PSP RUN
+ - Any gl33 time.
+ - The rule on the real ME: that streams read in place are in RAM and unchanged when the ME's walk reads them rests on the
+   two-hook rule and the cache write-back read in code and on the twin's check (section 4). The emulator has no second
+   processor and no caches, so no run here can show a stale read. What would show it on the PSP: from vb 29,490 on, a frame
+   digest that differs from the twin's in an in-place ME turn (the digest covers the vertices the walk made: ge/gelive.c
+   gl_digest hashes the batches, the vertices and the list's data), so the 916 digests are a direct check there; before
+   29,490 no digests are taken, and only the two shots (24,246 in an in-place ME turn of the delivered order, 24,786 in an
+   in-place main turn) and the owner's eyes would show a wrong ship.
+ - Whether the PSP books the turn-edge picture as the emulator does ('nat inpl' counts by turn may move by one picture).
+ - The heap margin on the PSP for this EBOOT (42 KB more code): expected ample [I: gl30's PSP figure], not measured.
+
+8. DEVIATIONS FROM THE PLAN AND THINGS DONE DIFFERENTLY FROM gl20
+ - The runtime's training set no longer fits the emulator's memory as one instrumented build: trained in two halves, rtb
+   (boot_rt.o + gen_dispatch.o) and pic (the picture objects + xl_psp.o), each with a smaller texture pool (TEXKB 1024 /
+   1664 instead of the cfg's): 571,084 texture-pool refusals in rtb (they do not touch boot_rt's code [I]); in pic 13,311 of
+   18,196 conversions refused and 35,247 evictions over 5.72 M uses, so the texture cache's code was trained under more
+   pressure than a real run has. Hashes equal in both.
+ - The stage runs used MGS2_ME_PIC=0, TEXKB 256 and MGS2_ME_PIC_GE2=0, the game run MGS2_ME_PIC=0 and TEXKB 1024 (memory);
+   the state is equal (hash lines). The inside trace started from a cfg with 'deck 31800' for the same reason.
+ - gen.o is compiled with -fno-partial-inlining in every build but the counting one: with the new profile GCC split
+   P1214a0 (the builder, which sits behind the native wrapper) and inlined its head into two callers, which would pass the
+   wrapper by; psp.sh now stops a build whose gen.o holds a clone of it or other references than 2 calls and 1 table word.
+   G3 is the proof that no caller took it in (emulator hashes = twin's with native in every turn).
+ - The trace and order windows and the equal weights of the deck and inside routes are gl20's, although the PSP run ends
+   at vb 31,400 (the inside route weighs half of the order's objective).
+ - lopt not run (section 2). One search seed (gl20 used one too).
+ - The instrumented build folders were deleted after their runs (their md5 lists are kept: g_*.md5); the profiles are in
+   build_gl33/gcda (md5.txt).
+ - armA33.py's split: gl32's tool called the function 'hw' a wait; it is the frame digests' hash (ge/gelive.c). Corrected;
+   gl32's report line 'of it the waits (hw)' was about that function. It did not change gl32's totals.
+
+9. WHAT THE LEAD CAN DECIDE
+ a. Ship the package as it is (the plan's order 0,0,1,1).
+ b. Swap the order: MGS2_NAT_INPL_CYCLE=1,1,0,0. Then gl33's PLAIN turns are exactly the turns gl31 drew natively, so the
+    PSP gives the retrain alone on the same vblanks for ME and main turns against gl31's log, and the rule inside the run as
+    before. Gated [C] (g_alt.out): cfg/mgs2_gl33_alt.cfg (13028543; one setting line and two comment lines differ), twin
+    run dxa 685/685 with the same hashref and all 17,664 frames equal to dx; emulator run e4 62/62, 916/916 = twin and = e2,
+    75 'nat inpl' lines, flagged 333,222, pictures equal to e2's but the noise frame. To use it: replace deliver/mgs2.cfg by
+    it, write MANIFEST.md5 again and change the README's 'which turns to compare' paragraph and its flagged counts
+    (182,349 ME in place, 148,881 main in place, 1,992 turn-edge). The profile was trained with 0,0,1,1; both arms are in it
+    either way.
+ c. MGS2_NAT_INPL=1 (in place in every turn) once the PSP has shown the rule clean.
+
+10. FILES
+/home/claude/main/build_gl33 (1.1 GB; t33 2.4 MB). Disk free 3.4 GB at the end (4.5 GB at the start: 1.1 GB of new use). Nothing
+of build_gl32 was deleted (its emulator game folders were already empty). Deleted inside build_gl33, by literal path after
+looking: the instrumented builds, failed first attempts (logs kept in pg/fail, lay/fail), every emulator and model game
+folder (ms/*), the raw traces and, at the end, the two merged traces (lay/t0m.it, lay/t1m.it, 571 MB: a new order search or
+a new fully associative figure needs 'pgo.sh trace' again, about 10 minutes), the second build (u2, psp2).
+  deliver/                 the package            psp/ the final build      u/ the use build without the order
+  gcda/                    the profiles (md5.txt)                           ord/final/ the order's three .ld files
+  cfg/                     mgs2_gl33.cfg, mgs2_gl33_alt.cfg, mgs2_gl33pgo.cfg, mgs2_gl33pgo_t1.cfg, hashref_gl33.txt
+  cfg_emu/                 mgs2_m33_p.cfg, mgs2_m33_i.cfg (model), mgs2_gl33_dense.cfg (e3)
+  m/scripts/               env.sh psp.sh pgo.sh pgochk.sh emu.sh as changed for gl33
+  scripts                  builds_gen.sh rl33.sh order33.sh fa33.sh model33.sh model_gl31.sh em33.sh g4_33.sh g7_33.sh tw33.sh
+                           tw_run.sh tw_part.sh g1_runs1.sh g1_runs2.sh xt33.sh rh33.sh rh_all33.sh
+  tools                    rd33.py piccmp33.py g1cmp33.py rhcmp.py mtot33.py armA33.py
+  outputs                  g1_*.out g1_twin*.out g2_rhcmp.out g3_e2_pic.out g3_e3_pic.out g3_e3_dig.out g3_nat.out g4_syms.out
+                           g7.out g_alt.out rd33_e2.out rd33_gl31fmt.out psp.out u.out u_split.out new_f.out pgochk_u.out
+                           train_*.out g_*.out order33.out order_h.out order_s1.out fa33.out model_tot4.out model_totr.out
+                           model_totc.out model_split.out pgo_lost_g33.out pgo_g33*.out pgo_m31*.out trace_t*.out
+  logs (container only)    tw/x86 (twin), xt33 (read hash), emu_e2 emu_e3 emu_e4 (pictures inside), model/, pg/, lay/
+The attic copy (/mnt/project-files/mgs2/main/attic/gl33) holds this report, README_gl33.txt and MANIFEST_gl33.md5, the scripts
+(m/scripts' five in scripts_m/), the tools, the cfg files, the tree's diff and the gates' and model's text outputs in out/
+(the reader's output without its battery section); no game data, dumps, logs, order files or pictures.

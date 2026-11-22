@@ -1,0 +1,476 @@
+--- sb14/tools/gsref.c
++++ sb15/tools/gsref.c
+@@ -244,6 +244,8 @@
+ typedef GfVtx Vtx;                     /* ge/gsfront.h: x, y, u, v in 12.4 fixed point */
+ static Vtx cur; static float g_q = 1.0f; static Vtx vq[3]; static int vqn;
+ typedef GfDraw Draw;                   /* the state a primitive is drawn with: ge/gsfront.h, shared with the GE renderer's front end */
++static int g_gpath;   /* the GIF path of the quadword being drawn (1 XGKICK, 2 DIRECT, 3 ch 2; its other declaration below) */
++#define PENT (g_gpath == 1 ? g_entry : 0u)   /* task #152: the entry a primitive is counted under: 0 for paths 2 and 3 */
+ static long g_pix, g_dpx, g_rej[5], g_afail, g_prej[5];   /* g_prej: rejections in the current primitive */ static uint32_t g_entry;   /* g_entry: guest address of the running VU1 call's entry instruction */ static int g_call; static char g_st[200];   /* g_dpx, g_st: pixels and state of the current primitive */   /* pixels written, VU1 call index in this vblank */
+ static struct { uint32_t fbp; int psm, fbw, maxx, maxy; long prims; } tg[64]; static int ntg;
+ static void setup(Draw *d) { gf_setup(gr, d); }   /* ge/gsfront.c: the same rules as the GE renderer's front end */
+@@ -313,7 +315,7 @@
+   if (d->aa1) n += snprintf(st + n, sizeof st - n, " aa1");
+   if (d->fbmsk) n += snprintf(st + n, sizeof st - n, " fbmsk %08x", d->fbmsk);
+   count(1, "%s", st); strcpy(g_st, st); g_dpx = 0; g_afail = 0;
+-  count(1, "entry %06x prims", g_entry); count(1, "entry %06x %s", g_entry, st);
++  count(1, "entry %06x prims", PENT); count(1, "entry %06x %s", PENT, st);
+   if (d->tme) {
+     if (tex_log) tex_use(d);
+     count(1, "tex psm %x cpsm %x %dx%d %s tcc%d %s wrap %d/%d mag%d min%d mxl%d lcm%d", d->tpsm, d->cpsm, 1 << d->tw, 1 << d->th, TF[d->tfx], d->tcc,
+@@ -717,18 +719,25 @@
+   double z = (v->z > 0xffffff && d->zpsm != Z32 ? 0xffffff : v->z) - lo; z *= k; if (z < 0) z = 0; if (z > 65535) z = 65535;
+   o.z = (uint32_t)z << 8; return o;
+ }
++static uint32_t skip_ent[8]; static int nskip_ent;   /* GSREF_SKIPENT=<entry, hex>[,..]: those VU1 entries' primitives not drawn (task #152) */
++static int skip_now(void) { for (int i = 0; i < nskip_ent; i++) if (PENT == skip_ent[i]) return 1; return 0; }
++static uint32_t skip_untex;   /* GSREF_SKIPUNTEX=<entry, hex>: that entry's untextured triangles not drawn (sb15 4x: what the deck's flat triangles are) */
+ static void draw_tri(const Vtx *v0, const Vtx *v1, const Vtx *v2)
+ {
++  if (nskip_ent && skip_now()) return;
++  if (skip_untex && PENT == skip_untex) { Draw d; setup(&d); if (!d.tme) return; }
+   if (!zm_n) { draw_tri_(v0, v1, v2); return; }
+   Draw d; setup(&d); Vtx a = zm_map(&d, v0), b = zm_map(&d, v1), c = zm_map(&d, v2); draw_tri_(&a, &b, &c);
+ }
+ static void draw_sprite(const Vtx *a, const Vtx *b)
+ {
++  if (nskip_ent && skip_now()) return;
+   if (!zm_n) { draw_sprite_(a, b); return; }
+   Draw d; setup(&d); Vtx p = zm_map(&d, a), q = zm_map(&d, b); draw_sprite_(&p, &q);
+ }
+ static void draw_line(const Vtx *a, const Vtx *b)
+ {
++  if (nskip_ent && skip_now()) return;
+   if (!zm_n) { draw_line_(a, b); return; }
+   Draw d; setup(&d); Vtx p = zm_map(&d, a), q = zm_map(&d, b); draw_line_(&p, &q);
+ }
+@@ -743,9 +752,9 @@
+   if (!g_st[0]) { memset(g_prej, 0, sizeof g_prej); return; }
+   if (ge_on && G.cur >= 0) G.b[G.cur].px += g_dpx;
+   if (dc_on) dc_px += g_dpx;
+-  count(g_dpx, "px %s", g_st); count(g_dpx, "entry %06x px", g_entry);
++  count(g_dpx, "px %s", g_st); count(g_dpx, "entry %06x px", PENT);
+   static const char *RN[4] = { "scissor", "atest", "datest", "depth" };
+-  for (int i = 0; i < 4; i++) if (g_prej[i]) { count(g_prej[i], "entry %06x rejected %s", g_entry, RN[i]); g_prej[i] = 0; }
++  for (int i = 0; i < 4; i++) if (g_prej[i]) { count(g_prej[i], "entry %06x rejected %s", PENT, RN[i]); g_prej[i] = 0; }
+   if (g_afail) { count(1, "afail-but-written prims %s", g_st); count(g_afail, "afail-but-written px"); g_afail = 0; }
+ }
+ static int vdump;   /* GSREF_VDUMP=n: print the first n vertices of textured triangles (debug) */
+@@ -1757,6 +1766,9 @@
+   memcpy(dc_vm, VM, sizeof dc_vm); dc_top = vu_top; dc_on = 1; dc_kind = kind; dc_tagn = 0; dc_nr = 0; dc_have = 0; dc_px = 0;
+ }
+ static void fp_end(void);
++static void sp_end(void);
++static void qd_end(void);
++static void ln_end(void);
+ static void dc_check(const VcXform *xp, const VcVert *v, const uint16_t *fl, int n);
+ static void dc_export(const VcXform *x, const VcVert *v, const uint16_t *fl, int n);
+ /* the PS2 clip flags of a clip-space point: +x -x +y -y +z (near) -z (far) against |w| (VU CLIP) */
+@@ -1764,6 +1776,9 @@
+ static void dc_end(void)
+ {
+   dc_on = 0;
++  if (dc_kind == 3) { sp_end(); return; }
++  if (dc_kind == 4) { qd_end(); return; }
++  if (dc_kind == 5) { ln_end(); return; }
+   if (dc_kind) { fp_end(); return; }
+   static VcVert v[1024]; static uint16_t fl[1024]; VcXform x;
+   int n = vc_df0(dc_vm, dc_top, &x, v, fl, 1024);
+@@ -1965,15 +1980,69 @@
+   if (xc_on && !xc_take(&b, &bp, &bs)) return;
+   gb_xform(&G, &b, bp, bs); fp_nx++; fp_nxv += n; fp_nxp += npv;
+ }
++/* sb15 diagnosis (GSREF_GEPREC=1): a world-space vertex by four GE routes, each against the PS2's kicked x, y (px): 0 today's (the
++   call's matrix as the GE's float24 world), 1 the same matrix in full float, 2 recentred on the call's first vertex (positions minus it;
++   its own image through the matrix, from doubles, as the float24 translation), 3 the clip position the micro program computes (VU
++   rounding; the clipper's for a clipped end) through the sprites' projection (the GE's world the identity) */
++static int gp_on; static double gp_max[3][4][2]; static long gp_n[3], gp_vb[3][4], gp_big[3][4]; static int gp_shown;
++static const char *GPK[3] = { "fan strip vertices", "line strip ends", "line clipped ends" };
++static void gp_eval(int kind, const float p[3], const float o[3], const float *cpos, const VcXform *x, double kx, double ky)
++{
++  float W[12]; for (int k = 0; k < 12; k++) W[k] = f24(x->world[k]);
++  const float vsx = f24(x->vs[0]), vox = f24(x->vo[0]), vsy = f24(x->vs[1]), voy = f24(x->vo[1]);
++  float X[4], Y[4], e[3], c[4];
++  for (int j = 0; j < 3; j++) e[j] = p[0] * W[j] + p[1] * W[3 + j] + p[2] * W[6 + j] + W[9 + j];
++  X[0] = vsx * (e[0] / e[2]) + vox; Y[0] = vsy * (e[1] / e[2]) + voy;
++  for (int j = 0; j < 3; j++) e[j] = p[0] * x->world[j] + p[1] * x->world[3 + j] + p[2] * x->world[6 + j] + x->world[9 + j];
++  X[1] = vsx * (e[0] / e[2]) + vox; Y[1] = vsy * (e[1] / e[2]) + voy;
++  { const float q[3] = { p[0] - o[0], p[1] - o[1], p[2] - o[2] };
++    for (int j = 0; j < 3; j++) { const float T = f24((float)((double)o[0] * x->world[j] + (double)o[1] * x->world[3 + j] + (double)o[2] * x->world[6 + j] + (double)x->world[9 + j]));
++      e[j] = q[0] * W[j] + q[1] * W[3 + j] + q[2] * W[6 + j] + T; } }
++  X[2] = vsx * (e[0] / e[2]) + vox; Y[2] = vsy * (e[1] / e[2]) + voy;
++  if (cpos) memcpy(c, cpos, 16); else vc_vu_clip(x->m, p, c);
++  X[3] = vsx * (c[0] / c[3]) + vox; Y[3] = vsy * (c[1] / c[3]) + voy;
++  gp_n[kind]++;
++  for (int r = 0; r < 4; r++) { const double dx = fabs(X[r] - kx), dy = fabs(Y[r] - ky);
++    if (dx > gp_max[kind][r][0]) { gp_max[kind][r][0] = dx; gp_vb[kind][r] = g_vb; } if (dy > gp_max[kind][r][1]) gp_max[kind][r][1] = dy;
++    if (dx > 0.25 || dy > 0.25) gp_big[kind][r]++; }
++  if ((fabs(X[0] - kx) > 1 || fabs(Y[0] - ky) > 1) && gp_shown < 16) { gp_shown++;
++    printf("gpbig %s vb %ld call %d: clip w %.5g, |p| %.6g %.6g %.6g, kicked (%.3f, %.3f); x errors %.3f %.3f %.3f %.3f, y errors %.3f %.3f %.3f %.3f\n",
++           GPK[kind], g_vb, g_call, c[3], p[0], p[1], p[2], kx, ky, X[0] - kx, X[1] - kx, X[2] - kx, X[3] - kx, Y[0] - ky, Y[1] - ky, Y[2] - ky, Y[3] - ky); }
++}
++static void gp_report(void)
++{
++  if (!gp_on) return;
++  for (int k = 0; k < 3; k++) {
++    fprintf(stderr, "geprec %s %ld:", GPK[k], gp_n[k]);
++    static const char *RN[4] = { "today (float24 matrix)", "full-float matrix", "recentred", "clip position" };
++    for (int r = 0; r < 4; r++) fprintf(stderr, "%s %s x %.4g y %.4g px (vb %ld), over 0.25 px %ld", r ? ";" : "", RN[r], gp_max[k][r][0], gp_max[k][r][1], gp_vb[k][r], gp_big[k][r]);
++    fprintf(stderr, "\n"); }
++}
+ static void fp_end(void)
+ {
+   static VcVertF v[1024]; static uint16_t fl[1024]; VcXform x;
+-  int r = vc_fpos(dc_vm, dc_top, &x, v, fl, 1024), n = r;
++  const int tme = (int)(gr[0] >> 4 & 1);   /* sb15 4x: untextured, the GS takes no ST or Q: the UV q not checked, the UVs not compared */
++  int r = vc_fpos(dc_vm, dc_top, &x, v, fl, 1024, tme), n = r;
+   fp_tot[0]++; if (dc_kind == 2) fp_tot[1]++;
+   if (r == -4) { fp_tot[4]++; count(1, "!fpos converter: colour word above 255 or UV z not 1.0"); memcpy(&n, dc_vm + ((dc_top + 0x14) & 0x3ff) * 16, 4); n &= 0xffff;
+     static int shown; if (getenv("GSREF_FPDBG") && shown++ < 6) for (int i = 0; i < n; i++) {
+       const uint32_t *t = (const uint32_t *)(dc_vm + ((dc_top + 0x102 + 3 * i) & 0x3ff) * 16), *c = (const uint32_t *)(dc_vm + ((dc_top + 0x101 + 3 * i) & 0x3ff) * 16), *q = (const uint32_t *)(dc_vm + ((dc_top + 0x100 + 3 * i) & 0x3ff) * 16);
+       if (c[0] > 255 || c[1] > 255 || c[2] > 255 || c[3] > 255 || t[2] != 0x1000) { printf("fpdbg vb %ld call %d kind %d n %d v %d pos %08x %08x %08x %08x col %08x %08x %08x %08x uv %08x %08x %08x %08x\n", g_vb, g_call, dc_kind, n, i, q[0], q[1], q[2], q[3], c[0], c[1], c[2], c[3], t[0], t[1], t[2], t[3]); break; } } }
++  if (r == -4 && getenv("GSREF_FPBAD")) {   /* sb15 diagnosis: a refused call's bad vertices and what the PS2 kicked for them */
++    int ns = 0, nb = 0, lo = -1, hi = -1, drawn = 0, dbad = 0, ncol = 0, nq = 0; const DcRec *sv[1024];
++    for (int i = 0; i < dc_nr; i++) if (dc_rec[i].prim == 4 && ns < n && ns < 1024) sv[ns++] = &dc_rec[i];
++    for (int i = 0; i < n && i < 1024; i++) {
++      const uint32_t *t = (const uint32_t *)(dc_vm + ((dc_top + 0x102 + 3 * i) & 0x3ff) * 16), *c = (const uint32_t *)(dc_vm + ((dc_top + 0x101 + 3 * i) & 0x3ff) * 16);
++      const int bc = c[0] > 255 || c[1] > 255 || c[2] > 255 || c[3] > 255, bq = t[2] != 0x1000;
++      if (bc || bq) { nb++; ncol += bc; nq += bq; if (lo < 0) lo = i; hi = i; }
++      if (i >= 2 && i < ns && !sv[i]->adc) { drawn++;
++        for (int k = i - 2; k <= i; k++) { const uint32_t *t2 = (const uint32_t *)(dc_vm + ((dc_top + 0x102 + 3 * k) & 0x3ff) * 16), *c2 = (const uint32_t *)(dc_vm + ((dc_top + 0x101 + 3 * k) & 0x3ff) * 16);
++          if (c2[0] > 255 || c2[1] > 255 || c2[2] > 255 || c2[3] > 255 || t2[2] != 0x1000) { dbad++; break; } } } }
++    int nfv = 0; for (int i = 0; i < dc_nr; i++) if (dc_rec[i].prim == 5) nfv++;
++    static long fb_calls, fb_drawn, fb_dbad; fb_calls++; fb_drawn += drawn; fb_dbad += dbad;
++    printf("fpbad vb %ld call %d kind %d tme %d n %d kicked strip %d fan vertices %d: bad vertices %d (colour %d, q %d) %d..%d; strip triangles drawn %d, with a bad vertex %d (all refused calls so far: %ld, %ld, %ld)\n",
++           g_vb, g_call, dc_kind, (int)(gr[0] >> 4 & 1), n, ns, nfv, nb, ncol, nq, lo, hi, drawn, dbad, fb_calls, fb_drawn, fb_dbad);
++  }
+   if (n < 0) { fp_tot[4]++; count(1, "!fpos converter: bad input (%d)", r); return; }
+   fp_tot[2] += n; if (n > fp_nmax) fp_nmax = n;
+   fp_note(5, x.resid);
+@@ -2020,7 +2089,8 @@
+     float X = vsx * (e[0] / w) + vox, Y = vsy * (e[1] / w) + voy, Z = vsz * (z / w) + voz, F = (w + fog1) * fog2;
+     F = (F < 0 ? 0 : F > 1 ? 1 : F) * 255.0f;
+     fp_note(0, fabs(X - k->x / 16.0)); fp_note(1, fabs(Y - k->y / 16.0)); fp_note(2, fabs(Z - k->z / 256.0)); fp_note(3, fabs(F - k->f));
+-    if (k->q != 0) { double du = fabs(v[i].u - k->s / k->q) * tw, dv = fabs(v[i].v - k->t / k->q) * th;
++    if (gp_on) { const float o0[3] = { v[0].x, v[0].y, v[0].z }; gp_eval(0, p, o0, 0, &x, k->x / 16.0, k->y / 16.0); }   /* sb15 diagnosis */
++    if (tme && k->q != 0) { double du = fabs(v[i].u - k->s / k->q) * tw, dv = fabs(v[i].v - k->t / k->q) * th;
+       fp_note(4, du > dv ? du : dv); if (du > 0.01 || dv > 0.01) fp_tot[7]++; }
+   }
+   /* the frame's 16-bit depth window (renderer_notes 11.8, GSREF_ZMAP): where the GE would clamp each vertex's depth */
+@@ -2101,7 +2171,7 @@
+       int cv[4] = { q->r, q->g, q->b, q->a }, dmax = 0;
+       for (int c = 0; c < 4; c++) { int e = (int)(P->col[c] * Q + 0.0005f), d = abs(e - cv[c]); if (d > dmax) dmax = d; }
+       fp_note(11, dmax); if (dmax > 1) fp_tot[22]++;
+-      if (q->q != 0) { double du = fabs(P->uv[0] - q->s / q->q) * tw, dv = fabs(P->uv[1] - q->t / q->q) * th; fp_note(10, du > dv ? du : dv); }
++      if (tme && q->q != 0) { double du = fabs(P->uv[0] - q->s / q->q) * tw, dv = fabs(P->uv[1] - q->t / q->q) * th; fp_note(10, du > dv ? du : dv); }
+     }
+   }
+   if (fi != nfan) fp_tot[20]++;
+@@ -2122,6 +2192,276 @@
+   fprintf(stderr, "\n");
+ }
+ 
++/* ================= sprite converter check (GSREF_DF0CHK=1 too; stagec_notes.md step 4): P04+3740 ==========================================
++   ge/vu1conv.c vc_spr beside the VU1 interpreter: which sprites the PS2 draws (the kicked corner 1's ADC) against the converter's drops;
++   each drawn sprite's corners as the GE would place them from the converter's clip x, y, w (float24 viewport, x / w: the GE world the
++   identity), its depth and fog from w as the GE computes them (the call's pa, pb, fog1, fog2), its UVs (the kicked S, T over the GS's Q)
++   and colour against what the micro program kicked; and whether both corners lie in the GE's 0..4096 range (PPSSPP master's
++   ProcessRect drops a transformed rectangle with a vertex outside it). */
++#define SP_ENTRY 0x19bb50u    /* P04+3740 */
++static long sp_tot[24]; static double sp_max[12]; static long sp_maxvb[12]; static float sp_fogmax[8]; static int sp_nfm;
++static const char *SPN[24] = { "calls", "sprites", "bad input", "count mismatch", "PS2 drops", "converter drops", "drop disagreements",
++  "sprites compared", "moved corners (sprites)", "w <= 0 drawn", "colour diff", "uv diff > 0.01 texel", "a corner outside the GE range",
++  "fog sprites", "kicked q != 1", "zero-size kicked", "", "", "", "", "", "", "", "" };
++static const char *SPM[12] = { "x px", "y px", "z16", "fog", "uv texels", "matrix resid", "moved x px", "moved y px", "moved uv texels", "", "", "" };
++static void sp_note(int k, double e) { if (e > sp_max[k]) { sp_max[k] = e; sp_maxvb[k] = g_vb; } }
++static void sp_end(void)
++{
++  static VcVertF v[2 * 1024]; static uint8_t drop[1024]; VcXform x;
++  int r = vc_spr(dc_vm, dc_top, &x, v, drop, 1024), n = r;
++  sp_tot[0]++;
++  if (r < 0) { sp_tot[2]++; count(1, "!spr converter: bad input (%d)", r);
++    if (getenv("GSREF_SPBAD")) {   /* sb15: what the PS2 kicks for a call the converter refuses (each record: its words, the kicked pair) */
++      const int nn = (int)(((const uint32_t *)(dc_vm + (size_t)((dc_top + 0x14) & 0x3ff) * 16))[0] & 0xffff); int ns = 0; const DcRec *sv[2048];
++      for (int i = 0; i < dc_nr; i++) if (dc_rec[i].prim == 6 && ns < 2048) sv[ns++] = &dc_rec[i];
++      printf("spbad vb %ld call %d top %03x count %d, corners kicked %d (records kicked %d)\n", g_vb, g_call, dc_top, nn, ns, dc_nr);
++      for (int i = 0; i < nn && i < 64; i++) {
++        const uint32_t *P = (const uint32_t *)(dc_vm + (size_t)((dc_top + 0x100 + 6 * i) & 0x3ff) * 16), *C = P + 4, *U = P + 8, *S = P + 16;
++        printf("spbad   %2d pos %08x %08x %08x col %08x %08x %08x %08x uv0 %08x %08x %08x size %08x %08x", i, P[0], P[1], P[2], C[0], C[1], C[2], C[3], U[0], U[1], U[2], S[0], S[1]);
++        if (2 * i + 1 < ns) { const Vtx *ka = &sv[2 * i]->v, *kb = &sv[2 * i + 1]->v;
++          printf(" | kicked adc %d (%.1f, %.1f)-(%.1f, %.1f) rgba %d %d %d %d q %g", sv[2 * i + 1]->adc, ka->x / 16.0, ka->y / 16.0, kb->x / 16.0, kb->y / 16.0, kb->r, kb->g, kb->b, kb->a, kb->q); }
++        printf("\n");
++      }
++    }
++    return; }
++  sp_tot[1] += n;
++  sp_note(5, x.resid);
++  { float fm; memcpy(&fm, dc_vm + 0x03 * 16, 4); int k = 0; while (k < sp_nfm && sp_fogmax[k] != fm) k++; if (k == sp_nfm && sp_nfm < 8) sp_fogmax[sp_nfm++] = fm; }
++  if (gr[0] >> 5 & 1) sp_tot[13] += n;
++  /* the kicked sprites: corner pairs in order */
++  int ns = 0; const DcRec *sv[2048];
++  for (int i = 0; i < dc_nr; i++) if (dc_rec[i].prim == 6 && ns < 2048) sv[ns++] = &dc_rec[i];
++  if (ns != 2 * n) { sp_tot[3]++; count(1, "!spchk %d sprites, %d corners kicked", n, ns); return; }
++  float A = f24(x.pa), B = f24(x.pb), fog1 = f24(x.fog_b / x.fog_a), fog2 = f24(x.fog_a / 255.0f);
++  float vsx = f24(x.vs[0]), vox = f24(x.vo[0]), vsy = f24(x.vs[1]), voy = f24(x.vo[1]), vsz = f24(-x.vs[2] / 256.0f), voz = f24(x.vo[2] / 256.0f);
++  int tw = 1 << (gr[0x06] >> 26 & 15), th = 1 << (gr[0x06] >> 30 & 15);
++  double ofx = (gr[0x18] & 0xffff) / 16.0, ofy = (gr[0x18] >> 32 & 0xffff) / 16.0;
++  double xs = x.vs[0] * 480.0 / 512.0, xc = 2048 - 240 + (x.vo[0] - ofx) * 480.0 / 512.0, ys = x.vs[1] * 272.0 / 512.0, yc = 2048 - 136 + (x.vo[1] - ofy) * 272.0 / 512.0;
++  const double GB = 4095.0 + 15.5 / 16.0;
++  int j = 0;
++  for (int i = 0; i < n; i++) {
++    const Vtx *ka = &sv[2 * i]->v, *kb = &sv[2 * i + 1]->v; const int kdrop = sv[2 * i + 1]->adc;
++    if (kdrop) sp_tot[4]++;
++    if (drop[i]) sp_tot[5]++;
++    if (kdrop != drop[i]) { sp_tot[6]++; if (sp_tot[6] <= 8) printf("spchk vb %ld call %d sprite %d: PS2 drop %d, converter %d\n", g_vb, g_call, i, kdrop, drop[i]); if (!drop[i]) j++; continue; }
++    if (drop[i]) continue;
++    const VcVertF *a = &v[2 * j], *b = a + 1; j++;
++    sp_tot[7]++;
++    const float w = a->z;
++    if (w <= 0) { sp_tot[9]++; continue; }
++    const int moved = a->x == -w || a->y == -w || b->x == w || b->y == w;
++    if (moved) sp_tot[8]++;
++    float X0 = vsx * (a->x / w) + vox, Y0 = vsy * (a->y / w) + voy, X1 = vsx * (b->x / w) + vox, Y1 = vsy * (b->y / w) + voy;
++    float Z = vsz * ((A * w - B) / w) + voz, F = (w + fog1) * fog2; F = (F < 0 ? 0 : F > 1 ? 1 : F) * 255.0f;
++    double ex = fmax(fabs(X0 - ka->x / 16.0), fabs(X1 - kb->x / 16.0)), ey = fmax(fabs(Y0 - ka->y / 16.0), fabs(Y1 - kb->y / 16.0));
++    sp_note(moved ? 6 : 0, ex); sp_note(moved ? 7 : 1, ey);
++    sp_note(2, fabs(Z - kb->z / 256.0)); sp_note(3, fabs(F - kb->f));
++    if (kb->q != 1.0f) sp_tot[14]++;
++    if (kb->q != 0) { double du = fmax(fabs(a->u - ka->s / kb->q), fabs(b->u - kb->s / kb->q)) * tw, dv = fmax(fabs(a->v - ka->t / kb->q), fabs(b->v - kb->t / kb->q)) * th;
++      sp_note(moved ? 8 : 4, du > dv ? du : dv); if (du > 0.01 || dv > 0.01) sp_tot[11]++; }
++    if ((kb->r | kb->g << 8 | kb->b << 16) != (int)(a->c & 0xffffff) || (kb->a >= 0x80 ? 0xffu : (uint32_t)kb->a * 2) != a->c >> 24) sp_tot[10]++;
++    if (ka->x == kb->x || ka->y == kb->y) sp_tot[15]++;
++    for (int k = 0; k < 2; k++) { const VcVertF *c = k ? b : a; double sx = c->x * xs / w + xc, sy = c->y * ys / w + yc;
++      if (!(sx >= 0 && sx < GB && sy >= 0 && sy < GB)) { sp_tot[12]++; break; } }
++  }
++}
++static void sp_report(void)
++{
++  fprintf(stderr, "spchk:");
++  for (int k = 0; k < 24; k++) if (SPN[k][0]) fprintf(stderr, "%s %s %ld", k ? ";" : "", SPN[k], sp_tot[k]);
++  fprintf(stderr, "\nspchk fog maxima (abs 3 x):"); for (int k = 0; k < sp_nfm; k++) fprintf(stderr, " %g", sp_fogmax[k]);
++  fprintf(stderr, "\nspchk max differences:");
++  for (int k = 0; k < 9; k++) fprintf(stderr, "%s %s %.4g (vb %ld)", k ? ";" : "", SPM[k], sp_max[k], sp_maxvb[k]);
++  fprintf(stderr, "\n");
++}
++
++/* ================= quad converter check (GSREF_DF0CHK=1 too; stagec_notes.md step 4): P04+3a38 ============================================
++   ge/vu1conv.c vc_quad beside the VU1 interpreter: which quads the PS2 draws whole in its strip (corners 2 and 3 without ADC), drops, or
++   clips (the pre-lit clipper's fans, matched in order against vc_clip_tri's polygons of the triangles (0, 1, 2) and (1, 2, 3)); each drawn
++   corner placed by the GE model (as spchk), its UV and colour; each clipped polygon's vertices as fpchk compares them. */
++#define QD_ENTRY 0x19be50u    /* P04+3a38 */
++static long qd_tot[24]; static double qd_max[12]; static long qd_maxvb[12];
++static const char *QDN[24] = { "calls", "quads", "bad input", "count mismatch", "PS2 strip quads", "converter whole quads", "whole disagreements",
++  "converter dropped", "converter clipped", "corners compared", "colour diff", "uv diff > 0.01 texel", "a corner outside the GE range",
++  "clipped triangles", "polygons below 3", "PS2 fans", "fans compared", "fan count mismatch", "fan vertex count diff", "fan colour diff > 1",
++  "zero-area PS2 fans", "", "", "" };
++static const char *QDM[12] = { "x px", "y px", "z16", "fog", "uv texels", "matrix resid", "fan x px", "fan y px", "fan z24", "fan fog", "fan uv texels", "fan colour" };
++static void qd_note(int k, double e) { if (e > qd_max[k]) { qd_max[k] = e; qd_maxvb[k] = g_vb; } }
++static void qd_end(void)
++{
++  static VcVertF v[4 * 512]; static VcCv cv[4 * 512]; static uint8_t st[512]; VcXform x;
++  int r = vc_quad(dc_vm, dc_top, &x, v, cv, st, 512), n = r;
++  qd_tot[0]++;
++  if (r < 0) { qd_tot[2]++; count(1, "!quad converter: bad input (%d)", r); return; }
++  qd_tot[1] += n; qd_note(5, x.resid);
++  int ns = 0; const DcRec *sv[2048]; int fan0[512], fann[512], nfan = 0;
++  for (int i = 0; i < dc_nr; i++) {
++    if (dc_rec[i].prim == 4 && ns < 4 * n) sv[ns++] = &dc_rec[i];
++    else if (dc_rec[i].prim == 5) { if (!nfan || dc_rec[i].tag != dc_rec[fan0[nfan - 1]].tag) { if (nfan == 512) break; fan0[nfan] = i; fann[nfan++] = 0; } fann[nfan - 1]++; }
++  }
++  qd_tot[15] += nfan;
++  if (ns != 4 * n) { qd_tot[3]++; count(1, "!qdchk %d quads, %d strip vertices kicked", n, ns); return; }
++  float A = f24(x.pa), B = f24(x.pb), fog1 = f24(x.fog_b / x.fog_a), fog2 = f24(x.fog_a / 255.0f);
++  float vsx = f24(x.vs[0]), vox = f24(x.vo[0]), vsy = f24(x.vs[1]), voy = f24(x.vo[1]), vsz = f24(-x.vs[2] / 256.0f), voz = f24(x.vo[2] / 256.0f);
++  int tw = 1 << (gr[0x06] >> 26 & 15), th = 1 << (gr[0x06] >> 30 & 15);
++  double ofx = (gr[0x18] & 0xffff) / 16.0, ofy = (gr[0x18] >> 32 & 0xffff) / 16.0;
++  double xs = x.vs[0] * 480.0 / 512.0, xc = 2048 - 240 + (x.vo[0] - ofx) * 480.0 / 512.0, ys = x.vs[1] * 272.0 / 512.0, yc = 2048 - 136 + (x.vo[1] - ofy) * 272.0 / 512.0;
++  const double GB = 4095.0 + 15.5 / 16.0;
++  const float *K2 = (const float *)(dc_vm + 0x02 * 16);
++  int fi = 0;
++  for (int i = 0; i < n; i++) {
++    const int whole = !sv[4 * i + 2]->adc && !sv[4 * i + 3]->adc;
++    if (whole) qd_tot[4]++;
++    if (st[i] == 0) qd_tot[5]++; else if (st[i] == 1) qd_tot[7]++; else qd_tot[8]++;
++    if (whole != (st[i] == 0)) { qd_tot[6]++; if (qd_tot[6] <= 8) printf("qdchk vb %ld call %d quad %d: PS2 whole %d, converter state %d\n", g_vb, g_call, i, whole, st[i]); continue; }
++    if (st[i] == 0) {
++      int out = 0;
++      for (int k = 0; k < 4; k++) {
++        const VcVertF *a = &v[4 * i + k]; const Vtx *q = &sv[4 * i + k]->v; const float w = a->z;
++        qd_tot[9]++;
++        float X = vsx * (a->x / w) + vox, Y = vsy * (a->y / w) + voy, Z = vsz * ((A * w - B) / w) + voz, F = (w + fog1) * fog2; F = (F < 0 ? 0 : F > 1 ? 1 : F) * 255.0f;
++        qd_note(0, fabs(X - q->x / 16.0)); qd_note(1, fabs(Y - q->y / 16.0)); qd_note(2, fabs(Z - q->z / 256.0)); qd_note(3, fabs(F - q->f));
++        if (q->q != 0) { double du = fabs(a->u - q->s / q->q) * tw, dv = fabs(a->v - q->t / q->q) * th; qd_note(4, du > dv ? du : dv); if (du > 0.01 || dv > 0.01) qd_tot[11]++; }
++        if ((q->r | q->g << 8 | q->b << 16) != (int)(a->c & 0xffffff) || (q->a >= 0x80 ? 0xffu : (uint32_t)q->a * 2) != a->c >> 24) qd_tot[10]++;
++        double sx = a->x * xs / w + xc, sy = a->y * ys / w + yc; if (!(sx >= 0 && sx < GB && sy >= 0 && sy < GB)) out = 1;
++      }
++      if (out) qd_tot[12]++;
++      continue;
++    }
++    if (st[i] == 1) continue;
++    for (int t = 0; t < 2; t++) {
++      VcCv in[3] = { cv[4 * i + t], cv[4 * i + t + 1], cv[4 * i + t + 2] }, o[16];
++      int m = vc_clip_tri(in, o);
++      qd_tot[13]++;
++      if (m < 3) { qd_tot[14]++;
++        if (fi < nfan) { double area = 0; const Vtx *a0 = &dc_rec[fan0[fi]].v;
++          for (int k = 2; k < fann[fi]; k++) { const Vtx *b = &dc_rec[fan0[fi] + k - 1].v, *c = &dc_rec[fan0[fi] + k].v;
++            area += fabs((double)(b->x - a0->x) * (c->y - a0->y) - (double)(c->x - a0->x) * (b->y - a0->y)); }
++          if (area == 0) { fi++; qd_tot[20]++; } }
++        continue; }
++      if (fi >= nfan) { qd_tot[17]++; continue; }
++      int f0 = fan0[fi], fn = fann[fi]; fi++;
++      qd_tot[16]++;
++      if (fn != m) { qd_tot[18]++; continue; }
++      for (int k = 0; k < m; k++) {
++        const Vtx *q = &dc_rec[f0 + k].v; const VcCv *P = &o[k];
++        float Q = 1.0f / P->c[3], F = K2[0] * P->c[3] + K2[1]; F = F < 0 ? 0 : F > 255 ? 255 : F;
++        double X = P->c[0] * Q * x.vs[0] + x.vo[0], Y = P->c[1] * Q * x.vs[1] + x.vo[1], Z = P->c[2] * Q * x.vs[2] + x.vo[2];
++        qd_note(6, fabs(X - q->x / 16.0)); qd_note(7, fabs(Y - q->y / 16.0)); qd_note(8, fabs(Z - q->z)); qd_note(9, fabs(F - q->f));
++        int cvv[4] = { q->r, q->g, q->b, q->a }, dmax = 0;
++        for (int c = 0; c < 4; c++) { int e = (int)(P->col[c] * Q + 0.0005f), d = abs(e - cvv[c]); if (d > dmax) dmax = d; }
++        qd_note(11, dmax); if (dmax > 1) qd_tot[19]++;
++        if (q->q != 0) { double du = fabs(P->uv[0] - q->s / q->q) * tw, dv = fabs(P->uv[1] - q->t / q->q) * th; qd_note(10, du > dv ? du : dv); }
++      }
++    }
++  }
++  if (fi != nfan) qd_tot[17]++;
++}
++static void qd_report(void)
++{
++  fprintf(stderr, "qdchk:");
++  for (int k = 0; k < 24; k++) if (QDN[k][0]) fprintf(stderr, "%s %s %ld", k ? ";" : "", QDN[k], qd_tot[k]);
++  fprintf(stderr, "\nqdchk max differences:");
++  for (int k = 0; k < 12; k++) fprintf(stderr, "%s %s %.4g (vb %ld)", k ? ";" : "", QDM[k], qd_max[k], qd_maxvb[k]);
++  fprintf(stderr, "\n");
++}
++
++/* ================= line converter check (GSREF_DF0CHK=1 too; stagec_notes.md step 4): P04+2b60 ============================================
++   ge/vu1conv.c vc_line beside the VU1 interpreter: the segments the strip draws (the kicked vertex without ADC) against the converter's
++   class 1; each one's ends placed by the GE model (the call's world matrix as fpchk), UV and colour; the line clipper's lines (one GIF
++   packet of 2 vertices each, in order) against vc_clip_seg's ends for the class 4 segments. */
++#define LN_ENTRY 0x19af68u    /* P04+2b60 */
++static long ln_tot[24]; static double ln_max[16]; static long ln_maxvb[16]; static int ln_prim[8];
++static const char *LNN[24] = { "calls", "vertices", "bad input", "count mismatch", "PS2 strip segments", "converter class 1", "strip disagreements",
++  "class 2 (dropped)", "class 4 (clipped)", "ends compared", "colour diff", "uv diff > 0.01 texel", "an end outside the GE range",
++  "PS2 clipped lines", "clipped compared", "clipper drops (converter)", "clipped count mismatch", "clipped colour diff > 1", "fog calls",
++  "a clipped end outside the GE range (GE route)", "untextured calls", "uv diff > 0.01 texel, untextured (not drawn)", "", "" };
++static const char *LNM[16] = { "x px", "y px", "z16", "fog", "uv texels", "matrix resid", "cl x px", "cl y px", "cl z24", "cl fog", "cl uv texels", "cl colour",
++  "cl GE x px", "cl GE y px", "cl GE z16", "" };
++static void ln_note(int k, double e) { if (e > ln_max[k]) { ln_max[k] = e; ln_maxvb[k] = g_vb; } }
++static void ln_end(void)
++{
++  static VcVertF v[1024]; static uint16_t fl[1024]; static float cc[1024][4]; static uint8_t cls[1024]; VcXform x;
++  const int tme = (int)(gr[0] >> 4 & 1);   /* untextured: the GS takes no ST or Q, so UVs are not compared as drawn */
++  int r = vc_line(dc_vm, dc_top, &x, v, fl, cc, cls, 1024, tme), n = r;
++  ln_tot[0]++; if (!tme) ln_tot[20]++;
++  if (r < 0) { ln_tot[2]++; count(1, "!line converter: bad input (%d)", r); return; }
++  ln_tot[1] += n; ln_note(5, x.resid);
++  if (gr[0] >> 5 & 1) ln_tot[18]++;
++  if (dc_nr < n) { ln_tot[3]++; count(1, "!lnchk %d vertices, %d kicked", n, dc_nr); return; }
++  for (int i = 0; i < dc_nr; i++) ln_prim[dc_rec[i].prim & 7]++;
++  float W[12], A = f24(x.pa), B = f24(x.pb), fog1 = f24(x.fog_b / x.fog_a), fog2 = f24(x.fog_a / 255.0f);
++  for (int k = 0; k < 12; k++) W[k] = f24(x.world[k]);
++  float vsx = f24(x.vs[0]), vox = f24(x.vo[0]), vsy = f24(x.vs[1]), voy = f24(x.vo[1]), vsz = f24(-x.vs[2] / 256.0f), voz = f24(x.vo[2] / 256.0f);
++  int tw = 1 << (gr[0x06] >> 26 & 15), th = 1 << (gr[0x06] >> 30 & 15);
++  double ofx = (gr[0x18] & 0xffff) / 16.0, ofy = (gr[0x18] >> 32 & 0xffff) / 16.0;
++  double xs = x.vs[0] * 480.0 / 512.0, xc = 2048 - 240 + (x.vo[0] - ofx) * 480.0 / 512.0, ys = x.vs[1] * 272.0 / 512.0, yc = 2048 - 136 + (x.vo[1] - ofy) * 272.0 / 512.0;
++  const double GB = 4095.0 + 15.5 / 16.0;
++  const float *K2 = (const float *)(dc_vm + 0x02 * 16);
++  int ci = n;   /* the clipper's lines follow the strip's n vertices, 2 a packet */
++  for (int i = 1; i < n; i++) {
++    const int sdraw = !dc_rec[i].adc;
++    if (sdraw) ln_tot[4]++;
++    if (cls[i] == 1) ln_tot[5]++; else if (cls[i] == 2) ln_tot[7]++; else if (cls[i] == 4) ln_tot[8]++;
++    if (sdraw != (cls[i] == 1)) { ln_tot[6]++; if (ln_tot[6] <= 8) printf("lnchk vb %ld call %d vertex %d: PS2 strip draws %d, class %d\n", g_vb, g_call, i, sdraw, cls[i]); continue; }
++    if (cls[i] == 1) {
++      int out = 0;
++      for (int k = 0; k < 2; k++) {
++        const int j = i - 1 + k; const Vtx *q = &dc_rec[j].v; float e[3];
++        for (int c = 0; c < 3; c++) e[c] = v[j].x * W[c] + v[j].y * W[3 + c] + v[j].z * W[6 + c] + W[9 + c];
++        const float w = e[2], z = A * w - B;
++        float X = vsx * (e[0] / w) + vox, Y = vsy * (e[1] / w) + voy, Z = vsz * (z / w) + voz, F = (w + fog1) * fog2; F = (F < 0 ? 0 : F > 1 ? 1 : F) * 255.0f;
++        ln_tot[9]++;
++        ln_note(0, fabs(X - q->x / 16.0)); ln_note(1, fabs(Y - q->y / 16.0)); ln_note(2, fabs(Z - q->z / 256.0)); ln_note(3, fabs(F - q->f));
++        if (gp_on) { const float pj[3] = { v[j].x, v[j].y, v[j].z }, o0[3] = { v[0].x, v[0].y, v[0].z }; gp_eval(1, pj, o0, 0, &x, q->x / 16.0, q->y / 16.0); }   /* sb15 diagnosis */
++        if (q->q != 0) { double du = fabs(v[j].u - q->s / q->q) * tw, dv = fabs(v[j].v - q->t / q->q) * th;
++          if (!tme) { if (du > 0.01 || dv > 0.01) ln_tot[21]++; } else { ln_note(4, du > dv ? du : dv); if (du > 0.01 || dv > 0.01) ln_tot[11]++; } }
++        if ((q->r | q->g << 8 | q->b << 16) != (int)(v[j].c & 0xffffff) || (q->a >= 0x80 ? 0xffu : (uint32_t)q->a * 2) != v[j].c >> 24) ln_tot[10]++;
++        double sx = e[0] * xs / w + xc, sy = e[1] * ys / w + yc; if (!(sx >= 0 && sx < GB && sy >= 0 && sy < GB)) out = 1;
++      }
++      if (out) ln_tot[12]++;
++      continue;
++    }
++    if (cls[i] != 4) continue;
++    VcCv in[2], o[2];
++    for (int k = 0; k < 2; k++) { const int j = i - 1 + k; const uint32_t *C = (const uint32_t *)(dc_vm + ((dc_top + 0x101 + 3 * j) & 0x3ff) * 16);
++      memcpy(in[k].c, cc[j], 16); for (int c = 0; c < 4; c++) in[k].col[c] = (float)(int32_t)C[c];
++      in[k].uv[0] = v[j].u; in[k].uv[1] = v[j].v; in[k].uv[2] = 1.0f; in[k].p[0] = v[j].x; in[k].p[1] = v[j].y; in[k].p[2] = v[j].z; }
++    if (!vc_clip_seg(in, o)) { ln_tot[15]++; continue; }
++    if (ci + 2 > dc_nr) { ln_tot[16]++; continue; }
++    ln_tot[14]++;
++    for (int k = 0; k < 2; k++) {
++      const Vtx *q = &dc_rec[ci + k].v; const VcCv *P = &o[k];
++      float Q = 1.0f / P->c[3], F = K2[0] * P->c[3] + K2[1]; F = F < 0 ? 0 : F > 255 ? 255 : F;
++      double X = P->c[0] * Q * x.vs[0] + x.vo[0], Y = P->c[1] * Q * x.vs[1] + x.vo[1], Z = P->c[2] * Q * x.vs[2] + x.vo[2];
++      ln_note(6, fabs(X - q->x / 16.0)); ln_note(7, fabs(Y - q->y / 16.0)); ln_note(8, fabs(Z - q->z)); ln_note(9, fabs(F - q->f));
++      int cvv[4] = { q->r, q->g, q->b, q->a }, dmax = 0;
++      for (int c = 0; c < 4; c++) { int e = (int)(P->col[c] * Q + 0.0005f), d = abs(e - cvv[c]); if (d > dmax) dmax = d; }
++      ln_note(11, dmax); if (dmax > 1) ln_tot[17]++;
++      if (tme && q->q != 0) { double du = fabs(P->uv[0] - q->s / q->q) * tw, dv = fabs(P->uv[1] - q->t / q->q) * th; ln_note(10, du > dv ? du : dv); }
++      /* the GE route: the end's interpolated world position through the call's matrix, as the batch draws it */
++      float e[3]; for (int c = 0; c < 3; c++) e[c] = P->p[0] * W[c] + P->p[1] * W[3 + c] + P->p[2] * W[6 + c] + W[9 + c];
++      const float gw = e[2], gz = A * gw - B;
++      const float GX = vsx * (e[0] / gw) + vox, GY = vsy * (e[1] / gw) + voy, GZ = vsz * (gz / gw) + voz;
++      ln_note(12, fabs(GX - q->x / 16.0)); ln_note(13, fabs(GY - q->y / 16.0)); ln_note(14, fabs(GZ - q->z / 256.0));
++      if (gp_on) { const float o0[3] = { v[0].x, v[0].y, v[0].z }; gp_eval(2, P->p, o0, P->c, &x, q->x / 16.0, q->y / 16.0); }   /* sb15 diagnosis */
++      { double sx = e[0] * xs / gw + xc, sy = e[1] * ys / gw + yc; if (!(gw > 0 && sx >= 0 && sx < GB && sy >= 0 && sy < GB)) ln_tot[19]++; }
++    }
++    ci += 2;
++  }
++  ln_tot[13] += (dc_nr - n) / 2;
++  if (ci != dc_nr) { ln_tot[16]++; if (ln_tot[16] <= 8) printf("lnchk vb %ld call %d: %d clipped vertices kicked, %d matched\n", g_vb, g_call, dc_nr - n, ci - n); }
++}
++static void ln_report(void)
++{
++  fprintf(stderr, "lnchk:");
++  for (int k = 0; k < 24; k++) if (LNN[k][0]) fprintf(stderr, "%s %s %ld", k ? ";" : "", LNN[k], ln_tot[k]);
++  fprintf(stderr, "\nlnchk kicked PRIM types 0-7:"); for (int k = 0; k < 8; k++) fprintf(stderr, " %d", ln_prim[k]);
++  fprintf(stderr, "\nlnchk max differences:");
++  for (int k = 0; k < 15; k++) fprintf(stderr, "%s %s %.4g (vb %ld)", k ? ";" : "", LNM[k], ln_max[k], ln_maxvb[k]);
++  fprintf(stderr, "\n");
++}
++
+ /* ================= VIF1 ================= */
+ static struct { int cl, wl, mode; uint32_t mask, row[4], col[4], base, ofst, tops, itops, dbf; } vif = { 1, 1 };
+ static uint32_t vsrc0;   /* guest address of the first data word of the VIF command being collected */
+@@ -2181,6 +2521,9 @@
+   if (xl_chk) xl_call_begin(cont, cont ? vu_tpc : pc);
+   if ((dc_chk || ge_on || xc_on) && g_entry == DF0_ENTRY) dc_begin(0);
+   else if ((dc_chk || ge_on || xc_on) && (g_entry == FP_ENTRY || g_entry == FP2_ENTRY)) dc_begin(g_entry == FP_ENTRY ? 1 : 2);
++  else if (dc_chk && g_entry == SP_ENTRY) dc_begin(3);   /* task #152: the sprite converter check (no export yet) */
++  else if (dc_chk && g_entry == QD_ENTRY) dc_begin(4);   /* task #152: the quad converter check (no export yet) */
++  else if (dc_chk && g_entry == LN_ENTRY) dc_begin(5);   /* task #152: the line converter check (no export yet) */
+   if (p6_f && !cont && is_p06x(g_entry)) { p6_on = 1; memcpy(p6_vm, VM, sizeof p6_vm); p6_top = vu_top; p6_tagn = 0; p6_nr = 0; }
+   xc_p6 = xc_on && ge_on && !cont && is_lit(g_entry); xc_p6ad = 0; memset(xc_p6have, 0, sizeof xc_p6have);
+   if (xc_p6) xc_p6hy = g_entry == 0x1a31e0 ? *(const uint32_t *)(VM + (vu_top & 0x3ff) * 16 + 12) & 0xffff   /* P07: T+0.w */
+@@ -2291,8 +2634,10 @@
+ {
+   if (argc < 3) { fprintf(stderr, "usage: gsref <capture> <out dir> [-q]\n"); return 1; }
+   quiet = argc > 3 && !strcmp(argv[3], "-q"); if (getenv("GSREF_VDUMP")) vdump = atoi(getenv("GSREF_VDUMP"));
++  if (getenv("GSREF_SKIPUNTEX")) skip_untex = (uint32_t)strtoul(getenv("GSREF_SKIPUNTEX"), 0, 16);
++  if (getenv("GSREF_SKIPENT")) for (char *e = getenv("GSREF_SKIPENT"), *x; nskip_ent < 8 && *e; e = *x ? x + 1 : x) skip_ent[nskip_ent++] = (uint32_t)strtoul(e, &x, 16);
+   if (getenv("GSREF_SKIPTEX")) for (char *e = getenv("GSREF_SKIPTEX"), *x; nskip_tex < 8 && *e; e = *x ? x + 1 : x) skip_tex[nskip_tex++] = (uint32_t)strtoul(e, &x, 16);
+-  if (getenv("GSREF_TRACE")) vu_trace_call = atoi(getenv("GSREF_TRACE")); vif_log = getenv("GSREF_VIFLOG") ? atoi(getenv("GSREF_VIFLOG")) : 0; sprite_log = getenv("GSREF_SPRITES") != 0; no_fog = getenv("GSREF_NOFOG") != 0; xfer_log = getenv("GSREF_XFERLOG") != 0; dc_chk = getenv("GSREF_DF0CHK") != 0; if (getenv("GSREF_FOGONLY")) for (char *p = getenv("GSREF_FOGONLY"); *p && n_fog_only < 4; ) { fog_only[n_fog_only++] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } tex_log = getenv("GSREF_TEXLOG") != 0;
++  if (getenv("GSREF_TRACE")) vu_trace_call = atoi(getenv("GSREF_TRACE")); vif_log = getenv("GSREF_VIFLOG") ? atoi(getenv("GSREF_VIFLOG")) : 0; sprite_log = getenv("GSREF_SPRITES") != 0; no_fog = getenv("GSREF_NOFOG") != 0; xfer_log = getenv("GSREF_XFERLOG") != 0; dc_chk = getenv("GSREF_DF0CHK") != 0; gp_on = getenv("GSREF_GEPREC") != 0; if (getenv("GSREF_FOGONLY")) for (char *p = getenv("GSREF_FOGONLY"); *p && n_fog_only < 4; ) { fog_only[n_fog_only++] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } tex_log = getenv("GSREF_TEXLOG") != 0;
+   if (getenv("GSREF_ZQ")) { char *e = getenv("GSREF_ZQ"), *c; zq_sh = (int)strtol(e, &c, 10); if (*c == ',') zq_max = (uint32_t)strtoul(c + 1, 0, 16); }
+   if (getenv("GSREF_ZCENSUS")) { zc_on = 1; zc_own = calloc(2048 * 2048, 4); }
+   if (getenv("GSREF_ZSCALE")) ge_zk = atof(getenv("GSREF_ZSCALE"));
+@@ -2338,7 +2683,7 @@
+   if (ended >= 0) frame_end(argv[2], ended);
+   else if (vb >= 0) { skc_kind_end = skc_kind; frame_end(argv[2], vb); }
+   fprintf(stderr, "gsref: %ld VU1 steps\n", vu_steps);
+-  if (dc_chk) { dc_report(); fp_report(); }
++  if (dc_chk) { dc_report(); fp_report(); sp_report(); qd_report(); ln_report(); gp_report(); }
+   if (zc_on) zc_report();
+   if (xl_chk) xl_report();
+   if (xd_on) xd_report();
