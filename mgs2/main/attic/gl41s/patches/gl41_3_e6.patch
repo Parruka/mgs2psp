@@ -1,0 +1,178 @@
+--- a/rt/ee_io.h
++++ b/rt/ee_io.h
+@@ -102,7 +102,7 @@
+     if (p < 0x2000u && (p & 0x7f0u) == 0) *(uint32_t *)io_at(p & ~0x7ffu) = io_timer_count(p >> 11);   /* timer COUNT */
+     if ((p & ~0x7fffu) == 0x1000000u) {                  /* VU0 micro memory 0x11000000 (4 KB, mirrored to 0x11003fff), VU0 data 0x11004000 (mirrored to 0x11007fff) */
+       if (p & 0x4000) return VUMEM + (p & 0xfff);
+-      vu_prog_clean = 0; return (uint8_t *)VUPROG + (p & 0xfff);
++      vu_prog_clean = 0; E6_LOST(); return (uint8_t *)VUPROG + (p & 0xfff);
+     }
+     return io_at(p);
+   }
+@@ -836,11 +836,11 @@
+           for (; k + 8 <= m; k += 8) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1]) | (s[k + 2] ^ d[k + 2]) | (s[k + 3] ^ d[k + 3]) |
+                                          (s[k + 4] ^ d[k + 4]) | (s[k + 5] ^ d[k + 5]) | (s[k + 6] ^ d[k + 6]) | (s[k + 7] ^ d[k + 7])) break;
+         for (; k < m; k += 2) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1])) break;
+-        if (k < m) { memcpy(d + k, s + k, 4 * (m - k)); vu_prog_clean = 0; }
++        if (k < m) { memcpy(d + k, s + k, 4 * (m - k)); vu_prog_clean = 0; E6_DIRTY(b + k, b + m); }   /* gl41 E6: the words changed */
+         i += m; break;
+       }
+       for (k = 0; k < cnt * 2 && i + k < n; k++) VUPROG[(imm * 2 + k) & 1023] = w[i + k];
+-      vu_prog_clean = 0; i += cnt * 2; break; }
++      vu_prog_clean = 0; E6_LOST(); i += cnt * 2; break; }
+     default:
+       if (cmd >= 0x60) { uint32_t used; vif0_unpack(c, w + i, n - i, &used); i += used; break; }
+       vif0.unsup++; vif0.unsup_code = c; return;                                         /* unknown: the rest of the transfer is not decodable */
+--- a/runtime/ee_io.h
++++ b/runtime/ee_io.h
+@@ -102,7 +102,7 @@
+     if (p < 0x2000u && (p & 0x7f0u) == 0) *(uint32_t *)io_at(p & ~0x7ffu) = io_timer_count(p >> 11);   /* timer COUNT */
+     if ((p & ~0x7fffu) == 0x1000000u) {                  /* VU0 micro memory 0x11000000 (4 KB, mirrored to 0x11003fff), VU0 data 0x11004000 (mirrored to 0x11007fff) */
+       if (p & 0x4000) return VUMEM + (p & 0xfff);
+-      vu_prog_clean = 0; return (uint8_t *)VUPROG + (p & 0xfff);
++      vu_prog_clean = 0; E6_LOST(); return (uint8_t *)VUPROG + (p & 0xfff);
+     }
+     return io_at(p);
+   }
+@@ -835,11 +835,11 @@
+           for (; k + 8 <= m; k += 8) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1]) | (s[k + 2] ^ d[k + 2]) | (s[k + 3] ^ d[k + 3]) |
+                                          (s[k + 4] ^ d[k + 4]) | (s[k + 5] ^ d[k + 5]) | (s[k + 6] ^ d[k + 6]) | (s[k + 7] ^ d[k + 7])) break;
+         for (; k < m; k += 2) if ((s[k] ^ d[k]) | (s[k + 1] ^ d[k + 1])) break;
+-        if (k < m) { memcpy(d + k, s + k, 4 * (m - k)); vu_prog_clean = 0; }
++        if (k < m) { memcpy(d + k, s + k, 4 * (m - k)); vu_prog_clean = 0; E6_DIRTY(b + k, b + m); }   /* gl41 E6: the words changed */
+         i += m; break;
+       }
+       for (k = 0; k < cnt * 2 && i + k < n; k++) VUPROG[(imm * 2 + k) & 1023] = w[i + k];
+-      vu_prog_clean = 0; i += cnt * 2; break; }
++      vu_prog_clean = 0; E6_LOST(); i += cnt * 2; break; }
+     default:
+       if (cmd >= 0x60) { uint32_t used; vif0_unpack(c, w + i, n - i, &used); i += used; break; }
+       vif0.unsup++; vif0.unsup_code = c; return;                                         /* unknown: the rest of the transfer is not decodable */
+--- a/runtime/host_time.h
++++ b/runtime/host_time.h
+@@ -168,6 +168,10 @@
+                                            (vupv_96936c0f_0) without its 8 per-corner NaN / Inf checks: each checked register is only
+                                            multiplied (lanes z, w kept) before its next check, so a non-finite lane is still caught there
+                                            and the call falls back as before.  Exact */
++#define OPT2_E6 2097152u              /* gl41 E6 (attic/gl41s; runtime/vu0.h vu_hash): after an MPG change the image's FNV-1a is hashed
++                                           only up to the first word L at or above the uploads' ends for which the state at L was met
++                                           before while the words [L, 1024) stayed unwritten (that time's final hash); else the full
++                                           FNV-1a of gl39.  The same hash value.  Exact */
+ #define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+--- a/runtime/vif.h
++++ b/runtime/vif.h
+@@ -3,6 +3,9 @@
+    Anything else is counted in g_unsup_vif. */
+ #ifndef VIF_H
+ #define VIF_H
++#ifndef E6_LOST
++#define E6_LOST() ((void)0)   /* gl41 E6 (runtime/vu0.h): the runtime unit defines it */
++#endif
+ static int g_unsup_vif; static uint32_t vif_cl = 1, vif_wl = 1;
+ static void vif_stream(const uint32_t *w, int n)
+ {
+@@ -17,7 +20,7 @@
+     if (cmd == 0x4a) {                                                  /* MPG */
+       int cnt = num ? num : 256;
+       for (int k = 0; k < cnt * 2; k++) VUPROG[((imm * 2) + k) & 1023] = w[i + k];
+-      vu_prog_clean = 0;
++      vu_prog_clean = 0; E6_LOST();
+ #ifdef GEN_DG_TRACE
+       { void rt_dgt_mpg(void); rt_dgt_mpg(); }   /* dev (boot.c MGS2_DG_TRACE): who uploads micro code */
+ #endif
+--- a/runtime/vu0.h
++++ b/runtime/vu0.h
+@@ -268,7 +268,77 @@
+ #endif   /* !GUEST_SPLIT_GEN */
+ GSVS int vu_prog_clean; GSVS uint32_t vu_prog_hash;   /* clean: vu_prog_hash is the hash of VUPROG (0 after an MPG upload) */
+ #ifndef GUEST_SPLIT_GEN
++#if !defined(VU_STATS) && !defined(VU_DUMP)
++/* gl41 E6 (attic/gl41s; MGS2_OPT2 bit 21, OPT2_E6): the image's FNV-1a after an MPG upload without hashing all 1024 words.  FNV-1a's
++   step h = (h ^ w) * 16777619 is a bijection of the state for a fixed word, so while the words [L, 1024) stay unwritten the final hash
++   is a bijection of the state at word L: a state at L equal to one met before gives that time's final hash, a different state a
++   different hash.  Up to E6_L levels L (the ends of the uploads, rounded up to 16 words; when full, the lowest goes), each with up to
++   E6_N (state at L, final hash) pairs met since its words [L, 1024) were last written.  A rehash hashes from word 0 up through the
++   levels at or above the highest end written since the last one, ascending, until one holds the state (else to word 1024), then adds
++   the pair to the levels it passed.  Writes of VUPROG are tracked in every turn (the switch only picks the method): rt/ and runtime/
++   ee_io.h vif0_run's MPG fast path E6_DIRTY (the end of the words written), every other writer E6_LOST (every level dropped).
++   Exact: the same vu_prog_hash in every case (check mode MGS2_E6_CHECK=1 computes the whole FNV-1a on each hit and counts differences). */
++#ifndef E6_L
++#define E6_L 4
++#endif
++#ifndef E6_N
++#define E6_N 16
++#endif
++#define E6_UP(x) ((x) < 1024 - 15 ? ((x) + 15) & ~15 : 1024)
++static uint32_t e6_s[E6_L][E6_N], e6_f[E6_L][E6_N];
++static int e6_lv[E6_L], e6_n[E6_L], e6_nx[E6_L], e6_nl, e6_hi = 1024, e6_lost = 1, e6_chk = -1;
++long g_l41_e6_hit, g_l41_e6_miss, g_l41_e6_cmpw, g_l41_e6_bad;   /* (read by the twin's and the log's gl41 line; cmpw: words hashed) */
++#define E6_DIRTY(a, b) do { int b_ = (int)(b); (void)(a); e6_hi = b_ > e6_hi ? b_ : e6_hi; } while (0)   /* (max: no branch in vif0_run) */
++#define E6_LOST() (e6_lost = 1)
++static uint32_t vu_fnv(const uint32_t *p) { uint32_t h = 2166136261u; for (int i = 0; i < 1024; i++) { h ^= p[i]; h *= 16777619u; } return h; }
++static __attribute__((noinline)) void vu_hash_e6(void)
++{
++  uint32_t s = 2166136261u, h, st[E6_L]; int hi = e6_hi, L = E6_UP(hi), i = 0, j, k, q, pos, np = 0, ps[E6_L];
++  e6_hi = 0;
++  if (e6_lost) { e6_nl = 0; e6_lost = 0; }                               /* an unknown write: every level dropped */
++  for (j = 0, q = -1; j < e6_nl; j++) {
++    if (e6_lv[j] < hi) e6_n[j] = e6_nx[j] = 0;                           /* its words [L, 1024) were written: its pairs dropped */
++    if (e6_lv[j] == L) L = 1024;                                         /* (the level exists) */
++    if (q < 0 || e6_lv[j] < e6_lv[q]) q = j;                             /* (the lowest) */
++  }
++  if (L < 1024) {                                                        /* a new level */
++    if (e6_nl < E6_L) q = e6_nl++; else if (e6_lv[q] > L) q = -1;
++    if (q >= 0) { e6_lv[q] = L; e6_n[q] = e6_nx[q] = 0; }
++  }
++  for (pos = hi - 1;;) {                                                 /* the levels >= hi, ascending */
++    for (j = -1, k = 0; k < e6_nl; k++) if (e6_lv[k] > pos && (j < 0 || e6_lv[k] < e6_lv[j])) j = k;
++    if (j < 0) break;
++    for (pos = e6_lv[j]; i < pos; i++) { s ^= VUPROG[i]; s *= 16777619u; }
++    for (k = 0; k < e6_n[j]; k++)
++      if (e6_s[j][k] == s) {
++        h = e6_f[j][k]; g_l41_e6_hit++;
++        if (e6_chk < 0) e6_chk = getenv("MGS2_E6_CHECK") != 0;
++        if (e6_chk && vu_fnv(VUPROG) != h) g_l41_e6_bad++;
++        goto fill;
++      }
++    ps[np] = j; st[np++] = s;
++  }
++  for (; i < 1024; i++) { s ^= VUPROG[i]; s *= 16777619u; }             /* the rest of gl39's FNV-1a */
++  h = s; g_l41_e6_miss++;
++fill:
++  g_l41_e6_cmpw += i;
++  for (k = 0; k < np; k++) {                                             /* the pair at the levels passed (round robin) */
++    j = ps[k]; q = e6_n[j] < E6_N ? e6_n[j]++ : e6_nx[j]; e6_nx[j] = (q + 1) % E6_N; e6_s[j][q] = st[k]; e6_f[j][q] = h; }
++  vu_prog_hash = h; vu_prog_clean = 1;
++}
++#ifdef OPT2_E6
++#define VU_HASH_E6() (g_opt2 & OPT2_E6)
++#else
++#define VU_HASH_E6() 0
++#endif
++#else
++#define E6_DIRTY(a, b) ((void)0)
++#define E6_LOST() ((void)0)
++#define VU_HASH_E6() 0
++static void vu_hash_e6(void) { }
++#endif
+ static uint32_t vu_hash(void) { if (!vu_prog_clean) {
++  if (VU_HASH_E6()) { vu_hash_e6(); return vu_prog_hash; }   /* gl41 E6 */
+ #ifdef VU_STATS
+   g_hash_n++;
+ #endif
+--- a/runtime/vu_l41.h
++++ b/runtime/vu_l41.h
+@@ -62,7 +62,10 @@
+ #else
+   long p1m = -1, p1f = -1;
+ #endif
+-  fprintf(stderr, "gl41 levers vb %ld: opt2 %08x, p1 misses %ld fills %ld\n", vb, (unsigned)g_opt2, p1m, p1f);
++#if !defined(VU_STATS) && !defined(VU_DUMP)
++  fprintf(stderr, "gl41 levers vb %ld: opt2 %08x, p1 misses %ld fills %ld, e6 hits %ld misses %ld words hashed %ld, e6 check differing %ld\n",
++          vb, (unsigned)g_opt2, p1m, p1f, g_l41_e6_hit, g_l41_e6_miss, g_l41_e6_cmpw, g_l41_e6_bad);
++#endif
+ }
+ /* (a call in io_vblank: its own CFG unchanged.  The vblank starts are counted here: io_vblank's io_vb counts only where gscap_vblank is
+    compiled in (the x86 twin); on the PSP build gscap_vblank(++io_vb) is ((void)0) and io_vb stays 0.) */

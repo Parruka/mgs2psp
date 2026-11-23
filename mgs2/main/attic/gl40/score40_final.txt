@@ -1,0 +1,63 @@
+== 1. EVERY WINDOW, ms a PSP step [C model]: main (game + runtime + plan + other) | of it the copy plan (main-pic) | ME (with the digest) || main + ME: instr, I-miss, D-miss a step
+  ka40    29,510 t55 K0 XP7 digests on             main  92.63 (game  37.70, plan 18.38)  ME  86.19  dig 17.02 ||  23510716 110578 153928
+  ka40.1  29,610 t56 K0 XP0                        main  86.74 (game  37.25, plan 13.81)  ME  65.25  dig  0.00 ||  18738572 110670 141498
+  ka40.2  29,710 t57 K0 XP3                        main  85.25 (game  37.04, plan 12.62)  ME  63.96  dig  0.00 ||  18389439 109527 138332
+  ka40.3  29,810 t58 K7 M5 on                      main  68.49 (game  37.13, plan  0.00)  ME   0.04  dig  0.00 ||   8706348  49440  59227
+  ka40.4  29,910 t59 K0 XP1                        main  86.67 (game  37.25, plan 13.74)  ME  63.10  dig  0.00 ||  18507608 108513 139063
+  ka40.5  30,010 t60 K0 XP3                        main  85.58 (game  37.29, plan 12.54)  ME  63.65  dig  0.00 ||  18402649 109651 138069
+  ka40.6  30,110 t61 K0 XP0                        main  87.11 (game  37.24, plan 13.77)  ME  65.17  dig  0.00 ||  18798476 110145 141889
+  ka40.7  30,410 t64 K7 M5 off                     main  69.35 (game  37.22, plan  0.00)  ME   0.04  dig  0.00 ||   8809209  50837  59452
+  kb40    30,210 t62 K8 no load                    main  69.15 (game  37.27, plan  0.00)  ME   0.04  dig  0.00 ||   8813609  49580  59636
+  kb40.1  30,310 t63 K0 XP3                        main  86.46 (game  37.45, plan 12.65)  ME  64.52  dig  0.00 ||  18529061 110410 141793
+  kb40.2  30,510 t65 K0 XP0 digests on, M5 off     main  89.67 (game  37.91, plan 13.76)  ME  86.19  dig 16.90 ||  22757462 113389 154689
+  kb40.3  30,610 t66 K0 XP3 (heavier)              main  93.07 (game  39.32, plan 14.50)  ME  70.52  dig  0.00 ||  20134487 118765 153241
+  kb40.4  30,710 t67 K0 XP0 (heavier)              main  94.61 (game  38.93, plan 16.82)  ME  74.23  dig  0.00 ||  20676746 119530 162539
+  kb40.5  30,910 t69 walk K0 XP0                   main  84.06 (game  36.64, plan 11.49)  ME  49.08  dig  0.00 ||  16405031  96887 124198
+  kb40.6  31,010 t70 walk K0 XP3                   main  90.41 (game  38.35, plan 12.46)  ME  56.24  dig  0.00 ||  18321445 104868 133399
+  kb40.7  31,110 t71 walk K7                       main  69.72 (game  36.58, plan  0.00)  ME   0.04  dig  0.00 ||   8869005  53277  57805
+  gd40    16,110 guard cfg main-drawing            main  25.07 (game   9.57, plan  2.46)  ME  34.44  dig  0.00 ||   7714092  37840  52517
+  gd40.1  21,110 guard cfg main-drawing            main  43.10 (game  18.99, plan  3.05)  ME  15.94  dig  0.00 ||   8563340  21789  47064
+  gd40.2  23,110 guard cfg main-drawing            main  24.29 (game  18.75, plan  0.00)  ME   0.01  dig  0.00 ||   4392563   2071   8151
+  gd40.3  27,510 guard cfg main-drawing            main  25.23 (game  10.29, plan  2.48)  ME  35.60  dig  0.00 ||   7895391  37479  54427
+  dn40    29,810 no kinds, ME turn                 main  86.55 (game  37.05, plan 13.67)  ME  87.83  dig 17.43 ||  22700425 110527 152268
+  dn40.1  29,910 no kinds, main-drawing turn       main  76.43 (game  37.24, plan  4.94)  ME  79.75  dig 16.91 ||  20472614 103966 129760
+  ka39    29,510 t55 K0 digests on                 main  87.90 (game  37.31, plan 13.81)  ME  85.19  dig 17.02 ||  22700784 106507 150478
+  ka39.1  29,610 t56 K0 digest-off                 main  86.89 (game  36.93, plan 13.92)  ME  64.35  dig  0.00 ||  18817266 106792 140148
+  ka39.2  29,710 t57 K7                            main  68.24 (game  36.59, plan  0.00)  ME   0.04  dig  0.00 ||   8721453  47691  59343
+  ka39.3  29,810 t58 K8 no load                    main  68.69 (game  36.86, plan  0.00)  ME   0.04  dig  0.00 ||   8772495  48239  59696
+  ka39.4  30,210 t62 K0 digest-off                 main  87.33 (game  36.91, plan 13.93)  ME  64.25  dig  0.00 ||  18893656 105982 140660
+  ka39.5  30,410 t64 K7 (M5 inert)                 main  68.85 (game  36.83, plan  0.00)  ME   0.04  dig  0.00 ||   8797792  48225  59818
+  ka39.6  30,910 t69 walk K0 digest-off            main  84.08 (game  36.33, plan 11.59)  ME  47.94  dig  0.00 ||  16485005  92230 122000
+  ka39.7  31,010 t70 walk K7                       main  73.06 (game  37.75, plan  0.00)  ME   0.04  dig  0.00 ||   9305126  55791  60403
+== 2. XP: each line one window MINUS another of the same run, ms a PSP step [C model]; plan section 1e expects XP3 - XP0 = -1.7 to -2.6 model
+   (-1.7 to -3.4 PSP), XP1 - XP0 = -0.6 to -0.8 model (-0.6 to -1.0 PSP) [I]
+  XP3 - XP0: t57 - t56                                       ka40.2 - ka40.1 main  -1.48 (plan -1.20)  ME  -1.30 -> PSP  -2.52  [instr  -349133 I  -1144 D  -3166]
+  XP3 - XP0: t60 - t61                                       ka40.5 - ka40.6 main  -1.53 (plan -1.23)  ME  -1.52 -> PSP  -2.74  [instr  -395827 I   -494 D  -3820]
+  XP3 - XP0: t63 - t61 (two runs)                            kb40.1 - ka40.6 main  -0.65 (plan -1.12)  ME  -0.66 -> PSP  -1.17  [instr  -269414 I   +265 D    -95]
+  XP3 - XP0: t66 - t67 heavier                               kb40.3 - kb40.4 main  -1.54 (plan -2.31)  ME  -3.71 -> PSP  -4.50  [instr  -542259 I   -765 D  -9298]
+  XP3 - XP0: walk t70 - t69                                  kb40.6 - kb40.5 main  +6.35 (plan +0.98)  ME  +7.15 -> PSP +12.07  [instr +1916415 I  +7981 D  +9201]
+  XP1 - XP0: t59 - t56                                       ka40.4 - ka40.1 main  -0.06 (plan -0.07)  ME  -2.15 -> PSP  -1.78  [instr  -230963 I  -2157 D  -2435]
+  XP0 - XP0: t61 - t56 (the spread)                          ka40.6 - ka40.1 main  +0.37 (plan -0.04)  ME  -0.08 -> PSP  +0.31  [instr   +59904 I   -525 D   +391]
+  XP3 - XP3: t60 - t57 (the spread)                          ka40.5 - ka40.2 main  +0.33 (plan -0.07)  ME  -0.31 -> PSP  +0.08  [instr   +13210 I   +124 D   -263]
+== 3. M5 (K7, M5 on minus off; plan: ~-0.11 model [C side build])
+  M5 on - off: t58 - t64 (K7)                                ka40.3 - ka40.7 main  -0.85 (plan +0.00)  ME  +0.00 -> PSP  -0.85  [instr  -102861 I  -1397 D   -225]
+== 4. the kinds among themselves
+  K0 XP0 t56 - K7 t58: drawing, both CPUs                    ka40.1 - ka40.3 main +18.24 (plan +13.81)  ME +65.22 -> PSP +70.42  [instr +10032223 I +61230 D +82272]
+  K8 no load t62 - K7 t58                                    kb40 - ka40.3   main  +0.66 (plan -0.00)  ME  +0.01 -> PSP  +0.66  [instr  +107261 I   +140 D   +409]
+  K0 XP7 digests on t55 - K0 XP0 t56 (digest + check)        ka40 - ka40.1   main  +5.90 (plan +4.57)  ME +20.94 -> PSP +22.65  [instr +4772144 I    -93 D +12429]
+  walk K0 XP0 t69 - walk K7 t71                              kb40.5 - kb40.7 main +14.35 (plan +11.48)  ME +49.05 -> PSP +53.58  [instr +7536025 I +43610 D +66393]
+== 5. gl40 MINUS gl39 (new profile and order, pads, the probe, M5): the same turn and kind where the schedules agree
+  K0 digest-off XP0, t56 29,610                              ka40.1 - ka39.1 main  -0.16 (plan -0.10)  ME  +0.91 -> PSP  +0.57  [instr   -78695 I  +3878 D  +1350]
+  K7, t64 30,410 (M5 off in both: gl39 inert)                ka40.7 - ka39.5 main  +0.50 (plan +0.00)  ME  -0.00 -> PSP  +0.50  [instr   +11418 I  +2612 D   -367]
+  walk K0 digest-off XP0, t69 30,910                         kb40.5 - ka39.6 main  -0.02 (plan -0.10)  ME  +1.14 -> PSP  +0.89  [instr   -79975 I  +4657 D  +2198]
+  K7 t58 (gl40) - K7 t57 (gl39): other turns                 ka40.3 - ka39.2 main  +0.25 (plan +0.00)  ME  -0.00 -> PSP  +0.25  [instr   -15104 I  +1750 D   -116]
+  K8 no load t62 (gl40) - t58 (gl39): other turns            kb40 - ka39.3   main  +0.46 (plan +0.00)  ME  -0.00 -> PSP  +0.46  [instr   +41114 I  +1342 D    -61]
+  K0 XP3 t57 (gl40) - K0 t56 (gl39): XP3 against gl39, neighbour turns ka40.2 - ka39.1 main  -1.64 (plan -1.30)  ME  -0.39 -> PSP  -1.95  [instr  -427827 I  +2735 D  -1816]
+== 6. THE GUARD WINDOWS (gl38's guard cfg mgs2_m37_rc0), whole windows, ms a step [C model]: gl40 | gl39 (exp40 x39) | gl36 (exp40 x36); I-misses <= gl36 + 2 %?
+  16,110 guard cfg main-drawing      gl40  59.51 gl39  61.04 gl36  59.24 | gl40 - gl39 -1.52, gl40 - gl36 +0.28 | I a step  37842 /  41413 /  38420 (gl40/gl36  -1.5 %: PASS) | D  52517 /  55283 /  50778
+  21,110 guard cfg main-drawing      gl40  59.04 gl39  60.25 gl36  58.81 | gl40 - gl39 -1.22, gl40 - gl36 +0.23 | I a step  21791 /  28381 /  23712 (gl40/gl36  -8.1 %: PASS) | D  47064 /  46194 /  44601
+  23,110 guard cfg main-drawing      gl40  24.29 gl39  24.41 gl36  24.27 | gl40 - gl39 -0.12, gl40 - gl36 +0.03 | I a step   2073 /   2149 /   2159 (gl40/gl36  -4.0 %: PASS) | D   8151 /   8167 /   8155
+  27,510 guard cfg main-drawing      gl40  60.83 gl39  62.18 gl36  60.61 | gl40 - gl39 -1.35, gl40 - gl36 +0.22 | I a step  37481 /  41221 /  38342 (gl40/gl36  -2.2 %: PASS) | D  54427 /  55939 /  52565
+== 7. gl38's second guard cfg (mgs2_m36_c, no kinds): gl40 | gl39 (dn39) | gl38 (d38) | gl36 (d36), whole windows
+  29,810 no kinds, ME turn           gl40 174.38 gl39 175.00 gl38 174.60 gl36 174.76 | gl40 - gl39 -0.63, - gl36 -0.39 | I 110532 / 107326 / 103970 / 110813 | D 152268 / 155136 / 155777 / 152729
+  29,910 no kinds, main-drawing turn gl40 156.18 gl39 157.15 gl38 157.14 gl36 154.82 | gl40 - gl39 -0.97, - gl36 +1.36 | I 103970 / 102155 /  99271 / 101977 | D 129760 / 133319 / 134975 / 125862

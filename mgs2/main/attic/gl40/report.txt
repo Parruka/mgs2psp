@@ -1,0 +1,62 @@
+gl40 build report (build agent, 2026-11-23 20:04 UTC). Package: /home/claude/main/build_gl40/deliver (15 files). NOT delivered:
+the lead copies it to Builds\MGS2T_gl40 and makes LOGS\gl40. Marks: [C] measured/read, [C model] PspProf (ms a PSP step, not
+halved), [C twin], [C emulator], [I] inferred (basis named), UNKNOWN. Details: attic/gl40/state.md blocks B1-B10.
+
+SCOPE AS ASKED: lever XP (MGS2_XP_CYCLE: 1 ping-pong in xc_merge, 2 look-back of 8 in xc_add on the miss path, 4 check against gl39's
+plan), MGS2_PROBE10 plan probe every turn, M5 as noinline k_take_m5 in rt/kernel.h with a per-turn counter, order retrain with the
+four main-drawing windows and a binding guard, then the END_PAD/RO_PAD pad search (6 relinks), new PGO profile. Not in: H1, dice cut,
+lamps. No state hash moved anywhere.
+
+GATES
+- Twin [C twin]: every arm 685/685 hashes = hashref_gl38 (c9ddb593); XP check arm lw7: 201,799 plans compared in full, 0 differing.
+- Emulator, delivered package (pk_f40 = deliver/) [C emulator]: f2 62/62 hashes 0 differ; 155 digest frames = twin same-schedule arm
+  (0 differ) and = no-PGO run n1; reader: HASHES EQUAL, DIGESTS EQUAL, SCHEDULE CHECK none. f3 (XP check in every plan): 62/62,
+  digests = twin, XP check 100,604 plans compared, DIFFERING 0 (1,970 of them compared by result only: the plan ran out of
+  extent/arena room and is planned again and compared in full then).
+- ELF [C]: 3 LOADs (R E 0x4404a0 = gl39's exactly; RW 0x2204/0x22b4; bss 0x25f3840 = gl39 + 0x3a00). Hot data mod 0x2000 vs gl39:
+  g_mem/.bss head, .me_bss, .rodata, .data all +0; left +0x88/+0x80 in .bss after g_mem (the new XP table; no pad can move it).
+  k_take_m5 at 08a5a980 (0x12c bytes, clz walk), called by 'j k_take_m5' in k_take_interrupts after the bit-18 test. G4: 133/133
+  sce names, stub sections equal, no new sce references; mesec/me_call/xme_rest/xme_me PASS.
+- Order [C sim]: real = simulated on both routes (6,741,749 I-misses training windows, 0 hot functions missing or resized);
+  second relink byte-equal; final psp relinked again = the modelled pad build byte for byte (110/111 files, make.log differs).
+- Heap [C emulator]: image ends 14.5 KB above gl39's; heap block 0b23b900 = gl36's address; low point vb 23,677, 64 KB headroom (gl39
+  64, gl36 64); end 64 KB in 1 block.
+
+MODEL vs PLAN SECTION 6 [C model unless marked]
+- Guard (4 main-drawing windows, gl38's guard cfg): I-misses a step 37,842 / 21,791 / 2,073 / 37,481 vs gl36 38,420 / 23,712 / 2,159 /
+  38,342: UNDER gl36 in all four (binding guard held). ms a step 59.51 / 59.04 / 24.29 / 60.83; vs gl39 -1.52 / -1.22 / -0.12 / -1.35;
+  vs gl36 +0.28 / +0.23 / +0.03 / +0.22 (what is left is D-misses). Plan expected 0.5-1.2 better than gl39: met (~1.0-1.5).
+  gl38's second guard cfg: vs gl39 -0.63 (ME turn) / -0.97 (main-drawing).
+- XP3 - XP0, main CPU, by the plan's functions: -2.01 / -2.02 / -1.99 in the rain wait, -3.07 heavier part (merge -1.8, copy-back
+  -0.9, xc_add +0.7). Plan expected -1.7..-2.6: met. Whole windows main incl. copy-back: -2.4 / -2.4 / -1.5 / -2.8.
+  Walk pair t70 - t69 is confounded by content (+6 model whole window); use the probe's sort+join part there.
+- XP1 - XP0: -0.88 (copy-back only). Plan expected -0.6..-0.8: slightly more.
+- M5: k_take_interrupts + k_take_m5 0.28 vs 0.60 a step: -0.32 in every kind of turn. Plan expected ~-0.11: larger.
+  Whole K7 windows t58 - t64: -0.85 (content moves too).
+- gl40 - gl39 same turn: t56 K0 XP0 main -0.16 (incl. M5 -0.32), ME +0.91; t69 walk main -0.02, ME +1.14; K7 t64 main +0.50.
+- Plan probe expectation [I, model x 1.0-1.3]: XP0 6.5-8.5 ms a step, XP3 4.5-5.8 (plan section 6: 6.2-8.5 / 3.8-5.5).
+- Expected PSP [I]: K0 XP0 ~78.1, XP1 ~77.0-77.2, XP3 ~75.5-76.1 (plan 74.7-76.4); K7 ~67.3 (M5 on) / ~68.2 (t64);
+  main-drawing turns before 24,000 ~55.6-55.9 (gl39 56.63, gl36 55.56).
+
+FINDINGS / SURPRISES
+1. Rain windows are a little slower than gl39 in the same turn and form: t56 K0 XP0 +0.57 both CPUs (I-misses +3,878 a step;
+   main -0.16, ME +0.91), K7 t64 +0.50, walk t69 +0.89 [C model]. Code order: the guard windows got the room; the extra misses are
+   spread over many functions (+16.9k / -13.0k), not in the new code. Pads cannot fix it. A second, rain-weighted search stage was
+   not run (scope). In the play form the step is main-limited, so the ME's +0.9 should not show; the main CPU is ~equal to gl39's.
+2. score40.py files me_memcpy under ME, but the copy-back of xc_merge on the MAIN CPU calls it (ge objects' memcpy is renamed to
+   me_memcpy). Its XP deltas (-0.9) are main-CPU time; the figures above count them as main.
+3. XP check on the emulator: 1,970 of 100,604 plans compared by result only (room failures; replanned and compared in full).
+   The twin has no room failures (all 201,799 in full).
+4. Emulator 'ME load entries not posted' 2 (gl39's run: 1).
+
+PACKAGE (/home/claude/main/build_gl40/deliver), md5:
+  530f80825757d3519e341bfd6e2aa748 EBOOT.PBP        46c41b7a5e480f63c0f3cc20de174432 ovl_d00t.bin
+  d6d5fc24cef820a1a00c1ed7b23fa987 ovl_d01t.bin     54c3159c0903df1047e0aa80c4683129 ovl_init.bin
+  9e27290339a754c57883781089c8bbfd ovl_n_title.bin  775cfc508ed4f8b56be3ebaa83afea78 ovl_r_title.bin
+  fedf86d138fdee30f08859c59cbf3552 ovl_r_tnk0.bin   4b074e0883b01741390ed7670bc89b09 ovl_w00a.bin
+  14aab1859fd184340647425685998f80 ovl_w01a.bin     fbd1562784163cf66e24b4485201e602 mgs2.cfg
+  c9ddb593c61c07c41b0183952c753d94 hashref.txt      7bc72aceb89b192298c635ef52b81b8f pad.txt
+  e1356bfd85af5d2f49b01c0b0f086ba6 rd40pc.py        README.txt and MANIFEST.md5 (md5 of all + SLES_503.83, mgs2disc.pak as gl39)
+
+LEFT: delivery and the PSP run (lead). Kept in build_gl40: u, psp, n40, pk_n40, pk_f40, emu_n1/f2/f3, model/, lay/ (869 MB of
+traces, for a later rain-weighted order stage; delete when not wanted). Deleted: psp_pa..pf candidates, x_int, game folders.

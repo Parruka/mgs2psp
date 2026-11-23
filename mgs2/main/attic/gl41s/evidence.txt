@@ -1,0 +1,58 @@
+# gl41s evidence (2026-11-23): the proof lines of the twin and model runs, copied from the scratch logs before they were deleted.
+# Twin arms (runs41_*.out, by time: a 16:29, b 16:33, tr 16:37, tr2 17:50, c_alt 17:57, d 18:06, d_off 18:09 (off arm, code v4),
+#   e 18:16 (on + alt, code v6), f 18:39 (alt, code v7 = final); c_on (stopped, superseded) left out):
+runs41_a.out: arm on: MGS2_OPT2_CYCLE=fffbf9df,fffbf9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df MGS2_PROBE41_CULL=5000 MGS2_L41_LOG=1
+runs41_a.out: arm alt: MGS2_OPT2_CYCLE=fffbf9df,fff3f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df,fffff9df,fff7f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df MGS2_E6_CHECK=1 MGS2_L41_LOG=1
+runs41_a.out: on: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_on.txt equals hashref_gl38.txt byte for byte 
+runs41_a.out:   digests 8be40bf85beb 17014
+runs41_a.out: alt: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_alt.txt equals hashref_gl38.txt byte for byte 
+runs41_a.out:   digests 8be40bf85beb 17014
+runs41_b.out: arm off: MGS2_OPT2_CYCLE=ffc3f9df,ffc3f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df MGS2_OPT2=ffc7f9df
+runs41_b.out: off: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_off.txt equals hashref_gl38.txt byte for byte 
+runs41_b.out:   digests 8be40bf85beb 17014
+runs41_tr.out: arm on: MGS2_OPT2_CYCLE=fffbf9df,fffbf9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df MGS2_PROBE41_CULL=5000 MGS2_L41_LOG=1
+runs41_tr.out: on: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_on.txt equals hashref_gl38.txt byte for byte 
+runs41_tr.out:   digests 8be40bf85beb 17014
+runs41_tr2.out: arm on: MGS2_OPT2_CYCLE=fffbf9df,fffbf9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df MGS2_PROBE41_CULL=5000 MGS2_L41_LOG=1
+runs41_tr2.out: on: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_on.txt equals hashref_gl38.txt byte for byte 
+runs41_tr2.out:   digests 8be40bf85beb 17014
+runs41_c_alt.out: arm alt: MGS2_OPT2_CYCLE=fffbf9df,fff3f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df,fffff9df,fff7f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df MGS2_E6_CHECK=1 MGS2_L41_LOG=1
+runs41_c_alt.out: alt: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_alt.txt equals hashref_gl38.txt byte for byte 
+runs41_c_alt.out:   digests 8be40bf85beb 17014
+runs41_d.out: arm on: MGS2_OPT2_CYCLE=fffbf9df,fffbf9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df MGS2_PROBE41_CULL=5000 MGS2_L41_LOG=1
+runs41_d.out: arm alt: MGS2_OPT2_CYCLE=fffbf9df,fff3f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df,fffff9df,fff7f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df MGS2_E6_CHECK=1 MGS2_L41_LOG=1
+runs41_d.out: on: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_on.txt equals hashref_gl38.txt byte for byte 
+runs41_d.out:   digests 8be40bf85beb 17014
+runs41_d.out: alt: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_alt.txt equals hashref_gl38.txt byte for byte 
+runs41_d.out:   digests 8be40bf85beb 17014
+runs41_d_off.out: arm off: MGS2_OPT2_CYCLE=ffc3f9df,ffc3f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df,ffc7f9df MGS2_OPT2=ffc7f9df
+runs41_d_off.out: off: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_off.txt equals hashref_gl38.txt byte for byte 
+runs41_d_off.out:   digests 8be40bf85beb 17014
+runs41_e.out: arm on: MGS2_OPT2_CYCLE=fffbf9df,fffbf9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df,fffff9df MGS2_PROBE41_CULL=5000 MGS2_L41_LOG=1
+runs41_e.out: arm alt: MGS2_OPT2_CYCLE=fffbf9df,fff3f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df,fffff9df,fff7f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df MGS2_E6_CHECK=1 MGS2_L41_LOG=1
+runs41_e.out: on: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_on.txt equals hashref_gl38.txt byte for byte 
+runs41_e.out:   digests 8be40bf85beb 17014
+runs41_e.out: alt: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_alt.txt equals hashref_gl38.txt byte for byte 
+runs41_e.out:   digests 8be40bf85beb 17014
+runs41_f.out: arm alt: MGS2_OPT2_CYCLE=fffbf9df,fff3f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df,fffff9df,fff7f9df,ffeff9df,ffe7f9df,ffdff9df,ffd7f9df,ffcff9df,ffc7f9df MGS2_E6_CHECK=1 MGS2_L41_LOG=1
+runs41_f.out: alt: compared 685 reference lines (307 with vuh): 0 differ; 0 reference lines not in the log twin.sh: hashref_alt.txt equals hashref_gl38.txt byte for byte 
+runs41_f.out:   digests 8be40bf85beb 17014
+# Model runs (mod_*.out; PPSSPPHeadless_fcr, windows 29610 + 30910, against hashref_gl38; layouts: off = first variant, 6 = v6 unordered, 6o = v6o, 6a = v6a, 6c = v6c, 6d = v6d, ctl = gl39):
+mod_ctl.out: mod41.sh: m_ctl rc 0 16:44:33 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_off.out: mod41.sh: m_off rc 0 17:54:39 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6off.out: mod41.sh: m_6off rc 0 18:24:45 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6on.out: mod41.sh: m_6on rc 0 18:24:41 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6ooff.out: mod41.sh: m_6ooff rc 0 18:34:42 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6oon.out: mod41.sh: m_6oon rc 0 18:43:09 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6op1.out: mod41.sh: m_6op1 rc 0 18:55:55 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6op3.out: mod41.sh: m_6op3 rc 0 18:51:29 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6oe6.out: mod41.sh: m_6oe6 rc 0 19:00:16 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6aoff.out: mod41.sh: m_6aoff rc 0 19:04:53 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6ap3.out: mod41.sh: m_6ap3 rc 0 19:09:03 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6aon.out: mod41.sh: m_6aon rc 0 19:15:27 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6coff.out: mod41.sh: m_6coff rc 0 19:22:14 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6doff.out: mod41.sh: m_6doff rc 0 19:25:58 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6don.out: mod41.sh: m_6don rc 0 19:32:32 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6dp1.out: mod41.sh: m_6dp1 rc 0 19:36:17 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6dp3.out: mod41.sh: m_6dp3 rc 0 19:41:24 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe
+mod_6de6.out: mod41.sh: m_6de6 rc 0 19:44:46 | compared 62 reference lines (0 with vuh): 0 differ; 623 refe

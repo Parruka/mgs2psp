@@ -1,0 +1,91 @@
+--- t39/boot/nat_stub.h	2026-11-22 23:20:15.989242365 +0000
++++ st0/t/boot/nat_stub.h	2026-11-23 17:59:35.735866928 +0000
+@@ -358,11 +358,20 @@
+     ng = o; }
+   nat_x86_rec(b, s->n, ng, mesh, nat_spr32(0xc70), end, nat_spr32(0xc64));
+ #endif
++#ifdef NGE_TWIN
++  { void nge_stub(const uint8_t *, uint32_t, const NatGrp *, int, uint32_t, long); nge_stub(g_mem, mesh, s->g ? &s->g[s->n] : 0, ng, blk, (long)k_vblanks); }   /* st0: the cooker's harness (reads only) */
++#endif
+   if (!s->g) g_nat_c[NC_NOMEM]++;
+   s->n += (uint32_t)ng; s->vq += vq; if (stub) s->last_key = key & (GUEST_SIZE - 1) & ~15u;
+   g_nat_c[NC_REC]++; g_nat_c[NC_GRP] += ng; if ((long)s->n > g_nat_c[NC_GRP_MAX]) g_nat_c[NC_GRP_MAX] = (long)s->n;
+   return stub;
+ }
++#ifdef NGE_TWIN   /* st0: the static lighting's rewrites, seen around it (reads only) */
++void nge_relight(const uint8_t *, uint32_t, int, long);
++void P12cd78_orig(void);
++void P12cd78(void);
++void P12cd78(void) { const uint32_t o = (uint32_t)R[4]; nge_relight(g_mem, o, 0, (long)k_vblanks); P12cd78_orig(); nge_relight(g_mem, o, 1, (long)k_vblanks); }
++#endif
+ void P1214a0_orig(void);
+ void P1214a0(void) __attribute__((section(".text.nat_P1214a0")));
+ void P1214a0(void)
+--- t39/boot/nat_x86.c	2026-11-22 22:58:50.458656716 +0000
++++ st0/t/boot/nat_x86.c	2026-11-23 17:59:35.736243876 +0000
+@@ -209,7 +209,11 @@
+       if (k_vblanks >= ninp_vb0 + 100) { ninp_line(ninp_vb0 + 100, 0); ninp_vb0 = k_vblanks - k_vblanks % 100; }
+       if (!g_xl_one) { NX.state++; continue; }   /* (a transfer the translator is not fed: nothing drawn) */
+       if (s->seq != g_dg_seq) NX.late_seq++;
++#ifdef NGE_TWIN
++      { extern const NatGrp *gl_ng_g; gl_ng_g = g; rc = nat_p04_group(g); gl_ng_g = 0; } NX.emit++;   /* st0 */
++#else
+       rc = nat_p04_group(g); NX.emit++;
++#endif
+       if (rc == NATP_CORE) { NX.core++; nrt++; } else if (rc == NATP_FED) NX.fed++; else NX.bad++;
+       nq = (g->flags & NATG_PKT) && (g->key & (GUEST_SIZE - 1) & ~15u) == a ? 7 + (g->flags & NATG_FULL) : 0;
+     }
+--- t39/ge/xconv.c	2026-11-22 23:14:47.596895078 +0000
++++ st0/t/ge/xconv.c	2026-11-23 17:59:35.752353514 +0000
+@@ -179,6 +179,16 @@
+   if (Dn > 0) { for (int j = 0; j < 3; j++) { Dbox[j] = (int16_t)lo[j]; Dbox[3 + j] = (int16_t)hi[j]; } Dbox_ok = 1; }   /* sb14: for 3z */
+   return xc_off(Dx.world, flo, fhi, &Dx, d);
+ }
++#ifdef NGE_TWIN   /* st0: xc_off for a cooked group's box and a given world (the harness, boot/nge_twin.c) */
++int xc_nge_off(const float *w, const int16_t *box, const VcXform *x, const void *dv);
++int xc_nge_off(const float *w, const int16_t *box, const VcXform *x, const void *dv)
++{
++  float flo[3], fhi[3];
++  for (int j = 0; j < 3; j++) { flo[j] = box[j] * (1.0f / 32768); fhi[j] = box[3 + j] * (1.0f / 32768); }
++  return xc_off(w, flo, fhi, x, (const XcGs *)dv);
++}
++extern void nge_conv(const XlCall *c, const void *d, const VcXform *Dx, int Dn, int cut_on, int off, int r, const GerBatch *b, const uint8_t *blob);
++#endif
+ /* sb14 3z (XcHost.c3z): 1 when every w of the df0 call (xc_zr_df0's w = a . p + t, p a vertex's position as the stream holds it) lies
+    inside the range the depth range keeps for the call's projection, by the box b of its positions, as xc_c2_zin does for C2's unskinned
+    form: a . p + t over the box lies in [d - r, d + r], d at the box's centre q (exact: halved sums of int16), r = |a| . the half extents
+@@ -1356,7 +1366,11 @@
+ #endif
+     if (off) { CEN(4); if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+       if (Dpos) xl_nr_n[11]++;
+-      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
++      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++;
++#ifdef NGE_TWIN
++      nge_conv(c, &d, &Dx, Dn, h->cut, 1, 0, 0, 0);   /* st0 */
++#endif
++      return 0; }
+     xc_df0_pos_now();   /* gl36: a kept box's call the cut keeps: its positions now */
+     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+     NS_MARK(NS_ATT);
+@@ -1367,6 +1381,9 @@
+   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
+           k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
+   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
++#ifdef NGE_TWIN
++  if (!k) nge_conv(c, &d, &Dx, Dn, h->cut, 0, r, b, blob);   /* st0 */
++#endif
+ #ifndef __psp__
+   if (r < 0) CEN(6); else if (r > 0) CEN(0); else if (xc_cen_why < 0) CEN(5);
+ #endif
+--- t39/ge/gelist.c	2026-11-22 22:58:50.451404969 +0000
++++ st0/t/ge/gelist.c	2026-11-23 17:59:35.756275157 +0000
+@@ -178,6 +178,9 @@
+ {
+   const GerXform *x = (const GerXform *)(F->d + b->first);
+   const VcVert *v = (const VcVert *)(x + 1); const uint16_t *runs = (const uint16_t *)(v + x->nv); uint32_t nst = x->nst;
++#ifdef NGE_TWIN
++  { extern void nge_draw(const void *, int); nge_draw(x, dz); }   /* st0 */
++#endif
+   if (dz == GX_DZ_X || dz == GX_DZ_Y) { v = (const VcVert *)L->dz_v; runs = L->dz_runs; nst = L->dz_nst; }
+   if (room() < BATCH_WORDS + 3 * nst + RESERVE) return -1;
+   float ts[4] = { x->su, x->sv, x->tu, x->tv };

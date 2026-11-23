@@ -3,6 +3,37 @@
 Ffm, 2026-11-18 20:10-20:19: full lead, "just complete the deck runing at 25/20 fps, the more the better, go for smart solutions downscale what is needed for a psp port"; the only rule that cannot be broken is writing the PSP's flash. My own safety lines stay: no flash0/NAND, never above 333 MHz, no power-register writes.
 Marks: [C] measured on the PSP or read in code, [C model] the PSP cost model, [I] my estimate. Single estimates in this project have been off by 2x in both directions, so every phase ends with a PSP run that settles it.
 
+## COURSE CHANGE 2026-11-23 15:58 (lead; Ffm 15:57: "you are the boss, i dont take decisions")
+
+- Where we are [C gl39]: rain wait 78 ms a step (6.4 fps), main-CPU limited; the ME is busy ~71 ms on list translation. About half of the main
+  CPU's step is imitating the PS2's drawing (prof/hw_gl39/where_78ms_go.md). The exact 1-3 ms levers top out near 7 fps in the rain
+  (main/attic/top3/levers_top3.md), because the ME then sets the pace.
+- Decision: the renderer stops being batch-identical. Models are cooked once at stage load into GE-ready data and drawn by the GE with its
+  own hardware transform, lighting and skinning (as the HD port did with shaders). Game logic stays exact (state hashes equal on x86,
+  emulator and PSP; the game reads back only obj->world from the passes, hd_study §7.1, to be verified per step). Pictures are judged by
+  side-by-side shots, not digests. The freed ME takes the sound mix (~7.5 ms a step, not in any build yet).
+- Then: delete the rain work nobody sees (guards' dice kept by the seed jump, hd_study §1), lighter rain (Ffm's "B"), then game-code speed.
+- Expected [I, 2x]: rain deck 12-15 fps, quieter areas near 20; 25 everywhere not expected; 20 in the rain not reachable by any approach.
+- CHECKPOINT told to Ffm: if the new renderer's first two steps (ship meshes, people) do not lift the rain wait above ~10 fps (under ~50 ms
+  a step) on the PSP, I recommend stopping the project.
+- Design: native_ge_renderer_design.md (in progress). gl40 still ships (copy planning, placement). H1 and the gl41 small levers finish as
+  ready patches; other small exact levers are parked. The text below is the 2026-11-18 plan (history; its 20 fps estimate is superseded).
+
+## UPDATE 2026-11-23 16:5x (lead): the renderer design's numbers correct the outlook above
+
+- native_ge_renderer_design.md [I, 2x]: rain wait after ship 76-79, ship + people 64-72 (~7.4 fps), all deck kinds 54-63 (~8.6 fps);
+  floor if drawing cost the main CPU nothing 52-55: game logic 34.4 [C, K7] + the drawing code whose results the game reads ~14 [C model]
+  must keep running. With rain deletes + gl41/gl42 + generator G1/G2: 39-54 (~11 fps). So the "rain 12-15, quieter near 20" told to Ffm
+  at 15:5x was too high; quieter areas are UNKNOWN until measured.
+- The "~10 fps after ship + people" checkpoint measures a state the plan never stops at: REPLACED by the design's rule: the step-2 PSP
+  run has turns K-A / K-N1 / K-N2 / K-N2R (other chains untranslated, upper bound) / K7; from K-N2R's profile project the full renderer's
+  main CPU P; stop the renderer track if P >= 62, go on if P minus the separately measured logic levers < 50.
+- With exact logic the rain deck tops out near 11 fps [I]. 20 fps in the rain needs the HALF-RATE GAME (one logic step per picture with
+  doubled time): per picture ~39-54 ms -> 18.5-25 fps [I]. Promoted from last resort to a study track now: first read how the HD port's
+  Vita build switched 30/60 (MGS2_DYNAMIC_FRAMERATE, BP_MGS2_5060) on Ffm's PC (Remote Control, read only), then size it on our binary
+  (halfrate_study.md). If half rate cannot work, the rain deck stays near 10-12 fps and I tell Ffm whether to stop.
+- The renderer continues either way (needed under both routes; it also frees the ME for the sound mix). Next: step 0 (cooker, container).
+
 ## Short answer
 
 - **The rainy deck today: 148 ms a game step, 3.4 fps, the game at 14% speed** [C gl17]. It must be about 20 ms a step for 25 fps at full speed: 7x.
@@ -81,3 +112,15 @@ Expected [I]: main CPU 18-25 ms a step: **20 fps at 80-100% speed; 25 fps where 
 
 - Run gl18me (Builds\MGS2T_gl18me, on the charger) and put the files in LOGS\gl18me. That's all for now.
 - Sources: lessons from FF8 and the project since 8 Nov (`scratchpad lessons_2026-11-18.md`, summarised into this plan), `deck_costs.md`, `halfrate_study.md`, `native_draw_study.md`, `roadmap.md`.
+
+## DECISION 2026-11-23 20:4x UTC (lead): half-rate game sized, kept as the second track
+- Sizing: halfrate_sizing_2026-11-23.md. Our PAL disc already carries Konami's 50 Hz conversion (floats x6/5 too) [C], so a 25 Hz
+  game is a second conversion of the same sites at ratio 2. Deck ~900-1,200 patches, 5-9 weeks; whole game 4-9 months [I].
+  First twin test (wait word 2 + 16 patches): Snake and camera follow the full-rate path closely; guards not yet [C twin].
+- Gain [I, 2x]: after the renderer, rain 46-67 ms a picture (15-22 fps) vs 78-108 at full rate (9.3-12.8). Before the renderer it
+  buys nothing (ME-bound ~7 fps).
+- Order: renderer first (precondition; gl41 = ship stub + P1/P3 turns on gl40's tree after gl40's log). Twin step M2 in parallel
+  (guards' timers, blends, camera, script waits, parity gates, collision). Go/no-go at the renderer checkpoint: near 46 ms -> half
+  rate; at the high end -> the Vita-style lever (~5-6 ms a step) instead.
+- Exactness: the half-rate game gets its own exact hash reference (patched image built once for twin, emulator and PSP); exactness
+  against the original game is given up only if we go. Logged in DEVIATIONS.md before any build carries it.
