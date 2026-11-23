@@ -1,0 +1,672 @@
+--- a/boot/nat_stub.h
++++ b/boot/nat_stub.h
+@@ -296,6 +296,7 @@
+   return g_nat_f1chk ? 1 : k;
+ }
+ int g_nat_f1;
++#include "nge_stub.h"                             /* native step 1 (MGS2_NGE): the cooked ship meshes */
+ #ifndef __psp__
+ void nat_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh, uint32_t dest, uint32_t end, uint32_t qwc);   /* dev: boot/nat_x86.c's counts */
+ #endif
+@@ -308,7 +309,8 @@
+   static NatGrp tmp;
+   if (nat_seq_seen != g_dg_seq || g_nat_arm < 0) { nat_seq_seen = g_dg_seq; g_nat_arm = rt_nat_arm_at(k_vblanks, 0); g_nat_inpl = rt_nat_inpl_at(k_vblanks); g_nat_fast = rt_nat_fast_at(k_vblanks); g_nat_keep = rt_nat_keep_at(k_vblanks); g_nat_reuse = rt_nat_reuse_at(k_vblanks);
+     g_nat_f1 = rt_nat_f1_at(k_vblanks + 1);                                           /* gl38 */
+-    if (g_nat_arm == 3 && (rt_bound_at(k_vblanks + 1, 0) & BD_SHIP)) g_nat_arm = 4; }   /* gl38 K1, K6: the picture's ship stubbed and not drawn */
++    if (g_nat_arm == 3 && (rt_bound_at(k_vblanks + 1, 0) & BD_SHIP)) g_nat_arm = 4;   /* gl38 K1, K6: the picture's ship stubbed and not drawn */
++    if (g_nge) nge_pic_begin(); }                                                     /* native step 1 (nge_stub.h) */
+   arm = g_nat_arm;
+   if (arm <= 0) return 0;
+   if (arm == 4) { g_nat_c[NC_STUBC]++; return 1; }
+@@ -378,6 +380,8 @@
+     ng = o; }
+   nat_x86_rec(b, s->n, ng, mesh, nat_spr32(0xc70), end, nat_spr32(0xc64));
+ #endif
++  if (g_nge && s->g) {   /* native step 1 (nge_stub.h): the groups' references (0: today's path) */
++    if (stub && g_nge_pic) nge_rec(b, s, s->n, ng, mesh, blk); else for (i = 0; i < ng; i++) xc_nge_ref[b][s->n + (uint32_t)i].g = 0; }
+   if (!s->g) g_nat_c[NC_NOMEM]++;
+   s->n += (uint32_t)ng; s->vq += vq; if (stub) s->last_key = key & (GUEST_SIZE - 1) & ~15u;
+   g_nat_c[NC_REC]++; g_nat_c[NC_GRP] += ng; if ((long)s->n > g_nat_c[NC_GRP_MAX]) g_nat_c[NC_GRP_MAX] = (long)s->n;
+--- a/boot/nat_x86.c
++++ b/boot/nat_x86.c
+@@ -209,7 +209,7 @@
+       if (k_vblanks >= ninp_vb0 + 100) { ninp_line(ninp_vb0 + 100, 0); ninp_vb0 = k_vblanks - k_vblanks % 100; }
+       if (!g_xl_one) { NX.state++; continue; }   /* (a transfer the translator is not fed: nothing drawn) */
+       if (s->seq != g_dg_seq) NX.late_seq++;
+-      rc = nat_p04_group(g); NX.emit++;
++      nge_walk(b, (int)(g - s->g)); rc = nat_p04_group(g); nge_walk_end(); NX.emit++;   /* native step 1: the group's reference (ge/nge.h) */
+       if (rc == NATP_CORE) { NX.core++; nrt++; } else if (rc == NATP_FED) NX.fed++; else NX.bad++;
+       nq = (g->flags & NATG_PKT) && (g->key & (GUEST_SIZE - 1) & ~15u) == a ? 7 + (g->flags & NATG_FULL) : 0;
+     }
+@@ -228,6 +228,7 @@
+ static void nat_report(void)
+ {
+   if (g_nat_cfg && ninp_vb0 >= 0) ninp_line(k_vblanks, 1);
++  nge_end_line();   /* native step 1 */
+   if (g_nat_cfg) fprintf(stderr, "natinpl: totals: groups flagged static %ld (drawn %ld)\n", g_nat_stc, ninp_drawn);
+   if (g_nat_cfg) fprintf(stderr, "natfast: totals: groups flagged %ld; taken %ld, declined %ld %ld %ld %ld %ld %ld %ld; transforms taken %ld, kept %ld, checked %ld, DIFFERING %ld\n",
+                          g_nat_fst, xl_nf_n[0], xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], vc_km_n[2], vc_km_n[3]);
+--- a/boot/xlive_chk.c
++++ b/boot/xlive_chk.c
+@@ -104,6 +104,13 @@
+ #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
+ #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
++#include "../ge/nge.h"       /* native step 1 (MGS2_NGE) */
++uint32_t nge_cfg_bytes(void);   /* (boot/nge_stub.h) */
++int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++static void *nge_x86_alloc(uint32_t n, const char *name) { void *p = 0; (void)name; return posix_memalign(&p, 64, n) ? 0 : p; }
++#define NGE_X86_GE0 0x09400000u   /* the cooked regions' GE addresses on the twin (the PSP's are their RAM addresses) */
++#define NGE_X86_GE1 0x09800000u
++static uint8_t *nge_x86_m[2]; static uint32_t nge_x86_n;
+ #include "../runtime/host_time.h"   /* sb3: g_opt's OPT_CLIP_FAST (boot.c MGS2_OPT, MGS2_OPT_CYCLE), as psp/xl_psp.c reads it */
+ #if defined(__has_include)
+ #if __has_include(<valgrind/callgrind.h>)
+@@ -179,6 +186,8 @@
+   if (a >= 0x08600000u && a + len <= 0x08600000u + GL_PSP_ARENA) return gx_arena + (a - 0x08600000u);
+   if (a >= 0x08600000u + GL_PSP_ARENA && a + len <= 0x08600000u + GL_PSP_ARENA + gx_listn) return gx_lb + (a - 0x08600000u - GL_PSP_ARENA);
+   if (a >= 0x09000000u && a + len <= 0x09000000u + gx_pool_n) return gx_pool + (a - 0x09000000u);
++  if (nge_x86_m[0] && a >= NGE_X86_GE0 && a + len <= NGE_X86_GE0 + nge_x86_n) return nge_x86_m[0] + (a - NGE_X86_GE0);   /* native step 1 */
++  if (nge_x86_m[1] && a >= NGE_X86_GE1 && a + len <= NGE_X86_GE1 + nge_x86_n) return nge_x86_m[1] + (a - NGE_X86_GE1);
+   return 0;
+ }
+ static uint32_t gx_vsize(uint32_t vt)   /* a vertex's bytes (GE VTYPE: weights, texture, colour, normal, position, each aligned) */
+@@ -226,6 +235,78 @@
+ #undef SH
+   return h;
+ }
++/* native step 1 (MGS2_GX_SEM=2, "drawn2"): the picture as the GE draws it, independent of which words set the state: at each primitive,
++   the state every register then holds (each command's last argument, the matrices WORLD, VIEW, PROJ, TGEN and the bones as loaded) and
++   the primitive's vertices' bytes as the GE reads them (as gx_sem); the commands that act (CLUT loads, flushes, finishes, signals) in
++   order with their words.  CALL and RET followed (into the cooked lists: gx_ptr), JUMP too; the address words VADDR, IADDR, BASE only
++   followed.  So a list that writes WORLD once for two batches and one that writes it for each, or that sets VTYPE inside a called list,
++   have the same digest when every primitive draws the same vertices with the same state */
++static long gx_sem2_n, gx_sem2_bad, gx_sem2_calls; static uint64_t gx_sem2_all = 0xcbf29ce484222325ull;
++static uint64_t gx_sem2(const GxList *l)
++{
++  uint64_t h = 0xcbf29ce484222325ull, st = 0; uint32_t reg[256], mw[12], mv[12], mp[16], mt[12], mb[96], iw = 0, iv = 0, ip = 0, it = 0, ib = 0;
++  uint32_t base = 0, va = 0, ia = 0, ga = 0, rs[4]; int dirty = 1, depth = 0; uint32_t n = 0, steps = 0; const uint32_t *top = l->w;
++  memset(reg, 0, sizeof reg); memset(mw, 0, sizeof mw); memset(mv, 0, sizeof mv); memset(mp, 0, sizeof mp); memset(mt, 0, sizeof mt); memset(mb, 0, sizeof mb);
++#define SH2(x) do { uint32_t x_ = (x); for (int k_ = 0; k_ < 4; k_++) { h ^= x_ >> 8 * k_ & 0xff; h *= 0x100000001b3ull; } } while (0)
++  for (;;) {
++    uint32_t w;
++    if (!depth) { if (n >= l->n) break; w = top[n++]; }
++    else { const uint8_t *p = gx_ptr(ga, 4); if (!p || ++steps > (1u << 20)) { gx_sem2_bad++; SH2(0xdead0003u); break; } memcpy(&w, p, 4); ga += 4; }
++    const uint32_t c = w >> 24, a = w & 0xffffff;
++    switch (c) {
++    case 0x00: case 0x13: case 0x14: continue;                                       /* NOP, OFFSETADDR, ORIGIN */
++    case 0x10: base = (w & 0x0f0000) << 8; continue;                                 /* BASE */
++    case 0x01: va = base | a; continue;                                              /* VADDR */
++    case 0x02: ia = base | a; continue;                                              /* IADDR */
++    case 0x08: if (!depth) { gx_sem2_bad++; SH2(0xdead0004u); continue; } ga = base | (a & ~3u); continue;   /* JUMP (in a called list) */
++    case 0x0a: if (depth >= 3) { gx_sem2_bad++; SH2(0xdead0005u); continue; }       /* CALL */
++      rs[depth] = depth ? ga : n; depth++; ga = base | (a & ~3u); gx_sem2_calls++; continue;
++    case 0x0b: if (!depth) goto out; depth--; if (depth) ga = rs[depth]; else n = rs[0]; continue;   /* RET */
++    case 0x0c: goto out;                                                             /* END */
++    case 0x3a: iw = a; continue; case 0x3b: if (iw < 12) mw[iw++] = a; dirty = 1; continue;   /* WORLD */
++    case 0x3c: iv = a; continue; case 0x3d: if (iv < 12) mv[iv++] = a; dirty = 1; continue;   /* VIEW */
++    case 0x3e: ip = a; continue; case 0x3f: if (ip < 16) mp[ip++] = a; dirty = 1; continue;   /* PROJ */
++    case 0x40: it = a; continue; case 0x41: if (it < 12) mt[it++] = a; dirty = 1; continue;   /* TGEN */
++    case 0x2a: ib = a; continue; case 0x2b: if (ib < 96) mb[ib++] = a; dirty = 1; continue;   /* bones */
++    case 0xc4: case 0xcb: case 0xcc: case 0xea: case 0x0e: case 0x0f: SH2(w); SH2(reg[0xb0]); SH2(reg[0xb1]); continue;   /* acts */
++    case 0x04: break;                                                                /* PRIM */
++    default: if (reg[c] != a || !(reg[c] >> 31)) { reg[c] = a | 1u << 31; dirty = 1; } continue;   /* a state register */
++    }
++    if (dirty) {
++      st = 0xcbf29ce484222325ull;
++      for (int k = 0; k < 256; k++) { st ^= reg[k]; st *= 0x100000001b3ull; }
++      for (int k = 0; k < 12; k++) { st ^= mw[k]; st *= 0x100000001b3ull; st ^= mv[k]; st *= 0x100000001b3ull; st ^= mt[k]; st *= 0x100000001b3ull; }
++      for (int k = 0; k < 16; k++) { st ^= mp[k]; st *= 0x100000001b3ull; }
++      for (int k = 0; k < 96; k++) { st ^= mb[k]; st *= 0x100000001b3ull; }
++      dirty = 0;
++    }
++    SH2((uint32_t)st); SH2((uint32_t)(st >> 32)); SH2(w);
++    const uint32_t vt = reg[0x12] & 0xffffff, cnt = w & 0xffff, ty = w >> 16 & 7, vs = gx_vsize(vt), ix = vt >> 11 & 3, isz = ix == 1 ? 1 : ix == 2 ? 2 : ix == 3 ? 4 : 0;
++    const uint8_t *vb = 0, *ibp = 0; uint32_t maxi = 0;
++    if (isz) {
++      if (!(ibp = gx_ptr(ia, cnt * isz))) { gx_sem2_bad++; SH2(0xdead0001u); continue; }
++      for (uint32_t i = 0; i < cnt; i++) { uint32_t x = isz == 1 ? ibp[i] : isz == 2 ? (uint32_t)(ibp[2 * i] | ibp[2 * i + 1] << 8) : (uint32_t)(ibp[4 * i] | ibp[4 * i + 1] << 8 | ibp[4 * i + 2] << 16 | (uint32_t)ibp[4 * i + 3] << 24); if (x > maxi) maxi = x; }
++      vb = gx_ptr(va, (maxi + 1) * vs);
++    } else vb = gx_ptr(va, cnt * vs);
++    if (!vb) { gx_sem2_bad++; SH2(0xdead0002u); continue; }
++#define VX2(i) (isz == 1 ? ibp[i] : isz == 2 ? (uint32_t)(ibp[2 * (i)] | ibp[2 * (i) + 1] << 8) : isz == 4 ? (uint32_t)(ibp[4 * (i)] | ibp[4 * (i) + 1] << 8 | ibp[4 * (i) + 2] << 16 | (uint32_t)ibp[4 * (i) + 3] << 24) : (uint32_t)(i))
++#define SV2(i) do { const uint8_t *p_ = vb + (size_t)VX2(i) * vs; for (uint32_t b_ = 0; b_ < vs; b_ += 4) { uint32_t u_; memcpy(&u_, p_ + b_, 4); SH2(u_); } } while (0)
++    if (ty == 0) for (uint32_t i = 0; i < cnt; i++) { SH2(0x50000000u); SV2(i); }
++    else if (ty == 1) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH2(0x50000001u); SV2(i); SV2(i + 1); }
++    else if (ty == 2) for (uint32_t i = 0; i + 1 < cnt; i++) { SH2(0x50000001u); SV2(i); SV2(i + 1); }
++    else if (ty == 3) for (uint32_t i = 0; i + 2 < cnt; i += 3) { SH2(0x50000003u); SV2(i); SV2(i + 1); SV2(i + 2); }
++    else if (ty == 4) for (uint32_t i = 0; i + 2 < cnt; i++) { SH2(0x50000004u); SV2(i); SV2(i + 1); SV2(i + 2); }
++    else if (ty == 5) for (uint32_t i = 1; i + 1 < cnt; i++) { SH2(0x50000005u); SV2(0); SV2(i); SV2(i + 1); }
++    else if (ty == 6) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH2(0x50000006u); SV2(i); SV2(i + 1); }
++    else { SH2(w); gx_sem2_bad++; }
++    if (isz) ia += cnt * isz; else va += cnt * vs;
++#undef SV2
++#undef VX2
++  }
++out:
++#undef SH2
++  return h;
++}
+ static GxDzSched gx_dz; static int gx_dz_on;   /* gl29: MGS2_GL_DZ (ge/gelist.h), as psp/xl_psp.c reads it from mgs2.cfg */
+ #ifdef NAT_HOOK
+ /* n0 step 0: the frame's P04+df0 transform batches (GERK_XFORM, entry XL_DF0) folded field by field, in order: the batch state (first
+@@ -239,9 +320,14 @@
+     if (b.kind != GERK_XFORM || b.entry != XL_DF0) { hall = nb_h(hall, &b, sizeof b); nall++; continue; }
+     const GerXform *x = (const GerXform *)(o->d + b.first); b.first = 0; k++;
+     h[0] = nb_h(h[0], &b, sizeof b); h[1] = nb_h(h[1], x->world, sizeof x->world + sizeof x->proj);
++    if (x->pad == NGE_MAGIC) {   /* native step 1: as today's batch (pad 0; the cooked vertices and strips, no indices) */
++      GerXform y = *x; y.pad = 0; h[2] = nb_h(h[2], y.vs, sizeof y - offsetof(GerXform, vs));
++      const NgeTail *t = (const NgeTail *)(const void *)(x + 1);
++      h[3] = nb_h(h[3], nge_p(t->vb), x->nv * (uint32_t)sizeof(VcVert)); h[4] = nb_h(h[4], nge_p(t->runs), x->nst * 4);
++    } else {
+     h[2] = nb_h(h[2], x->vs, sizeof *x - offsetof(GerXform, vs));
+     h[3] = nb_h(h[3], x + 1, x->nv * (uint32_t)sizeof(VcVert));
+-    h[4] = nb_h(h[4], (const uint8_t *)(x + 1) + x->nv * sizeof(VcVert), x->nst * 4 + x->nidx * 2);
++    h[4] = nb_h(h[4], (const uint8_t *)(x + 1) + x->nv * sizeof(VcVert), x->nst * 4 + x->nidx * 2); }
+   }
+   { static long dv = -2; if (dv == -2) { const char *e = getenv("MGS2_NAT_BDUMP"); dv = e ? atol(e) : -1; }
+     if (vb == dv) for (int i = 0; i < o->nb; i++) { const GerBatch *q = &o->b[i]; uint32_t hx = 0, nv = 0, nst = 0;
+@@ -319,6 +405,8 @@
+ #endif
+     if (gx_sem_on) { uint64_t s = gx_sem(&gxl); gx_sem_all = (gx_sem_all ^ s) * 0x100000001b3ull; gx_sem_n++;
+       fprintf(stderr, "picture: vb %ld drawn %016llx\n", vb, (unsigned long long)s); }
++    if (gx_sem_on >= 2) { uint64_t s = gx_sem2(&gxl); gx_sem2_all = (gx_sem2_all ^ s) * 0x100000001b3ull; gx_sem2_n++;   /* native step 1 */
++      fprintf(stderr, "picture: vb %ld drawn2 %016llx\n", vb, (unsigned long long)s); }
+   }
+ }
+ static void gb_line(const GlCount *n, int64_t db, int64_t tb, const char *what)   /* db, tb: n's data and texture bytes (psp/xl_psp.c gl_line) */
+@@ -1211,6 +1299,8 @@
+       fprintf(stderr, "picture: content digests %ld, all %016llx\n", gx_n, (unsigned long long)gx_call);
+       if (gx_sem_on) fprintf(stderr, "picture: drawn digests (MGS2_GX_SEM) %ld, all %016llx; addresses outside the frame memory %ld\n", gx_sem_n,
+                              (unsigned long long)gx_sem_all, gx_sem_bad);
++      if (gx_sem_on >= 2) fprintf(stderr, "picture: drawn2 digests (MGS2_GX_SEM=2) %ld, all %016llx; addresses not followed %ld; CALLs followed %ld\n",
++                                  gx_sem2_n, (unsigned long long)gx_sem2_all, gx_sem2_bad, gx_sem2_calls);
+       fprintf(stderr, "picture: transform sharing census (4t) over %ld frames: step 4 effect batches %ld %ld %ld, equal to the last one's %ld %ld %ld; "
+               "all effect batches %ld, equal %ld; transform batches %ld, camera equal %ld; saved A %lld KB, B %lld KB, C %lld KB; the largest "
+               "frame's data now %lld KB (vb %ld), after A %lld KB (vb %ld), B %lld KB (vb %ld), C %lld KB (vb %ld)\n", cx_frames, cx_n[0], cx_n[1],
+@@ -1354,11 +1444,19 @@
+         memset(gx_pool, 0, gx_pool_n); memset(gx_arena, 0, GL_PSP_ARENA); memset(gx_lb, 0, gx_listn);
+         gu_keys(map, 1); gu_zero_empty(map, 1);
+         if (!(tkc = tk_new(map, gx_pool_n / 8 * 7)) || tk_pool(tkc, gx_pool, gx_pool_n)) { fprintf(stderr, "xlive: no texture cache\n"); exit(1); }
+-        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA, GL_PSP_NB, GL_PSP_NV)) {
++        nge_x86_n = nge_cfg_bytes();   /* native step 1 (boot/nge_stub.h): the PSP's carve, each frame memory's arena's tail */
++        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_n, GL_PSP_NB, GL_PSP_NV)) {
+           fprintf(stderr, "xlive: no memory for the live frame\n"); exit(1); }
++        if (nge_x86_n) {
++          if (posix_memalign((void **)&nge_x86_m[0], 64, nge_x86_n) || posix_memalign((void **)&nge_x86_m[1], 64, nge_x86_n)) { fprintf(stderr, "xlive: no memory for nge\n"); exit(1); }
++          memset(nge_x86_m[0], 0, nge_x86_n); memset(nge_x86_m[1], 0, nge_x86_n);
++          xc_nge_chk = getenv("MGS2_NGE_CHK") && atoi(getenv("MGS2_NGE_CHK"));
++          if (nge_host_setup(nge_x86_m[0], NGE_X86_GE0, nge_x86_m[1], NGE_X86_GE1, nge_x86_n, 0, nge_x86_alloc)) exit(1);
++          fprintf(stderr, "xlive mode: native step 1: the frame arena %u KB (the PSP's %u KB less the cooked region), check mode (MGS2_NGE_CHK) %d\n",
++                  (unsigned)((GL_PSP_ARENA - nge_x86_n) >> 10), (unsigned)(GL_PSP_ARENA >> 10), xc_nge_chk); }
+         gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;   /* one block, as the PSP's */
+         if (gx_listn != GL_PSP_LIST) fprintf(stderr, "xlive mode: a list block of %u KB (MGS2_XLIVE_GX_LIST: not the PSP's)\n", gx_listn >> 10);
+-        gx_sem_on = getenv("MGS2_GX_SEM") && atoi(getenv("MGS2_GX_SEM"));   /* sb15 */
++        gx_sem_on = getenv("MGS2_GX_SEM") ? atoi(getenv("MGS2_GX_SEM")) : 0;   /* sb15; native step 1: 2 also "drawn2" */
+         gxh.addr = gx_addr; gxh.ctx = 0; gxh.fb[0] = 0x000000; gxh.fb[1] = 0x088000; gxh.zb = 0x110000; gx_on = 1;
+         if (getenv("MGS2_GL_DZ")) {   /* gl29: the 0x42 decals' depth arms by frame, with the PSP's parser (ge/gelist.c gx_dz_parse) */
+           if (gx_dz_parse(getenv("MGS2_GL_DZ"), &gx_dz) <= 0) { fprintf(stderr, "xlive: MGS2_GL_DZ is not <vb0>:<vb1>:<arm>[,...]\n"); exit(1); }
+--- a/ge/gelist.c
++++ b/ge/gelist.c
+@@ -10,9 +10,10 @@
+ #include "gelist.h"
+ #include "vu1conv.h"
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
++#include "nge.h"     /* native step 1 (MGS2_NGE) */
+ 
+ enum {   /* GE commands (pspsdk guInternal.h) */
+-  C_VADDR = 0x01, C_IADDR = 0x02, C_PRIM = 0x04, C_RET = 0x0b, C_END = 0x0c, C_FINISH = 0x0f, C_BASE = 0x10, C_VTYPE = 0x12, C_REGION1 = 0x15,
++  C_VADDR = 0x01, C_IADDR = 0x02, C_PRIM = 0x04, C_CALL = 0x0a, C_RET = 0x0b, C_END = 0x0c, C_FINISH = 0x0f, C_BASE = 0x10, C_VTYPE = 0x12, C_REGION1 = 0x15,
+   C_REGION2 = 0x16, C_LIGHTING = 0x17, C_CLIP = 0x1c, C_CULL = 0x1d, C_TEXTURE = 0x1e, C_FOG = 0x1f, C_BLEND = 0x21, C_ATEST = 0x22,
+   C_ZTEST = 0x23, C_WORLDN = 0x3a, C_WORLDD = 0x3b, C_VIEWN = 0x3c, C_VIEWD = 0x3d, C_PROJN = 0x3e, C_PROJD = 0x3f, C_VPXS = 0x42,
+   C_TSU = 0x48, C_TSV = 0x49, C_TOU = 0x4a, C_TOV = 0x4b, C_OFFX = 0x4c, C_OFFY = 0x4d, C_SHADE = 0x50, C_FBP = 0x9c, C_FBW = 0x9d,
+@@ -46,7 +47,7 @@
+ 
+ /* ---- words; the digest hashes an address word as what it names (region, offset) and leaves BASE out, so it does not depend on
+    where the memory lies ---- */
+-enum { R_NONE, R_VERT, R_DATA, R_AUX, R_TEX, R_PAL, R_VRAM };
++enum { R_NONE, R_VERT, R_DATA, R_AUX, R_TEX, R_PAL, R_VRAM, R_NGE };   /* R_NGE: native step 1's arena (ge/nge.h NGE_RO) */
+ static GxList *L; static const GxHost *H; static GxFrame *F;
+ static void hash(uint32_t x) { for (int k = 0; k < 4; k++) { L->dig ^= x >> 8 * k & 0xff; L->dig *= 0x100000001b3ull; } }
+ static void put(uint32_t c, uint32_t a) { uint32_t w = c << 24 | (a & 0xffffff); L->w[L->n++] = w; if (L->dig_on) hash(w); }
+@@ -85,6 +86,12 @@
+   if (L->dig_on) { int r; uint32_t o; sym(p, &r, &o); put_sym(c, a, r, o); } else L->w[L->n++] = c << 24 | (a & 0xffffff);
+   if (c == C_VADDR) L->c.vaddr++;
+ }
++/* native step 1 (ge/nge.h): a transform batch's vertices and strips, in the frame's data after its GerXform, or (a native batch) in the
++   cooked arena */
++static inline const VcVert *xvert(const GerXform *x)
++{ return x->pad == NGE_MAGIC ? (const VcVert *)nge_p(((const NgeTail *)(const void *)(x + 1))->vb) : (const VcVert *)(x + 1); }
++static inline const uint16_t *xruns(const GerXform *x)
++{ return x->pad == NGE_MAGIC ? (const uint16_t *)nge_p(((const NgeTail *)(const void *)(x + 1))->runs) : (const uint16_t *)((const VcVert *)(x + 1) + x->nv); }
+ static void vtype(uint32_t t) { if ((uint32_t)L->s_vtype != t) { put(C_VTYPE, t); L->s_vtype = (int)t; } }
+ static void en(uint32_t c, int on, int *cache) { if (*cache != on) { put(c, (uint32_t)on); *cache = on; } }
+ static int get_exp(int v) { int i; for (i = 9; i > 0 && !((v >> i) & 1); --i) ; return i; }   /* libgu's getExp */
+@@ -174,10 +181,32 @@
+ }
+ /* a df0 call: its strips one PRIM each; the vertex address again only where a strip does not follow the one before.  gl29 (dz: the
+    batch's arm, gelist.h): X and Y draw the vertices and strips dz_pair put in L->dz_v / dz_runs instead, B sends its viewport biased */
++/* native step 1 (ge/nge.h): a native batch: WORLD when it differs from the last native batch's and no other WORLD came between (L->s_xf
++   &NWX), the rest as xf_setup, then BASE (when its bits change) and CALL into the cooked group's list (VTYPE, BASE, VADDR, PRIM .., RET).
++   The list leaves VTYPE and BASE set: their memos are cleared after the CALL, so the next batch sends its own */
++static const uint8_t NWX = 0; static float s_nw[12];
++static int xf_nge(const GerBatch *b, const GerXform *x, int tex, int dz)
++{
++  const NgeTail *t = (const NgeTail *)(const void *)(x + 1);
++  if (room() < BATCH_WORDS + 4 + RESERVE) return -1;
++  float ts[4] = { x->su, x->sv, x->tu, x->tv };
++  L->dz_bias = dz == GX_DZ_B ? L->dzn : 0;
++  if (L->s_xf != &NWX || memcmp(s_nw, x->world, sizeof s_nw)) {
++    put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, x->world[k]); memcpy(s_nw, x->world, sizeof s_nw); L->s_xf = &NWX; }
++  xf_rest(x, (b->flags & GERF_FOG) != 0, tex ? ts : 0);
++  L->dz_bias = 0;
++  const uint32_t a = t->list_ge, base = (a >> 8) & 0xf0000;
++  if (L->s_base != base) { L->w[L->n++] = (uint32_t)C_BASE << 24 | base; L->s_base = base; }
++  if (L->dig_on) put_sym(C_CALL, a, R_NGE, t->g); else L->w[L->n++] = (uint32_t)C_CALL << 24 | (a & 0xffffff);
++  L->s_vtype = -1; L->s_base = 0xffffffffu;
++  L->c.prims += x->nst; L->c.xf_strips += x->nst;
++  return 0;
++}
+ static int xf_draw(const GerBatch *b, int tex, int dz)
+ {
+   const GerXform *x = (const GerXform *)(F->d + b->first);
+-  const VcVert *v = (const VcVert *)(x + 1); const uint16_t *runs = (const uint16_t *)(v + x->nv); uint32_t nst = x->nst;
++  if (x->pad == NGE_MAGIC && dz != GX_DZ_X && dz != GX_DZ_Y) return xf_nge(b, x, tex, dz);   /* native step 1 */
++  const VcVert *v = xvert(x); const uint16_t *runs = xruns(x); uint32_t nst = x->nst;
+   if (dz == GX_DZ_X || dz == GX_DZ_Y) { v = (const VcVert *)L->dz_v; runs = L->dz_runs; nst = L->dz_nst; }
+   if (room() < BATCH_WORDS + 3 * nst + RESERVE) return -1;
+   float ts[4] = { x->su, x->sv, x->tu, x->tv };
+@@ -603,7 +632,7 @@
+    below the bytes aux_get gives the copy next */
+ static int dz_pair(uint32_t i, const GerXform *x, int arm)
+ {
+-  const VcVert *dv = (const VcVert *)(x + 1); const uint16_t *dr = (const uint16_t *)(dv + x->nv);
++  const VcVert *dv = xvert(x); const uint16_t *dr = xruns(x);   /* (native step 1: the accessors) */
+   uint32_t nd = x->nv, ndt = dz_ntri(dr, x->nst), lo = i > 64 ? i - 64 : 0, j, k, m;
+   int why = GX_DZF_BASE, off[3] = { 0, 0, 0 }, soff[3] = { 0, 0, 0 }, sn = 65;
+   const GerXform *bx = 0, *sx = 0;
+@@ -620,7 +649,7 @@
+     if (c->kind != GERK_XFORM || !(c->flags & GERF_ZWRITE) || is42(c)) continue;
+     const GerXform *cx = (const GerXform *)(F->d + c->first);
+     if (!same_w(cx->world + 9, x->world + 9, 3)) continue;   /* (the translation first) */
+-    const VcVert *cv = (const VcVert *)(cx + 1); const uint16_t *cr = (const uint16_t *)(cv + cx->nv);
++    const VcVert *cv = xvert(cx); const uint16_t *cr = xruns(cx);
+     if (!dz_near(cv, cx->nv, dv)) {   /* gl30: the cheap reject */
+       if (why < GX_DZF_VSET) { const int r = same_w(cx->world, x->world, 34) ? GX_DZF_VSET : GX_DZF_MAT; if (why < r) why = r; }
+       continue;
+@@ -665,7 +694,7 @@
+     L->dz_v = o; L->dz_runs = dr; L->dz_nst = x->nst; L->dc.aux += x->nv * (uint32_t)sizeof(VcVert);
+     return -1;
+   }
+-  const VcVert *bv = (const VcVert *)(bx + 1); const uint16_t *br = (const uint16_t *)(bv + bx->nv);
++  const VcVert *bv = xvert(bx); const uint16_t *br = xruns(bx);
+   const uint32_t n = arm == GX_DZ_X ? bx->nv : x->nv, nst = arm == GX_DZ_X ? bx->nst : x->nst, cb = n * (uint32_t)sizeof(VcVert);
+   /* gl30: (key, index) of the decal's vertices (and X: of the base's moved by the offset), sorted, in scratch below the copy's bytes
+      (aux_get's own rule puts it at aux + at) */
+--- a/ge/gelive.c
++++ b/ge/gelive.c
+@@ -12,10 +12,16 @@
+ #include "fxthin.h"   /* task #114 */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #include "natsplit.h"   /* gl34: NS_MARK */
++#include "nge.h"           /* native step 1 (MGS2_NGE) */
+ #ifndef __psp__
+ #include "natsnap.h"
+ #include "reuse_probe.h"   /* gl36: the twin's probe (x86 only) */
+ #endif
++/* native step 1: a transform batch's vertices and strips (after its GerXform, or a native batch's in the cooked arena: ge/nge.h) */
++static inline const VcVert *nge_xv(const GerXform *x)
++{ return x->pad == NGE_MAGIC ? (const VcVert *)nge_p(((const NgeTail *)(const void *)(x + 1))->vb) : (const VcVert *)(x + 1); }
++static inline const uint16_t *nge_xr(const GerXform *x)
++{ return x->pad == NGE_MAGIC ? (const uint16_t *)nge_p(((const NgeTail *)(const void *)(x + 1))->runs) : (const uint16_t *)((const VcVert *)(x + 1) + x->nv); }
+ 
+ static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
+ {
+@@ -201,7 +207,7 @@
+   for (int i = 0; i < f->o.nb; i++) {
+     const GerBatch *b = &f->o.b[i]; const GerXform *x = (const GerXform *)(f->o.d + b->first);
+     if (b->kind == GERK_XFORM) {
+-      const VcVert *v = (const VcVert *)(x + 1); const uint16_t *runs = (const uint16_t *)(v + x->nv);
++      const VcVert *v = nge_xv(x); const uint16_t *runs = nge_xr(x);   /* (native step 1: the accessors) */
+       int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2;
+       for (uint32_t s = 0; s < x->nst; s++)
+         for (uint32_t k = runs[2 * s] + 2u; k < (uint32_t)runs[2 * s] + runs[2 * s + 1]; k++) {
+@@ -646,6 +652,11 @@
+         h = hw(h, g, GERC2_SIZE(g->skin)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
+       } else h = hw(h, p + l->vtx, l->nv * l->stride);
+       h = hw(h, p + l->run, l->nst * 4);
++    } else if (b.kind == GERK_XFORM && ((const GerXform *)p)->pad == NGE_MAGIC) {   /* native step 1: as today's batch would be (pad 0,
++                                                                                      its vertices and strips after it, no indices: noidx) */
++      GerXform x = *(const GerXform *)p; x.pad = 0;
++      h = hw(h, &x, sizeof x); h = hw(h, nge_xv((const GerXform *)p), x.nv * (uint32_t)sizeof(VcVert));
++      h = hw(h, nge_xr((const GerXform *)p), x.nst * 4);
+     } else {
+       const GerXform *x = (const GerXform *)p;
+       uint32_t sz = b.kind == GERK_XFORM ? (uint32_t)sizeof *x + x->nv * (uint32_t)sizeof(VcVert) + x->nst * 4 + x->nidx * 2 :
+@@ -677,5 +688,10 @@
+     if (f->tdata[i]) h = hw(h, f->tdata[i], f->tsize[i]);
+     if (f->tpal[i]) h = hw(h, f->tpal[i], o->t[i].npal * 4);
+   }
++  for (int i = 0; i < o->nb; i++) {   /* native step 1: the cooked vertices and strips a native batch draws */
++    const GerXform *x = (const GerXform *)(o->d + o->b[i].first);
++    if (o->b[i].kind != GERK_XFORM || x->pad != NGE_MAGIC) continue;
++    h = hw(h, nge_xv(x), x->nv * (uint32_t)sizeof(VcVert)); h = hw(h, nge_xr(x), x->nst * 4);
++  }
+   return h;
+ }
+--- a/ge/xconv.c
++++ b/ge/xconv.c
+@@ -12,6 +12,7 @@
+ #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
+ #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+ #include "natsplit.h"   /* gl34: NS_MARK */
++#include "nge.h"   /* native step 1 (MGS2_NGE) */
+ 
+ static XcStats St;
+ const XcStats *xc_stats(void) { return &St; }
+@@ -155,6 +156,37 @@
+ /* gl36 (xlate.h XR_BOX): Dpos 1 while a call with a kept box has not computed its positions (vc_df0_pv when read); Dne its entry */
+ static int Dpos; static const NrEnt *Dne;
+ static inline void xc_df0_pos_now(void) { if (Dpos) { vc_df0_pv(Drec->p, Drec->kind, Drec->row, Dvp, Dn); Dpos = 0; } }
++/* ---- native step 1 (ge/nge.h; MGS2_NGE): a group the stub gave a cooked group (xc_nge_cur) is converted from it.  The transform as
++   today (vc_df0_xf_k: the converter's memo by key, its counts); the count, the box, the first drawn vertex and the vertices (read only:
++   the depth range's loop) from the cook; no positions, attributes, strips or indices made.  Declined (today's path) when a stream has
++   ROW (the cooker's form is kind 2's), the count differs or the vertex alpha is not the cook's.  The batch (xc_nge_batch): GerXform with
++   WORLD and the projection from the stub's transform, then NgeTail ---- */
++uint8_t *xc_nge_mem[2]; uint32_t xc_nge_ge[2]; NgeRef *xc_nge_ref[2]; NgeXf *xc_nge_xfa[2]; const NgeRef *xc_nge_cur; int xc_nge_cb;
++long xc_nge_n[NGN_N]; int xc_nge_chk;
++static const NgeGroup *Dnge; static const NgeXf *Dngx;
++static uint32_t xc_a2(int a) { return a >= 0x80 ? 0xffu : (uint32_t)(a < 0 ? 0 : a * 2); }   /* ge/vu1conv.c vc_a2 */
++#ifndef __psp__
++static void xc_nge_check(const XlCall *c, const XlRec *r, const NgeGroup *q);
++#endif
++static int xc_nge_try(const XlCall *c, const XlRec *r)
++{
++  const NgeGroup *q = (const NgeGroup *)nge_p(xc_nge_cur->g);
++  xc_nge_n[NGN_TRY]++;
++#ifndef __psp__
++  if (c3m_on || xc_c3_chk || xc_rec_chk) { xc_nge_n[NGN_NO_CHK]++; return 0; }
++#endif
++  if (r->kind[0] != 2 || r->kind[1] != 2 || r->kind[2] != 4) { xc_nge_n[NGN_NO_ROW]++; return 0; }   /* A and B V4-16 with no ROW, C V2-16
++                                                                                                    (ge/xlate.h): the cook's reading */
++  Dn = r->nf ? vc_df0_xf_k(c->vm, c->top, &Dx, 1024, r->xsrc, r->xgen) : vc_df0_xf_k(c->vm, c->top, &Dx, 1024, 0, 0);
++  if (Dn != (int)q->nv) { xc_nge_n[NGN_NO_COUNT]++; return 0; }
++  if (xc_a2(Dx.alpha) != q->alpha) { xc_nge_n[NGN_NO_ALPHA]++; return 0; }
++  memcpy(Dbox, q->box, sizeof Dbox); Dbox_ok = 1; Datt = 1;
++  Dvp = (VcVert *)(uintptr_t)nge_p(NGE_RO(q->reg, q->vb)); Dnge = q; Dngx = &xc_nge_xfa[xc_nge_cb][xc_nge_cur->xf];
++#ifndef __psp__
++  if (xc_nge_chk) xc_nge_check(c, r, q);
++#endif
++  return 1;
++}
+ int xc_c3_chk;   /* xconv.h */
+ /* the df0 call xc_call read: 1 when XcHost.cut leaves it out */
+ static int xc_df0_off(const XcGs *d)
+@@ -223,7 +255,8 @@
+ {
+   if (!h->zr || !d->zte || d->zmsk || (d->ate && d->atst == 0 && d->afail == 1)) return;   /* xc_state's GERF_ZWRITE */
+   int i = 2;
+-  if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
++  if (Dnge) i = Dnge->i1;   /* native step 1: the cook's */
++  else if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
+   else if (Dne) i = Dne->i1;   /* gl36: a kept box's call: the first triangle without ADC as recorded */
+   else {   /* sb14 3v: the flags from the stream B, as vc_df0_att would write them */
+     const XlRec *r = Drec;
+@@ -265,6 +298,33 @@
+   *size = o; return 1;
+ }
+ 
++/* native step 1: the batch of a group xc_nge_try took: xc_df0's with the cooked group's strips (no vertices, strips or indices in the
++   frame's data: NgeTail names them), WORLD and the projection's terms from the stub's transform (the same bits as Dx's [C twin, step 0;
++   the check mode compares them]) */
++static int xc_nge_batch(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
++{
++  const NgeGroup *q = Dnge; const int n = Dn;
++  VcXform x = Dx; memcpy(x.world, Dngx->world, sizeof x.world); x.pa = Dngx->pa; x.pb = Dngx->pb;
++  if (memcmp(x.world, Dx.world, sizeof x.world) || memcmp(&x.pa, &Dx.pa, 4) || memcmp(&x.pb, &Dx.pb, 4)) xc_nge_n[NGN_W_ALL]++;   /* (the PSP: the
++                                                     stub read the constant block at its call, the ME's walk reads it later) */
++  GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
++#ifndef __psp__
++  if (xc_nge_chk) { GerXform e; xc_xform(&Dx, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &e);   /* today's batch's transform words */
++    if (memcmp(&e, &gx, offsetof(GerXform, nv))) xc_nge_n[NGN_D_XFORM]++; }
++#endif
++  gx.nv = (uint32_t)n; gx.nst = q->nst; gx.nidx = 0; gx.pad = NGE_MAGIC;
++  NgeTail tl; tl.g = NGE_RO(q->reg, (uint32_t)((const uint8_t *)q - xc_nge_mem[q->reg])); tl.list_ge = xc_nge_ge[q->reg] + q->list;
++  tl.vb = NGE_RO(q->reg, q->vb); tl.runs = NGE_RO(q->reg, q->runs);
++  if (sizeof gx + sizeof tl > cap) return -5;
++  memcpy(blob, &gx, sizeof gx); memcpy(blob + sizeof gx, &tl, sizeof tl);
++  xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = q->nst;
++  NS_MARK(NS_GX);
++  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }
++  NS_MARK(NS_ZR);
++  xc_nge_n[NGN_MADE]++;
++  *size = (uint32_t)(sizeof gx + sizeof tl); return 1;
++}
++
+ /* 2870's main-loop back-face test on triangle i (re/vu1_programs.md 3.7): e_i = c_i.xyz w_(i-1) - c_(i-1).xyz w_i (MULAw, MSUBw),
+    z = e_(i-1).x e_i.y - e_i.x e_(i-1).y (OPMULA, OPMSUB); culled when (flags & 0x30) equals 0x20 if z's sign bit is set, else 0 */
+ static int xc_cull(const float (*c)[4], int i, uint16_t fl)
+@@ -1299,10 +1359,11 @@
+   XcGs d; xc_gs(c->gr, &d);
+   NS_MARK(NS_GS);
+   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
+-    Datt = 1; Dbox_ok = 0; Dvp = Dv; Dpos = 0; Dne = 0;   /* sb14; gl36 */
++    Datt = 1; Dbox_ok = 0; Dvp = Dv; Dpos = 0; Dne = 0; Dnge = 0;   /* sb14; gl36; native step 1 */
+     if (c->rec) {   /* sb1 lane: the streams from the game's data */
+       const XlRec *r = c->rec; xc_rec_calls++;
+-      if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
++      if (xc_nge_cur && h->c3v && xc_nge_try(c, r)) NS_MARK(NS_POS);   /* native step 1: the cook's */
++      else if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
+         if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
+         Drec = r;
+         if (r->nf && (r->ru & XR_BOX) && xl_nr_ok) {   /* gl36: a kept box: the transform now, the positions when read */
+@@ -1335,7 +1396,7 @@
+ #endif
+       } else
+       Dn = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dv, Dfl, 1024);
+-      if (xc_rec_chk) {
++      if (xc_rec_chk && !Dnge) {
+         if (!Datt && Dn > 0) vc_df0_att(r->p, r->kind, r->row, &Dx, Dvp, Dfl, Dn);   /* sb14: the whole input for the check */
+         Datt = 1;
+         static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex;
+@@ -1356,7 +1417,7 @@
+ #endif
+     if (off) { CEN(4); if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+       if (Dpos) xl_nr_n[11]++;
+-      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
++      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; if (Dnge) xc_nge_n[NGN_CUT]++; return 0; }
+     xc_df0_pos_now();   /* gl36: a kept box's call the cut keeps: its positions now */
+     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+     NS_MARK(NS_ATT);
+@@ -1365,7 +1426,8 @@
+   if (d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
+   NS_MARK(NS_TEX);
+   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
+-          k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
++          k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) :
++          Dnge ? xc_nge_batch(c, h, &d, t.index, &t, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);   /* native step 1 */
+   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
+ #ifndef __psp__
+   if (r < 0) CEN(6); else if (r > 0) CEN(0); else if (xc_cen_why < 0) CEN(5);
+@@ -1581,6 +1643,51 @@
+    lights, the camera's constants), T + 0 .. 3 and T + 0xfe, 0xff (the header).  The GS registers are not compared: an upper bound */
+ #include <stdio.h>
+ #include <stdlib.h>
++/* native step 1's check mode (MGS2_NGE_CHK=1, x86; reads only): a group xc_nge_try took, against today's input to its batch (vc_df0_rec
++   from the same streams and VU memory): the count, WORLD and the projection's terms (the stub's against the converter's Dx, which today's
++   batch holds), every vertex's bytes, the strips (vc_strips) against the cook's runs, the cooked list's words as the GE reads them (VTYPE,
++   BASE, each VADDR and PRIM: the strips they draw), the box and the first drawn vertex; and the converter's transform against a fresh one */
++static void xc_nge_check(const XlCall *c, const XlRec *r, const NgeGroup *q)
++{
++  static VcVert Ev[1024]; static uint16_t Efl[1024], Er[2048], Lr[2 * NGE_MAXST + 2]; VcXform Ex;
++  const int En = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Ex, Ev, Efl, 1024);
++  xc_nge_n[NGN_CHK]++;
++  if (En != Dn || En <= 0) { xc_nge_n[NGN_D_COUNT]++; return; }
++  if (memcmp(Ex.world, Dx.world, sizeof Ex.world) || memcmp(&Ex.pa, &Dx.pa, 8)) xc_nge_n[NGN_D_FRESH]++;
++  if (memcmp(Dngx->world, Dx.world, sizeof Dx.world) || memcmp(&Dngx->pa, &Dx.pa, 4) || memcmp(&Dngx->pb, &Dx.pb, 4)) xc_nge_n[NGN_D_WORLD]++;
++  if (memcmp(Ev, nge_p(NGE_RO(q->reg, q->vb)), (size_t)En * sizeof *Ev)) {
++    xc_nge_n[NGN_D_VERT]++;
++    if (xc_nge_n[NGN_D_VERT] <= 8) {   /* the first 8 in full: where the walk's input and the cook part */
++      const VcVert *cv = (const VcVert *)nge_p(NGE_RO(q->reg, q->vb)); int i = 0, nd = 0;
++      for (int j = 0; j < En; j++) if (memcmp(&Ev[j], &cv[j], sizeof *Ev)) { if (!nd) i = j; nd++; }
++      fprintf(stderr, "nge check: vertices differ (#%ld): group %08x nv %d, %d differ, the first %d: walk %d %d %d c %08x uv %u %u, cook %d %d %d "
++              "c %08x uv %u %u; streams %p %p %p\n", xc_nge_n[NGN_D_VERT], (unsigned)xc_nge_cur->g, En, nd, i, Ev[i].x, Ev[i].y, Ev[i].z,
++              (unsigned)Ev[i].c, Ev[i].u, Ev[i].v, cv[i].x, cv[i].y, cv[i].z, (unsigned)cv[i].c, cv[i].u, cv[i].v, r->p[0], r->p[1], r->p[2]);
++    }
++  }
++  const int ns = vc_strips(Efl, En, Er, 1024);
++  if (ns != q->nst || memcmp(Er, nge_p(NGE_RO(q->reg, q->runs)), 4u * (uint32_t)ns)) xc_nge_n[NGN_D_STRIP]++;
++  { const uint32_t *w = nge_p(NGE_RO(q->reg, q->list)), vb = xc_nge_ge[q->reg] + q->vb; uint32_t base = 0, va = 0, n = 0, bad = 0, k;
++    if (w[0] != (0x12u << 24 | 0x11eu)) bad = 1;
++    for (k = 1; k < q->nw && !bad; k++) {
++      const uint32_t c8 = w[k] >> 24;
++      if (c8 == 0x10) base = (w[k] & 0x0f0000u) << 8;
++      else if (c8 == 0x01) va = base | (w[k] & 0xffffffu);
++      else if (c8 == 0x04) { const uint32_t cnt = w[k] & 0xffffu;
++        if ((w[k] >> 16 & 7) != 4 || va < vb || (va - vb) % 16 || n >= (uint32_t)NGE_MAXST) { bad = 1; break; }
++        Lr[2 * n] = (uint16_t)((va - vb) / 16); Lr[2 * n + 1] = (uint16_t)cnt; n++; va += 16 * cnt; }
++      else if (c8 == 0x0b) break;
++      else bad = 1;
++    }
++    if (bad || k != (uint32_t)q->nw - 1u || n != (uint32_t)ns || memcmp(Lr, Er, 4 * n)) xc_nge_n[NGN_D_LIST]++; }
++  { int16_t eb[6] = { 32767, 32767, 32767, -32768, -32768, -32768 }; int i1 = 2;
++    for (int i = 0; i < En; i++) {
++      eb[0] = Ev[i].x < eb[0] ? Ev[i].x : eb[0]; eb[1] = Ev[i].y < eb[1] ? Ev[i].y : eb[1]; eb[2] = Ev[i].z < eb[2] ? Ev[i].z : eb[2];
++      eb[3] = Ev[i].x > eb[3] ? Ev[i].x : eb[3]; eb[4] = Ev[i].y > eb[4] ? Ev[i].y : eb[4]; eb[5] = Ev[i].z > eb[5] ? Ev[i].z : eb[5]; }
++    while (i1 < En && (Efl[i1] & 0x8000)) i1++;
++    if (memcmp(eb, q->box, sizeof eb)) xc_nge_n[NGN_D_BOX]++;
++    if (i1 != q->i1) xc_nge_n[NGN_D_I1]++; }
++}
+ enum { FCN_W = 380, FCN_C = 16, FCN_T = 1 << 16 };
+ typedef struct { const void *k; int occ; long pic; uint64_t hs, ht, hv[XC_7S]; } FcnE;
+ typedef struct { const void *k; long pic; int n; } FcnO;
+--- a/ge/xlme.c
++++ b/ge/xlme.c
+@@ -8,6 +8,7 @@
+ #include "me_rt.h"                      /* -DMGS2_ME_SAFE: ME_CALLP and the C library's calls on the ME */
+ #include "../runtime/host_time.h"       /* OPT_* and OPT2_* (only the bits: the switches come with each record, never from g_opt) */
+ #include "xlview.h"                     /* task #180: a transfer's copy (step 4b) */
++#include "nge.h"                        /* native step 1 (MGS2_NGE) */
+ 
+ long xm_lw7_miss[8] H39, xm_lw3_miss[8] H39;
+ #ifndef __psp__
+@@ -107,7 +108,8 @@
+     if (ns && --g_ns.cd <= 0) { g_ns.cd = 24 + (int)((g_ns.n * 5) & 15); g_ns.n++; g_ns.clk = x->nat_clk; g_ns.last = ME_CALLP(x->nat_clk)(); }   /* gl34: this group timed by stage */
+     if (nr) xl_nr_group(i - i0);
+     xl_f1_j = i - i0;
+-    int rc = nat_p04_group(&g[i]);
++    nge_walk(b, x->nat_i0[b] + i); int rc = nat_p04_group(&g[i]); nge_walk_end();   /* native step 1: the group's reference (ge/nge.h),
++                                                     by its index in the whole array: g starts at the pending groups (nat_i0) */
+     if (g_ns.clk) { NS_MARK(NS_END); g_ns.clk = 0; }
+     if (rc == NATP_CORE) { x->nat_core++; nrt++; } else if (rc == NATP_FED) x->nat_fed++; else x->nat_bad++;
+     skip = (g[i].flags & NATG_PKT) && (g[i].key & (lw_size - 1) & ~15u) == a ? 7u + (g[i].flags & NATG_FULL) : 0;
+--- a/psp/xl_psp.c
++++ b/psp/xl_psp.c
+@@ -329,6 +329,11 @@
+ static long gx_c4s, gx_c4r, gx_c4l;   /* sb15 step 4: the lists' GxCount fx_spr, fx_lruns, fx_lines */
+ static long gx_c2p, gx_c2b, gx_c2w;   /* sb12 C2: c2_passes, c2_bones, c2_words */
+ static uint32_t gl_addr(void *ctx, const void *p) { (void)ctx; return (uint32_t)(uintptr_t)p; }
++/* native step 1 (MGS2_NGE; boot/nge_stub.h, ge/nge.h): the cooked meshes' arena, the tail of each frame memory's arena (nge_k bytes each,
++   0: off and every size as before); the GE's finishes (ge_fin_n, below) hold an eviction until the lists that may use a mesh are done */
++uint32_t nge_cfg_bytes(void); void nge_turn_line(long vb0, long vb1); void nge_end_line(void);
++int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++static uint32_t nge_k; static int nge_done; static volatile uint32_t ge_fin_n;
+ static void gl_line(FILE *f, const GlCount *n, int64_t db, int64_t tb, const char *what)   /* as boot/xlive_chk.c's gb_line; db, tb: n's data
+                                                                                      and texture bytes (64-bit sums for the totals) */
+ {
+@@ -380,6 +385,28 @@
+     else fprintf(stderr, "gl28 live (MGS2_GL_LIVE %.40s): not from:to:every[:max_r] with every > 0, so off\n", e); }
+ }
+ /* with the translator's start (its first transfer): the texture pool, the frame memory, the GE */
++/* native step 1: a block of the system's memory outside newlib's heap for the stub's tables (newlib's heap has about 64 KB to spare) */
++static void *nge_sys_alloc(uint32_t n, const char *name)
++{
++  SceUID id = sceKernelAllocPartitionMemory(2, name, PSP_SMEM_Low, n, 0);
++  return id >= 0 ? sceKernelGetBlockHeadAddr(id) : 0;
++}
++/* native step 1: the stub's regions (each frame memory's arena tail, carved in gl_setup) and tables; mq_setup calls it after the native
++   arrays took their blocks (so they find the memory they found before) and before the ME starts; with no ME, after mp_setup */
++static void nge_psp_setup(void)
++{
++  if (!nge_k || nge_done) return;
++  uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
++  uint8_t *m0 = gl_vol + GL_PSP_ARENA - nge_k, *m1 = gl_vol2 ? gl_vol2 + GL_PSP_ARENA - nge_k : 0;
++  int r = nge_host_setup(m0, (uint32_t)(uintptr_t)m0, m1, (uint32_t)(uintptr_t)m1, nge_k, &ge_fin_n, nge_sys_alloc);
++  nge_done = 1;
++  fprintf(stderr, "picture: native step 1 %s: each frame memory's arena %u KB (%u KB less the cooked meshes' %u KB); the system's memory outside "
++          "newlib's heap before: largest block %u KB, total %u KB; after: %u KB, %u KB\n", r ? "NOT ON (today's path)" : "on",
++          (unsigned)((GL_PSP_ARENA - nge_k) >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nge_k >> 10), (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
++          (unsigned)((uint32_t)sceKernelMaxFreeMemSize() >> 10), (unsigned)((uint32_t)sceKernelTotalFreeMemSize() >> 10));
++  if (r) nge_k = 0;
++  sceKernelDcacheWritebackAll();
++}
+ static void gl_setup(void)
+ {
+   const char *e; struct mallinfo mi;
+@@ -395,14 +422,14 @@
+   for (e = mgs2_getenv("MGS2_GL_SHOT"); e && *e && shot_n < SHOT_MAX; ) { shot_vb[shot_n++] = strtol(e, (char **)&e, 10); if (*e == ',') e++; else break; }
+   gl28d_cfg();   /* gl28d: MGS2_EYE, MGS2_GL_LIVE */
+   gl29_cfg();    /* gl29: MGS2_GL_DZ, MGS2_GL_ZDUMP, MGS2_GL_SHOT_RANGE (after gl28d_cfg: the windows split at MGS2_GL_LIVE's start) */
+-  gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST;
++  gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST; nge_k = nge_cfg_bytes();   /* native step 1 */
+   gl_vol = host_vol_tail(gl_vol_n); gl_pool = memalign(64, gl_texkb << 10);
+   if (!gl_vol || !gl_pool) { fprintf(stderr, "picture: no memory (frame memory %s, texture pool %s): no picture\n", gl_vol ? "ok" : "none",
+                                      gl_pool ? "ok" : "none"); free(gl_pool); gl_pool = 0; return; }
+   memset(gl_vol, 0, gl_vol_n); memset(gl_pool, 0, gl_texkb << 10);
+   gu_zero_empty(map, 1);                 /* the map runs from the boot's first transfer (as the x86 check from vb 0) */
+   if (!(tk = tk_new(map, (gl_texkb << 10) / 8 * 7)) || tk_pool(tk, gl_pool, gl_texkb << 10) || gl_init(&glf, tk, map, 0, GL_PSP_MAXTEX)
+-      || gb_arena(&glf.o, gl_vol, GL_PSP_ARENA, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "picture: set-up failed: no picture\n"); return; }
++      || gb_arena(&glf.o, gl_vol, GL_PSP_ARENA - nge_k, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "picture: set-up failed: no picture\n"); return; }
+   gx_init(&gxl, (uint32_t *)(gl_vol + GL_PSP_ARENA), GL_PSP_LIST / 4, gl_vol + GL_PSP_ARENA, GL_PSP_LIST); gxl.ret = 1;   /* one block */
+   if ((e = mgs2_getenv("MGS2_ME_PIC_GE2")) && atoi(e) > 0) {   /* gl23: the second frame memory (the heap: the volatile block is full) */
+     if ((gl_vol2 = memalign(64, gl_vol_n))) { memset(gl_vol2, 0, gl_vol_n); sceKernelDcacheWritebackInvalidateRange(gl_vol2, gl_vol_n);
+@@ -1196,7 +1223,7 @@
+    it also sets ge_done, so the ME may begin its next frame without waiting for the main CPU to notice (the main CPU still shows the frame
+    and gives the GE the next list in mq_service).  Timestamps per list: submit -> finish (the GE's drawing; the list is whole when
+    submitted) and finish -> the main CPU's notice; by maker: 0 ME turns fast off, 1 ME turns fast on, 2 main CPU turns */
+-static volatile uint32_t ge_fin_n, ge_fin_t; static uint32_t ge_sub_t, ge_fin_n0; static int ge_fast_cfg, ge_fast;
++static volatile uint32_t ge_fin_t;   /* (ge_fin_n: above, native step 1) */ static uint32_t ge_sub_t, ge_fin_n0; static int ge_fast_cfg, ge_fast;
+ static long ge_n[3], ge_nofin; static uint64_t ge_draw[3], ge_note[3]; static uint32_t ge_draw_max[3];
+ static long ge_tn0; static uint64_t ge_td0, ge_tq0;   /* the ME turn's start (mq_tstart) */
+ static int ge2_cfg, ge2; static long ge2_tn0;   /* gl23: MGS2_ME_PIC_GE2 (0 off, 1 on, 2 every other ME turn); this turn's; n_ge2 at its start */
+@@ -1618,6 +1645,7 @@
+   rs_tnote = 0;
+ #endif
+   nat_tline("me turn", mq_tvb0, vb, 1); nat_t0set();   /* native step 1 */
++  if (nge_k) nge_turn_line(mq_tvb0, vb);   /* native step 1 (MGS2_NGE): the fill lines and counts of the turn */
+   bd_tline("me turn", mq_tvb0, vb);   /* gl38 */
+   flip_line("me turn", mq_tvb0, vb, 0); flip_t0set(1); flip_mvb0 = vb;   /* gl27 */
+   if (mq->ws_on) { double s[XM_TS_N], in = 0; long n[XM_TS_N];   /* gl26: the walk's split (gl27: only with MGS2_ME_SPLIT) */
+@@ -2126,7 +2154,7 @@
+           "MGS2_ME_PIC_TWO): %s; each %u KB and %d extents\n", !mq_turn && two_cfg ? "off (no turns)" : two_cfg == 2 ? "in every other ME turn "
+           "(off, on, ...)" : two_cfg == 1 ? "in every ME turn" : "off", (unsigned)(two_ah >> 10), two_xh);
+   if (gl_vol2) { mq->fm[0] = gl_vol; mq->fm[1] = gl_vol2; mq->fl[0] = &gxl; mq->fl[1] = &gxl2;
+-    mq->fm_arena = GL_PSP_ARENA; mq->fm_nb = GL_PSP_NB; mq->fm_nv = GL_PSP_NV; }
++    mq->fm_arena = GL_PSP_ARENA - nge_k; mq->fm_nb = GL_PSP_NB; mq->fm_nv = GL_PSP_NV; }
+   fprintf(stderr, "me picture GE (gl23): two frames on the GE side (the ME begins a frame while the GE draws the one before; MGS2_ME_PIC_GE2): "
+           "%s\n", !gl_vol2 ? "off (one frame memory)" : ge2_cfg == 2 ? "in every other ME turn (off, on, ...)" : ge2_cfg == 1 ? "in every ME turn" : "off");
+   if ((e = mgs2_getenv("MGS2_ME_PIC_TBK_MS")) && atoi(e) > 0) mq_tbk_us = (uint32_t)atoi(e) * 1000u;
+@@ -2143,6 +2171,7 @@
+                              ge2_ab); }
+   mq_ft_on = glf.ft_on;
+   nat_psp_setup();   /* native step 1 */
++  nge_psp_setup();   /* native step 1 (MGS2_NGE): after the native arrays, before the ME starts */
+   xm_install(&xmp);   /* the translator's callbacks are the loop's (ge/xlme.c xm_on_*: its frame, xmp.now), no longer on_call's */
+   mq_on = 1; mq_self = 1;   /* (the thread starts after the translator's reset: mq_start) */
+   if (mq_m4) mq_lines();   /* step 4d-3 */
+@@ -3163,6 +3192,7 @@
+       xl_on_pass(on_pass, 0); xl_on_flush(on_flush, 0);
+       gl_setup();
+       mp_setup();   /* task #180 */
++      nge_psp_setup();   /* native step 1 (MGS2_NGE): when mq_setup did not (no ME) */
+ #endif
+       xl_reset(); l_words = l_calls = l_ad = 0;
+ #ifdef MGS2_GL
+@@ -3314,6 +3344,7 @@
+         for (int i = 0; i < mpw_n; i++) fprintf(f, "me picture watch: line %07x\n", (unsigned)(mpw[i].l << 6)); }
+ #endif
+     }
++    if (nge_k) nge_end_line();   /* native step 1 */
+     if (mq) mq_report(f); }   /* step 4c */
+   if (gl_ok < 0) { fprintf(f, "picture: none (no memory or no set-up)\n"); return; }
+   if (!gl_ok) { fprintf(f, "picture: never set up\n"); return; }

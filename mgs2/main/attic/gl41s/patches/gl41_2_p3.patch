@@ -1,0 +1,29 @@
+--- a/runtime/host_time.h
++++ b/runtime/host_time.h
+@@ -164,6 +164,10 @@
+ #define OPT2_P1 524288u               /* gl41 P1 (attic/gl41s; runtime/vu0.h vu_run_shared): the VU0 micro-program call through a 64-entry
+                                            (image hash, entry) cache straight to the program's VFPU / C form; a miss or a changed image takes
+                                            gl39's path, which fills the entry.  The same functions in the same FPU-mode test.  Exact */
++#define OPT2_P3 1048576u              /* gl41 P3 (attic/gl41s; gen_vu.h made by tools gl41_genvu.py): the box cull's VFPU form
++                                           (vupv_96936c0f_0) without its 8 per-corner NaN / Inf checks: each checked register is only
++                                           multiplied (lanes z, w kept) before its next check, so a non-finite lane is still caught there
++                                           and the call falls back as before.  Exact */
+ #define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+--- a/runtime/vu0.h
++++ b/runtime/vu0.h
+@@ -558,6 +558,13 @@
+ VU_RNOP(vu_rnmul, *)
+ #define vu_vfpu(A, C) C
+ #endif
++#if defined(MGS2_GEN_VU) && !defined(GUEST_SPLIT_GEN) && defined(OPT2_P3)
++/* gl41 lever P3 (attic/gl41s; MGS2_OPT2 bit 20, OPT2_P3): a gen_vu.h made by tools/gl41_genvu.py starts the box cull's three VFPU
++   forms (vupv_96936c0f_0, vupv_8baafbc3_0, vupv_660a267e_0: one program, one function in gl39's ELF) with this hook: P3's form (the 8
++   per-corner NaN / Inf checks left out; the same results, see the tool) when the switch is on.  Without the hook (another gen_vu.h,
++   or this macro undefined) the forms are gl39's. */
++#define VU_L41_P3_HOOK(f3) do { if (g_opt2 & OPT2_P3) return f3(); } while (0)
++#endif
+ #ifdef MGS2_GEN_VU
+ #include MGS2_GEN_VU   /* the AOT VU0 micro programs (vurecomp.py); MGS2: not generated yet */
+ #else   /* no AOT programs: every micro call runs on the interpreter (vu_aot returns 0); the helpers the macro ops use, as vurecomp.py emits them */

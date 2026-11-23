@@ -1,0 +1,47 @@
+--- /home/claude/main/build_gl39/m/runtime/vu0.h	2026-11-22 22:58:50.459831999 +0000
++++ /tmp/claude-0/-home-claude/a7d20bd4-7c06-5849-bdd4-c955873f09a9/scratchpad/top3/p1/inc/vu0.h	2026-11-23 15:19:49.500977740 +0000
+@@ -381,7 +381,7 @@
+ #endif
+ }
+ #ifdef GUEST_SPLIT_RT
+-void vu_run_shared(int pc) { vu_run(pc); }   /* the generated units call the micro programs through this one copy */
++static void vu_run_slow(int pc);   /* top3 P1: vu_run_shared is defined at the end (fast path) */
+ #endif
+ #endif   /* !GUEST_SPLIT_GEN */
+ /* ---- COP2 macro mode (EE side) ---- */
+@@ -698,4 +698,35 @@
+ }
+ #endif
+ 
++
++#if defined(GUEST_SPLIT_RT) && defined(MGS2_GEN_VU) && !defined(VU_CHECK) && !defined(YO_PROF) && !defined(VU_STATS) && !defined(VU_FAST)
++/* top3 prototype P1 (2026-11-23, NOT a build): the micro-program call path as one cached lookup.  The same program functions run with
++   the same state in the same FPU-mode test as vuc_dispatch (vp_fast_env), the C form after a VFPU form that returned 0 with VPF's
++   rounding switch; a miss (or a dirty program image) takes the old path, which fills the cache afterwards. */
++#include "vuc_fns.h"
++typedef int (*vuc_fn_t)(void);
++static struct vuc_fc_t { uint32_t h; int32_t pc; vuc_fn_t v, f; } vuc_fc[16] __attribute__((aligned(64)));
++__attribute__((noinline)) static void vu_run_slow(int pc)
++{
++  vu_run(pc);
++  if (vu_prog_clean) { vuc_fn_t v, f; uint32_t h = vu_prog_hash;
++    if (vuc_fns(h, pc, &v, &f)) { struct vuc_fc_t *e = &vuc_fc[(h ^ (uint32_t)pc) & 15u]; e->h = h; e->pc = pc; e->v = v; e->f = f; } }
++}
++void vu_run_shared(int pc)
++{
++  if (__builtin_expect(vu_prog_clean, 1)) {
++    uint32_t h = vu_prog_hash; struct vuc_fc_t *e = &vuc_fc[(h ^ (uint32_t)pc) & 15u];
++    if (__builtin_expect(e->h == h && e->pc == pc, 1) && vp_fast_env()) {
++      if (e->v) { if (e->v()) return; VPF(e->f); return; }
++      e->f(); return;
++    }
++  }
++  vu_run_slow(pc);
++}
++#else
++static void vu_run_slow(int pc) { vu_run(pc); }
++#ifdef GUEST_SPLIT_RT
++void vu_run_shared(int pc) { vu_run_slow(pc); }
++#endif
++#endif
+ #endif

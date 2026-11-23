@@ -1,0 +1,33 @@
+--- a/ord/final/layout_elf.ld
++++ b/ord/final/layout_elf.ld
+@@ -195,6 +195,7 @@
+     ge_gsup2.o(.text.gu_clut .text.hot.gu_clut .text.unlikely.gu_clut .text.startup.gu_clut)
+     gen.o(.text.P158cb0 .text.hot.P158cb0 .text.unlikely.P158cb0 .text.startup.P158cb0)
+     boot_rt.o(.text.vif0_mscal .text.hot.vif0_mscal .text.unlikely.vif0_mscal .text.startup.vif0_mscal)
++    boot_rt.o(.text.vu_hash_e6 .text.hot.vu_hash_e6 .text.unlikely.vu_hash_e6 .text.startup.vu_hash_e6)
+     gen.o(.text.P141ac8 .text.hot.P141ac8 .text.unlikely.P141ac8 .text.startup.P141ac8)
+     gen.o(.text.P1186f8 .text.hot.P1186f8 .text.unlikely.P1186f8 .text.startup.P1186f8)
+     gen.o(.text.P13ffa8 .text.hot.P13ffa8 .text.unlikely.P13ffa8 .text.startup.P13ffa8)
+@@ -203,6 +204,7 @@
+     gen.o(.text.P141328 .text.hot.P141328 .text.unlikely.P141328 .text.startup.P141328)
+     jsifman.o(.text.F_00010544 .text.hot.F_00010544 .text.unlikely.F_00010544 .text.startup.F_00010544)
+     boot_rt.o(.text.vuc_dispatch .text.hot.vuc_dispatch .text.unlikely.vuc_dispatch .text.startup.vuc_dispatch)
++    boot_rt.o(.text.vu_run .text.hot.vu_run .text.unlikely.vu_run .text.startup.vu_run)
+     gen.o(.text.P14ded8 .text.hot.P14ded8 .text.unlikely.P14ded8 .text.startup.P14ded8)
+     gen.o(.text.P11ee98 .text.hot.P11ee98 .text.unlikely.P11ee98 .text.startup.P11ee98)
+     gen.o(.text.P165fc0 .text.hot.P165fc0 .text.unlikely.P165fc0 .text.startup.P165fc0)
+@@ -965,6 +967,7 @@
+     ge_gsup2.o(.text.words3 .text.hot.words3 .text.unlikely.words3 .text.startup.words3)
+     jsifman.o(.text.F_00010790 .text.hot.F_00010790 .text.unlikely.F_00010790 .text.startup.F_00010790)
+     ge_texcache.o(.text.uf_put .text.hot.uf_put .text.unlikely.uf_put .text.startup.uf_put)
++    _l41_f = .;
+     boot_rt.o(.text.vupv_8baafbc3_0 .text.hot.vupv_8baafbc3_0 .text.unlikely.vupv_8baafbc3_0 .text.startup.vupv_8baafbc3_0)
+     ge_vu1conv.o(.text.vc_plane .text.hot.vc_plane .text.unlikely.vc_plane .text.startup.vc_plane)
+     ge_gsup2.o(.text.gu_drawn_again .text.hot.gu_drawn_again .text.unlikely.gu_drawn_again .text.startup.gu_drawn_again)
+@@ -1046,4 +1049,6 @@
+     gen.o(.text.P12a910 .text.hot.P12a910 .text.unlikely.P12a910 .text.startup.P12a910)
+     gen.o(.text.P12e680 .text.hot.P12e680 .text.unlikely.P12e680 .text.startup.P12e680)
+     gen.o(.text.P10d2a8 .text.hot.P10d2a8 .text.unlikely.P10d2a8 .text.startup.P10d2a8)
++    . = . + ((_l41_f - .) & 8191);
++    boot_rt.o(.text.vupv_96936c0f_0_p3 .text.hot.vupv_96936c0f_0_p3 .text.unlikely.vupv_96936c0f_0_p3 .text.startup.vupv_96936c0f_0_p3)
+ }

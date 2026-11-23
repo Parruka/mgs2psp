@@ -1,0 +1,133 @@
+--- a/rt/ee_io.h
++++ b/rt/ee_io.h
+@@ -954,9 +954,10 @@
+ static long io_vb;                                       /* vblank starts seen (= k_vblanks) */
+ static void io_vblank(int start)
+ {
+-  { static int on = -1, last; if (on < 0) on = getenv("MGS2_VU_UNSUP") != 0;    /* dev: unsupported ops seen since the last vblank (EE VCALLMS) */
++  { static int on = -1, last; if (on < 0) { on = getenv("MGS2_VU_UNSUP") != 0; l41_init(); }   /* dev: unsupported ops seen since the last vblank (EE VCALLMS); gl41: l41_init (runtime/vu_l41.h) */
+     if (on && g_unsup_vu != last) { vu_unsup_scan(-1, g_unsup_vu - last); last = g_unsup_vu; } }
+   if (start) { io_csr |= 8; io_csr ^= 1u << 13; io_istat |= 4; gscap_vblank(++io_vb); } else io_istat |= 8;
++  L41_VBLANK(start, io_vb);   /* gl41: the levers' counters (MGS2_L41_LOG=1) */
+   IO32(0x2001000) = io_csr; IO32(0xf000) = io_istat;
+ }
+ static void io_init(void) { }
+--- a/runtime/ee_io.h
++++ b/runtime/ee_io.h
+@@ -950,9 +950,10 @@
+ static long io_vb;                                       /* vblank starts seen (= k_vblanks) */
+ static void io_vblank(int start)
+ {
+-  { static int on = -1, last; if (on < 0) on = getenv("MGS2_VU_UNSUP") != 0;    /* dev: unsupported ops seen since the last vblank (EE VCALLMS) */
++  { static int on = -1, last; if (on < 0) { on = getenv("MGS2_VU_UNSUP") != 0; l41_init(); }   /* dev: unsupported ops seen since the last vblank (EE VCALLMS); gl41: l41_init (runtime/vu_l41.h) */
+     if (on && g_unsup_vu != last) { vu_unsup_scan(-1, g_unsup_vu - last); last = g_unsup_vu; } }
+   if (start) { io_csr |= 8; io_csr ^= 1u << 13; io_istat |= 4; gscap_vblank(++io_vb); } else io_istat |= 8;
++  L41_VBLANK(start, io_vb);   /* gl41: the levers' counters (MGS2_L41_LOG=1) */
+   IO32(0x2001000) = io_csr; IO32(0xf000) = io_istat;
+ }
+ static void io_init(void) { }
+--- a/runtime/host_time.h
++++ b/runtime/host_time.h
+@@ -161,6 +161,9 @@
+ #define OPT2_M5 262144u               /* gl39 M5 (runtime/kernel.h k_take_interrupts): the pending interrupts taken by a walk of the set bits
+                                            (count trailing zeros), lowest channel first, INTC before DMAC, each bit read again after the
+                                            handler before: the same handlers in the same order as the loops over all 26 channels.  Exact */
++#define OPT2_P1 524288u               /* gl41 P1 (attic/gl41s; runtime/vu0.h vu_run_shared): the VU0 micro-program call through a 64-entry
++                                           (image hash, entry) cache straight to the program's VFPU / C form; a miss or a changed image takes
++                                           gl39's path, which fills the entry.  The same functions in the same FPU-mode test.  Exact */
+ #define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
+                                            ~OPT2_C1) */
+--- a/runtime/vu0.h
++++ b/runtime/vu0.h
+@@ -381,7 +381,7 @@
+ #endif
+ }
+ #ifdef GUEST_SPLIT_RT
+-void vu_run_shared(int pc) { vu_run(pc); }   /* the generated units call the micro programs through this one copy */
++void vu_run_shared(int pc);   /* the generated units call the micro programs through this one copy (gl41: defined at the end, P1) */
+ #endif
+ #endif   /* !GUEST_SPLIT_GEN */
+ /* ---- COP2 macro mode (EE side) ---- */
+@@ -698,4 +698,7 @@
+ }
+ #endif
+ 
++#if !defined(GUEST_SPLIT_GEN)
++#include "vu_l41.h"   /* gl41 (attic/gl41s): lever P1 (vu_run_shared), the gl41 counter line */
++#endif
+ #endif
+--- a/runtime/vu_l41.h
++++ b/runtime/vu_l41.h
+@@ -0,0 +1,71 @@
++/* gl41 (attic/gl41s/, 2026-11-23): lever P1 (the VU0 micro-program call fast path) and the 'gl41' counter line.
++   Included at the end of runtime/vu0.h, in the runtime unit only (after gen_vu.h: it needs the programs' names).  The PSP's boot_rt.o
++   and the x86 twin's both compile this file (runtime/ is on both include paths; rt/ has no vu0.h).
++   Switches: MGS2_OPT2 bit 19 OPT2_P1 (runtime/host_time.h), alternated by turn with MGS2_OPT2_CYCLE like every OPT2 bit.
++   MGS2_L41_LOG=1: a 'gl41 levers' line every 100 vblanks (the levers' counters; printed in io_vblank, outside the programs; read once
++   at the first vblank, rt/ and runtime/ ee_io.h io_vblank -> l41_init). */
++#ifndef VU_L41_H
++#define VU_L41_H
++#ifdef GUEST_SPLIT_RT
++#if defined(GEN_VU_FNS) && defined(OPT2_P1) && defined(VP_FAST) && !defined(VU_CHECK) && !defined(YO_PROF) && !defined(VU_STATS) && \
++    !defined(VU_FAST) && !defined(VU_TRACEH)
++/* P1 (MGS2_OPT2 bit 19): vu_run(pc) of a clean image whose (hash, entry) has a compiled program is vuc_entry + vuc_dispatch: the FPU-mode
++   test (vp_fast_env), then VPV(vupv_) VPF(vup_) or vup_() (every C form returns 1: tools/gl41_genvu.py checks it).  The cache holds, per
++   (hash, entry), the two functions vuc_dispatch's case calls (gen_vu.h vuc_fns, made from vuc_dispatch's own cases by gl41_genvu.py);
++   a hit calls them in the same order with the same test; a miss, a changed image or the other FPU mode takes vu_run, as gl39. */
++typedef int (*vuc_fn_t)(void);
++#ifndef VUC_FC_N
++#define VUC_FC_N 64   /* entries (16 bytes each), a power of 2 */
++#endif
++#define VUC_FC_I(h, pc) (((h) ^ ((h) >> 16) ^ ((uint32_t)(pc) << 2)) & (VUC_FC_N - 1u))
++static struct vuc_fc_t { uint32_t h; int32_t pc; vuc_fn_t v, f; } vuc_fc[VUC_FC_N] __attribute__((aligned(64)));
++long g_l41_p1_miss, g_l41_p1_fill;
++static __attribute__((noinline)) void vu_run_p1_miss(int pc)
++{
++  vu_run(pc); g_l41_p1_miss++;
++  if (vu_prog_clean) { vuc_fn_t v, f; uint32_t h = vu_prog_hash;
++    if (vuc_fns(h, pc, &v, &f)) { struct vuc_fc_t *e = &vuc_fc[VUC_FC_I(h, pc)]; e->h = h; e->pc = pc; e->v = v; e->f = f; g_l41_p1_fill++; } }
++}
++void vu_run_shared(int pc)
++{
++  if (g_opt2 & OPT2_P1) {
++    if (__builtin_expect(vu_prog_clean, 1)) {
++      uint32_t h = vu_prog_hash; const struct vuc_fc_t *e = &vuc_fc[VUC_FC_I(h, pc)];
++      if (__builtin_expect(e->h == h && e->pc == pc && e->f != 0, 1) && vp_fast_env()) {
++        if (e->v) { if (!e->v()) (void)VPF(e->f); } else (void)e->f();
++        return;
++      }
++    }
++    vu_run_p1_miss(pc); return;
++  }
++  vu_run(pc);   /* gl39's path */
++}
++#define L41_P1 1
++#else
++void vu_run_shared(int pc) { vu_run(pc); }   /* the generated units call the micro programs through this one copy */
++#endif
++#endif   /* GUEST_SPLIT_RT */
++
++static int l41_log;
++
++/* l41_init: once, at the first vblank (rt/ and runtime/ ee_io.h io_vblank) */
++static __attribute__((noinline, cold)) void l41_init(void)
++{
++  const char *e;
++  l41_log = (e = getenv("MGS2_L41_LOG")) && atoi(e) != 0;
++}
++/* the levers' counters, every 100 vblanks with MGS2_L41_LOG=1 (rt/ and runtime/ ee_io.h io_vblank) */
++static __attribute__((noinline, cold)) void l41_report(long vb)
++{
++#if defined(L41_P1)
++  long p1m = g_l41_p1_miss, p1f = g_l41_p1_fill;
++#else
++  long p1m = -1, p1f = -1;
++#endif
++  fprintf(stderr, "gl41 levers vb %ld: opt2 %08x, p1 misses %ld fills %ld\n", vb, (unsigned)g_opt2, p1m, p1f);
++}
++/* (a call in io_vblank: its own CFG unchanged.  The vblank starts are counted here: io_vblank's io_vb counts only where gscap_vblank is
++   compiled in (the x86 twin); on the PSP build gscap_vblank(++io_vb) is ((void)0) and io_vb stays 0.) */
++static void l41_vblank(int start) { static long n; if (start && ++n % 100 == 0 && l41_log) l41_report(n); }
++#define L41_VBLANK(start, vb) l41_vblank(start)
++#endif   /* VU_L41_H */
