@@ -1,0 +1,22 @@
+29,610 K0 digest-off: M5 OFF minus on [C model]: whole window +0.364 ms a step (instr +78848 I -266 D +107)
+    k_take_interrupts          off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_take_interrupts.part.0   off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_intc.part.0              off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_dmac.part.0              off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_call_handler             off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_deliver_pending          off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_poll_rest                off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_syscall                  off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    rt_syscall                 off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    the interrupt path together: off - on +0 instr, I +0, D +0 = +0.000 ms a step
+29,710 K7: M5 OFF minus on [C model]: whole window +0.120 ms a step (instr +42547 I -376 D -53)
+    k_take_interrupts          off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_take_interrupts.part.0   off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_intc.part.0              off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_dmac.part.0              off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_call_handler             off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_deliver_pending          off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_poll_rest                off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    k_syscall                  off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    rt_syscall                 off        0 instr (0.000 ms)  on        0 instr (0.000 ms)  off - on      +0 instr, I   +0, D   +0 = +0.000 ms
+    the interrupt path together: off - on +0 instr, I +0, D +0 = +0.000 ms a step

@@ -1,0 +1,63 @@
+== em_f2
+em39.sh: f2 621 s
+em39.sh: pictures 52
+em39.sh: split dumps in the game folder: 0
+/home/claude/main/build_gl39/emu_f2/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl39/pk_f39/hashref.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0
+== em_f3
+em39.sh: f3 616 s
+em39.sh: pictures 36
+em39.sh: split dumps in the game folder: 0
+/home/claude/main/build_gl39/emu_f3/log.txt: 62 hash lines, 0 vuh lines; reference /home/claude/main/build_gl39/pk_f39/hashref.txt: 685 lines
+compared 62 reference lines (0 with vuh): 0 differ; 623 reference lines not in the log (first 100, last 37800)
+refcmp rc 0
+== f2's digests by kind against the twin's same-schedule arm (tw2 sch)
+frames in B 266 (vb 29490..31320), not in A 0, in A and not in B 16748
+K0: frames 166, list/frame/counts differ 0, dz text differs 0
+K7: frames 50, list/frame/counts differ 0, dz text differs 0
+K8: frames 50, list/frame/counts differ 0, dz text differs 0
+K0 frames differing (vb, begun at, turn): []
+== f2 against the no-PGO build's run n1 (the same schedule), digests by kind
+frames in B 266 (vb 29490..31320), not in A 0, in A and not in B 0
+K0: frames 166, list/frame/counts differ 0, dz text differs 0
+K7: frames 50, list/frame/counts differ 0, dz text differs 0
+K8: frames 50, list/frame/counts differ 0, dz text differs 0
+K0 frames differing (vb, begun at, turn): []
+== totals
+free memory: heap headroom 12528 KB; outside the heap: largest block 512 KB, total 764 KB
+F1 totals (gl38): runs planned 4739 (groups 577938, of them not written 504003, without the fast form 58953), runs not planned 0 (state 0, a group without an MSCAL 0), planned runs with a problem 0; check mode: groups compared 0, DIFFERING 0, written by the plan and not by the notes 0, skipped by the plan ahead of a group that declined when it ran 0
+bound totals (gl38): frames begun with a mask 1799; transfers left out by chain: 0:1699 1:1699 2:1699 3:1699 4:1699 5:1699 6:1699 7:1699 8:1699 9:1699 10:1799 11:1699 12:999 13:750 14:750 15:750 16:744; native groups recorded and not drawn 349588; rain owners' calls 0 (sheets 0), left out 0, near sheet calls kept 0; chain 6's other calls left out 0, its GS primitives 0; rain owners' blocks over the table 0, not right 0
+natcull: totals (v3): effect calls tested 185558, left out 132655 (4887908 vertices); kept: vertex 0 inside 29850, no plane proven 22905, a bad attribute 0, count 0, out of the clamps' range 0, thinned 148; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 6240200, 1322442 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+free memory now: heap headroom 64 KB; outside the heap: largest block 116 KB, total 216 KB
+memory: the break's highest point 0be66000 at vb 23677, 0 KB above the break now: the headroom was about 64 KB at its lowest
+memory at the end: blocks malloc can still give (KB): 64 = 64 KB in 1 blocks
+free memory: heap headroom 12528 KB; outside the heap: largest block 512 KB, total 764 KB
+F1 totals (gl38): runs planned 5158 (groups 638518, of them not written 0, without the fast form 62963), runs not planned 0 (state 0, a group without an MSCAL 0), planned runs with a problem 0; check mode: groups compared 474212, DIFFERING 0, written by the plan and not by the notes 0, skipped by the plan ahead of a group that declined when it ran 0
+bound totals (gl38): frames begun with a mask 1799; transfers left out by chain: 0:1699 1:1699 2:1699 3:1699 4:1699 5:1699 6:1699 7:1699 8:1699 9:1699 10:1799 11:1699 12:999 13:750 14:750 15:750 16:744; native groups recorded and not drawn 349588; rain owners' calls 0 (sheets 0), left out 0, near sheet calls kept 0; chain 6's other calls left out 0, its GS primitives 0; rain owners' blocks over the table 0, not right 0
+reuse totals (gl36): table 1536 entries; runs replayed 0 (groups 0, skipping 0), recorded 3899 (groups 200954; kept 1859, not kept 3332), checked 1292 (groups 273607; S differing 0, boxes differing 0); in S 74173; boxes recorded 330426, taken 0, cut 0, positions then needed 0; no table room 1578; replays with a group not taken 0, with a decline 0
+natcull: totals (v3): effect calls tested 185558, left out 132655 (4887908 vertices); kept: vertex 0 inside 29850, no plane proven 22905, a bad attribute 0, count 0, out of the clamps' range 0, thinned 148; check mode: left-out calls converted 0, DIFFERING 0, kept calls that drew nothing 0; vertices read 6240200, 1322442 of them in calls kept; left-out vertices on the clamped path 0, check mode: converted through the clamps 0
+free memory now: heap headroom 64 KB; outside the heap: largest block 116 KB, total 118 KB
+memory: the break's highest point 0be66000 at vb 23677, 0 KB above the break now: the headroom was about 64 KB at its lowest
+memory at the end: blocks malloc can still give (KB): 64 = 64 KB in 1 blocks
+gl39 G4 on /home/claude/main/build_gl39/psp (EBOOT 52eb4246, 4468452 bytes) against gl38's /home/claude/main/build_gl38/psp (EBOOT 80c7b7e0, 4450996 bytes)
+imports of the ELF (sce* names) gl38 / gl39: 133 / 133 names; differences: 0
+  section .lib.stub: gl38 00000154 bytes, gl39 00000154 bytes
+  section .lib.ent: gl38 00000010 bytes, gl39 00000010 bytes
+  section .rodata.sceResident: gl38 0000015c bytes, gl39 0000015c bytes
+  section .rodata.sceNid: gl38 000001c4 bytes, gl39 000001c4 bytes
+  section .sceStub.text: gl38 00000388 bytes, gl39 00000388 bytes
+   text	   data	    bss	    dec	    hex	filename
+4440180	   8644	39772120	44220944	2a2c210	/home/claude/main/build_gl38/psp/MGS2T.elf
+4457620	   8644	39780056	44246320	2a32530	/home/claude/main/build_gl39/psp/MGS2T.elf
+objects 45; objects with a sce* reference gl38's object does not have: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+/home/claude/main/build_gl39/psp/../psp.out:mesec_chk rc 0: mesec_chk: PASS
+/home/claude/main/build_gl39/psp/../psp.out:me_call_chk: PASS
+hashes 62 66499cdb584a digests 266 360c72b5289c
+1:== END: 'disc pack: 3127 reads, 93104 KB, 13.80 s of host time in the run' | lines 4283
+19:== HASHES (the game's state): 62 lines, 66499cdb584a (expected 62, 66499cdb584a): EQUAL
+20:== DIGESTS (the pictures' lists in the digest-on turns): 266 lines, 360c72b5289c / with dz 4bcc8be013bd (expected 266, 360c72b5289c / 4bcc8be013bd): EQUAL
+305:== SCHEDULE CHECK: turns whose logged kind, F1, digest or load is not the schedule's: none
+fin39.sh: done 05:16:01

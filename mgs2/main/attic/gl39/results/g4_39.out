@@ -1,0 +1,15 @@
+gl39 G4 on /home/claude/main/build_gl39/psp (EBOOT 52eb4246, 4468452 bytes) against gl38's /home/claude/main/build_gl38/psp (EBOOT 80c7b7e0, 4450996 bytes)
+imports of the ELF (sce* names) gl38 / gl39: 133 / 133 names; differences: 0
+  section .lib.stub: gl38 00000154 bytes, gl39 00000154 bytes
+  section .lib.ent: gl38 00000010 bytes, gl39 00000010 bytes
+  section .rodata.sceResident: gl38 0000015c bytes, gl39 0000015c bytes
+  section .rodata.sceNid: gl38 000001c4 bytes, gl39 000001c4 bytes
+  section .sceStub.text: gl38 00000388 bytes, gl39 00000388 bytes
+   text	   data	    bss	    dec	    hex	filename
+4440180	   8644	39772120	44220944	2a2c210	/home/claude/main/build_gl38/psp/MGS2T.elf
+4457620	   8644	39780056	44246320	2a32530	/home/claude/main/build_gl39/psp/MGS2T.elf
+objects 45; objects with a sce* reference gl38's object does not have: 0
+xme_me_chk: PASS
+xme_rest_chk: PASS
+/home/claude/main/build_gl39/psp/../psp.out:mesec_chk rc 0: mesec_chk: PASS
+/home/claude/main/build_gl39/psp/../psp.out:me_call_chk: PASS

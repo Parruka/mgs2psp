@@ -1,0 +1,35 @@
+emu_f2/pic against /home/claude/main/build_gl36/emu_e2/pic: 52 pictures, equal 19, differing 33, not in A 0
+  equal by kind: {'before': 4, 'K0': 15}
+  DIFFERS shot_24244.bmp   K7       93600 px, at most 246 a channel
+  DIFFERS shot_24784.bmp   K8       93424 px, at most 107 a channel
+  DIFFERS shot_30500.bmp   K0      128857 px, at most 68 a channel
+  DIFFERS live_30512.bmp   K0      121120 px, at most 61 a channel
+  DIFFERS live_30537.bmp   K0      119797 px, at most 117 a channel
+  DIFFERS shot_30546.bmp   K0         192 px, at most 1 a channel
+  DIFFERS live_30562.bmp   K0      123896 px, at most 117 a channel
+  DIFFERS live_30587.bmp   K0      123722 px, at most 116 a channel
+  DIFFERS live_30712.bmp   K7      130142 px, at most 204 a channel
+  DIFFERS shot_30722.bmp   K7      130157 px, at most 204 a channel
+  DIFFERS live_30737.bmp   K7      130097 px, at most 204 a channel
+  DIFFERS live_30762.bmp   K7      130152 px, at most 204 a channel
+  DIFFERS live_30787.bmp   K7      130146 px, at most 204 a channel
+  DIFFERS live_30812.bmp   K0      118177 px, at most 6 a channel
+  DIFFERS shot_30824.bmp   K0        1958 px, at most 2 a channel
+  DIFFERS live_30837.bmp   K0         177 px, at most 1 a channel
+  DIFFERS live_30912.bmp   K0      116156 px, at most 241 a channel
+  DIFFERS live_30937.bmp   K0      113840 px, at most 73 a channel
+  DIFFERS live_30962.bmp   K0      119306 px, at most 253 a channel
+  DIFFERS live_30987.bmp   K0      122216 px, at most 240 a channel
+  DIFFERS live_31012.bmp   K7      130135 px, at most 255 a channel
+  DIFFERS live_31037.bmp   K7      130139 px, at most 255 a channel
+  DIFFERS shot_31046.bmp   K7      130157 px, at most 255 a channel
+  DIFFERS live_31062.bmp   K7      130158 px, at most 255 a channel
+  DIFFERS live_31087.bmp   K7      130167 px, at most 255 a channel
+  DIFFERS shot_31112.bmp   K8      130208 px, at most 255 a channel
+  DIFFERS live_31112.bmp   K8      130208 px, at most 255 a channel
+  DIFFERS live_31137.bmp   K8      130208 px, at most 255 a channel
+  DIFFERS live_31162.bmp   K8      130208 px, at most 255 a channel
+  DIFFERS live_31187.bmp   K8      130208 px, at most 255 a channel
+  DIFFERS live_31212.bmp   K0      122799 px, at most 9 a channel
+  DIFFERS live_31237.bmp   K0         606 px, at most 2 a channel
+  DIFFERS live_31312.bmp   K0      128582 px, at most 30 a channel

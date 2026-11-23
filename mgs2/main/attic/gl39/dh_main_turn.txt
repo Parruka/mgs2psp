@@ -1,0 +1,40 @@
+# D-misses a PSP step: A ../build_gl38/model/d36.1.dhist (image end 0b23b8c0), B ../build_gl38/model/d38.1.dhist (image end 0b231f40)
+  dynamic (heap, game RAM, stacks)     A     27514  B     29486  B-A    +1972  (+0.51 ms a step)
+  static                               A     98349  B    105489  B-A    +7140  (+1.84 ms a step)
+ -- static data by symbol, largest changes
+   St                                           A     1247  B     3094  B-A    +1847
+   VM                                           A     2866  B     1842  B-A    -1025
+   glf                                          A     2432  B     3157  B-A     +725
+   F                                            A      865  B     1585  B-A     +720
+   R.8                                          A        5  B      622  B-A     +617
+   xm_lw3_miss                                  A        0  B      567  B-A     +567
+   R.0                                          A       55  B      594  B-A     +540
+   vc_km                                        A      185  B      620  B-A     +435
+   C2m                                          A       48  B      469  B-A     +421
+   ts_t                                         A        0  B      408  B-A     +408
+   v3.7                                         A      209  B      575  B-A     +366
+   vpv_clipt                                    A      210  B      532  B-A     +322
+   EC                                           A      472  B      156  B-A     -316
+   xl_nf_n                                      A        0  B      282  B-A     +282
+   xl_nr_r                                      A        0  B      277  B-A     +277
+   g_mem                                        A    58744  B    58490  B-A     -254
+   ud_n                                         A        0  B      252  B-A     +252
+   R.9                                          A       54  B      300  B-A     +246
+   RULES                                        A      186  B      408  B-A     +222
+   g_io_ee                                      A      492  B      697  B-A     +204
+   g_ns                                         A      258  B      460  B-A     +201
+   G                                            A      330  B      133  B-A     -197
+   V                                            A      229  B       62  B-A     -167
+   lw_nat_part                                  A      166  B        0  B-A     -166
+   H                                            A       48  B      199  B-A     +151
+   xme_x                                        A        0  B      147  B-A     +147
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0b400000)                           A     5511  B     6603  B-A    +1092
+   (dynamic 0bf00000)                           A     5889  B     6975  B-A    +1086
+   (dynamic 0be00000)                           A     4366  B     4630  B-A     +263
+   (dynamic 0b600000)                           A     2193  B     1940  B-A     -253
+   (dynamic 0b500000)                           A     6022  B     5824  B-A     -198
+   (dynamic 0b300000)                           A      592  B      563  B-A      -29
+   (dynamic 0b200000)                           A      875  B      889  B-A      +14
+   (dynamic 0bd00000)                           A     1257  B     1254  B-A       -2
+   (dynamic 0b700000)                           A      808  B      808  B-A       +0

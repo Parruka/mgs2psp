@@ -1,0 +1,344 @@
+gl39 build agent report, 2026-11-23 (plan: attic/gl39/gl39_plan.md; running notes: attic/gl39/state.md). NOT DELIVERED: the lead
+verifies and delivers.
+Marks: [C] measured or read in code, [C model] the PspProf cost model, [C PSP] gl38's PSP run 1, [I] inferred (basis named), UNKNOWN.
+Tree /home/claude/t39 (= t38 + gl39 code). Build folder /home/claude/main/build_gl39. Package build_gl39/deliver.
+UNIT: every model figure is ms a PSP STEP (a vblank) = (1.65 x instructions + 68 x I-misses + 86 x D-misses) / 333,000 a step, over
+vblanks 10-90 of a turn. "PSP weight" = main CPU work x 1.0 + Media Engine (ME) work x 0.8 [I: gl38's run, K7 70.3 model / 69.6 PSP].
+
+0. SUMMARY
+- gl39 is built, gated and packaged: build_gl39/deliver, EBOOT 52eb42460054cd3a3600d82026fb33cb, NOT delivered.
+  Every exactness gate PASSES [C]: twin 685/685 in 9 arms; emulator (final package) 62/62 hashes and 266/266 frame digests = the
+  twin's same-schedule arm in every kind (K0 166, K7 50, K8 50); F1's check 0 differing of 474,212 groups (emulator) and of
+  2,226,860 + 1,877,821 (twin); the K0 turns' lists = the plain run's in 403 of 405 frames, digest-off turns included (the 2 are
+  the first frame after a K7 turn, as in gl38); problem counters 0; 133 sce names = gl38's; the ELF's program headers have gl38's
+  structure; the heap's low point reads 64 KB (break 24 KB above gl38's, 16 KB below gl36's).
+- WHAT THE BUILD IS NOT (the three things that matter most):
+  (1) M5 IS NOT IN THE PSP EBOOT. My mistake: its block went into runtime/kernel.h, which only the PC twin compiles; the PSP's
+      boot_rt.o takes rt/kernel.h, unchanged since gl38. The cfg's switch (MGS2_OPT2 bit 18) does nothing on the PSP. I found it
+      from the model (the interrupt walk is instruction for instruction gl38's), after the gates. Not rebuilt (section 9, F1).
+      README, cfg comment and reader say so; no key changed.
+  (2) The code order retrain (M7) brought NO gain against gl38 [C model]: in the same turns and kinds gl39 has 1.0-1.6 % more
+      I-misses in K7 and 1.6-2.6 % more in K0 than gl38's own build. The main CPU is +0.4 ms a step ABOVE gl38's, not below.
+  (3) M1, M2, M3, M4, M6 were dropped before the build (state.md 23:40: M3 feeds the translator's records, M4 is not exact by the
+      owner's rule of 2026-11-08, M1's exact part is 0.45 not 1.8, M2 needs the recompiler, M6's misses are sequential reads).
+  So gl39 is a measurement build (digest-off turns, K8 + ME loads, probes, F1 on) and does not make the main CPU faster.
+- EXPECTED PSP RAIN-WAIT STEP [I]: digest-off K0 with F1 on (the play configuration) about 76 ms a step (75 to 77.5), main-CPU
+  limited, = 6.6 pictures a second. gl38's 84.99 was with the digest; the plan's 70-72 is NOT expected (it rested on M1-M7).
+- The data guard first FAILED (+4.75 ms a step in the guard's ME turn) and was repaired in three relinks with pads (13 KB of
+  memory): the final build is within the plan's DHIST line in the ME turn (static D-misses gl36 + 1.6 %, limit + 2 %) and
+  in K7 (gl38 + 1.0 to 1.2 %). By gl38's old limit (+0.25 ms against the last build) K7 still fails: +0.39 to +0.47 (section 5).
+- THE PROFILING EMULATOR HAD A BUG, now fixed in a second binary (section 3): its interpreter computed mul.s / div.s / sqrt.s /
+  cvt.s.w in the wrong rounding mode after a thread switch, which changed game state in profile windows. This is the cause of
+  the "model runs are not state-exact" note of gl36's and gl38's reports (gl38 F6) [C for gl38's build: 0 differing now].
+  All of gl39's traces and model runs are hash-equal with it. An emulator change needs a word to the owner: not given yet.
+
+1. THE SCHEDULE (a digit a turn of 100 vblanks from vb 24,000; tools/sched39.py; table by vblank in the README)
+  MGS2_BOUND_CYCLE=00780078070007807800000078888057088887050788070000000700078888007007007800
+  MGS2_NAT_F1_CYCLE=11111111111111111111111111111111111111111111111111111111111111101011111111
+  MGS2_LOAD_CYCLE=00000000000000000300000000123000001230000003000000000000000123000000000300
+  MGS2_DIG_CYCLE=00000000000000000000000000000000000000000000000000000000111111111010011010
+  MGS2_PROBE9=1  MGS2_LOAD_US=100000   (cfg/mgs2_gl39.cfg, md5 4263dd11ac671f574f47fe5f69f81963; 42 MGS2 keys; tools/mkcfg39.py makes it
+  byte for byte). MGS2_NAT_REUSE_CYCLE and MGS2_GL_RAIN_NEAR are out; MGS2_OPT_CYCLE / OPT2_CYCLE / HALF_CYCLE have 16 values.
+- 38 K0, 2 K5, 15 K7, 19 K8 turns; 12 K8 turns carry a load. Every (kind, F1) pair of a digest-off turn also has a digest-on turn.
+- Rain wait: t51-t54 K0 K0 K7 K0 (no digests yet; the scene settles) | t55 K0 digests on | t56 K0 off | t57 K7 | t58-t61 K8 with load
+  none / arithmetic / cached reads / uncached writes | t62 K0 off | t63 K0 off, F1 OFF | t64 K7 | t65 K0 digests on, F1 OFF (gl38's
+  own K0 configuration) | t66 K0 off | t67 K7 digests on (gl38's K7 turn). Walk: t68 K0 on | t69 K0 off | t70 K7 | t71 K8 uncached
+  writes | t72 K0 off | t73 K0 on.
+- Steady deck (the radio screen): two series K7, K8 x4 loads (t24-t28, t33-t37), K5 at t30 and t39, K8 none / writes at t42-t43.
+- Not as the plan's section 3 had it: there is no "levers off" twin group of four K0 turns (there is no main-CPU lever to switch),
+  and M1's two spare walk turns are plain K0.
+
+2. WHAT IS IN THE EBOOT, AND EACH PART'S PROOF
+- MGS2_DIG_CYCLE (psp/xl_psp.c, boot/xlive_chk.c, boot/nat_stub.h rt_dig_off_at): no frame digest for the frames whose last vblank
+  is in a turn with digit 1. State hashes do not see it. Proof of the pictures of digest-off turns: the emulator run of the final
+  build with digests on in EVERY turn (cfg_emu/mgs2_gl39_digon.cfg, model run kd39, to vb 30,998) against the twin's plain arm p1
+  (no kinds, F1 on): K0 frames 405, differing 2 (vb 30,500 and 30,800: the first frame after a K7 turn) [C].
+- Kind 8 (ge/bound.h BD_ALL | BD_ME) and MGS2_LOAD_CYCLE / MGS2_LOAD_US (ge/xme.c xme_load, XE_LOAD): nothing drawn in an ME turn;
+  the load loop runs on the ME for MGS2_LOAD_US a picture: 1 arithmetic (8,192 multiply-adds a block), 2 reads of 2 MB of .text
+  from _ftext through the cache (a word every 64 bytes), 3 writes of a 256-byte block through the uncached address. No system call,
+  no register; a heartbeat a block; ends by the ME's Count clock. Posted only when the loop caught up ('not posted' is counted:
+  1 in the emulator run). Proof: hashes 62/62; K8 digests = the twin's (50 frames); xme_me_chk / xme_rest_chk / mesec_chk /
+  me_call_chk PASS.
+- Probes (psp/xl_psp.c p9_*, psp/main_psp.c host_top; MGS2_PROBE9): service calls by the timed part they fall in (one in 8 timed),
+  GE polls, posts, whole-cache write-backs (all timed); a 'gl39 probe' line a turn. Read-only: hashes 62/62.
+- F1 on by default (MGS2_NAT_F1_CYCLE all 1 but t63, t65), the re-use off in the whole run. Code is gl38's.
+- Hot block H39 (ge/hot39.h -> .bss.h39 -> .me_bss.h39, first in .me_bss): the picture code's hot small statics of ge_xlate.o
+  (0x210 bytes), ge_vu1conv.o (0x1b0), ge_xlme.o (0x50), ge_xme.o (8) in one block. Its own model figure was NOT measured
+  (no build without it); with the pads it brings the ME's data misses to gl38's level, not under it (section 5).
+- Pads (linker scripts only, no compile; padld/me_sec_pad2.ld, padld/ro_pad2.ld through MESEC / XLD in m/scripts/psp.sh, rl39p.sh):
+  ME_PAD 0x15c0 after the hot block, XL_PAD 0x210 in front of ge_xlate.o's .me_bss, RO_PAD 0x1c40 in front of .rodata (a READONLY
+  section WITH contents). 13,328 bytes.
+- M7: a new profile (5 training runs, 0 hash lines differing; pgochk clean) and a code order searched on gl39's own turns
+  (section 4). Byte-equal functions; real = simulated.
+- B's face census (twin only, MGS2_FACE_CEN): of 75,350 P07 calls of chain 10 in 26,200-28,700, 74,528 were seen in the picture
+  before, streams and headers equal in all of them, ALL inputs equal in 0 (the 8 bone slots and slot 2 differ in every call):
+  the unchanged-face memo (plan 1 B) would gain nothing [C twin].
+- NOT in the EBOOT: M5 (see 0 and 9).
+
+3. THE PROFILING EMULATOR'S FLOAT BUG (found while tracing; not a gl39 bug)
+- Symptom: trace run t0 of the use build differed in 2 of 61 hash lines (vb 30,000, 30,500); identical runs gave two outcomes
+  (3 of 7 runs with a profile window at 29,601 differed, 0 of 3 without). What differed in the EE RAM at 30,000: 6,704 bytes, two
+  chains of points and their matrices; no counter.
+- Cause [C, code read + counted]: the patched PPSSPP (ppsspp_prof, PspProf) runs profile windows in its interpreter. The
+  interpreter computed mul.s, div.s, sqrt.s and cvt.s.w in the HOST's rounding mode, which the local patch set only at a slice's
+  start and at ctc1. After a thread switch inside a slice the host mode was the previous thread's: a thread with the kernel's
+  default FCR31 00000e00 (idle, battery, callback threads) leaves round-to-nearest for the game's thread (FCR31 01000001).
+- Proof [C]: a second binary build/PPSSPPHeadless_fcr computes the four operations in the thread's own FCR31 mode and counts.
+  Window 29,601-29,606: 1,385,128 such operations, 30,002 in another host mode, 9,359 with another result, at game code addresses.
+  With the old results kept (PSPPROF_FPU_HOSTMODE=1) 4 of 4 runs differ with the old value; with the fix 4 of 4 are equal.
+  gl38's build has the same artefact (6,394 wrong results in the same window; its hashes happened to stay equal there).
+- The original binary build/PPSSPPHeadless is untouched (md5 50406ec1...). The patch: attic/gl39/tools/
+  ppsspp_pspprof_fcr_2026-11-23.diff (82 lines: Core/MIPS/PspProf.h, MIPSInt.cpp, PspProf.cpp). pgo.sh is not edited: PPF in the
+  environment names the binary.
+- The model's counts did not move: gl38's final build run again on the fixed binary against gl38's own model runs of the same
+  turns: +0.01, -0.48, +0.04, -0.39, +0.19 ms a step (instructions within 0.23 %, I-misses 0.65 %, D-misses 1.24 %) [C model].
+- With the fix every profiled run of gl39 is hash-equal: traces t0 61/61, t1 117/117, t2 62/62; model runs ka39, km39, kf39, kd39
+  62/62, dn39 60/60; gl38's build k38x, k38y 62/62 (gl38's report F6 had 1 to 9 differing lines in such runs).
+- UNKNOWN: why the old binary's runs were sometimes equal (the emulated timeline is not the same in every run).
+- The second trace problem (t1's windows of 0.8-1.5 thousand million instructions, which filled the disk): [I] the training cfg's
+  "deck 24000"; with gl38's "deck 31800" for t1 (cfg/mgs2_gl39trc_t1.cfg) the windows are 37-52 million and hashes 117/117.
+
+4. THE RETRAIN (M7)
+- Traces of the use build u: t0 (16,001 17,501 26,901 27,101 29,601 29,701 30,201 30,601), t1 (the w01a route), t2 (16,101 30,901
+  31,001): digest-off K0, K7 and K8 turns among them.
+- Order search (build_gl38/layout_sim38; seed = gl38's final order with the alias rule): rt39b.sh 40,000 moves, then rt39b2.sh
+  20,000 moves. Stage 2 exists because stage 1's weight file was off by one (my slip: the rain windows count from 0, so 29,601
+  had weight 1 and one line named no window); stage 2 has windows 4..9 at weight 4.
+  I-misses simulated, seed -> final: deck route training windows 4,785,837 -> 2,920,194, test window 329,224 -> 220,430; w01a
+  3,508,483 -> 2,271,823, test 435,484 -> 274,950.
+- Relink: real = simulated in every window, on each of the four relinks (rt_new39.out); every relink was repeated and was
+  byte-equal (the final one: 10 of 10 files).
+- RESULT [C model]: against gl38's FINAL build at the same vblanks and kinds (section 7.4) gl39 has MORE I-misses: K7 +446 to +782
+  a step (+1.0 to +1.6 %), K0 +1,632 (F1 on) to +2,755 (F1 off) (+1.6 to +2.6 %), spread over ME functions (lw_walk, xl_p04_fast,
+  tk_get_um, gl_call, drew_ctx). The "seed -> final" gain is against gl38's ORDER on gl39's functions, which is not gl38's build
+  (gl38's own rule: an old order does not carry over once sizes change). So M7 = no gain; about +0.1 ms (K7) to +0.35-0.55 (K0).
+  I did not run another search round (gl38 needed three); UNKNOWN whether one would get under gl38.
+
+5. DATA PLACEMENT AND THE GUARDS
+The PSP's data cache is 16 KB in two 8 KB ways, so a table's address mod 0x2000 decides what it collides with.
+Four relinks of the same objects and code order, each gated or measured [C model, ms a PSP step, whole window]:
+  build                                  EBOOT      K0 digest-off 29,610   K7 29,710   guard cfg ME turn 29,810 (gl38 174.60, gl36 174.76)
+  np  no pads (the first final)          329e2cfd   155.35                 68.95       179.35  (+4.75 over gl38)
+  nb  ME_PAD + RO_PAD (NOBITS pad)       e2d681b5   152.64                 68.17       176.75
+  pf  the same with a READONLY pad       459e41ab   (the same loaded bytes and symbols as nb: flat image cmp)
+  px  + XL_PAD 0x210 = THE FINAL BUILD   52eb4246   151.24                 68.28       175.00  (+0.41 over gl38, +0.24 over gl36)
+- np: the guard FAILED: ME turn +4.75 over gl38 (main +1.63, ME +3.12; D-misses +15,739, I-misses +3,360 a step); static D-misses
+  110,174 against gl38's 98,968 and gl36's 96,558. Cause [C by experiment and link map]: .rodata had moved by 0x3c0 and the picture
+  tables by 0xa40 mod 0x2000 against gl38.
+- Five padded candidates against np (K0 digests on / K0 digest-off / K7): ME_PAD alone -1.24 / -1.13 / +0.04; + RO_PAD -2.09 /
+  -2.00 / -0.56 (chosen); + DA_PAD 0x1be0 too -2.25 / -2.18 / -0.73 (22 KB of heap for 0.15: not taken); RO + DA only +0.27 /
+  +0.16 / -0.70; ME + DA -1.30 / -1.06 / +0.15.
+- nb had a CHANGED ELF and I caught it only after its gates had passed on the emulator: ld put the NOBITS pad into the text
+  segment: 5 program headers, the first LOAD RWE with MemSiz > FileSiz. The emulator loads it; the PSP's loader is UNKNOWN.
+  ro_pad2.ld (a READONLY section with contents) gives gl38's structure (R E with FileSiz = MemSiz | RW | RW bss). pf passed all
+  gates again (fin39_pf.out).
+- pf against gl38 at the same turns: ME +0.78 to +0.93 still. Cause [C, link map + DHIST by symbol]: the hot block took 0x210
+  bytes out of ge_xlate.o's .me_bss, so its later tables (own, VM, gr ...) and everything behind them (ge_xconv.o's 331 KB) sat
+  0x210 / 0x240 lower than in gl38. XL_PAD 0x210 puts them back. px against pf: K0 -0.94 / -1.01 / -0.94, walk K0 -0.37, K0 with
+  F1 off -1.93, K7 0.00, guard ME turn -1.71, main-drawing turn +0.26 (results/pxcmp.out).
+GUARDS ON THE FINAL BUILD (results/dh39_guard.out, results/score39.out):
+  G-a the plan's DHIST line, static D-misses a step <= gl36's + 2 %:
+      ME turn (guard cfg, 29,810): 98,122 against gl36's 96,558 = +1.6 %: PASS (gl38: 98,968).
+      K7: gl36 has no K7 turn; against gl38: t57 55,329 / 54,675 = +1.2 %, t67 58,361 / 57,790 = +1.0 %: PASS at 2 %.
+  G-b the plan's revised guard, digest-off K0 and K7 against gl38's own windows (no limit was set; gl38's limit was +0.25):
+      K7 +0.47 (t57), +0.40 (t64), +0.41 (t67), +0.39 (walk t70): OVER +0.25. D-misses +1,000 a step (static +570..650:
+      g_io_ee, g_io_seen and small kernel statics moved inside .bss; the stack's megabyte +430..470) and I-misses +450..780.
+      K0 digest-off, F1 off in both: +0.29 / +0.39 PSP weight (main +0.35 / +0.41, ME -0.07 / -0.02); walk -0.02.
+      K0 digest-off with gl39's F1 on: -1.02 / -1.08; walk -0.21.
+  G-c gl38's old guard cfg (no kinds), whole window: ME turn +0.41 over gl38, +0.24 over gl36; main-drawing turn +0.01 over
+      gl38, +2.33 over gl36 (information only by the plan: a play build never runs it).
+  So: the ME side is at gl38's level; the main CPU side is 0.4 ms a step worse than gl38's and I did not repair it (a .bss pad
+  of 7 KB might take 0.1-0.2 of it [I]; not tried: heap).
+- LIMIT of all of this: PspProf simulates ONE cache for both processors' work; on the PSP the ME has its own caches. gl36's PSP
+  run did not show the model's data-placement part for ME turns. Whether the PSP shows any of section 5 is UNKNOWN.
+
+6. GATES (on the final build build_gl39/psp = px, EBOOT 52eb4246, 4,468,452 B, unless a line says otherwise)
+G1 twin, game state [C]: PASS. 685/685 = hashref_gl38 (c9ddb593) in 9 arms on the final sources (build_gl39/tw2): p0 (gl38's keys
+   and schedule; its 17,664 digest lines = gl38's sch2 arm), m5off, p1 (no kinds, F1 everywhere, re-use off; digests = gl38's
+   plain arm), sch (gl39's cfg keys), sck, ckr, ckp, f1c, f1s; and a dense arm (hashes at every vblank 29,590-30,010: 378 lines).
+   NOTE: the twin compiles runtime/kernel.h, so its m5off arm proves the twin's M5, not the PSP's.
+G2 emulator, final package (pk_f39 = deliver's files), the gl39 cfg (emu_f2) [C]: PASS.
+   - 62/62 hash lines = hashref, 0 differ.
+   - 266/266 frame digests (digest-on turns of 29,490-31,400) = the twin's sch arm, dz text too: K0 166, K7 50, K8 50, 0 differing;
+     and = the no-PGO build's run n1 with the same schedule, 266/266.
+   - Against the twin's plain arm p1: K0 166 frames, 2 differ (30,500, 30,800: first frame after a K7 turn); with digests on in
+     every turn (kd39): K0 405 frames, the same 2 differ.
+   - Reader fingerprints: hashes 62 / 66499cdb584a (= gl36's to gl38's), digests 266 / 360c72b5289c, with dz 4bcc8be013bd.
+   - Schedule check none. 75 'nat turn', 75 'nat f1', 315 'gl38 bound', 315 'gl39 probe' lines; 16 'flip wait kept', 0 'GAVE UP'.
+   - The same totals and fingerprints in the runs of np, nb and pf (fin39_np.out, fin39_nb.out, fin39_pf.out).
+G3 emulator, F1's check cfg (emu_f3; cfg_emu/mgs2_gl39_f1chk.cfg) [C]: PASS. 62/62; 5,158 runs planned, 638,518 groups, 474,212
+   compared with the notes, DIFFERING 0, written by the plan and not by the notes 0; the re-use's own check 1,292 runs
+   (273,607 groups), S differing 0, boxes differing 0. Twin: f1c 2,226,860 groups compared, f1s 1,877,821, ckr 138,338, ckp
+   350,174: DIFFERING 0 in each.
+G4 pictures [C emulator, image data]: PASS WITH A NOTE. The final run's 52 pictures are byte-equal to the no-PGO build's run with
+   the same schedule (52/52). Against gl36's emulator pictures (build_gl36/emu_e2): 19 equal (4 before 24,000, 15 in K0 turns);
+   K7 / K8 pictures differ as meant; K0 pictures that differ: the fading trace after a K7 / K8 turn with gl38's own figures
+   (live_30812 118,177 px at most 6, shot_30824 1,958 px at most 2, live_30837 177 px at most 1; 31,212 / 31,237 / 31,312), and
+   the live captures of 30,500-30,600 and 30,900-31,000 (most of the screen, up to 117 and 253 a channel) while the shot inside
+   the first (30,546) differs in 192 px by 1. [I] another frame is on the display at the capture's vblank: those two turns were
+   MAIN-drawing turns in gl36 and are ME turns here; the lists there are the plain run's (G2). Not looked at further.
+G5 problem counters [C]: PASS. NAT PROBLEMS none; groups left untaken 524 / 423 / 2,037 at 24,000 / 25,000 / 29,000 (gl37's and
+   gl38's own); F1 planned runs with a problem 0; ME load entries not posted 1.
+G6 heap [C emulator]: PASS. Heap block at 0b237f00 (start headroom 12,528 KB; gl38 12,560). Low point at vb 23,677: reads 64 KB
+   (gl38 64, gl36 64); the break's highest point 0be66000 (gl38 0be60000, gl36 0be6a000 delivered and run on the PSP). End:
+   malloc can give 64 KB in 1 block (gl38 96 in 2, gl36 64 in 1). Outside the heap 116 KB largest. [I] real headroom at the low
+   point about 80 KB (gl36 read 64 at 0be6a000 and 32 at 0be6b000).
+G7 system calls, clock, hardware [C]: PASS. sce* names 133 = gl38's 133, 0 differences; the five stub sections the same sizes; no
+   object has a sce* reference gl38's object lacks; xme_me_chk, xme_rest_chk, mesec_chk, me_call_chk PASS. Program headers:
+   3 LOADs as gl38's (R E 0x4404a0 = MemSiz | RW | RW bss), entry 0x8a951a8, type EXEC. No new register write [C code].
+   (g4_39.sh at first compared the build with itself: my slip, fixed to gl38's build and run again.)
+G8 PGO [C]: PASS. 5 training runs 0 differing (124/124, 124/124, 124/124, 63/63, 124/124); pgochk clean; a plain recompile of
+   boot_rt.o with the use build's command is byte-equal to the use build's object (the tree is what the build was made from).
+G9 order [C]: PASS as a check (real = simulated, relink byte-equal); as a lever M7 FAILED to gain (section 4).
+G10 the data guard [C model]: G-a PASS; G-b K7 over gl38 by +0.39 to +0.47 (section 5).
+G11 reader [C]: rd39pc.py made from the final package's emulator log; HASHES EQUAL, DIGESTS EQUAL, SCHEDULE CHECK none; tested on
+   a CRLF log, a cut log (says DIFFERENT, no traceback), a folder with log.txt only, gl38's log folder and a missing folder.
+NOT DONE: no PSP run; no read-hash gate (gl38's G3); no full rebuild from sources of the final build a second time (the relink
+was repeated, and boot_rt.o's compile); the cull's check mode; no picture proof beyond G4.
+
+7. WHAT THE MODEL SAYS [C model, ms a PSP step; results/score39.out]
+7.1 Windows of the final build (main | ME | of it the digest's own functions):
+  29,510 t55 K0 digests on, F1 on     74.09 |  99.00 | 17.02        29,610 t56 K0 digest-off, F1 on   72.98 | 78.26
+  30,210 t62 K0 digest-off, F1 on     73.40 |  78.18                29,610 K0 digest-off, F1 off      73.11 | 79.75
+  29,710 t57 K7                       68.24                         30,410 t64 K7                     68.85
+  30,710 t67 K7                       72.90                         29,810 t58 K8 no load             68.69
+  30,910 t69 walk K0 digest-off       72.49 |  59.53                31,010 t70 walk K7                73.06
+  29,610 K0 digests on (test cfg)     73.21 | 100.98 | 17.68        30,910 walk K0 digests on (test)  72.59 | 77.28 | 14.03
+  (the waits do not spin in the emulator: a K0 window is both processors' work added, not a step time)
+7.2 EACH LEVER (one window minus another; main / ME, then the PSP weight main x 1.0 + ME x 0.8 [I]):
+  the digest, on minus off, same turn, two runs:  rain wait +0.23 / +22.71 and +0.48 / +22.69 -> +18.4, +18.6; walk +0.10 /
+      +17.74 -> +14.3. Of the ME part the digest's own functions are 17.5-17.7 (walk 14.0); the rest is D-misses beside it.
+  F1, off minus on (re-use off):                  rain wait +0.13 / +1.48 and +0.22 / +1.57 -> +1.3, +1.5; walk +0.01 / +0.22 -> +0.2.
+      (gl38: 2.2 model, 1.6-1.8 PSP.)
+  K8 no load minus K7 (hand-over, queue, GE with empty pictures): main +0.45. K8 with a load: the model has nothing (the
+      emulator has no bus): UNKNOWN, the PSP run's question.
+  M5: 0 in this package. In a side build that has the block in the PSP's kernel file (u5 / p5, model only, deleted): the
+      interrupt path 83,500 -> 29,600 instructions a step, +778 I-misses in that untrained layout = -0.11 ms a step; its hashes
+      59/59 with the bit set and clear [C model, results/m5side.out]. (The plan's 0.6 was for this and rt_store together; my
+      own estimate for this part was 0.3.)
+  the pads and the hot block together, final minus the unpadded first build: K0 digest-off -4.11 (main -1.15, ME -2.96) -> -3.5;
+      K7 -0.67. Against gl38 this is a repair, not a gain (7.4).
+  M7 (code order): no gain (section 4).
+  the probes: inside the +0.4 of the main CPU in K0 (mq_service_do +0.26, host_top +0.06 [C model, by function]; in gl38 the
+      service was inlined, so only part of it is the probes [I]).
+7.3 The model's own spread: two runs of the same code and turn (the cfg with bit 18 clear against set): K7 +0.29, +0.07; K0
+  +0.05, -0.03. Two K0 turns of one kind (30,210 - 29,610): +0.36. Read no single difference under about 0.5.
+7.4 gl39 MINUS gl38's final build, the same vblanks and kinds (gl38's build with cfg_emu/mgs2_gl38_y.cfg, run k38y):
+  K0 digest-off, F1 off in both   29,610: main +0.35, ME -0.07   30,210: main +0.41, ME -0.02   walk 30,910: main +0.36, ME -0.47
+  K0 digest-off, gl39's F1 on     29,610: main +0.22, ME -1.56   30,210: main +0.19, ME -1.59   walk 30,910: main +0.34, ME -0.69
+  K7                              29,710 +0.47   30,410 +0.40   30,710 +0.41   walk 31,010 +0.39
+  (results/score39.out also prints "other turns" lines, gl39's turn against another turn of gl38's run: they are not build
+  comparisons, the content differs by up to 5 ms.)
+
+8. EXPECTED PSP FIGURES, RAIN WAIT [I; basis: gl38's PSP run (K0 with digests: main 75.9, ME 84.4, step 84.99; K7 69.6 at t65)
+   and 7.4. Single estimates have been wrong by 2 x in this port.]
+  state                                     main needs          ME needs              step
+  gl38, digests on                          75.9 [C PSP]        84.4 [C PSP]          84.99 [C PSP]
+  gl39 t65: K0 digests on, F1 off           76.3                84.4                  about 85
+  gl39 t55: K0 digests on, F1 on            76.1                83.1                  about 83.5
+  gl39 t56, t62, t66: K0 digest-off, F1 on  76.1 (75 to 77.5)   65 to 70              ABOUT 76: main-CPU limited, 6.6 pictures a second
+  gl39 t63: K0 digest-off, F1 off           76.3                66 to 71              about 76
+  gl39 K7 (t57, t64 / t67)                  68-69 / 73 [C model x 1.0]  -             the same
+  gl39 K8 no load                           K7 + 0.5            -                     K7 + 0.5; with a load UNKNOWN
+- Main needs = gl38's 75.9 + 0.2 (F1 on) or + 0.4 (F1 off) from 7.4. ME needs digest-off: the plan's 70.8 [I from gl38's timers]
+  or 84.4 - 0.8 x 22.7 = 66.2 [model], minus 1.25 for F1. Either way the ME is under the main CPU, so the step follows the
+  main CPU and F1 does not show in the step of digest-off turns; it shows in the ME's busy time.
+- Against the plan's section 7: its row "gl38, digest off ~76" is what gl39 is expected to show. Its rows "71-73" and "70-72"
+  needed M1-M7's -5 to -7 on the main CPU, which this build does not have.
+- What moves the step under 76 from here is main-CPU work: the coupling (7.3 [C PSP], this run's question), then M1 / M2 / M5.
+
+9. DEVIATIONS, FAILURES, THINGS I AM UNSURE OF
+FAILED OR WRONG (mine unless said):
+ F1. M5 is not in the PSP EBOOT (section 0). Why not rebuilt: with the block in rt/kernel.h GCC changes the inlining of 17 runtime
+     functions (boot_rt.o's text +17.7 KB; k_syscall is no longer inlined) [C side compile], so it needs a new profile, new
+     traces, a new order search and all gates again (3 to 4 hours) for 0.11 ms a step [C model, side build]. The cfg keeps its
+     keys (bit 18 clear in turns t % 16 = 0, 1: no effect [C code: no other code tests the bit; main_psp.c names the step
+     configuration from the whole word once at the start, where MGS2_OPT2 is gl38's fffff9df]) so the twin's sch arm stays its
+     proof; only words changed. If the lead wants M5 in, it is its own build step.
+ F2. M7 gained nothing (section 4). The search's own figure (seed -> final) is not a comparison with gl38's build; I should
+     have judged the first relink against gl38's build at the same turns (k38y) before anything else. I made that run only at
+     the end.
+ F3. The first data guard failed (+4.75); repaired by pads over three relinks. Two things went wrong on the way: the NOBITS pad
+     changed the ELF's segments and I noticed after the gates (nothing left the container), and the second cause (the hot block
+     itself moving ge_xlate.o's tables) I found only after the first padded build had been modelled.
+ F4. The main CPU is +0.4 ms a step over gl38's in the same turns [C model] (section 5 G-b): not repaired.
+ F5. Slips caught by a later check: the order search's weight file (off by one), g4_39.sh comparing the build with itself,
+     the plan's prof39.py label 'hw' (it is the digest's hash function, not a wait), my DHIST note "gl38's new counters" (they
+     exist in gl36 too; it was collisions only).
+ F6. t0's hash difference cost about two hours before the emulator was found to be the cause (section 3).
+DEVIATIONS (each chosen by me; say if you want one undone):
+ D1. Levers M1, M2, M3, M4, M6 dropped before the build (section 0); "one all-on / all-off pair" and "M2+M4+M5+M6 one arm" of
+     the order therefore do not exist. gl39 is a measurement + placement build.
+ D2. The profiling emulator has a second binary with a fix (section 3). The toolchain / emulator rule asks for a reason and a
+     word to the owner: the reason is in section 3; the word is the lead's to give. Everything else used the unchanged
+     emulators (the release for the gates, the reference build untouched).
+ D3. Pads in the link (13 KB of memory) instead of a source change; m/scripts/psp.sh got two optional variables (MESEC, XLD;
+     unset = byte-equal relink [C]).
+ D4. The reader no longer labels turns by M5; cfg comment 6 corrected (edits/ed5_m5_inert.py).
+ D5. The final build's model windows were run on each candidate; the old ones are kept as results/score39_np.out (unpadded) and
+     results/score39_pf.out (two pads). The unpadded and NOBITS builds' folders and their model files were deleted for disk.
+UNSURE / UNKNOWN:
+ U1. Whether the PSP shows any data-placement effect of section 5 (one simulated cache; gl36's run did not show it for ME turns).
+ U2. The digest's size on the PSP: the model says 22.7 ms of ME work (x 0.8 = 18), the plan inferred 13.6 from gl38's timers.
+ U3. K8 with a load: on the PSP the main CPU posts a load only when the ME has caught up; with MGS2_LOAD_US = 100 ms a picture and
+     a K7-like step of about 70 ms the ME is busy about 70 % of the time [I]. If 'not posted' is large in the PSP log, the load
+     is thinner than meant.
+ U4. G4's two turns of live captures (another frame on the display [I]).
+ U5. The hot block's own effect (never measured without it).
+ U6. Why the old emulator binary's runs were sometimes equal.
+LIMITS OF THE MEASUREMENT (in the README too): K7 / K8 turns show a standing picture; the first frame of a K0 turn after a K7 /
+K8 turn differs from the plain run's and its first half second carries a fading trace; digest-off turns have no digest of their
+own (their lists were proven in the digests-on test run, section 2); the rain wait's first four turns settle; 30,600-30,800 is
+heavier by about 5 ms; the emulator's ME times are a thread's on one emulated CPU, not PSP figures.
+
+10. PACKAGE (build_gl39/deliver, 18 MB; NOT delivered, nothing on the PC or the PSP)
+52eb42460054cd3a3600d82026fb33cb  EBOOT.PBP
+86134db71eaa8193ab934bb6fc32751c  ovl_d00t.bin
+8e43ed958e36a5abd2980466f6644370  ovl_d01t.bin
+b2b64a827fae1c25cf0b6ed41bc7d5b3  ovl_init.bin
+5146c4af170a8f0f7fd3e7f0eb6e6044  ovl_n_title.bin
+9722c587d811f992aca825c87fe8b1e3  ovl_r_title.bin
+a7065606d3d7d9714575f5337eab0976  ovl_r_tnk0.bin
+beefb6eefc69e21151de7887c6e3decb  ovl_w00a.bin
+97571efaa8ef4f617ea2f2a99a22b37f  ovl_w01a.bin
+4263dd11ac671f574f47fe5f69f81963  mgs2.cfg
+c9ddb593c61c07c41b0183952c753d94  hashref.txt
+7bc72aceb89b192298c635ef52b81b8f  pad.txt
+b79667856892b9acee5ff66dbba3e9b8  rd39pc.py
+b20a69baf75c211ef4aaadc2ff0ff071  README.txt
+e3f4c0df306b8567beddb9e899e83cd6  SLES_503.83
+189ca53f0db7ebbe170007beb06a8c09  mgs2disc.pak
+MANIFEST.md5 itself: 91fdaacf8d2857da15c439271cb2e0b5. SLES_503.83 and mgs2disc.pak are the stick's own files (md5s as gl36's manifest; not in the
+folder). hashref.txt and pad.txt are gl38's files. Copies of README.txt, MANIFEST.md5 and rd39pc.py are in attic/gl39/ (text only).
+In attic/gl39 (text only, no game data): tools/ (score39.py, fdiff39.py, dh39.py, k0cmp39.py, sched39.py, mkcfg39.py, pxcmp.py,
+padcmp.py, m5side.py, piccmp39.py, the emulator patch), scripts/ (the build's shell scripts, the reader template, gl38_y cfg,
+ed5), padld/ (the linker scripts), results/ (score, guard, gates, real = simulated, picture counts).
+Kept in build_gl39 for the lead: psp/ (final ELF and overlays), u/ (the use build's objects), pk_f39/ (the package as the emulator
+ran it), emu_f2/, emu_f3/ (logs, pictures), emu_n1/, model/ (the final build's windows, k38y, m5a / m5b), model_pf/, psp_pf/ and
+psp_np/ (the two earlier relinks), ord/final (the order), tw2/ (the twin's logs), cfg/, cfg_emu/, *.out.
+Deleted for disk (literal paths): the merged traces (lay/t0n.it, t1n.it: rt39a.sh's trace step makes them again), the unpadded
+build's model files, the NOBITS build, the no-PGO build n39, old candidates' packages and picture folders, the M5 side build.
+
+11. DRAFT HARNESS ENTRY (for psp_harness.md; the lead edits and places it)
+## Build gl39 (2026-11-23): measurement build (digest-off turns, K8 + ME loads, probes, F1 on); packaged, NOT delivered
+
+- **What it is:** gl38 + MGS2_DIG_CYCLE (no frame digest in a turn), kind K8 (nothing drawn in an ME turn) with MGS2_LOAD_CYCLE / MGS2_LOAD_US (the ME busy with arithmetic / cached reads / uncached writes on its own memory: no call, no register), MGS2_PROBE9 (service calls and whole-cache write-backs counted and timed, a 'gl39 probe' line a turn), F1 on by default (off in t63, t65), re-use off, a hot data block + 13 KB of link pads, a retrained code order. 38 K0, 2 K5, 15 K7, 19 K8 turns.
+- **Not in it:** M5 (its block is in the twin's runtime/kernel.h only; the PSP compiles rt/kernel.h: MGS2_OPT2 bit 18 does nothing). M1-M4, M6 dropped before the build. The code order retrain gained nothing against gl38 (I-misses +1.0-1.6 % K7, +1.6-2.6 % K0 at the same turns).
+- **Gates [C]:** twin 9 arms 685/685 = c9ddb593; emulator final package 62/62 + 266/266 digests = the twin's same-schedule arm (K0 166, K7 50, K8 50); K0 lists = the plain run's in 403 of 405 frames with digests on in every turn (2 = first frame after K7); F1 check 0 differing (474,212 emulator; 2,226,860 + 1,877,821 twin); 133 sce names = gl38's; 3 LOAD segments as gl38's; heap low point reads 64 KB (break 0be66000, gl38 0be60000, gl36 0be6a000); real = simulated; relink byte-equal.
+- **Data guard [C model]:** first relink FAILED (+4.75 ms a step in the guard's ME turn: tables 0x3c0 / 0xa40 off gl38's cache sets); three pads (ME_PAD 0x15c0, XL_PAD 0x210, RO_PAD 0x1c40) -> static D-misses gl36 + 1.6 % in the ME turn (limit + 2 %), gl38 + 1.0-1.2 % in K7. K7 whole window still +0.39-0.47 over gl38 (main CPU).
+- **Model [C model, ms a PSP step, main / ME]:** digest on - off +0.2-0.5 / +22.7 (walk +17.7); F1 off - on +0.1-0.2 / +1.5 (walk +0.2); K8 no load - K7 +0.45; M5 0 (side build 0.11); gl39 - gl38 same turn: K0 digest-off F1 off main +0.4, ME -0.05; K7 +0.4. Run-to-run spread of one turn 0.1-0.3.
+- **Expected PSP [I]:** rain wait K0 digest-off, F1 on about 76 ms a step (main-limited; gl38 84.99 with the digest); K7 68-69 (t57, t64), 73 (t67); K0 digests on F1 off (t65) about 85.
+- **Emulator:** PspProf's interpreter computed mul.s / div.s / sqrt.s / cvt.s.w in a stale host rounding mode after a thread switch (state differences in profile windows; the "model runs not state-exact" note of gl36 / gl38). Fixed in build/PPSSPPHeadless_fcr (patch attic/gl39/tools/ppsspp_pspprof_fcr_2026-11-23.diff); model counts unchanged (gl38's build within 0.5 ms). Owner not yet told.
+- **Package** /home/claude/main/build_gl39/deliver (attic/gl39/MANIFEST.md5 91fdaacf): EBOOT 52eb4246, d00t 86134db7, d01t 8e43ed95, init b2b64a82, n_title 5146c4af, r_title 9722c587, r_tnk0 a7065606, w00a beefb6ee, w01a 97571efa, cfg 4263dd11, hashref c9ddb593, pad 7bc72ace, rd39pc.py b7966785, README b20a69ba.
+- **Read rule for the PSP run:** the coupling = K8 <load> minus K7 on the main CPU's logic, per scene; the digest = K0 digests on minus off; F1 = t63 against t56 / t62 / t66 on the ME's busy time; t65 is gl38's K0 (the link to 84.99); check 'ME load entries not posted' before reading a load turn.
+
+Proposed harness rules (new):
+1. "A lever is in a build only when its code is shown in the PSP ELF (a symbol, the disassembly, or a counter in the log), not
+   when its twin arm passes: boot_rt.o compiles rt/ ahead of runtime/, so a change in runtime/kernel.h, ee_io.h, iop_host.h or
+   sif.h reaches the PC twin only."
+2. "After every relink compare `readelf -l` with the last delivered build's: the same number of LOAD segments, the first R E with
+   FileSiz = MemSiz. A pad in a linker script is a section with contents, never NOBITS in front of loaded sections."
+3. "After any change of statics, compare the hot tables' addresses mod 0x2000 with the last build's from the link map before any
+   model run; judge a retrain against the last build's own windows at the same turns and kinds (one extra cfg for the old
+   build), first."
+4. "Profile runs use PPSSPPHeadless_fcr; a profiled run whose hash lines differ is a finding, not noise."

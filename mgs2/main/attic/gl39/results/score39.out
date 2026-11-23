@@ -1,0 +1,89 @@
+== 1. THE EMULATOR CHECK: gl38's final build run again now (k38x, PPSSPPHeadless_fcr) against gl38's own model runs of the same turns
+  29,810 t58 rain wait K0 (gl38)     now  173.63, then (k38a.7)  173.62 ms a step: +0.01  (instr  +0.20 %, I-miss  +0.09 %, D-miss  -0.58 %)
+  30,010 t60 rain wait K0 (gl38)     now  171.65, then (k38b.1)  172.14 ms a step: -0.48  (instr  -0.13 %, I-miss  -0.02 %, D-miss  -0.85 %)
+  30,510 t65 rain wait K7 (gl38)     now   70.36, then (k38b.6)   70.32 ms a step: +0.04  (instr  +0.05 %, I-miss  +0.15 %, D-miss  +0.05 %)
+  30,810 t68 walk K0 (gl38)          now  170.16, then (k38c.3)  170.55 ms a step: -0.39  (instr  +0.06 %, I-miss  +0.10 %, D-miss  -1.24 %)
+  30,910 t69 walk K7 (gl38)          now   68.05, then (k38c.4)   67.86 ms a step: +0.19  (instr  +0.23 %, I-miss  +0.65 %, D-miss  +0.16 %)
+== 2. EVERY WINDOW, ms a PSP step [C model]: main (game + runtime + other) | ME (the picture code, with the digest) | of it the digest || main + ME: instr, I-miss, D-miss a step
+  ka39    29,510 t55 rain wait K0 digests on             main  74.09 (game  37.31)  ME  99.00  dig  17.02 ||  22700784 106507 150478
+  ka39.1  29,610 t56 rain wait K0 digest-off             main  72.98 (game  36.93)  ME  78.26  dig   0.00 ||  18817266 106792 140148
+  ka39.2  29,710 t57 rain wait K7                        main  68.24 (game  36.59)  ME   0.04  dig   0.00 ||   8721453  47691  59343
+  ka39.3  29,810 t58 rain wait K8 no load                main  68.69 (game  36.86)  ME   0.04  dig   0.00 ||   8772495  48239  59696
+  ka39.4  30,210 t62 rain wait K0 digest-off             main  73.40 (game  36.91)  ME  78.18  dig   0.00 ||  18893656 105982 140660
+  ka39.5  30,410 t64 rain wait K7 (bit 18 clear)         main  68.85 (game  36.83)  ME   0.04  dig   0.00 ||   8797792  48225  59818
+  ka39.6  30,910 t69 walk K0 digest-off                  main  72.49 (game  36.33)  ME  59.53  dig   0.00 ||  16485005  92230 122000
+  ka39.7  31,010 t70 walk K7                             main  73.06 (game  37.75)  ME   0.04  dig   0.00 ||   9305126  55791  60403
+  km39    29,610 t56 K0 digest-off, bit 18 clear         main  73.03 (game  36.94)  ME  78.31  dig   0.00 ||  18831141 106838 140201
+  km39.1  29,710 t57 K7, bit 18 clear                    main  68.53 (game  36.78)  ME   0.04  dig   0.00 ||   8754579  48037  59557
+  km39.2  30,210 t62 K0 digest-off, bit 18 clear         main  73.38 (game  36.89)  ME  78.18  dig   0.00 ||  18889867 105968 140636
+  km39.3  31,010 t70 walk K7, bit 18 clear               main  73.13 (game  37.79)  ME   0.04  dig   0.00 ||   9313472  55903  60444
+  kf39    29,610 t56 K0 digest-off, F1 off               main  73.11 (game  36.95)  ME  79.75  dig   0.00 ||  18932978 107867 143326
+  kf39.1  30,210 t62 K0 digest-off, F1 off               main  73.62 (game  36.97)  ME  79.75  dig   0.00 ||  19040344 107106 143891
+  kf39.2  30,710 t67 K7 digests on (gl38's t67)          main  72.90 (game  38.59)  ME   0.05  dig   0.00 ||   9368205  50735  62610
+  kf39.3  30,910 t69 walk K0 digest-off, F1 off          main  72.50 (game  36.34)  ME  59.76  dig   0.00 ||  16486694  92428 122723
+  kd39    29,610 t56 K0 digests ON                       main  73.21 (game  36.88)  ME 100.98  dig  17.68 ||  22793199 107353 152278
+  kd39.1  30,210 t62 K0 digests ON                       main  73.89 (game  36.97)  ME 100.87  dig  17.48 ||  22888176 106699 153171
+  kd39.2  30,910 t69 walk K0 digests ON                  main  72.59 (game  36.25)  ME  77.28  dig  14.03 ||  19616498  92486 130798
+  dn39    29,810 no kinds, ME turn                       main  73.36 (game  36.88)  ME 101.64  dig  17.44 ||  22809634 107321 155136
+  dn39.1  29,910 no kinds, main-drawing turn             main  71.75 (game  36.95)  ME  85.40  dig  16.91 ||  20556889 102150 133319
+  k38x    29,810 t58 rain wait K0 (gl38)                 main  72.71 (game  36.88)  ME 100.92  dig  17.46 ||  22857865 103982 151544
+  k38x.1  30,010 t60 rain wait K0 (gl38)                 main  73.00 (game  37.10)  ME  98.66  dig  17.14 ||  22566998 105810 148022
+  k38x.2  30,510 t65 rain wait K7 (gl38)                 main  70.31 (game  37.45)  ME   0.05  dig   0.00 ||   9001408  50658  59679
+  k38x.3  30,710 t67 rain wait K7 (gl38)                 main  72.62 (game  38.64)  ME   0.05  dig   0.00 ||   9389350  50057  61667
+  k38x.4  30,810 t68 walk K0 (gl38)                      main  74.54 (game  36.94)  ME  95.61  dig  17.78 ||  22524656  98977 148435
+  k38x.5  30,910 t69 walk K7 (gl38)                      main  68.00 (game  36.18)  ME   0.05  dig   0.00 ||   8671578  50843  56922
+  k38y    29,610 t56 K0 no digests, F1 off (gl38, gl39's kinds) main  72.75 (game  37.00)  ME  79.82  dig   0.00 ||  18937432 105135 144317
+  k38y.1  29,710 t57 K7 (gl38, gl39's kinds)             main  67.77 (game  36.54)  ME   0.04  dig   0.00 ||   8703481  47211  58257
+  k38y.2  30,210 t62 K0 no digests, F1 off (gl38)        main  73.21 (game  36.99)  ME  79.77  dig   0.00 ||  19014591 104351 145063
+  k38y.3  30,410 t64 K7 (gl38)                           main  68.45 (game  36.81)  ME   0.04  dig   0.00 ||   8789856  47778  58783
+  k38y.4  30,710 t67 K7 no digests (gl38)                main  72.49 (game  38.63)  ME   0.04  dig   0.00 ||   9370202  49953  61570
+  k38y.5  30,910 t69 walk K0 no digests, F1 off (gl38)   main  72.15 (game  36.30)  ME  60.23  dig   0.00 ||  16503232  90935 124033
+  k38y.6  31,010 t70 walk K7 (gl38)                      main  72.67 (game  37.72)  ME   0.04  dig   0.00 ||   9308966  55044  59411
+== 3. THE LEVERS: each line is one window MINUS another, ms a PSP step [C model]; "-> PSP" = main x 1.0 + ME x 0.8 [I]
+ -- M5 IS NOT IN THE PSP BUILD (its block is in the twin's kernel file only): these lines are TWO RUNS OF THE SAME CODE = the model's run-to-run spread
+  bit 18 clear - set, 29,610 K0 digest-off (two runs, the same turn) km39 - ka39.1     main  +0.05  ME  +0.04  (dig  +0.00) -> PSP  +0.08  [instr   +13875 I    +46 D    +53]
+  bit 18 clear - set, 29,710 K7 (two runs, the same turn)        km39.1 - ka39.2   main  +0.29  ME  +0.00  (dig  +0.00) -> PSP  +0.29  [instr   +33126 I   +346 D   +215]
+  bit 18 clear - set, 30,210 K0 digest-off (two runs, the same turn) km39.2 - ka39.4   main  -0.03  ME  +0.00  (dig  +0.00) -> PSP  -0.03  [instr    -3789 I    -14 D    -23]
+  bit 18 clear - set, 31,010 walk K7 (two runs, the same turn)   km39.3 - ka39.7   main  +0.07  ME  -0.00  (dig  +0.00) -> PSP  +0.07  [instr    +8346 I   +112 D    +41]
+  K7 30,410 (t64) - 29,710 (t57) (one run, two turns)            ka39.5 - ka39.2   main  +0.61  ME  +0.00  (dig  +0.00) -> PSP  +0.61  [instr   +76339 I   +534 D   +476]
+ -- F1 (ME: the VU writes a later group overwrites left out), OFF minus on: what F1 saves
+  F1 off - on, 29,610 K0 digest-off                              kf39 - ka39.1     main  +0.13  ME  +1.48  (dig  +0.00) -> PSP  +1.32  [instr  +115711 I  +1074 D  +3178]
+  F1 off - on, 30,210 K0 digest-off                              kf39.1 - ka39.4   main  +0.22  ME  +1.57  (dig  +0.00) -> PSP  +1.48  [instr  +146688 I  +1124 D  +3232]
+  F1 off - on, 30,910 walk K0 digest-off                         kf39.3 - ka39.6   main  +0.01  ME  +0.22  (dig  +0.00) -> PSP  +0.19  [instr    +1689 I   +198 D   +723]
+ -- the frame digest, ON minus off: what a digest-off turn leaves out
+  digests on - off, 29,610 K0 (two runs, the same turn)          kd39 - ka39.1     main  +0.23  ME +22.71  (dig +17.68) -> PSP +18.41  [instr +3975933 I   +561 D +12130]
+  digests on - off, 30,210 K0 (two runs, the same turn)          kd39.1 - ka39.4   main  +0.48  ME +22.69  (dig +17.48) -> PSP +18.63  [instr +3994519 I   +717 D +12511]
+  digests on - off, 30,910 walk K0 (two runs, the same turn)     kd39.2 - ka39.6   main  +0.10  ME +17.74  (dig +14.03) -> PSP +14.29  [instr +3131492 I   +256 D  +8798]
+  digests on - off, 29,510 (t55) - 29,610 (t56) (one run)        ka39 - ka39.1     main  +1.11  ME +20.74  (dig +17.02) -> PSP +17.70  [instr +3883518 I   -285 D +10330]
+ -- the kinds of the delivery cfg among themselves (one run)
+  K0 digest-off 29,610 - K7 29,710: drawing, both CPUs           ka39.1 - ka39.2   main  +4.74  ME +78.22  (dig  +0.00) -> PSP +67.32  [instr +10095814 I +59101 D +80805]
+  K8 no load 29,810 - K7 29,710: the ME's turn with nothing drawn ka39.3 - ka39.2   main  +0.45  ME  +0.01  (dig  +0.00) -> PSP  +0.46  [instr   +51043 I   +548 D   +354]
+  K0 digest-off 30,210 - 29,610: two turns of one kind (the spread) ka39.4 - ka39.1   main  +0.43  ME  -0.08  (dig  +0.00) -> PSP  +0.36  [instr   +76390 I   -810 D   +512]
+  walk K0 digest-off 30,910 - walk K7 31,010                     ka39.6 - ka39.7   main  -0.57  ME +59.49  (dig  +0.00) -> PSP +47.03  [instr +7179879 I +36439 D +61597]
+ -- gl39 MINUS gl38 (code placement M7, the hot data block and pads, the probes): negative = gl39 is cheaper; "other turns" lines are NOT comparisons of builds
+  K7 30,710 (t67: the same turn, digests on)                     kf39.2 - k38x.3   main  +0.28  ME  +0.00  (dig  +0.00) -> PSP  +0.28  [instr   -21146 I   +678 D   +943]
+  K7 29,710 (t57) - gl38's K7 30,510 (t65): other turns          ka39.2 - k38x.2   main  -2.07  ME  -0.01  (dig  -0.00) -> PSP  -2.08  [instr  -279956 I  -2967 D   -336]
+  K7 30,410 (t64) - gl38's K7 30,510 (t65): other turns          ka39.5 - k38x.2   main  -1.46  ME  -0.01  (dig  -0.00) -> PSP  -1.47  [instr  -203617 I  -2433 D   +140]
+  walk K7 31,010 (t70) - gl38's walk K7 30,910 (t69): other turns ka39.7 - k38x.5   main  +5.06  ME  -0.01  (dig  -0.00) -> PSP  +5.05  [instr  +633548 I  +4947 D  +3481]
+  K0 digests on, F1 on 29,610 (kd39) - gl38's K0 29,810 (t58)    kd39 - k38x       main  +0.50  ME  +0.05  (dig  +0.22) -> PSP  +0.55  [instr   -64666 I  +3371 D   +735]
+  K0 digests on, F1 on 30,210 (kd39) - gl38's K0 30,010 (t60)    kd39.1 - k38x.1   main  +0.89  ME  +2.21  (dig  +0.34) -> PSP  +2.66  [instr  +321178 I   +889 D  +5149]
+  K0 digests on 29,510 (t55, F1 on) - gl38's K0 29,810 (t58)     ka39 - k38x       main  +1.38  ME  -1.92  (dig  -0.43) -> PSP  -0.15  [instr  -157081 I  +2525 D  -1065]
+  walk K0 digests on 30,910 (kd39) - gl38's walk K0 30,810 (t68) kd39.2 - k38x.4   main  -1.95  ME -18.34  (dig  -3.75) -> PSP -16.62  [instr -2908159 I  -6491 D -17637]
+ -- gl39 MINUS gl38, THE SAME TURN AND KIND (k38y: gl38's final build with gl39's kinds at the same vblanks, no digests, re-use and F1 off)
+  K0 digest-off, F1 off, 29,610 (t56)                            kf39 - k38y       main  +0.35  ME  -0.07  (dig  +0.00) -> PSP  +0.29  [instr    -4454 I  +2731 D   -991]
+  K0 digest-off, F1 off, 30,210 (t62)                            kf39.1 - k38y.2   main  +0.41  ME  -0.02  (dig  +0.00) -> PSP  +0.39  [instr   +25754 I  +2755 D  -1171]
+  walk K0 digest-off, F1 off, 30,910 (t69)                       kf39.3 - k38y.5   main  +0.36  ME  -0.47  (dig  +0.00) -> PSP  -0.02  [instr   -16538 I  +1493 D  -1310]
+  K0 digest-off, F1 ON in gl39 only, 29,610 (t56)                ka39.1 - k38y     main  +0.22  ME  -1.56  (dig  +0.00) -> PSP  -1.02  [instr  -120166 I  +1657 D  -4169]
+  K0 digest-off, F1 ON in gl39 only, 30,210 (t62)                ka39.4 - k38y.2   main  +0.19  ME  -1.59  (dig  +0.00) -> PSP  -1.08  [instr  -120935 I  +1632 D  -4403]
+  walk K0 digest-off, F1 ON in gl39 only, 30,910 (t69)           ka39.6 - k38y.5   main  +0.34  ME  -0.69  (dig  +0.00) -> PSP  -0.21  [instr   -18227 I  +1295 D  -2034]
+  K7 29,710 (t57)                                                ka39.2 - k38y.1   main  +0.47  ME  -0.00  (dig  +0.00) -> PSP  +0.47  [instr   +17971 I   +479 D  +1086]
+  K7 29,710 (t57), bit 18 clear (km39)                           km39.1 - k38y.1   main  +0.76  ME  -0.00  (dig  +0.00) -> PSP  +0.76  [instr   +51098 I   +825 D  +1300]
+  K7 30,410 (t64), bit 18 clear                                  ka39.5 - k38y.3   main  +0.40  ME  -0.00  (dig  +0.00) -> PSP  +0.40  [instr    +7936 I   +446 D  +1035]
+  K7 30,710 (t67) (gl39 with digests on)                         kf39.2 - k38y.4   main  +0.41  ME  +0.01  (dig  +0.00) -> PSP  +0.42  [instr    -1997 I   +782 D  +1040]
+  walk K7 31,010 (t70)                                           ka39.7 - k38y.6   main  +0.39  ME  -0.00  (dig  +0.00) -> PSP  +0.39  [instr    -3840 I   +746 D   +992]
+  walk K7 31,010 (t70), bit 18 clear (km39)                      km39.3 - k38y.6   main  +0.47  ME  -0.00  (dig  +0.00) -> PSP  +0.46  [instr    +4506 I   +859 D  +1033]
+ -- THE RETRAIN'S GUARD (gl38's guard cfg, no kinds): gl39 MINUS gl38 and MINUS gl36, the same cfg and windows
+  gl39 - gl38 (d38), ME turn 29,810                              dn39 - d38        main  +0.60  ME  -0.19  (dig  -0.01) -> PSP  +0.45  [instr   -22733 I  +3356 D   -641]
+     whole windows, ms a step: gl39  175.00, gl38  174.60, gl36  174.76: gl39 - gl38 +0.41, gl39 - gl36 +0.24 (D-misses a step 155136 / 155777 / 152729)
+  gl39 - gl38 (d38), main-drawing turn 29,910                    dn39.1 - d38.1    main  +0.47  ME  -0.46  (dig  +0.00) -> PSP  +0.10  [instr   -30003 I  +2884 D  -1656]
+     whole windows, ms a step: gl39  157.15, gl38  157.14, gl36  154.82: gl39 - gl38 +0.01, gl39 - gl36 +2.33 (D-misses a step 133319 / 134975 / 125862)
