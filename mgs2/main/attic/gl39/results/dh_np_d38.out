@@ -1,0 +1,37 @@
+# D-misses a PSP step: A /home/claude/main/build_gl38/model/d38.dhist (image end 0b231f40), B model_np/dn39.dhist (image end 0b234640)
+  dynamic (heap, game RAM, stacks)     A     56809  B     61342  B-A    +4533  (+1.17 ms a step)
+  static                               A     98968  B    110174  B-A   +11206  (+2.89 ms a step)
+ -- static data by symbol, largest changes
+   St                                           A     2126  B     4086  B-A    +1960
+   glf                                          A     3523  B     5195  B-A    +1672
+   gr                                           A     1868  B     2764  B-A     +897
+   VM                                           A     2033  B     2925  B-A     +893
+   own                                          A     1248  B     1940  B-A     +693
+   ovl_arena                                    A      905  B     1594  B-A     +689
+   lw_mem                                       A        0  B      645  B-A     +645
+   RULES                                        A      191  B      803  B-A     +612
+   vc_km                                        A      629  B       96  B-A     -533
+   R.0                                          A      515  B        0  B-A     -515
+   vpv_clipt                                    A      610  B     1105  B-A     +495
+   H                                            A       98  B      572  B-A     +474
+   xmp                                          A      389  B      849  B-A     +460
+   bd_sheet_i                                   A        0  B      414  B-A     +413
+   Lp                                           A      619  B      259  B-A     -359
+   lw_nh_n                                      A        0  B      308  B-A     +308
+   ud_n                                         A      295  B        0  B-A     -295
+   fl.9                                         A      356  B       62  B-A     -294
+   xl_nr_n                                      A        0  B      288  B-A     +288
+   xm_lw7_miss                                  A        0  B      277  B-A     +277
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0bf00000)                           A     5772  B     9946  B-A    +4174
+   (dynamic 0ba00000)                           A     7025  B     7177  B-A     +152
+   (dynamic 0be00000)                           A     9986  B    10127  B-A     +141
+   (dynamic 0b900000)                           A     1180  B     1042  B-A     -139
+   (dynamic 0b400000)                           A     7082  B     7206  B-A     +124
+   (dynamic 0bd00000)                           A     1702  B     1612  B-A      -90
+   (dynamic 0bc00000)                           A     2279  B     2353  B-A      +74
+   (dynamic 0b500000)                           A     6075  B     6148  B-A      +74
+   (dynamic 0b600000)                           A     1940  B     2010  B-A      +70
+   (dynamic 0bb00000)                           A     5196  B     5127  B-A      -69
+   (dynamic 0b200000)                           A      892  B      843  B-A      -49
+   (dynamic 0b300000)                           A      563  B      597  B-A      +35

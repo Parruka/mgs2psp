@@ -1,0 +1,235 @@
+DHIST guard of gl39's final build (EBOOT 52eb4246), tools/dh39.py, D-misses a PSP step [C model]
+== 1. guard cfg (no kinds), ME turn 29,810: gl38 (A) -> gl39 (B)
+# D-misses a PSP step: A /home/claude/main/build_gl38/model/d38.dhist (image end 0b231f40), B model/dn39.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     56809  B     57014  B-A     +205  (+0.05 ms a step)
+  static                               A     98968  B     98122  B-A     -846  (-0.22 ms a step)
+ -- static data by symbol, largest changes
+   g_ns                                         A      775  B      168  B-A     -607
+   vc_km                                        A      629  B       63  B-A     -566
+   gr                                           A     1868  B     2413  B-A     +545
+   Lp                                           A      619  B       86  B-A     -532
+   glf                                          A     3523  B     4050  B-A     +528
+   (static, no symbol)                          A     8777  B     8261  B-A     -517
+   R.0                                          A      515  B        0  B-A     -515
+   own                                          A     1248  B     1584  B-A     +336
+   lw_mem                                       A        0  B      326  B-A     +326
+   vpv_clipt                                    A      610  B      305  B-A     -305
+   ud_n                                         A      295  B        0  B-A     -295
+   F                                            A     1842  B     1557  B-A     -284
+   G                                            A      166  B      448  B-A     +282
+   H                                            A       98  B      351  B-A     +253
+   xl_nk_n                                      A       35  B      284  B-A     +249
+   fl.9                                         A      356  B      110  B-A     -246
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0b900000)                           A     1180  B      870  B-A     -310
+   (dynamic 0ba00000)                           A     7025  B     7314  B-A     +289
+   (dynamic 0bb00000)                           A     5196  B     4980  B-A     -216
+   (dynamic 0bc00000)                           A     2279  B     2472  B-A     +193
+   (dynamic 0b600000)                           A     1940  B     2122  B-A     +182
+   (dynamic 0b400000)                           A     7082  B     7190  B-A     +108
+   (dynamic 0b500000)                           A     6075  B     6175  B-A     +100
+   (dynamic 0bd00000)                           A     1702  B     1616  B-A      -87
+   (dynamic 0b200000)                           A      892  B      851  B-A      -41
+   (dynamic 0be00000)                           A     9986  B     9946  B-A      -40
+   (dynamic 0b300000)                           A      563  B      586  B-A      +23
+   (dynamic 0b800000)                           A     5536  B     5551  B-A      +15
+== 2. the same turn: gl36 (A) -> gl39 (B)
+# D-misses a PSP step: A /home/claude/main/build_gl38/model/d36.dhist (image end 0b23b8c0), B model/dn39.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     56172  B     57014  B-A     +842  (+0.22 ms a step)
+  static                               A     96558  B     98122  B-A    +1565  (+0.40 ms a step)
+ -- static data by symbol, largest changes
+   VM                                           A     3367  B     2007  B-A    -1360
+   gr                                           A     1102  B     2413  B-A    +1311
+   glf                                          A     2801  B     4050  B-A    +1249
+   St                                           A     1313  B     2203  B-A     +890
+   own                                          A     2183  B     1584  B-A     -599
+   Dx                                           A      616  B      180  B-A     -436
+   Fx                                           A     1814  B     1379  B-A     -435
+   g_io_ee                                      A      503  B      935  B-A     +432
+   gl_need                                      A      413  B        0  B-A     -413
+   g_mem                                        A    58440  B    58104  B-A     -336
+   lw_mem                                       A        0  B      326  B-A     +326
+   g_io_seen                                    A      242  B      554  B-A     +312
+   H                                            A       48  B      351  B-A     +304
+   xl_nk_n                                      A       12  B      284  B-A     +272
+   F                                            A     1815  B     1557  B-A     -258
+   Lp                                           A      343  B       86  B-A     -257
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0b400000)                           A     5218  B     7190  B-A    +1972
+   (dynamic 0bf00000)                           A     7343  B     5759  B-A    -1583
+   (dynamic 0be00000)                           A     9280  B     9946  B-A     +666
+   (dynamic 0b500000)                           A     6327  B     6175  B-A     -152
+   (dynamic 0ba00000)                           A     7462  B     7314  B-A     -148
+   (dynamic 0bc00000)                           A     2618  B     2472  B-A     -146
+   (dynamic 0bb00000)                           A     4870  B     4980  B-A     +110
+   (dynamic 0b900000)                           A      762  B      870  B-A     +108
+   (dynamic 0bd00000)                           A     1532  B     1616  B-A      +83
+   (dynamic 0b600000)                           A     2193  B     2122  B-A      -71
+   (dynamic 0b800000)                           A     5512  B     5551  B-A      +39
+   (dynamic 0b200000)                           A      879  B      851  B-A      -27
+== 3. guard cfg, main-drawing turn 29,910: gl38 -> gl39
+# D-misses a PSP step: A /home/claude/main/build_gl38/model/d38.1.dhist (image end 0b231f40), B model/dn39.1.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     29486  B     29701  B-A     +215  (+0.06 ms a step)
+  static                               A    105489  B    103617  B-A    -1872  (-0.48 ms a step)
+ -- static data by symbol, largest changes
+   (static, no symbol)                          A    14907  B    14260  B-A     -647
+   lw_mem                                       A        0  B      634  B-A     +634
+   R.8                                          A      622  B        3  B-A     -619
+   R.0                                          A      594  B        0  B-A     -594
+   glf                                          A     3157  B     3729  B-A     +572
+   xm_lw3_miss                                  A      567  B        0  B-A     -567
+   vc_km                                        A      620  B       54  B-A     -567
+   gr                                           A     1713  B     2204  B-A     +490
+   ts_t                                         A      408  B        0  B-A     -408
+   g_ns                                         A      460  B       52  B-A     -408
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0b600000)                           A     1940  B     2122  B-A     +182
+   (dynamic 0b500000)                           A     5824  B     5932  B-A     +107
+   (dynamic 0bf00000)                           A     6975  B     6915  B-A      -61
+   (dynamic 0b200000)                           A      889  B      850  B-A      -39
+   (dynamic 0be00000)                           A     4630  B     4659  B-A      +29
+   (dynamic 0bd00000)                           A     1254  B     1232  B-A      -22
+   (dynamic 0b300000)                           A      563  B      583  B-A      +20
+   (dynamic 0b400000)                           A     6603  B     6601  B-A       -2
+   (dynamic 0b700000)                           A      808  B      808  B-A       +0
+== 4. the same turn: gl36 -> gl39
+# D-misses a PSP step: A /home/claude/main/build_gl38/model/d36.1.dhist (image end 0b23b8c0), B model/dn39.1.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     27514  B     29701  B-A    +2188  (+0.56 ms a step)
+  static                               A     98349  B    103617  B-A    +5268  (+1.36 ms a step)
+ -- static data by symbol, largest changes
+   St                                           A     1247  B     3463  B-A    +2217
+   glf                                          A     2432  B     3729  B-A    +1297
+   VM                                           A     2866  B     1867  B-A     -999
+   lw_mem                                       A        0  B      634  B-A     +634
+   (static, no symbol)                          A    14844  B    14260  B-A     -584
+   F                                            A      865  B     1380  B-A     +515
+   H                                            A       48  B      563  B-A     +515
+   g_io_ee                                      A      492  B      934  B-A     +442
+   gr                                           A     1818  B     2204  B-A     +386
+   own                                          A     1259  B     1621  B-A     +361
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0b400000)                           A     5511  B     6601  B-A    +1090
+   (dynamic 0bf00000)                           A     5889  B     6915  B-A    +1025
+   (dynamic 0be00000)                           A     4366  B     4659  B-A     +292
+   (dynamic 0b500000)                           A     6022  B     5932  B-A      -91
+   (dynamic 0b600000)                           A     2193  B     2122  B-A      -70
+   (dynamic 0b200000)                           A      875  B      850  B-A      -25
+   (dynamic 0bd00000)                           A     1257  B     1232  B-A      -25
+   (dynamic 0b300000)                           A      592  B      583  B-A       -9
+   (dynamic 0b700000)                           A      808  B      808  B-A       +0
+== 5. K7 t57 29,710: gl38 (k38y.1) -> gl39 (ka39.2)
+# D-misses a PSP step: A model/k38y.1.dhist (image end 0b231f40), B model/ka39.2.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A      3582  B      4013  B-A     +432  (+0.11 ms a step)
+  static                               A     54675  B     55329  B-A     +654  (+0.17 ms a step)
+ -- static data by symbol, largest changes
+   g_io_ee                                      A      703  B      930  B-A     +228
+   g_io_seen                                    A      373  B      554  B-A     +181
+   k_in_intr                                    A        0  B      139  B-A     +139
+   g_xl_end                                     A        0  B      112  B-A     +112
+   k_al                                         A      149  B       48  B-A     -102
+   mc_cwd                                       A      102  B        2  B-A     -100
+   verbose_from                                 A        0  B       98  B-A      +98
+   vif0                                         A       24  B      121  B-A      +97
+   g_xl_one                                     A       90  B        2  B-A      -88
+   k_th_hi                                      A       72  B        0  B-A      -72
+   nat_dbc0_n                                   A        0  B       70  B-A      +70
+   g_mem                                        A    47593  B    47526  B-A      -67
+   g_env                                        A       95  B      151  B-A      +56
+   jalr_c                                       A      238  B      183  B-A      -55
+   vif0_buf                                     A      440  B      494  B-A      +54
+   um.2                                         A        0  B       50  B-A      +50
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0bf00000)                           A     1796  B     2266  B-A     +470
+   (dynamic 0b300000)                           A      624  B      578  B-A      -46
+   (dynamic 0b200000)                           A      845  B      876  B-A      +31
+   (dynamic 0b400000)                           A       76  B       47  B-A      -29
+   (dynamic 0be00000)                           A      228  B      233  B-A       +5
+   (dynamic 0b900000)                           A        2  B        2  B-A       -0
+   (dynamic 0ba00000)                           A        0  B        0  B-A       +0
+   (dynamic 0bd00000)                           A       12  B       12  B-A       -0
+== 6. K7 t67 30,710: gl38 (k38y.4) -> gl39 (kf39.2)
+# D-misses a PSP step: A model/k38y.4.dhist (image end 0b231f40), B model/kf39.2.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A      3780  B      4250  B-A     +470  (+0.12 ms a step)
+  static                               A     57790  B     58361  B-A     +570  (+0.15 ms a step)
+ -- static data by symbol, largest changes
+   g_io_ee                                      A      788  B     1013  B-A     +225
+   g_io_seen                                    A      417  B      606  B-A     +189
+   g_mem                                        A    50002  B    49849  B-A     -153
+   k_in_intr                                    A        0  B      150  B-A     +150
+   g_xl_end                                     A        0  B      120  B-A     +120
+   k_al                                         A      162  B       48  B-A     -114
+   mc_cwd                                       A      107  B        2  B-A     -105
+   vif0                                         A       25  B      130  B-A     +105
+   g_xl_one                                     A      100  B        1  B-A      -99
+   verbose_from                                 A        0  B       96  B-A      +96
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0bf00000)                           A     1905  B     2430  B-A     +525
+   (dynamic 0b400000)                           A       77  B       16  B-A      -61
+   (dynamic 0b200000)                           A      859  B      884  B-A      +25
+   (dynamic 0b300000)                           A      648  B      625  B-A      -24
+   (dynamic 0be00000)                           A      275  B      280  B-A       +5
+   (dynamic 0b900000)                           A        2  B        2  B-A       -0
+   (dynamic 0ba00000)                           A        0  B        0  B-A       +0
+   (dynamic 0bd00000)                           A       12  B       12  B-A       +0
+== 7. K0 digest-off F1 off t56 29,610: gl38 (k38y) -> gl39 (kf39)
+# D-misses a PSP step: A model/k38y.dhist (image end 0b231f40), B model/kf39.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     48357  B     49343  B-A     +986  (+0.25 ms a step)
+  static                               A     95959  B     93983  B-A    -1976  (-0.51 ms a step)
+ -- static data by symbol, largest changes
+   R.0                                          A      517  B        0  B-A     -517
+   VM                                           A     2512  B     2007  B-A     -505
+   vc_km                                        A      604  B      118  B-A     -486
+   St                                           A     2504  B     2023  B-A     -481
+   g_ns                                         A      550  B      166  B-A     -384
+   vpv_clipt                                    A      626  B      273  B-A     -353
+   lw_mem                                       A        0  B      318  B-A     +318
+   VPsrc                                        A      752  B      436  B-A     -316
+   H                                            A       54  B      354  B-A     +300
+   fl.9                                         A      385  B       91  B-A     -294
+   gr                                           A      868  B     1127  B-A     +259
+   xl_nk_n                                      A       39  B      288  B-A     +249
+   ud_n                                         A      248  B        0  B-A     -248
+   Lp                                           A      345  B      116  B-A     -229
+   g_io_ee                                      A      710  B      939  B-A     +229
+   lane_on                                      A        0  B      221  B-A     +221
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0bf00000)                           A     5535  B     6828  B-A    +1293
+   (dynamic 0b400000)                           A     6527  B     5737  B-A     -790
+   (dynamic 0b500000)                           A     4158  B     4541  B-A     +384
+   (dynamic 0b800000)                           A     3776  B     4116  B-A     +340
+   (dynamic 0b700000)                           A      309  B        0  B-A     -309
+   (dynamic 0bb00000)                           A     4652  B     4478  B-A     -174
+   (dynamic 0bc00000)                           A     2821  B     2963  B-A     +142
+   (dynamic 0bd00000)                           A     1573  B     1663  B-A      +90
+   (dynamic 0be00000)                           A     9461  B     9511  B-A      +51
+   (dynamic 0b900000)                           A      602  B      570  B-A      -32
+   (dynamic 0b300000)                           A      629  B      598  B-A      -31
+   (dynamic 0b200000)                           A      850  B      874  B-A      +24
+== 8. K0 digest-off t62 30,210 F1 off: gl38 (k38y.2) -> gl39 (kf39.1)
+# D-misses a PSP step: A model/k38y.2.dhist (image end 0b231f40), B model/kf39.1.dhist (image end 0b237e40)
+  dynamic (heap, game RAM, stacks)     A     48480  B     49498  B-A    +1019  (+0.26 ms a step)
+  static                               A     96583  B     94393  B-A    -2190  (-0.57 ms a step)
+ -- static data by symbol, largest changes
+   g_ns                                         A      692  B      166  B-A     -526
+   VM                                           A     2542  B     2027  B-A     -515
+   R.0                                          A      506  B        0  B-A     -506
+   vc_km                                        A      612  B      113  B-A     -498
+   St                                           A     2443  B     1973  B-A     -470
+   VPsrc                                        A      848  B      447  B-A     -401
+   vpv_clipt                                    A      621  B      275  B-A     -346
+   H                                            A       34  B      346  B-A     +312
+   lw_mem                                       A        0  B      294  B-A     +294
+   fl.9                                         A      385  B       91  B-A     -293
+ -- dynamic memory by 1 MB, largest changes (the two builds addresses can differ)
+   (dynamic 0bf00000)                           A     5562  B     6834  B-A    +1272
+   (dynamic 0b400000)                           A     6478  B     5701  B-A     -777
+   (dynamic 0b500000)                           A     4137  B     4497  B-A     +360
+   (dynamic 0b800000)                           A     3752  B     4083  B-A     +330
+   (dynamic 0b700000)                           A      309  B        0  B-A     -309
+   (dynamic 0bc00000)                           A     2774  B     2930  B-A     +156
+   (dynamic 0bb00000)                           A     4586  B     4440  B-A     -147
+   (dynamic 0bd00000)                           A     1568  B     1667  B-A      +99
+   (dynamic 0be00000)                           A     9807  B     9850  B-A      +44
+   (dynamic 0ba00000)                           A     7364  B     7403  B-A      +39
+   (dynamic 0b300000)                           A      678  B      645  B-A      -32
+   (dynamic 0b900000)                           A      599  B      567  B-A      -32

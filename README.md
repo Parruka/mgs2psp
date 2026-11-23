@@ -46,6 +46,7 @@ The folder mirrors the project folder one to one, so paths in the notes stay val
 ## Latest builds
 | Build | What it was | PSP result |
 |---|---|---|
+| gl39 | measurement: frame check off in some turns, the Media Engine loaded on its own memory, timers for the queue | exact; rain wait 78.1 ms a step (6.4 fps) as a game build runs it, main-CPU limited; ~8 ms of drawing-time work on the main CPU still unexplained; `prof/hw_gl39/gl39_psp_read.md` |
 | gl38 | measurement: one kind of drawing left out per turn, new timers | exact; rain wait 85.0 ms a step, of it 13.6 the test's own picture check; costs per kind in `prof/hw_gl38/gl38_psp_read.md` |
 | gl36 | cull of hidden effect calls, re-use of the ship's pieces | exact; rain wait 85.1 ms a step (5.9 fps), 3.4 faster than gl35 |
 | gl35 | the fast native path for the ship's pieces in every turn, per-piece keeps in turns | exact; rain wait 88.6 ms a step |

@@ -1,0 +1,30 @@
+trace 1: 44366183 runs (0 marked), 11 windows, 9230850 runs after compression, 7015479 fetches outside the functions
+10493 functions, fetched: region 0 929 (2304952 bytes), 1 500 (1905380), 2 0 (0)
+current placement: trace 1 4679251 I-misses (weighted 4679251) test windows 334327 (weighted 334327), 4679251, test 334327
+current order, hot functions packed: trace 1 4604559 I-misses (weighted 4604559) test windows 341981 (weighted 341981), 4604559, test 341981
+funcs_deck_f.txt: 10493 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2920194 I-misses (weighted 2920194) test windows 220430 (weighted 220430), 2920194, test 220430
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    130158
+  trace 1 window 1        :    239186
+  trace 1 window 2        :    174320
+  trace 1 window 3        :     44625
+  trace 1 window 4        :    439175
+  trace 1 window 5        :    231140
+  trace 1 window 6        :    467540
+  trace 1 window 7        :    483802
+  trace 1 window 8        :    442575
+  trace 1 window 9        :    267673
+  trace 1 window 10 (test):    220430
+  sums, training windows: 2920194; test windows: 220430
+current order, hot functions packed: trace 1 3241484 I-misses (weighted 3241484) test windows 403469 (weighted 403469), 3241484, test 403469
+funcs_w01a_f.txt: 10300 functions matched, 0 hot ones missing, 0 hot ones changed size; I-misses: trace 1 2271823 I-misses (weighted 2271823) test windows 274950 (weighted 274950), 2271823, test 274950
+per-window table (I-misses of each whole window; the columns: [0] the relinked build (-new))
+  trace 1 window 0        :    257466
+  trace 1 window 1        :    338189
+  trace 1 window 2        :    281825
+  trace 1 window 3        :    378320
+  trace 1 window 4        :    263930
+  trace 1 window 5        :    408558
+  trace 1 window 6        :    343535
+  trace 1 window 7 (test):    274950
+  sums, training windows: 2271823; test windows: 274950

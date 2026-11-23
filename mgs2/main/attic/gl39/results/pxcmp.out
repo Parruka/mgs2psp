@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/claude/main/build_gl39/tools/pxcmp.py", line 11, in <module>
+    x, y = head(R + a), head(R + b)
+           ~~~~^^^^^^^
+  File "/home/claude/main/build_gl39/tools/pxcmp.py", line 7, in head
+    f = open(p).readline().split(); k = dict(zip(f[1::2], f[2::2])); return [int(k['total']) / 80.0, int(k['imiss']) / 80.0, int(k['dmiss']) / 80.0]
+        ~~~~^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/claude/main/build_gl39/model/hka39'

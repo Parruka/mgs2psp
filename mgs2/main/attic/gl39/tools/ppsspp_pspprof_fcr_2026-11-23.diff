@@ -1,0 +1,82 @@
+--- a/Core/MIPS/MIPSInt.cpp	2026-11-18 20:31:20.000000000 +0000
++++ b/Core/MIPS/MIPSInt.cpp	2026-11-23 02:18:37.560966141 +0000
+@@ -883,7 +883,7 @@
+ 
+ 		switch (op & 0x3f)
+ 		{
+-		case 4:	F(fd)	= sqrtf(F(fs)); break; //sqrt
++		case 4:	FI(fd) = PspProf::FcrOp(2, FI(fs), 0, currentMIPS->fcr31, currentMIPS->pc); break; //sqrt (local change: PspProf.h FcrOp)
+ 		case 5:	F(fd)	= fabsf(F(fs)); break; //abs
+ 		case 6:	F(fd)	= F(fs); break; //mov
+ 		case 7:	F(fd)	= -F(fs); break; //neg
+@@ -915,7 +915,7 @@
+ 			case 15: FsI(fd) = (int)floorf(F(fs)); break; //floor.w.s
+ 			}
+ 			break;
+-		case 32: F(fd) = (float)FsI(fs); break; //cvt.s.w
++		case 32: FI(fd) = PspProf::FcrOp(3, FI(fs), 0, currentMIPS->fcr31, currentMIPS->pc); break; //cvt.s.w (local change: PspProf.h FcrOp)
+ 
+ 		case 36:
+ 			if (my_isnanorinf(F(fs)))
+@@ -1026,10 +1026,10 @@
+ 				// Must be positive NAN, see #12519.
+ 				FI(fd) = 0x7fc00000;
+ 			} else {
+-				F(fd) = F(fs) * F(ft);
++				FI(fd) = PspProf::FcrOp(0, FI(fs), FI(ft), currentMIPS->fcr31, currentMIPS->pc);   // local change (2026-11-23): PspProf.h FcrOp
+ 			}
+ 			break;
+-		case 3: F(fd) = F(fs) / F(ft); break; // div.s
++		case 3: FI(fd) = PspProf::FcrOp(1, FI(fs), FI(ft), currentMIPS->fcr31, currentMIPS->pc); break; // div.s (local change: FcrOp)
+ 		default:
+ 			_dbg_assert_msg_(false,"Trying to interpret FPU3Op instruction that can't be interpreted");
+ 			break;
+--- a/Core/MIPS/PspProf.h	2026-11-18 23:31:32.979174431 +0000
++++ b/Core/MIPS/PspProf.h	2026-11-23 02:19:10.485799053 +0000
+@@ -6,6 +6,7 @@
+ #include <xmmintrin.h>
+ #include <cstdio>
+ #include <cstdlib>
++#include <cmath>
+ #include <vector>
+ #include <atomic>
+ #include <unordered_map>
+@@ -96,6 +97,27 @@
+ 	csr |= rc[fcr31 & 3] << 13; if (fcr31 & 0x01000000u) csr |= 0x8000u;
+ 	_mm_setcsr(csr);
+ }
++// local change (MGS2, 2026-11-23, gl39): mul.s / div.s / sqrt.s / cvt.s.w computed in the running thread's FCR31 mode, as add.s / sub.s
++// (MIPSInt.cpp).  Before, they ran in the host's mode, which is set at a slice's start (MIPSTables.cpp) and at ctc1 only: after a thread
++// switch inside a slice it was the previous thread's (a thread with the kernel's default FCR31 00000e00 -> round to nearest, no flush)
++// until the slice's end.  FcrOp: kind 0 mul 1 div 2 sqrt 3 cvt.s.w; counts the operations found in another host mode and those whose
++// result differs between the two modes (the first 24 printed).  PSPPROF_FPU_HOSTMODE=1 keeps the old result (the counts stay).
++struct FcrStat { uint64_t ops, wrongMode, differ; };
++inline FcrStat &fcrStat() { static FcrStat s; return s; }
++inline uint32_t FcrOp(int kind, uint32_t a, uint32_t b, uint32_t fcr31, uint32_t pc) {
++	static const bool old = [] { const char *e = getenv("PSPPROF_FPU_HOSTMODE"); return e && *e == '1'; }();
++	union U { uint32_t u; float f; int32_t i; };
++	auto calc = [&]() -> uint32_t { volatile U x, y; U r; x.u = a; y.u = b;
++		switch (kind) { case 0: r.f = x.f * y.f; break; case 1: r.f = x.f / y.f; break; case 2: r.f = sqrtf(x.f); break; default: r.f = (float)x.i; break; }
++		return r.u; };
++	FcrStat &s = fcrStat(); s.ops++;
++	const uint32_t csr = _mm_getcsr(); const uint32_t r0 = calc();
++	ApplyFcr31Host(fcr31); const uint32_t csr1 = _mm_getcsr(); const uint32_t r1 = calc(); _mm_setcsr(csr);
++	if (((csr ^ csr1) & 0xe040u) != 0) { s.wrongMode++;
++		if (r0 != r1) { if (s.differ++ < 24) fprintf(stderr, "PspProf: fpu mode: op %d at pc %08x: a %08x b %08x: host mode (csr %04x) %08x, FCR31 %08x mode (csr %04x) %08x; ops in another mode so far %llu\n",
++			kind, pc, a, b, csr & 0xffffu, r0, fcr31, csr1 & 0xffffu, r1, (unsigned long long)s.wrongMode); } }
++	return old ? r0 : r1;
++}
+ inline uint32_t memAddr(MIPSState *mips, uint32_t op, bool *isMem) {
+ 	uint32_t opc = op >> 26; *isMem = false;
+ 	switch (opc) {
+--- a/Core/MIPS/PspProf.cpp	2026-11-18 23:31:32.979691989 +0000
++++ b/Core/MIPS/PspProf.cpp	2026-11-23 02:18:50.636105169 +0000
+@@ -23,6 +23,8 @@
+ 	fprintf(stderr, "PspProf: flag at %08x, output %s\n", g.flagAddr, g.out);
+ }
+ void Dump() {
++	{ const FcrStat &s = fcrStat(); fprintf(stderr, "PspProf: fpu mode (mul.s div.s sqrt.s cvt.s.w in the interpreter so far): %llu, of them in a host mode other than FCR31's %llu, with another result there %llu%s\n",
++		(unsigned long long)s.ops, (unsigned long long)s.wrongMode, (unsigned long long)s.differ, getenv("PSPPROF_FPU_HOSTMODE") ? " (PSPPROF_FPU_HOSTMODE: the host mode's result kept)" : ""); }
+ 	if (g.it) { g.itFlush(); if (g.itAll) fflush(g.it); else { fclose(g.it); g.it = nullptr; } }   // the first profiled window only, unless PSPPROF_ITRACE_ALL
+ 	char name[512]; snprintf(name, sizeof name, g.dumps ? "%s.%d" : "%s", g.out, g.dumps); g.dumps++;
+ 	FILE *fp = fopen(name, "w"); if (!fp) return;

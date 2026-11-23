@@ -1,0 +1,18 @@
+# prof_codec_k7_all.txt
+  main CPU, all                                                    20.22 = instr  13.18 + I-miss   2.56 + D-miss   4.48
+  rt DMA/GIF walk, copies, stores: io_dma_start                     4.42 = instr   3.69 + I-miss   0.08 + D-miss   0.65
+  game libdg/evmobjs                                                3.33 = instr   2.34 + I-miss   0.20 + D-miss   0.79
+  game (no name)                                                    1.74 = instr   1.06 + I-miss   0.29 + D-miss   0.39
+  rt sound + IOP                                                    1.38 = instr   0.73 + I-miss   0.28 + D-miss   0.37
+  rt dispatch, kernel calls, interrupts                             1.09 = instr   0.56 + I-miss   0.16 + D-miss   0.37
+  rt other                                                          0.85 = instr   0.30 + I-miss   0.23 + D-miss   0.32
+  game libmt                                                        0.69 = instr   0.59 + I-miss   0.05 + D-miss   0.04
+  game libdg/chanl                                                  0.66 = instr   0.22 + I-miss   0.21 + D-miss   0.23
+  rt DMA/GIF walk, copies, stores: gif_qw                           0.61 = instr   0.48 + I-miss   0.00 + D-miss   0.12
+  rt VU0 micro programs                                             0.60 = instr   0.50 + I-miss   0.10 + D-miss   0.01
+  game sdk                                                          0.58 = instr   0.42 + I-miss   0.12 + D-miss   0.04
+  game kira                                                         0.53 = instr   0.34 + I-miss   0.05 + D-miss   0.14
+  game mode                                                         0.43 = instr   0.19 + I-miss   0.13 + D-miss   0.11
+  game sonoyama                                                     0.32 = instr   0.23 + I-miss   0.01 + D-miss   0.08
+  game libdg/screen                                                 0.30 = instr   0.16 + I-miss   0.08 + D-miss   0.06
+  rt DMA/GIF walk, copies, stores: rt_qcopy_nov                     0.28 = instr   0.16 + I-miss   0.01 + D-miss   0.11
