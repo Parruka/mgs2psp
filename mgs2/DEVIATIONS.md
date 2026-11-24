@@ -68,6 +68,12 @@ Your rule for every cut of this kind (cards 2026-11-07 21:17, "Cut cosmetic effe
 - Impact: each shadow sits 5 model units lower, under 1 px on screen; on the emulator the pictures change only inside the marks' own area, by a few colour levels at most [C: gl30 and gl31 G3]. Marks with no matching floor piece are drawn as before (192 of 224 in the opening part before the deck; all of w01a's after the deck, not yet in a run) [C: gl31 census].
 - Undo: MGS2_GL_DZ unset (the holes come back on the PSP).
 
+**B7. The people lit, skinned and mapped by the GE (C2, `OPT2_C2`; the lead's choice, 2026-11-24). On in every turn from gl42 (gl41 keeps it off: its turns compare with gl40's).**
+- What: the people's vertices are lit and skinned the PS2's way, but the final lighting and mapping are done by the PSP's GE (mapping (b), stagec_notes.md step 2). The native renderer draws the people only in this form (renderer step 2, main/attic/ge_native/step2_results.md).
+- Impact: up to 3.8 % of a picture's pixels differ from today's people path, 99.3 % of them by 1 colour level, edge pixels by up to 15; dark frames are equal [C: master emulator, indoor, 2026-11-02; shots in SHOTS\c2_people]. Game state is unchanged (hashes equal). The PSP's GE draws it exactly as the master emulator does [C: gl15 run].
+- Why now: your card of 2026-11-02 23:22 said "keep it off" and retest it after the picture moved to the ME. The picture is on the ME now, and the native people need C2.
+- Undo: clear bit 32 of MGS2_OPT2 (the people go back to today's path, not native).
+
 ## C. Picture gaps not fixed yet (defects, not choices)
 
 - **C1. Effects the default picture does not draw** (C4 off): one sprite program, P04+3740 (10-17% of the deck's shown pixels; 38-41% on the aft deck in the rain, most of it the rain's own sprites, which A2 leaves out anyway); P04+780 (up to 1.9%); small turned squares (up to 1.4%); the sea (up to 3.8% on the aft deck); the radar map's lines (0.3-0.5%) [C: PS2 frames with each kind left out, stagec_notes.md 4.2]. Fix: C4 (B4), then Stage C step 5 (the sea, the 2D and HUD, the radar).

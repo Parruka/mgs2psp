@@ -1,0 +1,109 @@
+gl41 build report (build agent, 2026-11-24 ~04:40 UTC). Package: /home/claude/main/build_gl41/deliver (15 files). NOT delivered:
+the lead reads it, then `update MGS2T_gl40 MGS2T_gl41` by zip and LOGS\gl41. Marks: [C] measured/read, [C model] PspProf (ms a PSP
+step), [C twin], [C emu], [C sim], [I] inferred (basis named), UNKNOWN. Details: attic/gl41/state.md blocks B1-B12; the full model
+table: attic/gl41/score41_final.txt.
+
+SCOPE AS ASKED
+- Native renderer step 1 (ship df0 groups native, MGS2_NGE / MGS2_NGE_CYCLE): attic/ge_native/step1/t40_step1.diff (late-walk fix in),
+  nge/, ge/nge.h, boot/nge_stub.h; 256 KB a region, static.
+- gl41s's levers P1 (MGS2_OPT2 bit 19) and P3 (bit 20) and probes a/b/c (E6 left out); gen_vu.h regenerated with gl41_genvu.py
+  (feb948ce -> a00691cd); probe lines renamed 'L41 probe a/b/c'.
+- Heap fix (a) texture table 128 KB from its first entry, (b) newlib's room logged (break's highest point by vblank, every ME heap
+  event, the texture table's event), (c) step 1's 9.2 KB scratch in one block outside newlib's heap, the cooker built with Os.
+- Turns: 74 turns from 24,000, kinds K-A 35, K-N1 17, P1-off 8, P3-off 8, K7 6 (README's table). Every lever turn has a K-A neighbour
+  in its scene, in the rain wait and in the walk. XP 3 everywhere (7 in the digest turns t55, t56, t73), M5 and F1 on.
+- One PGO training with native turns; one new order (gl40's guard stage, then a rain-weighted stage); pads retuned.
+ADDED IN THE BUILD (coordinator agreed where marked)
+- Step 1 with the picture loop apart (as on the PSP's ME) was wrong on the emulator: the late walk read the stub's references and
+  transforms from packet buffers already refilled. Fixed (REC copies the references with the groups; agreed 23:35); dated note in
+  step1_results.md.
+- me_pic thread stack 16 KB (64 KB did not fit after step 1's tables on the emulator); its deepest use logged.
+- 'picture: vb N content X' line on the ME path too (K-N1 lists differ by design; content must not).
+- HEAP DECISION: MAIN_KB 256 -> 128 (psp/main_psp.c), see HEAP below.
+- One import found and removed before the final build (see G4 below).
+
+GATES
+- Twin tw2 [C twin, vs hashref_gl38 c9ddb593]: all 8 arms 685/685, hashref byte-equal: off40 (gl40's keys: frames b8a2ae4fb016 x
+  16,903 = gl40's sch arm), off, p1, p3 (each lever on in the whole run), sch (the package's turns), noff (NGE on, check off), nchk
+  (NGE on all run, check mode, GX_SEM 2), lw7 (nchk + the PSP's late walk + XP check). NGE CHECK MODE: 1,626,909 referenced groups
+  compared over vb 24,000-37,800, 0 differences, W_ALL 0; content 073dd0e5adc7 x 14,303 in every arm, drawn2 = noff. lw7 XP check
+  219,731 plans, 0 differing. (Later changes are PSP-only: psp/main_psp.c, psp/xl_psp.c, PGO, order, pads: the twin stands.)
+- XP check [C emu, g3 = the package with the check in every plan]: 118,546 plans compared, DIFFERING 0 (1,968 by result only).
+- Emulator, the package (pk_g41 = deliver/) [C emu]: g2, g3, gh1, gh0 62/62 hashes each, 0 differ. g2 and g3 against the twin's
+  sch arm: K-A 55 frames list/frame 0 differ; K-N1 61 frames content 0 differ (list differs in 60 by design). Reader rd41pc.py on g2:
+  HASHES / DIGESTS / CONTENT EQUAL (66499cdb584a, 31c5f0e6f3d1 / dz 1f7b37428831, 876405908d6c), SCHEDULE CHECK none.
+- ELF [C]: 3 LOADs (R E 0x44c4b8 at 08804000; RW 0x23ac/0x245c; bss 0x25f3900 at 08c54000, align 0x2000). G4: 133 / 133 sce names,
+  0 differences, the stub sections the sizes of gl40's; mesec, me_call, xme_rest, xme_me PASS. M5 present: k_take_m5 at 08a67a0c,
+  rt_syscall tests bit 18 and calls it, else k_take_interrupts.part.0 (PGO split the walk), 3 call sites.
+  G4 first FAILED on final build 1 (EBOOT be50907b): 134 names, sceKernelGetThreadStackFreeSize from gl41's me_pic stack line.
+  Fixed with calls already imported (sceKernelReferThreadStatus + sceKernelGetThreadId; the thread marks its stack's bottom with 0xff,
+  the end counts the marks); only the cold mq_thread / xl_psp_gl_end changed, the line count kept; relink rt_new [C sim]: 0 hot
+  functions missing or resized, training-window I-misses = the search's figures; relinked twice byte-equal; RO_PAD 0xb88 -> 0xaa8
+  keeps .rodata at 08c124b0 after the +0xe0 of text; ovl_w00a.bin changed (914951f1 -> 58d0252e), the other overlays equal v1's.
+- HEAP GATE [C emu, pk_g41]: textures refused for want of memory 0 (pool 0, table 0) in g2, g3, gh1, gh0. gh1 (the package's native
+  turns, digests in every frame from 24,001) against gh0 (MGS2_NGE_CYCLE all 0): every non-N frame list/frame equal (K-A 1,662, P1-off
+  399, P3-off 400, K7 250 frames), every N frame's content equal (811; lists differ in 410 by design); 15 of 16 shots equal, the 4
+  K-N1 shots among them; shot_24784 (a P3-off turn, nothing native) 265 bytes +-4 levels: the known emulator noise of that shot.
+  WORST MOMENT OF THE ROUTE: the break's highest point 0be7a000 at vb 536 = the texture table's event (+128 KB): 135 KB of room
+  above the break + 34 KB free top = 170 KB (gate: >= 32 KB): PASS. ME heap events' lowest room + top 158 KB (vb 23,676); boot 439
+  KB; end report 155 KB; malloc can still give 144 KB in 1 block at the end. me_pic deepest stack use 5,276 of 16,384 B (the
+  package run; on the PSP the ME has no thread and prints no such line).
+
+HEAP: WHAT WAS DECIDED AND WHY
+- (a)-(c) as asked. On the no-PGO package build n41d the gate read 103 KB [C emu]. The PGO image is 72 KB larger (text +68 KB), and
+  newlib's heap top is fixed (PSP_HEAP_SIZE_KB(-1024): all free memory but 1 MB), so every byte of image comes off the room: with
+  gl40's pads (ME_PRE 0x1d00, END_PAD 0x1a00) about 12 KB, without ME_PRE/END_PAD about 26 KB [I: ELF sizes]. The gate would fail.
+- Decision: MAIN_KB 256 -> 128 (the main thread's own stack part, guest thread 1; it uses 2.9 KB in every run since gl16: 2,948 of
+  129,472 B in this package's run [C emu]). The main thread's stack shrinks by 128 KB, so newlib's heap top moves up 128 KB
+  (0be7bfff -> 0be9bfff [C emu]) and the worst moment reads 135 KB. ME_PRE and END_PAD KEPT (they place the h39 block and the heap
+  block on gl40's data-cache sets; with them the gate passes four-fold); ME_PRE retuned to 0x340 for the new image, END_PAD 0x1a00
+  (heap block 0b247900 = gl40's offset 0x1900 in its page). Not movable by any pad: g_mem +0x680 (boot_rt's .bss grew by P1/P3's
+  tables before it) and some .bss groups.
+- The PSP has had more room than the emulator (gl40 PSP end of run: 2,608 KB in one block; the emulator: 64 KB) [C gl40 PSP read];
+  the first 'memory (gl41)' line on the PSP gives its heap end.
+
+BUILD [C]
+- PGO: 5 trainings on cfg/mgs2_gl41pgo.cfg (the delivery minus shots, native every other turn after t73): hash lines 124/124/124/63/124
+  equal; the picture training 69,852 native calls, 409,027 native batches; 21 gcda. Use build u, pgochk 0 profile lines.
+- Order: seed gl40's final order (.isra names made plain); caps gl36 + 2 % on the four main-drawing windows; stage s1 (gl40's guard),
+  stage s2 (rain-weighted, caps kept); P3's copy pinned at vupv_8baafbc3_0's sets + 0x80 (in the PGO build that name is a 0x44-byte
+  wrapper holding the P3 test). s2 chosen: rain windows -1.0 to -2.0 ms a step against s1 in all 16, guard +0.13 at most [C model].
+- Pads (final): RO_PAD 0xaa8, ME_PRE 0x340, ME_PAD 0x15c0, XL_PAD 0x210, END_PAD 0x1a00 (pa; pb with RO_PAD for .data was worse on
+  the guard by +0.03..+0.10).
+- Final EBOOT 44272485d79e64725a2db8ead92d2c79 (psp, U=u3); model runs of it: every hash line 0 differ.
+
+MODEL OF THE FINAL BUILD, PER TURN KIND [C model; main = main CPU, ME = Media Engine; P = max(main, 0.8 ME) [I]; K7 P = main]
+- Rain wait (main-bound in every drawn turn): K-A t58 / t60 / t62 main 84.32 / 84.74 / 85.17, ME 64.26 / 63.88 / 64.74.
+    K-N1 t59 - K-A t58 / t60: main +0.29 / -0.14, ME -3.10 / -2.71 -> P unchanged (main-bound).
+    P1-off t61 - t60 / t62: main +1.37 / +0.94, ME +0.66 / -0.20.   P3-off t57 - t58, t63 - t62: main +0.03 / +0.41, ME -0.00 / -0.34.
+    K-A spread t60 - t58, t62 - t60: main +0.43 / +0.43, ME -0.38 / +0.86.   K7 t64 main 67.64.
+- Heavier part: K-N1 t67 - K-A t66 main +0.55, ME -0.54 (t66: main 91.96, ME 70.01).
+- Walk (content grows turn to turn: K-A t71 - t69 main +2.39, ME +4.06): N t68 - t69 +5.45 / +9.06; P1-off t70 - t69 +8.65 / +7.75,
+    t70 - t71 +6.27 / +3.70; P3-off t72 - t71 +0.63 / +1.69 (main / ME): content, not the levers.
+- First rain: N t51 - t52 main +2.01, ME -2.04; P1-off t53 - t52 +0.75 / -1.18, t53 - t54 +5.12 / +5.49.
+- Digest turns (XP 7, digests on): t55 K-A main 91.47, ME 103.44 (digests 34.64); t56 K-N1 - t55 main -0.49, ME -0.45.
+- Steady deck (ME-bound): K-A t30 / t32 / t34 main 30.13 / 30.28 / 30.11, ME 39.66 / 40.08 / 39.71; K-N1 (no ship mesh there) t31,
+    t35 - neighbours main -0.19..+0.10, ME +0.06..+0.48; P1-off t33 +0.02 / +0.19 main, -0.05 / +0.32 ME; P3-off t37 - t34 +0.26 /
+    +0.41; K7 t39 main 19.95. Every kind within ~0.4 of K-A (the K-A spread is 0.34).
+- gl41 - gl40 the same turn: t60 K-A main -0.84, ME +0.23; t66 main -1.11, ME -0.51; K7 (t64 vs gl40's t58) -0.86.
+- Guard windows (gl38's guard cfg): 58.72 / 57.89 / 24.57 / 60.26; gl41 - gl40 -0.79 / -1.14 / +0.28 / -0.57; I-misses 36,314 / 19,312
+    / 2,009 / 36,068 = -5.5 / -18.6 / -6.9 / -5.9 % of gl36's: PASS.
+PSP EXPECTATIONS [I, from these deltas and gl40's PSP read: rain wait XP3 76.44 (main logic 42.74, ME busy 69.68), deck 40.3-40.7]
+- Rain wait K-A about 75.6 (75.2-76.0), ME busy about 69.9. K-N1: ME busy -2.7 to -3.4 (about 66.5-67.3), the step about K-A's:
+  step 1's gain shows in ME busy / idle, not in the step, while the main CPU is the larger side. P1 off: step +0.9 to +1.4. P3 off:
+  +0 to +0.4, inside the K-A spread (probe c times the cull itself). K7: gl40's K7 - 0.9.
+- Digest turns about 86-87 (K-A + 4.5 digests + 6.5 the check). Steady deck about 40.3-40.7 for every kind (gl41 - gl40 there
+  UNKNOWN to +-0.5: not modelled for gl40). Deck first play (t11, t15 native): UNKNOWN. Main-drawing before 24,000 about 55.0.
+
+WHAT THE PSP RUN SHOULD SHOW (state counts, = the emulator's run of this package): 62 hashes = hashref; 116 digests and 116 content
+lines = the emulator's (the reader says EQUAL); nge totals pictures 510, calls native 37,748, no room 0; native batches 76,469,
+declined 0; XP check 1,320 compared, DIFFERING 0; F1 planned 9,298, problems 0; bound: masked frames 250; natcull tested 318,935 /
+left out 231,224; L41 probe b holds, probe c 0 different; textures refused 0; SCHEDULE CHECK none; 314 'gl41 levers' lines.
+RISKS: probe a's `cache 0x1e` never ran on a PSP (MGS2_PROBE41=2 if the run stops in probe a); the PSP's heap end (read from the first
+'memory (gl41)' line); the walk's pairs are content-dominated.
+
+FILES: deliver/ (EBOOT 44272485, 8 overlays, mgs2.cfg bf35e0c6, hashref.txt c9ddb593, pad.txt 7bc72ace, rd41pc.py 955b6667,
+README.txt, MANIFEST.md5 with SLES_503.83 e3f4c0df and mgs2disc.pak 189ca53f as gl40's). attic/gl41: gl41_plan.md, state.md,
+report.txt, README.txt (copy), score41_final.txt. Cleanup (literal paths, after a look): build_gl40/lay, psp_v1, pk_f41, pk_n41, u2,
+emu_f* (v1's logs gzipped in build_gl41/old/), every emulator game folder. Kept: build_gl41/lay (1.7 GB, the traces behind gl41's
+order), u, u3, psp, pk_g41 (= deliver), emu_g2/g3/gh1/gh0 (the package runs' logs and pictures).

@@ -5,6 +5,43 @@ lighting, skinning; game logic exact; ME freed for the sound mix). Output: /mnt/
 Plan and container experiments only. Scratch: /tmp/claude-0/-home-claude/a7d20bd4-7c06-5849-bdd4-c955873f09a9/scratchpad/gen/
 No file in /home/claude/main, /home/claude/t39, build_gl* or the other agents' scratch (h1, gl41s) is changed.
 
+## 2026-11-24 01:40 UTC: STEP 2 done; results in step2_results.md, diff + cfg + hashrefs + scripts in step2/; hand-back
+- V3a wider (rl3: 22 vblanks, one per w01a cluster) [C twin]: 1,744,579 reads, 1,202 differ: scratchpad w / z|w lanes, plus 2 reads
+  of a stack byte at 0x1b4720 (P175b18 reads; P1214a0 wrote it in base, P135120 in V3a); each stands alone in its vblank and the
+  next vblank's read hash is equal: leftovers. Read logs, RAM images and the emulator game folders deleted from scratch.
+- Checkpoint build: gl41's tree + step2/t40_step2.diff minus the gl41-overlap hunks (results section 7.6); C2 on in every turn;
+  KB2 384; turn words 01220 / 00097 x25 with hashref_kc; MGS2_NGE set past the cycle.
+
+## 2026-11-24 01:20 UTC: STEP 2d, ek on the emulator, V3a read log
+- ek (turn words + bound cycle, KB2 384) [C emu]: 62/62 vs hashref_kc; loop thread; content = twin kr in 3,521/3,522 (vb 26,007:
+  twin and emulator differ there in every run, e0/c1 too); K-N1 750/750 and K-N2 750/750 = e0.
+- V3a (base vs stubs 1214a0 + 12e8b8 every step, MGS2_READ_LOG on 5 w01a vblanks) [C twin]: 780,298 reads paired, address differs 0,
+  337 differ: all scratchpad 0x70003900-0x70003fff, w lane (z|w for P3aaef8's own block); read counts equal in all 13,799 vblanks
+  24,000-37,799. Wider sample running (rl3: one vblank in each of 22 more clusters). Then: results file + diff into attic/ge_native/step2.
+
+## 2026-11-24 00:55 UTC: STEP 2c, carve size, turn hashrefs, emulator gate with the loop apart
+- kc (NGE_CYCLE 01220 x25) / kr (+ BOUND_CYCLE 00097 x25) [C twin]: hashref_kr = hashref_kc byte for byte (bound kinds picture only);
+  kc state = gl38 until vb 24,200 (first digit 2). kc frame data: nothing-native picture past the cycle 939 KB (vb 36,755-36,907):
+  with KB2 416 the data room is 1696-264-492 = 940 KB (1 KB spare). KB2 352: 4,297 ship no-room; 384: 0 ship, 3 people no-room, 67
+  re-cooks, room 972 KB (33 KB spare): default NGE_KB2_P6 now 384. g352/g384 hashrefs equal (cook size never touches state).
+- Emulator (st2/pk, EBOOT 4ba692a6, no ME_PRE/END_PAD, gl41's TK_CAP0 + content line mirrored; loop thread, 0 "no thread" lines):
+  e2 (NGE=2, KB2 384) 62/62 vs hashref_g384; grown vb 24,007; content = e0 (NGE=0, C2 on) in 3,522/3,522 pictures 24,000-31,400
+  (thread turns 1,762, main-CPU turns 1,760); shots 51/52 equal (shot_24784: noise, equal content digest); stub-time WORLD differs
+  in 125,715 of 257,483 native batches (counted only; drawn from Dx). Next: ek (cycle on the emulator), V3a w01a read log, diff.
+
+## 2026-11-24 00:05 UTC: STEP 2b, people native (C2 cooked), the carve after the opening, K-N2R: twin results (scratch st2/)
+- Coordinator's rule taken (step 1 fault, gl41 agent): every input the walk reads is copied at REC (ship refs + people NatP6 + refs,
+  ge/xme.c xme_rec; XME_NATBYTES); the ship's WORLD/projection from Dx. Step 1's emulator runs had the loop on the main CPU ("me
+  picture loop: no thread" in st1g/emu_g1np): the step 2 emulator gate reruns with me_pic's stack 16 KB.
+- c3 (C2 on, NGE=2, check) [C twin]: 0 check differences; content + drawn2 = c1 in 17,664/17,664. c4 (PSP walk) = c3 in all digests.
+- g416 (carve: regions 256 KB until vb 24,000, 416 KB + people 76 KB after; grown at vb 24,007; PSP walk; check) [C twin]: content
+  + drawn2 = c1 and c3 in 17,664/17,664; check diffs 0; no room 0; evicted 1,027; people cooked 460, re-cooked 0, 1.33 MB cooked
+  over the route; frame data max after 31,401 694 KB (c1 880), 0 dropped pictures. "nat lw chains": people groups all in chains 2
+  and 4; ship groups 2: 31,211, 3: 2,110,541, 4: 69,597, 5: 15,433, 6: 2,527, 7: 101: K-N2R (chains 2-4) draws 99.2% of the ship.
+- Since: PSP growth guard also waits for a list of a frame begun with the smaller arena to finish (gl_show); people start fixed at
+  growth vb + 100 (MGS2_NGE_P6LAG) so the state hash does not hang on GE timing; counters N6_NOARR/N6_LATE. Next: kc/kr twin
+  hashrefs (cycle 01220 / bound 00097 x25), PSP build (no ME_PRE/END_PAD, as step 1's np), emulator gate, V3a w01a read log.
+
 ## 2026-11-23 22:50 UTC: STEP 2a, the people's records (0x12e8b8 stub), checked on the twin
 - Code (scratch st2/t = st1g/t + step 2): ge/natp06.h (NatP6 72 B: key, constant block, 3 materials, 6 streams, header, MSCAL;
   nat_p06_group: the record to lane 2's xl_lane_p06, else word by word), boot/np6_stub.h (P12e8b8 and P12e790 wrapped; the builder's

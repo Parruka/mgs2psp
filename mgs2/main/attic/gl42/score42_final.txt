@@ -1,0 +1,70 @@
+== 1. EVERY WINDOW, ms a PSP step [C model]: main (game + runtime + plan + hash + other) | ME (with the digest) | P = max(main, 0.8 ME) [I] (K7: main) || main + ME: instr, I-miss, D-miss a step
+  ka42     29,710 t57 K-N1                    main  85.13 (game  35.65, plan 12.84, hash  0.00)  ME  61.89 (0.8:  49.51)  dig  0.00  P  85.13 main ||  18169074 110543 133284
+  ka42.1   29,810 t58 K-A                     main  84.66 (game  35.69, plan 12.82, hash  0.00)  ME  64.45 (0.8:  51.56)  dig  0.00  P  84.66 main ||  18325797 112867 136535
+  ka42.2   29,910 t59 K-N2                    main  82.87 (game  35.76, plan 10.69, hash  0.95)  ME  59.07 (0.8:  47.26)  dig  0.00  P  82.87 main ||  17533068 104069 130944
+  ka42.3   30,010 t60 K-A                     main  84.67 (game  35.79, plan 12.73, hash  0.00)  ME  64.06 (0.8:  51.24)  dig  0.00  P  84.67 main ||  18267839 112869 136155
+  ka42.4   30,110 t61 K-N2R                   main  75.05 (game  35.59, plan  4.60, hash  0.95)  ME  37.25 (0.8:  29.80)  dig  0.00  P  75.05 main ||  13649397  85697 105187
+  ka42.5   30,210 t62 K-A                     main  84.94 (game  35.69, plan 12.78, hash  0.00)  ME  64.86 (0.8:  51.89)  dig  0.00  P  84.94 main ||  18413759 113103 137324
+  ka42.6   30,310 t63 K7                      main  68.19 (game  35.99, plan  0.00, hash  0.00)  ME   0.04 (0.8:   0.03)  dig  0.00  P  68.19      ||   8666668  47637  60253
+  ka42.7   30,410 t64 K-A                     main  85.12 (game  35.93, plan 12.72, hash  0.00)  ME  63.79 (0.8:  51.03)  dig  0.00  P  85.12 main ||  18307417 112237 136580
+  kb42     30,510 t65 K-N2                    main  85.36 (game  36.53, plan 10.74, hash  0.95)  ME  58.94 (0.8:  47.16)  dig  0.00  P  85.36 main ||  17776217 107748 132517
+  kb42.1   30,610 t66 K-A (heavier)           main  92.28 (game  37.44, plan 14.78, hash  0.00)  ME  70.61 (0.8:  56.49)  dig  0.00  P  92.28 main ||  19998500 122857 149898
+  kb42.2   30,710 t67 K-N2R (heavier)         main  81.08 (game  36.89, plan  5.88, hash  1.32)  ME  46.28 (0.8:  37.03)  dig  0.00  P  81.08 main ||  15526951  94008 120933
+  kb42.3   30,810 t68 K-A walk                main  86.63 (game  35.41, plan 13.03, hash  0.00)  ME  58.89 (0.8:  47.11)  dig  0.00  P  86.63 main ||  17894489 108196 134577
+  kb42.4   30,910 t69 K-N2 walk               main  79.81 (game  35.14, plan  8.61, hash  0.98)  ME  45.11 (0.8:  36.09)  dig  0.00  P  79.81 main ||  15340430  92383 116333
+  kb42.5   31,010 t70 K-A walk                main  89.35 (game  36.31, plan 12.88, hash  0.00)  ME  55.82 (0.8:  44.66)  dig  0.00  P  89.35 main ||  18045375 106589 131632
+  kb42.6   31,110 t71 K-N2R walk              main  74.04 (game  34.69, plan  3.39, hash  1.20)  ME  32.86 (0.8:  26.29)  dig  0.00  P  74.04 main ||  13264475  75086 100070
+  kb42.7   31,210 t72 K-A walk                main  84.52 (game  34.72, plan 11.94, hash  0.00)  ME  53.73 (0.8:  42.99)  dig  0.00  P  84.52 main ||  17136166  99475 127893
+  kc42     27,010 t30 K-A deck                main  30.20 (game  10.22, plan  6.78, hash  0.00)  ME  39.26 (0.8:  31.41)  dig  0.00  P  31.41 ME   ||   8814789  40453  67828
+  kc42.1   27,110 t31 K-N2 deck               main  30.53 (game  10.13, plan  7.13, hash  0.05)  ME  39.52 (0.8:  31.61)  dig  0.00  P  31.61 ME   ||   8960042  40095  67616
+  kc42.2   27,210 t32 K-A deck                main  30.54 (game  10.20, plan  6.90, hash  0.00)  ME  39.69 (0.8:  31.75)  dig  0.00  P  31.75 ME   ||   8952259  40419  68192
+  kc42.3   27,310 t33 K-N2R deck              main  25.10 (game  10.02, plan  3.67, hash  0.05)  ME  17.11 (0.8:  13.68)  dig  0.00  P  25.10 main ||   5419461  25091  39595
+  kc42.4   27,410 t34 K-A deck                main  30.14 (game  10.06, plan  6.78, hash  0.00)  ME  39.30 (0.8:  31.44)  dig  0.00  P  31.44 ME   ||   8820163  40215  67833
+  kc42.5   27,510 t35 K-N1 deck               main  30.53 (game  10.28, plan  6.91, hash  0.00)  ME  39.74 (0.8:  31.79)  dig  0.00  P  31.79 ME   ||   8957175  40426  68289
+  kc42.6   27,610 t36 K-A deck                main  30.49 (game  10.28, plan  6.84, hash  0.00)  ME  39.26 (0.8:  31.41)  dig  0.00  P  31.41 ME   ||   8861635  40532  68009
+  kc42.7   27,910 t39 K7 deck                 main  20.26 (game  10.22, plan  0.00, hash  0.00)  ME   0.04 (0.8:   0.03)  dig  0.00  P  20.26      ||   2637717  13462  17363
+  gd42     16,110 guard cfg main-drawing      main  25.06 (game  10.05, plan  2.58, hash  0.00)  ME  34.30 (0.8:  27.44)  dig  0.00  P  27.44 ME   ||   7699807  37498  52460
+  gd42.1   21,110 guard cfg main-drawing      main  42.38 (game  18.72, plan  2.91, hash  0.00)  ME  15.73 (0.8:  12.59)  dig  0.00  P  42.38 main ||   8490994  21296  45280
+  gd42.2   23,110 guard cfg main-drawing      main  24.20 (game  18.70, plan  0.00, hash  0.00)  ME   0.01 (0.8:   0.00)  dig  0.00  P  24.20 main ||   4383654   1983   8063
+  gd42.3   27,510 guard cfg main-drawing      main  25.31 (game  10.29, plan  2.57, hash  0.00)  ME  35.23 (0.8:  28.19)  dig  0.00  P  28.19 ME   ||   7866821  36986  54269
+== 2. K-N2 (ship + people native) MINUS K-A, same scene: main and ME apart; P = max(main, 0.8 ME) of each turn [I]
+  K-N2 - K-A: rain wait t59 - t58                      ka42.2 - ka42.1  main  -1.79 (hash +0.95)  ME  -5.38 (0.8:  -4.30)  P  82.87 -  84.66 =  -1.79  [instr  -792729 I  -8798 D  -5591]
+  K-N2 - K-A: rain wait t59 - t60                      ka42.2 - ka42.3  main  -1.80 (hash +0.95)  ME  -4.98 (0.8:  -3.99)  P  82.87 -  84.67 =  -1.80  [instr  -734770 I  -8799 D  -5211]
+  K-N2 - K-A: heavier t65 - t66                        kb42 - kb42.1    main  -6.92 (hash +0.95)  ME -11.66 (0.8:  -9.33)  P  85.36 -  92.28 =  -6.92  [instr -2222283 I -15109 D -17381]
+  K-N2 - K-A: walk t69 - t68                           kb42.4 - kb42.3  main  -6.82 (hash +0.98)  ME -13.77 (0.8: -11.02)  P  79.81 -  86.63 =  -6.82  [instr -2554059 I -15812 D -18244]
+  K-N2 - K-A: walk t69 - t70                           kb42.4 - kb42.5  main  -9.55 (hash +0.98)  ME -10.71 (0.8:  -8.57)  P  79.81 -  89.35 =  -9.55  [instr -2704946 I -14205 D -15299]
+  K-N2 - K-A: deck t31 - t30                           kc42.1 - kc42    main  +0.33 (hash +0.05)  ME  +0.26 (0.8:  +0.21)  P  31.61 -  31.41 =  +0.21  [instr  +145254 I   -359 D   -211]
+  K-N2 - K-A: deck t31 - t32                           kc42.1 - kc42.2  main  -0.01 (hash +0.05)  ME  -0.17 (0.8:  -0.13)  P  31.61 -  31.75 =  -0.13  [instr    +7784 I   -324 D   -576]
+== 3. K-N2R (native, chains 2-4 only) MINUS K-A, same scene
+  K-N2R - K-A: rain wait t61 - t60                     ka42.4 - ka42.3  main  -9.63 (hash +0.95)  ME -26.81 (0.8: -21.44)  P  75.05 -  84.67 =  -9.63  [instr -4618442 I -27172 D -30968]
+  K-N2R - K-A: rain wait t61 - t62                     ka42.4 - ka42.5  main  -9.90 (hash +0.95)  ME -27.61 (0.8: -22.08)  P  75.05 -  84.94 =  -9.90  [instr -4764362 I -27406 D -32137]
+  K-N2R - K-A: heavier t67 - t66                       kb42.2 - kb42.1  main -11.20 (hash +1.32)  ME -24.33 (0.8: -19.46)  P  81.08 -  92.28 = -11.20  [instr -4471549 I -28849 D -28965]
+  K-N2R - K-A: walk t71 - t70                          kb42.6 - kb42.5  main -15.31 (hash +1.20)  ME -22.96 (0.8: -18.37)  P  74.04 -  89.35 = -15.31  [instr -4780900 I -31503 D -31562]
+  K-N2R - K-A: walk t71 - t72                          kb42.6 - kb42.7  main -10.48 (hash +1.20)  ME -20.87 (0.8: -16.70)  P  74.04 -  84.52 = -10.48  [instr -3871691 I -24389 D -27822]
+  K-N2R - K-A: deck t33 - t32                          kc42.3 - kc42.2  main  -5.44 (hash +0.05)  ME -22.58 (0.8: -18.07)  P  25.10 -  31.75 =  -6.65  [instr -3532798 I -15328 D -28597]
+  K-N2R - K-A: deck t33 - t34                          kc42.3 - kc42.4  main  -5.04 (hash +0.05)  ME -22.19 (0.8: -17.75)  P  25.10 -  31.44 =  -6.34  [instr -3400702 I -15124 D -28238]
+== 4. K-N1 (ship native) MINUS K-A; K-N2 MINUS K-N1 (the people alone; not neighbours)
+  K-N1 - K-A: rain wait t57 - t58                      ka42 - ka42.1    main  +0.47 (hash +0.00)  ME  -2.56 (0.8:  -2.05)  P  85.13 -  84.66 =  +0.47  [instr  -156723 I  -2324 D  -3250]
+  K-N1 - K-A: deck t35 - t34                           kc42.5 - kc42.4  main  +0.40 (hash +0.00)  ME  +0.44 (0.8:  +0.35)  P  31.79 -  31.44 =  +0.35  [instr  +137012 I   +212 D   +456]
+  K-N1 - K-A: deck t35 - t36                           kc42.5 - kc42.6  main  +0.05 (hash +0.00)  ME  +0.48 (0.8:  +0.38)  P  31.79 -  31.41 =  +0.38  [instr   +95540 I   -105 D   +281]
+  K-N2 - K-N1: rain wait t59 - t57                     ka42.2 - ka42    main  -2.26 (hash +0.95)  ME  -2.82 (0.8:  -2.25)  P  82.87 -  85.13 =  -2.26  [instr  -636006 I  -6474 D  -2341]
+  K-N2 - K-N1: deck t31 - t35                          kc42.1 - kc42.5  main  -0.01 (hash +0.05)  ME  -0.22 (0.8:  -0.18)  P  31.61 -  31.79 =  -0.18  [instr    +2867 I   -332 D   -673]
+== 5. K-A MINUS K7 (the drawing); the spread of K-A against K-A
+  K-A t62 - K7 t63 (rain wait)                         ka42.5 - ka42.6  main +16.75 (hash +0.00)  ME +64.82 (0.8: +51.85)  P  84.94 -  68.19 = +16.75  [instr +9747090 I +65466 D +77072]
+  K-A t64 - K7 t63 (rain wait)                         ka42.7 - ka42.6  main +16.92 (hash +0.00)  ME +63.75 (0.8: +51.00)  P  85.12 -  68.19 = +16.92  [instr +9640748 I +64600 D +76327]
+  K-A t36 - K7 t39 (deck, not neighbours)              kc42.6 - kc42.7  main +10.22 (hash +0.00)  ME +39.22 (0.8: +31.38)  P  31.41 -  20.26 = +11.15  [instr +6223918 I +27070 D +50646]
+  K-A - K-A: t60 - t58                                 ka42.3 - ka42.1  main  +0.01 (hash +0.00)  ME  -0.40 (0.8:  -0.32)  P  84.67 -  84.66 =  +0.01  [instr   -57959 I     +2 D   -380]
+  K-A - K-A: t62 - t60                                 ka42.5 - ka42.3  main  +0.27 (hash +0.00)  ME  +0.80 (0.8:  +0.64)  P  84.94 -  84.67 =  +0.27  [instr  +145920 I   +234 D  +1169]
+  K-A - K-A: t70 - t68 (walk)                          kb42.5 - kb42.3  main  +2.72 (hash +0.00)  ME  -3.06 (0.8:  -2.45)  P  89.35 -  86.63 =  +2.72  [instr  +150886 I  -1607 D  -2945]
+  K-A - K-A: t32 - t30 (deck)                          kc42.2 - kc42    main  +0.34 (hash +0.00)  ME  +0.43 (0.8:  +0.34)  P  31.75 -  31.41 =  +0.34  [instr  +137470 I    -35 D   +364]
+== 6. gl42 MINUS gl41, the same turn (gl42 C2 on, step 2 code, new profile/order; gl41's model windows if they exist)
+  t60 30,010 K-A / K-A                                 ka42.3 - ka41.3  main  -0.07 (hash +0.00)  ME  +0.18 (0.8:  +0.14)  P  84.67 -  84.74 =  -0.07  [instr   -39578 I  +2495 D   -793]
+  t58 29,810 K-A / K-A                                 ka42.1 - ka41.1  main  +0.35 (hash +0.00)  ME  +0.19 (0.8:  +0.15)  P  84.66 -  84.32 =  +0.35  [instr   +22119 I  +2689 D   -474]
+  t66 30,610 K-A / K-A heavier                         kb42.1 - kb41.1  main  +0.32 (hash +0.00)  ME  +0.60 (0.8:  +0.48)  P  92.28 -  91.96 =  +0.32  [instr   -29850 I  +3268 D  +1564]
+  K7: gl42 t63 - gl41 t64                              ka42.6 - ka41.7  main  +0.56 (hash +0.00)  ME  +0.00 (0.8:  +0.00)  P  68.19 -  67.64 =  +0.56  [instr   +64205 I   -655 D  +1445]
+  K-N2 t59 / K-N1 t59 (gl41)                           ka42.2 - ka41.2  main  -1.73 (hash +0.95)  ME  -2.09 (0.8:  -1.67)  P  82.87 -  84.60 =  -1.73  [instr  -556749 I  -1865 D  -2653]
+== 7. THE GUARD WINDOWS (gl38's guard cfg mgs2_m37_rc0), whole windows: gl42 | gl36 (exp40 x36); I-misses <= gl36 + 2 %?
+  16,110 guard cfg main-drawing      gl42  59.36 gl36  59.24 | gl42 - gl36 +0.12 | I a step  37500 /  38420 (gl42/gl36  -2.4 %: PASS) | D  52460 /  50778
+  21,110 guard cfg main-drawing      gl42  58.12 gl36  58.81 | gl42 - gl36 -0.69 | I a step  21298 /  23712 (gl42/gl36 -10.2 %: PASS) | D  45280 /  44601
+  23,110 guard cfg main-drawing      gl42  24.21 gl36  24.27 | gl42 - gl36 -0.06 | I a step   1984 /   2159 (gl42/gl36  -8.1 %: PASS) | D   8063 /   8155
+  27,510 guard cfg main-drawing      gl42  60.55 gl36  60.61 | gl42 - gl36 -0.07 | I a step  36988 /  38342 (gl42/gl36  -3.5 %: PASS) | D  54269 /  52565
