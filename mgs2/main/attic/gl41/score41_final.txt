@@ -1,0 +1,77 @@
+== 1. EVERY WINDOW, ms a PSP step [C model]: main (game + runtime + plan + other) | ME (with the digest) | P = max(main, 0.8 ME) [I] (K7: main) || main + ME: instr, I-miss, D-miss a step
+  ka41     29,710 t57 P3 off                  main  84.35 (game  36.76, plan 12.90)  ME  64.26 (0.8:  51.40)  dig  0.00  P  84.35 main ||  18308338 110297 136932
+  ka41.1   29,810 t58 K-A                     main  84.32 (game  36.84, plan 12.90)  ME  64.26 (0.8:  51.41)  dig  0.00  P  84.32 main ||  18303679 110178 137009
+  ka41.2   29,910 t59 K-N1                    main  84.60 (game  36.88, plan 12.66)  ME  61.16 (0.8:  48.93)  dig  0.00  P  84.60 main ||  18089817 105934 133596
+  ka41.3   30,010 t60 K-A                     main  84.74 (game  37.06, plan 12.94)  ME  63.88 (0.8:  51.10)  dig  0.00  P  84.74 main ||  18307417 110373 136948
+  ka41.4   30,110 t61 P1 off                  main  86.11 (game  37.09, plan 12.96)  ME  64.54 (0.8:  51.63)  dig  0.00  P  86.11 main ||  18472792 115193 137814
+  ka41.5   30,210 t62 K-A                     main  85.17 (game  36.95, plan 13.08)  ME  64.74 (0.8:  51.79)  dig  0.00  P  85.17 main ||  18475046 110668 138492
+  ka41.6   30,310 t63 P3 off                  main  85.58 (game  37.19, plan 13.02)  ME  64.40 (0.8:  51.52)  dig  0.00  P  85.58 main ||  18486002 111105 138223
+  ka41.7   30,410 t64 K7                      main  67.64 (game  36.95, plan  0.00)  ME   0.04 (0.8:   0.03)  dig  0.00  P  67.64      ||   8602464  48292  58807
+  kb41     30,510 t65 K-N1                    main  86.85 (game  37.52, plan 12.68)  ME  60.58 (0.8:  48.47)  dig  0.00  P  86.85 main ||  18341618 109021 132757
+  kb41.1   30,610 t66 K-A (heavier)           main  91.96 (game  38.98, plan 14.93)  ME  70.01 (0.8:  56.00)  dig  0.00  P  91.96 main ||  20028350 119589 148334
+  kb41.2   30,710 t67 K-N1 (heavier)          main  92.51 (game  38.63, plan 15.42)  ME  69.47 (0.8:  55.58)  dig  0.00  P  92.51 main ||  20132286 117952 147683
+  kb41.3   30,810 t68 K-N1 walk               main  86.74 (game  36.92, plan 13.11)  ME  56.96 (0.8:  45.57)  dig  0.00  P  86.74 main ||  17897766 103653 131083
+  kb41.4   30,910 t69 K-A walk                main  81.29 (game  36.18, plan 10.65)  ME  47.90 (0.8:  38.32)  dig  0.00  P  81.29 main ||  15961997  96395 117779
+  kb41.5   31,010 t70 P1 off walk             main  89.94 (game  38.09, plan 12.83)  ME  55.65 (0.8:  44.52)  dig  0.00  P  89.94 main ||  18188223 107510 129797
+  kb41.6   31,110 t71 K-A walk                main  83.68 (game  36.27, plan 11.55)  ME  51.96 (0.8:  41.57)  dig  0.00  P  83.68 main ||  17065152  94229 123269
+  kb41.7   31,210 t72 P3 off walk             main  84.30 (game  36.29, plan 11.90)  ME  53.65 (0.8:  42.92)  dig  0.00  P  84.30 main ||  17287104  97153 125669
+  kc41     27,010 t30 K-A deck                main  30.13 (game  10.18, plan  6.98)  ME  39.66 (0.8:  31.73)  dig  0.00  P  31.73 ME   ||   8839109  40961  68260
+  kc41.1   27,110 t31 K-N1 deck               main  30.09 (game  10.11, plan  6.99)  ME  40.14 (0.8:  32.11)  dig  0.00  P  32.11 ME   ||   8933111  40859  68254
+  kc41.2   27,210 t32 K-A deck                main  30.28 (game  10.17, plan  7.00)  ME  40.08 (0.8:  32.07)  dig  0.00  P  32.07 ME   ||   8943606  40927  68487
+  kc41.3   27,310 t33 P1 off deck             main  30.30 (game  10.12, plan  7.09)  ME  40.03 (0.8:  32.02)  dig  0.00  P  32.02 ME   ||   8939460  40811  68542
+  kc41.4   27,410 t34 K-A deck                main  30.11 (game  10.13, plan  6.91)  ME  39.71 (0.8:  31.77)  dig  0.00  P  31.77 ME   ||   8844432  40884  68335
+  kc41.5   27,510 t35 K-N1 deck               main  30.21 (game  10.19, plan  7.00)  ME  40.14 (0.8:  32.11)  dig  0.00  P  32.11 ME   ||   8940740  40889  68539
+  kc41.6   27,710 t37 P3 off deck             main  30.38 (game  10.26, plan  7.07)  ME  40.12 (0.8:  32.10)  dig  0.00  P  32.10 ME   ||   8965470  41065  68479
+  kc41.7   27,910 t39 K7 deck                 main  19.95 (game  10.10, plan  0.00)  ME   0.04 (0.8:   0.03)  dig  0.00  P  19.95      ||   2615855  12767  17104
+  kd41     29,110 t51 K-N1 first rain         main  91.80 (game  38.90, plan 14.28)  ME  68.01 (0.8:  54.40)  dig  0.00  P  91.80 main ||  20036388 113903 144299
+  kd41.1   29,210 t52 K-A first rain          main  89.79 (game  38.39, plan 14.27)  ME  70.05 (0.8:  56.04)  dig  0.00  P  89.79 main ||  19829080 116394 146438
+  kd41.2   29,310 t53 P1 off first rain       main  90.54 (game  38.41, plan 14.17)  ME  68.88 (0.8:  55.10)  dig  0.00  P  90.54 main ||  19646910 120814 144790
+  kd41.3   29,410 t54 K-A first rain          main  85.41 (game  37.30, plan 12.79)  ME  63.39 (0.8:  50.71)  dig  0.00  P  85.41 main ||  18421900 110123 135655
+  kd41.4   29,510 t55 K-A digests XP7         main  91.47 (game  37.38, plan 18.45)  ME 103.44 (0.8:  82.75)  dig 34.64  P  91.47 main ||  26380013 110725 161013
+  kd41.5   29,610 t56 K-N1 digests XP7        main  90.98 (game  36.95, plan 18.34)  ME 102.98 (0.8:  82.39)  dig 36.35  P  90.98 main ||  26386721 108652 158873
+  kd41.6   31,310 t73 K-N1 digests XP7        main  28.80 (game  18.34, plan  1.94)  ME  12.71 (0.8:  10.17)  dig  4.84  P  28.80 main ||   6433421  13759  26429
+  gd41     16,110 guard cfg main-drawing      main  24.68 (game   9.97, plan  2.55)  ME  34.05 (0.8:  27.24)  dig  0.00  P  27.24 ME   ||   7667193  36312  51571
+  gd41.1   21,110 guard cfg main-drawing      main  42.13 (game  18.28, plan  2.89)  ME  15.76 (0.8:  12.61)  dig  0.00  P  42.13 main ||   8483263  19310  46135
+  gd41.2   23,110 guard cfg main-drawing      main  24.57 (game  18.99, plan  0.00)  ME   0.01 (0.8:   0.00)  dig  0.00  P  24.57 main ||   4441358   2008   8346
+  gd41.3   27,510 guard cfg main-drawing      main  25.09 (game  10.26, plan  2.55)  ME  35.17 (0.8:  28.14)  dig  0.00  P  28.14 ME   ||   7873836  36066  53754
+== 2. K-N1 (the ship native, step 1) MINUS K-A, same scene: main and ME apart; P = max(main, 0.8 ME) of each turn [I]
+  K-N1 - K-A: rain wait t59 - t58                      ka41.2 - ka41.1  main  +0.29  ME  -3.10 (0.8:  -2.48)  P  84.60 -  84.32 =  +0.29  [instr  -213862 I  -4244 D  -3413]
+  K-N1 - K-A: rain wait t59 - t60                      ka41.2 - ka41.3  main  -0.14  ME  -2.71 (0.8:  -2.17)  P  84.60 -  84.74 =  -0.14  [instr  -217600 I  -4439 D  -3351]
+  K-N1 - K-A: heavier t65 - t66                        kb41 - kb41.1    main  -5.12  ME  -9.42 (0.8:  -7.54)  P  86.85 -  91.96 =  -5.12  [instr -1686732 I -10567 D -15577]
+  K-N1 - K-A: heavier t67 - t66                        kb41.2 - kb41.1  main  +0.55  ME  -0.54 (0.8:  -0.43)  P  92.51 -  91.96 =  +0.55  [instr  +103936 I  -1637 D   -651]
+  K-N1 - K-A: walk t68 - t69                           kb41.3 - kb41.4  main  +5.45  ME  +9.06 (0.8:  +7.25)  P  86.74 -  81.29 =  +5.45  [instr +1935769 I  +7258 D +13304]
+  K-N1 - K-A: first rain t51 - t52                     kd41 - kd41.1    main  +2.01  ME  -2.04 (0.8:  -1.64)  P  91.80 -  89.79 =  +2.01  [instr  +207309 I  -2491 D  -2139]
+  K-N1 - K-A: deck t31 - t30                           kc41.1 - kc41    main  -0.04  ME  +0.48 (0.8:  +0.38)  P  32.11 -  31.73 =  +0.38  [instr   +94002 I   -102 D     -6]
+  K-N1 - K-A: deck t31 - t32                           kc41.1 - kc41.2  main  -0.19  ME  +0.06 (0.8:  +0.05)  P  32.11 -  32.07 =  +0.05  [instr   -10495 I    -68 D   -233]
+  K-N1 - K-A: deck t35 - t34                           kc41.5 - kc41.4  main  +0.10  ME  +0.43 (0.8:  +0.35)  P  32.11 -  31.77 =  +0.35  [instr   +96308 I     +5 D   +204]
+  K-N1 - K-A: digests XP7 t56 - t55                    kd41.5 - kd41.4  main  -0.49  ME  -0.45 (0.8:  -0.36)  P  90.98 -  91.47 =  -0.49  [instr    +6708 I  -2073 D  -2140]
+== 3. P1 OFF MINUS ON (K-A), same scene
+  P1 off - on: rain t61 - t60                          ka41.4 - ka41.3  main  +1.37  ME  +0.66 (0.8:  +0.53)  P  86.11 -  84.74 =  +1.37  [instr  +165376 I  +4820 D   +867]
+  P1 off - on: rain t61 - t62                          ka41.4 - ka41.5  main  +0.94  ME  -0.20 (0.8:  -0.16)  P  86.11 -  85.17 =  +0.94  [instr    -2253 I  +4525 D   -677]
+  P1 off - on: walk t70 - t69                          kb41.5 - kb41.4  main  +8.65  ME  +7.75 (0.8:  +6.20)  P  89.94 -  81.29 =  +8.65  [instr +2226226 I +11115 D +12018]
+  P1 off - on: walk t70 - t71                          kb41.5 - kb41.6  main  +6.27  ME  +3.70 (0.8:  +2.96)  P  89.94 -  83.68 =  +6.27  [instr +1123071 I +13281 D  +6528]
+  P1 off - on: first rain t53 - t52                    kd41.2 - kd41.1  main  +0.75  ME  -1.18 (0.8:  -0.94)  P  90.54 -  89.79 =  +0.75  [instr  -182170 I  +4420 D  -1649]
+  P1 off - on: first rain t53 - t54                    kd41.2 - kd41.3  main  +5.12  ME  +5.49 (0.8:  +4.39)  P  90.54 -  85.41 =  +5.12  [instr +1225010 I +10691 D  +9135]
+  P1 off - on: deck t33 - t32                          kc41.3 - kc41.2  main  +0.02  ME  -0.05 (0.8:  -0.04)  P  32.02 -  32.07 =  -0.04  [instr    -4146 I   -116 D    +56]
+  P1 off - on: deck t33 - t34                          kc41.3 - kc41.4  main  +0.19  ME  +0.32 (0.8:  +0.26)  P  32.02 -  31.77 =  +0.26  [instr   +95028 I    -73 D   +208]
+== 4. P3 OFF MINUS ON (K-A), same scene
+  P3 off - on: rain t57 - t58                          ka41 - ka41.1    main  +0.03  ME  -0.00 (0.8:  -0.00)  P  84.35 -  84.32 =  +0.03  [instr    +4659 I   +119 D    -77]
+  P3 off - on: rain t63 - t62                          ka41.6 - ka41.5  main  +0.41  ME  -0.34 (0.8:  -0.27)  P  85.58 -  85.17 =  +0.41  [instr   +10957 I   +437 D   -269]
+  P3 off - on: walk t72 - t71                          kb41.7 - kb41.6  main  +0.63  ME  +1.69 (0.8:  +1.35)  P  84.30 -  83.68 =  +0.63  [instr  +221952 I  +2924 D  +2400]
+  P3 off - on: deck t37 - t34 (not neighbours)         kc41.6 - kc41.4  main  +0.26  ME  +0.41 (0.8:  +0.33)  P  32.10 -  31.77 =  +0.33  [instr  +121038 I   +181 D   +145]
+== 5. the kinds among themselves; the spread of K-A against K-A
+  K-A t62 - K7 t64 (drawing)                           ka41.5 - ka41.7  main +17.53  ME +64.70 (0.8: +51.76)  P  85.17 -  67.64 = +17.53  [instr +9872582 I +62377 D +79685]
+  K-A t34 - K7 t39 (deck)                              kc41.4 - kc41.7  main +10.16  ME +39.67 (0.8: +31.74)  P  31.77 -  19.95 = +11.82  [instr +6228577 I +28117 D +51231]
+  K-A - K-A: t60 - t58                                 ka41.3 - ka41.1  main  +0.43  ME  -0.38 (0.8:  -0.31)  P  84.74 -  84.32 =  +0.43  [instr    +3738 I   +195 D    -61]
+  K-A - K-A: t62 - t60                                 ka41.5 - ka41.3  main  +0.43  ME  +0.86 (0.8:  +0.69)  P  85.17 -  84.74 =  +0.43  [instr  +167629 I   +295 D  +1544]
+  K-A - K-A: t71 - t69 (walk)                          kb41.6 - kb41.4  main  +2.39  ME  +4.06 (0.8:  +3.24)  P  83.68 -  81.29 =  +2.39  [instr +1103155 I  -2166 D  +5490]
+  K-A - K-A: t32 - t30 (deck)                          kc41.2 - kc41    main  +0.15  ME  +0.42 (0.8:  +0.34)  P  32.07 -  31.73 =  +0.34  [instr  +104497 I    -34 D   +227]
+== 6. gl41 MINUS gl40, the same turn, both all drawn with XP3 (gl41 K-A: P1 + P3 on; new profile, order, pads, heap fix)
+  t60 30,010 K-A / K0 XP3                              ka41.3 - ka40.5  main  -0.84  ME  +0.23 (0.8:  +0.18)  P  84.74 -  85.58 =  -0.84  [instr   -95232 I   +722 D  -1121]
+  t66 30,610 K-A / K0 XP3 heavier                      kb41.1 - kb40.3  main  -1.11  ME  -0.51 (0.8:  -0.41)  P  91.96 -  93.07 =  -1.11  [instr  -106137 I   +824 D  -4908]
+  K7: gl41 t64 (M5 on) - gl40 t58 (M5 on)              ka41.7 - ka40.3  main  -0.86  ME  -0.00 (0.8:  -0.00)  P  67.64 -  68.49 =  -0.86  [instr  -103885 I  -1149 D   -419]
+== 7. THE GUARD WINDOWS (gl38's guard cfg mgs2_m37_rc0), whole windows: gl41 | gl40 (build_gl40 model gd40) | gl36 (exp40 x36); I-misses <= gl36 + 2 %?
+  16,110 guard cfg main-drawing      gl41  58.72 gl40  59.51 gl36  59.24 | gl41 - gl40 -0.79, gl41 - gl36 -0.51 | I a step  36314 /  37842 /  38420 (gl41/gl36  -5.5 %: PASS) | D  51571 /  52517 /  50778
+  21,110 guard cfg main-drawing      gl41  57.89 gl40  59.04 gl36  58.81 | gl41 - gl40 -1.14, gl41 - gl36 -0.91 | I a step  19312 /  21791 /  23712 (gl41/gl36 -18.6 %: PASS) | D  46135 /  47064 /  44601
+  23,110 guard cfg main-drawing      gl41  24.57 gl40  24.29 gl36  24.27 | gl41 - gl40 +0.28, gl41 - gl36 +0.30 | I a step   2009 /   2073 /   2159 (gl41/gl36  -6.9 %: PASS) | D   8346 /   8151 /   8155
+  27,510 guard cfg main-drawing      gl41  60.26 gl40  60.83 gl36  60.61 | gl41 - gl40 -0.57, gl41 - gl36 -0.35 | I a step  36068 /  37481 /  38342 (gl41/gl36  -5.9 %: PASS) | D  53754 /  54427 /  52565

@@ -6,6 +6,16 @@ scratch st1g/) and checked again there (§2.3). gl41's merge with gl41s's levers
 Marks: [C twin] = x86 twin run; [C emu] = PPSSPP headless run; [C code] = read in code; [C model] = cost model;
 [I] = inferred, with its basis; UNKNOWN = no basis yet.
 
+**Note added 2026-11-23 23:35 UTC by the gl41 build agent (coordinator's request).** Every emulator figure below was taken with
+the picture loop on the main CPU. The emulator's me_pic thread (64 KB stack) could not be created once step 1's tables were
+outside newlib's heap (partition 2: 27-36 KB largest block; 80020190 "no thread"), so the main CPU ran every entry itself.
+They are not a proof for a loop running apart from the main CPU (the ME on hardware). With the loop apart (gl41: thread stack 16 KB),
+step 1 drew the ship wrong: the walk read the stub's references and transforms from packet buffers the main CPU had already
+refilled. NGN_W_ALL was 61,814 of 62,101 native batches, declined by count 31,068, content differed in N frames, and the shots
+differed on the ship geometry. gl41's fix: the references are copied with the groups at REC (PSP and the x86 mirror), WORLD and
+the projection come from the converter's own Dx, and NgeRef.pad carries a 16-bit digest of the stub's transform for NGN_W_ALL.
+Results: attic/gl41/report.txt.
+
 ## 0. Short answer
 
 - **Built.** Ship df0 groups are cooked once on the main CPU. The ME converter turns each referenced group into a small

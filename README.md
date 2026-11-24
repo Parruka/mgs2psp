@@ -46,6 +46,7 @@ The folder mirrors the project folder one to one, so paths in the notes stay val
 ## Latest builds
 | Build | What it was | PSP result |
 |---|---|---|
+| gl41 | measurement: the ship drawn by the new native renderer in turns, two small main-CPU levers, memory fix | exact; rain wait 74.8 ms a step (6.7 fps); the native ship takes 2.7 ms off the Media Engine but the rain is main-CPU limited; `prof/hw_gl41/gl41_psp_read.md` |
 | gl40 | measurement: three ways of making the copy plan in turns, the kernel walk lever, plan timers | exact (run 2; run 1 lost power at 26 min); rain wait 76.4 ms a step (6.5 fps) with the new plan, 2.0 faster than gl39's; the rain is now main-CPU limited; gl39's unexplained ~8 ms was mostly the copy plan; `prof/hw_gl40/gl40_psp_read.md` |
 | gl39 | measurement: frame check off in some turns, the Media Engine loaded on its own memory, timers for the queue | exact; rain wait 78.1 ms a step (6.4 fps) as a game build runs it, main-CPU limited; ~8 ms of drawing-time work on the main CPU still unexplained; `prof/hw_gl39/gl39_psp_read.md` |
 | gl38 | measurement: one kind of drawing left out per turn, new timers | exact; rain wait 85.0 ms a step, of it 13.6 the test's own picture check; costs per kind in `prof/hw_gl38/gl38_psp_read.md` |

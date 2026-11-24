@@ -1,0 +1,2047 @@
+--- a/boot/nat_stub.h
++++ b/boot/nat_stub.h
+@@ -211,7 +211,7 @@
+ #include "../ge/bound.h"
+ #define BD_CYC_N 128
+ extern int xl_f1_chk;   /* (ge/xlate.h) */
+-static int bd_set, bd_ncyc, f1_all, f1_ncyc, bd_rain_all; static long bd_from, bd_turn = 1; static uint8_t bd_cyc[BD_CYC_N], f1_cyc[BD_CYC_N];
++static int bd_set, bd_ncyc, f1_all, f1_ncyc, bd_rain_all; static long bd_from, bd_turn = 1; static uint16_t bd_cyc[BD_CYC_N]; static uint8_t f1_cyc[BD_CYC_N];   /* (step 2: 16 bits, BD_NATIVE) */
+ /* gl39 (attic/gl39/gl39_plan.md): MGS2_DIG_CYCLE=<digits 0/1>, a digit a turn by the bound turns' rule: 1 = no frame digest for the frames
+    whose LAST vblank lies in the turn (rt_dig_off_at; MGS2_GL_DIG's range is tested with that vblank too; past the list 0).
+    MGS2_LOAD_CYCLE=<digits 0..3>, a digit a turn: the ME's load loop in a kind 8 turn (rt_load_at; PSP only, psp/xl_psp.c: 1 arithmetic,
+@@ -225,7 +225,7 @@
+ int g_bd_cfg, g_nat_f1cfg, g_nat_f1chk, g_bd_rain;   /* 1: a kind other than 0 is named; F1 is named on; its check mode */
+ static void bd_setup(void)
+ {
+-  static const uint8_t mask[BD_KINDS] = BD_MASKS;
++  static const uint16_t mask[BD_KINDS] = BD_MASKS;
+   const char *e, *c = getenv("MGS2_OPT_CYCLE"); long f = -1, n = 0; int ok = c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0;
+   bd_set = 1;
+   if (ok) { bd_from = f; bd_turn = n; }
+@@ -297,6 +297,7 @@
+ }
+ int g_nat_f1;
+ #include "nge_stub.h"                             /* native step 1 (MGS2_NGE): the cooked ship meshes */
++#include "np6_stub.h"                             /* native step 2: the people's records (MGS2_NP6; MGS2_NGE_CYCLE's digit 2) */
+ #ifndef __psp__
+ void nat_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh, uint32_t dest, uint32_t end, uint32_t qwc);   /* dev: boot/nat_x86.c's counts */
+ #endif
+--- a/boot/nat_x86.c
++++ b/boot/nat_x86.c
+@@ -14,6 +14,7 @@
+   long recs, min_margin; int margin_set;
+ } NX;
+ static int nat_xf_b = -1; static uint32_t nat_cmp[2]; static int nat_lw_mode = -1;
++static int n6_xf_b = -1;   /* native step 2: the buffer whose people's groups the transfer draws */
+ static long nat_lw_n[8];   /* boot/xlive_chk.c's late-walk harness counts (it prints them) */
+ 
+ void nat_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh, uint32_t dest, uint32_t end, uint32_t qwc)
+@@ -129,7 +130,7 @@
+ {
+   static int once; (void)tadr;
+   if (!once) { once = 1; atexit(nat_report); }
+-  nat_xf_b = -1; NX.xf++;
++  nat_xf_b = -1; n6_xf_b = -1; NX.xf++;
+   { static long t0 = -2, t1; if (t0 == -2) { const char *e = getenv("MGS2_NAT_TRACE"); t0 = -1; if (e) sscanf(e, "%ld:%ld", &t0, &t1); }
+     if (t0 >= 0 && k_vblanks >= t0 && k_vblanks <= t1)
+       fprintf(stderr, "natx: vb %ld transfer tadr %08x; pipeline call %u (lite now %d, arm %d), last started in buffer0 %u buffer1 %u; groups b0 seq %u n %u "
+@@ -144,6 +145,31 @@
+ #define NATP_PTR(a, n) nat_ptr((a), (n))
+ #define NATP_SPAN(p, nw, a) xl_vif1_span((p), (nw), (a))
+ #include "../ge/natp04.h"
++#include "../ge/natp06.h"   /* native step 2: the people's records */
++/* ---- native step 2 (boot/np6_stub.h): the people's records in the twin walk, beside the ship's: arm 3 drawn by the ship's rule (before a
++   top-level tag of the groups' buffer, every group whose key is at or below the tag's address; the people first when a ship group waits
++   at a later key, counted when they interleave); arm 2 drawn at its packet's first tag, the packet stepped over; arm 1 each record's
++   words against its packet's.  Lines: "np6:" at the exit. ---- */
++static struct { long emit, core, fed, bad, late_seq, stale, inter, match, words_bad, wclass[13][4], unrec, recs, step; } N6X;
++static uint32_t n6_cmp[2];
++void np6_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh) { (void)b; (void)g0; (void)ng; (void)mesh; N6X.recs++; }
++static int np6_tag(const uint32_t *t)   /* a tag that starts a P06 group (lane_p06's first words) */
++{
++  return (t[0] >> 28 == 3 && (t[0] & 0xffff) == 24 && t[2] == NP6T_S11 && t[3] == NP6T_BLK && t[6] == NP6T_S11 && t[10] == NP6T_S11 && t[14] == NP6T_S11 && t[18] == NP6T_S61) ||
++         (t[2] == NP6T_S11 && t[6] == NP6T_S11 && t[10] == NP6T_S11 && t[14] == NP6T_S61 && (t[3] == 0 || t[3] == NP6T_MAT));
++}
++/* the people's groups of buffer b with keys at or below lim (the walk's tag a); 1 when one was drawn */
++static void np6_emit(NatP6Buf *q, uint32_t lim)
++{
++  while (q->cur < q->n && (q->g[q->cur].key & (GUEST_SIZE - 1) & ~15u) <= lim) {
++    const NatP6 *g = &q->g[q->cur++]; int rc;
++    if (!g_xl_one) continue;   /* (a transfer the translator is not fed) */
++    if (q->seq != g_dg_seq) N6X.late_seq++;
++    nge_walk6(q == &g_np6[0] ? 0 : 1, q->cur - 1); rc = nat_p06_group(g); nge_walk6_end(); N6X.emit++;   /* step 2b: the group's reference (ge/nge.h) */
++    if (rc == NATP_CORE) N6X.core++; else if (rc == NATP_FED) N6X.fed++; else N6X.bad++;
++  }
++}
++static uint32_t np6_next(const NatP6Buf *q) { return q->cur < q->n ? q->g[q->cur].key & (GUEST_SIZE - 1) & ~15u : 0xffffffffu; }
+ /* the group's quadwords as the builder copies them to the packet (8 from q0 with NATG_FULL, else 7 from q1; a CNT tag's ADDR 0) */
+ static int nat_words(const NatGrp *g, uint32_t *w)
+ {
+@@ -178,6 +204,38 @@
+   if (nat_lw_mode < 0) { const char *e = getenv("MGS2_NAT_LW"); nat_lw_mode = e ? atoi(e) : 0; }
+   if (nat_lw_mode) return 0;   /* the late walk made the picture of this transfer (boot/xlive_chk.c) */
+   if (depth || !(chcr & 0x40)) return 0;
++  { NatP6Buf *q = &g_np6[b];   /* native step 2: the people's records of this buffer */
++    if (q->g && q->n) {
++      if (q->seq != g_nat_bseq[b]) { if (q->draw && q->cur < q->n) N6X.stale++; }
++      else if (!q->draw) {   /* arm 1: the record's words against the packet's, by key */
++        { static uint32_t cs[2]; if (cs[b] != q->seq) { cs[b] = q->seq; n6_cmp[b] = 0; } }
++        while (n6_cmp[b] < q->n && (q->g[n6_cmp[b]].key & (GUEST_SIZE - 1) & ~15u) < a) n6_cmp[b]++;
++        if (n6_cmp[b] < q->n && (q->g[n6_cmp[b]].key & (GUEST_SIZE - 1) & ~15u) == a) {
++          const NatP6 *g = &q->g[n6_cmp[b]++]; uint32_t w[4 * 16]; int nq = np6_words(g, w), bad = 0, f = (g->flags & NP6G_FULL) != 0;
++          N6X.match++;
++          if (a + 16u * (uint32_t)nq > GUEST_SIZE) bad = 1;
++          else for (int j = 0; j < nq; j++) for (int k = 0; k < 4; k++) {
++            if (k == 1 && w[4 * j] >> 28 == 1) continue;   /* (a CNT tag's ADDR: the builder leaves an older pointer there) */
++            if (t[4 * j + k] != w[4 * j + k]) { N6X.wclass[j + !f][k]++; bad = 1; } }
++          if (bad) { N6X.words_bad++;
++            if (N6X.words_bad <= 8) { fprintf(stderr, "np6 arm 1: vb %ld group at %08x differs:", k_vblanks, a);
++              for (int j = 0; j < nq; j++) fprintf(stderr, " q%d %08x %08x %08x %08x / %08x %08x %08x %08x", j + !f, t[4 * j], t[4 * j + 1], t[4 * j + 2], t[4 * j + 3],
++                                                   w[4 * j], w[4 * j + 1], w[4 * j + 2], w[4 * j + 3]);
++              fputc('\n', stderr); } } }
++        else if (a + 192 <= GUEST_SIZE && np6_tag(t)) N6X.unrec++; }
++      else {   /* arms 2 and 3: drawn */
++        if (n6_xf_b < 0 && q->cur < q->n) n6_xf_b = b;
++        if (b == n6_xf_b) {
++          uint32_t ks = s->g && s->seq == g_nat_bseq[b] && s->draw && (nat_xf_b < 0 || nat_xf_b == b) && s->cur < s->n ?
++                        s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u : 0xffffffffu, kp = np6_next(q);
++          int pk = kp == a && (q->g[q->cur].flags & NP6G_PKT);   /* arm 2: this tag is the group's own packet */
++          np6_emit(q, pk || a < ks ? a : ks);   /* (arm 2: the group at its own packet first, always) */
++          if (np6_next(q) <= a || (pk && ks < a)) N6X.inter++;   /* (a ship group waits at a lower key: the people's after it, below) */
++          if (pk) {   /* arm 2: the packet stepped over: the runtime's VIF state as lane 2 leaves it */
++            int q0 = t[3] == NP6T_BLK, nr = 9 + q0;
++            vs->left = 0; vs->cmd = 0; vs->cl = 1; vs->wl = 1; N6X.step++;
++            *next = tadr + 16u * (uint32_t)(nr + 3); return nr + 3; }
++          if (np6_next(q) < nat_stop) nat_stop = np6_next(q); } } } }
+   if (!s->g || s->seq != g_nat_bseq[b]) { if (s->n && s->cur < s->n) NX.stale_tags++; return 0; }   /* another pipeline call wrote this buffer since */
+   if (!s->draw) {   /* arm 1: the record's words against the packet's, by key (the groups come in address order) */
+     { static uint32_t cs[2]; if (cs[b] != s->seq) { cs[b] = s->seq; nat_cmp[b] = 0; } }
+@@ -215,7 +273,8 @@
+     }
+     if (nr) xl_nr_end(nrt);
+     if (f1) xl_f1_end(NX.bad == bad0);
+-    if (s->cur < s->n) nat_stop = s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u;
++    if (s->cur < s->n && (s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u) < nat_stop) nat_stop = s->g[s->cur].key & (GUEST_SIZE - 1) & ~15u;
++    { NatP6Buf *q = &g_np6[b]; if (q->g && q->draw && q->seq == g_nat_bseq[b] && b == n6_xf_b && np6_next(q) <= a) np6_emit(q, a); }   /* (interleaved: after the ship's) */
+     if (nq) {   /* arm 2: the packet stepped over: the runtime's VIF state as lane 1 leaves it */
+       int q0 = nq == 8, nr = 4 + q0;
+       vs->left = 0; vs->cmd = 0; vs->cl = 1; vs->wl = 1;
+@@ -270,6 +329,21 @@
+                                           NX.match, NX.words_bad);
+     for (int q = 0; q < 8; q++) fprintf(stderr, " q%d %ld %ld %ld %ld", q, NX.wclass[q][0], NX.wclass[q][1], NX.wclass[q][2], NX.wclass[q][3]);
+     fputc('\n', stderr); }
++  if (g_np6_cfg) {
++    fprintf(stderr, "np6: stub: calls recorded %ld, groups %ld (most in a picture %ld), pictures %ld; stubbed without a record (arm 4) %ld; calls with no group %ld; "
++            "the builder run instead: array full %ld, key below the last %ld, near the buffer's end %ld, other %ld; of the fallbacks with the game's material memo "
++            "behind the stub's %ld; recorded with no array %ld; groups not taken when their array was written again %ld; template set-ups %ld; pipeline calls in arm 3 "
++            "that ran the builder (before the arrays or the people's start) %ld, of them from the start on (the growth late) %ld\n",
++            g_np6_c[N6_REC], g_np6_c[N6_GRP], g_np6_c[N6_GRP_MAX], g_np6_c[N6_PICS], g_np6_c[N6_STUBC], g_np6_c[N6_EMPTY], g_np6_c[N6_FB_FULL], g_np6_c[N6_FB_ORDER],
++            g_np6_c[N6_FB_END], g_np6_c[N6_FB_OTHER], g_np6_c[N6_FB_MEMO], g_np6_c[N6_NOMEM], g_np6_c[N6_LEFT], g_np6_c[N6_MEMO_RESET],
++            g_np6_c[N6_NOARR], g_np6_c[N6_LATE]);
++    fprintf(stderr, "np6: twin walk: groups drawn from records %ld (lane 2 %ld, fed word by word %ld, dropped %ld), drawn after a later pipeline call began %ld; "
++            "tags met with untaken groups of an older call %ld; tags where the people's and the ship's groups interleaved %ld; arm 2 packets stepped over %ld; "
++            "P06 packets met with no record %ld; the most groups in a picture before vb 24,000 %ld (vb %ld), from it %ld (vb %ld)\n", N6X.emit, N6X.core, N6X.fed, N6X.bad, N6X.late_seq, N6X.stale, N6X.inter, N6X.step, N6X.unrec, np6_gmax[0], np6_gmax_vb[0], np6_gmax[1], np6_gmax_vb[1]);
++    if (N6X.match || N6X.words_bad) { fprintf(stderr, "np6: arm 1: records matched to their packets %ld, with a differing word %ld; by quadword q0..q12 (w0 w1 w2 w3):",
++                                              N6X.match, N6X.words_bad);
++      for (int q = 0; q < 13; q++) fprintf(stderr, " q%d %ld %ld %ld %ld", q, N6X.wclass[q][0], N6X.wclass[q][1], N6X.wclass[q][2], N6X.wclass[q][3]);
++      fputc('\n', stderr); } }
+   fprintf(stderr, "nat: guest thread stacks (gate 1: the dead frames below a stack pointer differ with a stubbed builder):");
+   for (int i = 0; i < K_THREADS; i++) if (k_th[i].used) fprintf(stderr, " %d: %08x..%08x", i, k_th[i].stack, k_th[i].stack + k_th[i].ssize);
+   fputc('\n', stderr);
+--- a/boot/nge_stub.h
++++ b/boot/nge_stub.h
+@@ -16,6 +16,7 @@
+    each region's KB (default 256); MGS2_NGE_LOG=0: no fill lines.  Nothing here writes the game's memory: the choices of the stub
+    (rt_nat_p04's return) do not depend on it. */
+ #include "../ge/nge.h"
++#include "../ge/natp06.h"   /* step 2: NatP6, NP6_MAXGRP (the people's blocks in the carve) */
+ #include "../nge/nge_cook.c"
+ #include "../nge/nge_list.c"
+ 
+@@ -35,7 +36,8 @@
+ long g_nge_c[NGE_C_N];
+ typedef struct { uint32_t mesh, off, size, last, fin; int16_t next, reg; uint8_t live, seen, pad[2]; NgeMesh m; } NgeEnt;
+ typedef struct { uint32_t off, size; int16_t e, pad; } NgeBlk;
+-typedef struct { uint8_t *mem; uint32_t ge, cap, used; NgeBlk *b; int nb; } NgeReg;
++typedef struct { uint8_t *mem; uint32_t ge, cap, used; NgeBlk *b; int nb; uint32_t lo; } NgeReg;   /* step 2: lo, the first offset cooks may
++                                                    take (the region's top cap - lo bytes until the carve after the opening, then 64) */
+ static NgeEnt *nge_e; static int nge_ne, nge_nzf; static int16_t nge_bkt[NGE_NBKT], *nge_zf;
+ #define NGE_ZOMBIE 0xffffffffu   /* an entry that keeps a changed mesh's old cook until no list in flight can use it (not in the table) */
+ static NgeReg nge_rg[2]; static int nge_nrg;
+@@ -47,16 +49,50 @@
+ typedef struct { uint32_t vb, used, peak, ck, rc, ev, nr, nat, tod, xf; } NgeLine;
+ static NgeLine *nge_ring, nge_cur; static int nge_rn; static long nge_rlost, nge_rfull; static long nge_c0[NGE_C_N]; static int nge_pic_open;
+ 
++static int n6_dbg;
++/* step 2, the carve after the opening: each region's KB from then (MGS2_NGE_KB2; default NGE_KB2_P6 when the people can be native, else
++   no growth), the vblank from which frames begin with the larger carve (MGS2_NGE_GROW; default the bound turns' first, else 24,000), and
++   whether the people can be native in some turn (their arrays then come from the carve too, on the PSP) */
++#define NGE_KB2_P6 384   /* [C twin, MGS2_NGE=2 whole route]: 352 KB 4,297 ship no-room; 384 KB 0 ship, 3 people no-room, 67 re-cooks;
++                            416 KB 0 / 0, but then the arena's data room is 1696 - 264 - 492 = 940 KB against 939 KB at vb 36,755-36,907 with
++                            nothing native (C2 on): 384 KB leaves 972 KB, 33 KB to spare */
++static uint32_t nge_kb2; static long nge_gvb = -1, nge_p6lag = 100; static int nge_p6, nge_grown; static long nge_grown_vb = -1;
++extern int g_np6_ok; extern NatP6Buf g_np6[2];
+ static void nge_cfg(void)
+ {
+   const char *e, *c = getenv("MGS2_OPT_CYCLE"); long f = -1, n = 0;
+   nge_cfg_set = 1;
+-  nge_all = (e = getenv("MGS2_NGE")) ? atoi(e) & 1 : 0;
++  nge_all = (e = getenv("MGS2_NGE")) ? atoi(e) : 0; if (nge_all < 0 || nge_all > 2) nge_all = 0;   /* step 2: 2 = the people native too */
+   if ((e = getenv("MGS2_NGE_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0)
+-    for (; nge_ncyc < BD_CYC_N && (*e == '0' || *e == '1'); e++) nge_cyc[nge_ncyc++] = (uint8_t)(*e - '0');
++    for (; nge_ncyc < BD_CYC_N && *e >= '0' && *e <= '2'; e++) nge_cyc[nge_ncyc++] = (uint8_t)(*e - '0');
+   if ((e = getenv("MGS2_NGE_KB")) && atoi(e) >= 64 && atoi(e) <= 4096) nge_kb = (uint32_t)atoi(e);
+   if ((e = getenv("MGS2_NGE_LOG"))) nge_log = atoi(e) != 0;
++  nge_p6 = nge_all == 2 || ((e = getenv("MGS2_NP6")) && atoi(e) == 3); for (int i = 0; i < nge_ncyc; i++) if (nge_cyc[i] == 2) nge_p6 = 1;
++  nge_kb2 = nge_p6 ? NGE_KB2_P6 : 0;
++  if ((e = getenv("MGS2_NGE_KB2"))) nge_kb2 = atoi(e) >= 64 && atoi(e) <= 4096 ? (uint32_t)atoi(e) : 0;
++  if (nge_kb2 <= nge_kb) nge_kb2 = 0;   /* (no growth) */
++  if ((e = getenv("MGS2_NGE_P6LAG")) && atol(e) >= 0) nge_p6lag = atol(e);
++  if ((e = getenv("MGS2_NGE_GROW"))) nge_gvb = atol(e);
++  else nge_gvb = f >= 0 && n > 0 ? f : 24000;
++#ifndef __psp__
++  if ((e = getenv("MGS2_NGE6_DBG"))) n6_dbg = atoi(e);   /* step 2, x86: a line for each people re-cook (what changed) */
++#endif
++}
++uint32_t nge_cfg_bytes(void);
++/* step 2: each region's bytes after the carve after the opening (nge_cfg_bytes when there is none) */
++uint32_t nge_cfg_bytes2(void) { if (!nge_cfg_set) nge_cfg(); return nge_cfg_bytes() && nge_kb2 ? nge_kb2 << 10 : nge_cfg_bytes(); }
++/* step 2: the people's block for a packet buffer (its array, then its references, NGE_P6REF words), each on a 64-byte line: in the carve
++   after the opening (the PSP's), 0 when the people cannot be native or there is no growth */
++uint32_t nge_np6_bytes(void)
++{
++  if (!nge_cfg_set) nge_cfg();
++  return nge_p6 && nge_cfg_bytes2() > nge_cfg_bytes() ? (((uint32_t)(NP6_MAXGRP * sizeof(NatP6)) + 63u) & ~63u) + ((NGE_P6REF * 4u + 63u) & ~63u) : 0;
+ }
++long nge_grow_vb(void) { if (!nge_cfg_set) nge_cfg(); return nge_cfg_bytes2() > nge_cfg_bytes() ? nge_gvb : -1; }
++/* step 2: the first vblank whose picture may have native people when they wait for the carve: the growth's vb + MGS2_NGE_P6LAG (default
++   100, one turn), the same on the twin and the PSP whenever the PSP has grown by then, so that the game's state (the people's packets
++   the builder no longer writes) does not hang on when the GE finished; -1: no wait */
++long nge_p6_vb(void) { if (!nge_cfg_set) nge_cfg(); return nge_np6_bytes() ? nge_gvb + nge_p6lag : -1; }
+ /* the bytes of each region the host should carve (0: MGS2_NGE off in every turn) */
+ uint32_t nge_cfg_bytes(void)
+ {
+@@ -72,15 +108,18 @@
+   if (nge_ncyc && vb >= bd_from) { long t = (vb - bd_from) / bd_turn; if (t < nge_ncyc) return nge_cyc[t]; }
+   return nge_all;
+ }
+-/* the host's: its regions (m1 0: one), their GE addresses, each region's bytes; fin: the GE's finish count (0 on x86); al: the host's
++/* the host's: its regions (m1 0: one), their GE addresses, each region's bytes (cap; step 2: the top cap0 of them only until nge_grow;
++   p6r: the people's references for each packet buffer in its blocks in the carve, 0: in the tables' blocks); fin: the GE's finish count (0 on x86); al: the host's
+    allocator for the tables (the PSP: blocks of the system's memory outside newlib's heap, whose headroom is about 64 KB; x86: malloc),
+    each block on a 64-byte line.  Three blocks, the largest first: the table (entries, zombie stack, both regions' blocks, the fill ring)
+    and each packet buffer's references and transforms */
+-int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name))
++int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, uint32_t cap0, uint32_t *const p6r[2],
++                   volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name))
+ {
+   uint8_t *m[2] = { m0, m1 }; uint32_t ge[2] = { ge0, ge1 }; int n = 0;
++  const int r6 = p6r && p6r[0] && p6r[1];   /* step 2: the people's references in the carve (the PSP's), else in the tables' blocks */
+   const uint32_t tn = (uint32_t)(NGE_NENT * sizeof(NgeEnt) + NGE_NENT * sizeof(int16_t) + 2 * NGE_NBLK * sizeof(NgeBlk) + NGE_RING * sizeof(NgeLine) + 63) & ~63u,
+-                 bn = (uint32_t)(NAT_MAXGRP * sizeof(NgeRef) + NGE_MAXCALL * sizeof(NgeXf) + 63) & ~63u;
++                 bn = (uint32_t)(NAT_MAXGRP * sizeof(NgeRef) + NGE_MAXCALL * sizeof(NgeXf) + (r6 ? 0 : NGE_P6REF * 4) + 63) & ~63u;
+   uint8_t *tb, *bb[2];
+   if (!nge_cfg_set) nge_cfg();
+   for (int k = 0; k < 2; k++) {
+@@ -88,11 +127,12 @@
+     if ((ge[k] >> 24) != ((ge[k] + cap - 1) >> 24)) {   /* one BASE serves a region: not across a 16 MB boundary of the GE's space */
+       fprintf(stderr, "nge: region %d (GE %08x, %u KB) crosses a 16 MB boundary: not used\n", k, (unsigned)ge[k], (unsigned)(cap >> 10)); continue; }
+     nge_rg[n].mem = m[k]; nge_rg[n].ge = ge[k]; nge_rg[n].cap = cap; nge_rg[n].used = 0; nge_rg[n].nb = 0;
++    nge_rg[n].lo = cap0 && cap0 < cap ? cap - cap0 : 0;
+     xc_nge_mem[n] = m[k]; xc_nge_ge[n] = ge[k]; n++;
+   }
+   tb = n ? al(tn, "nge_table") : 0; bb[0] = tb ? al(bn, "nge_buf0") : 0; bb[1] = bb[0] ? al(bn, "nge_buf1") : 0;
+   if (!n || !tb || !bb[0] || !bb[1] || ((uintptr_t)tb | (uintptr_t)bb[0] | (uintptr_t)bb[1]) & 63) {
+-    xc_nge_ref[0] = xc_nge_ref[1] = 0; xc_nge_mem[0] = xc_nge_mem[1] = 0;
++    xc_nge_ref[0] = xc_nge_ref[1] = 0; xc_nge_mem[0] = xc_nge_mem[1] = 0; xc_nge_ref6[0] = xc_nge_ref6[1] = 0;
+     fprintf(stderr, "nge: native step 1 NOT ON: %s (regions %d; blocks of %u B and 2 x %u B: %08x %08x %08x); today's path everywhere\n",
+             !n ? "no region" : "no memory for the tables", n, (unsigned)tn, (unsigned)bn, (unsigned)(uintptr_t)tb, (unsigned)(uintptr_t)bb[0],
+             (unsigned)(uintptr_t)bb[1]);
+@@ -101,9 +141,13 @@
+   nge_e = (NgeEnt *)(void *)tb; nge_zf = (int16_t *)(void *)(tb + NGE_NENT * sizeof(NgeEnt));
+   nge_rg[0].b = (NgeBlk *)(void *)(tb + NGE_NENT * sizeof(NgeEnt) + NGE_NENT * sizeof(int16_t)); nge_rg[1].b = nge_rg[0].b + NGE_NBLK;
+   nge_ring = (NgeLine *)(void *)(nge_rg[1].b + NGE_NBLK);
+-  for (int b = 0; b < 2; b++) { xc_nge_ref[b] = (NgeRef *)(void *)bb[b]; xc_nge_xfa[b] = (NgeXf *)(void *)(bb[b] + NAT_MAXGRP * sizeof(NgeRef)); }
++  for (int b = 0; b < 2; b++) { xc_nge_ref[b] = (NgeRef *)(void *)bb[b]; xc_nge_xfa[b] = (NgeXf *)(void *)(bb[b] + NAT_MAXGRP * sizeof(NgeRef));
++    xc_nge_ref6[b] = r6 ? p6r[b] : (uint32_t *)(void *)(bb[b] + NAT_MAXGRP * sizeof(NgeRef) + NGE_MAXCALL * sizeof(NgeXf)); }   /* native step 2 */
++  xc_nge_cap = cap;
+   for (int k = 0; k < NGE_NBKT; k++) nge_bkt[k] = -1;
+   nge_nrg = n; nge_fin = fin; g_nge = 1;
++  if (nge_rg[0].lo) fprintf(stderr, "nge: step 2: each region %u KB until vb %ld, then %u KB (the carve after the opening)%s\n", (unsigned)(cap0 >> 10),
++                            nge_grow_vb(), (unsigned)(cap >> 10), nge_np6_bytes() ? ", with the people's arrays and references beside it" : "");
+   fprintf(stderr, "nge: native step 1 (MGS2_NGE %d, MGS2_NGE_CYCLE %d digits): %d region(s) of %u KB at %08x (GE %08x)%s%08x (GE %08x); "
+           "tables %u B (%d entries of %u B) at %08x, references and transforms %u B a packet buffer at %08x and %08x; a mesh kept %d pipeline "
+           "calls after its last use%s; fill lines %s\n",
+@@ -114,6 +158,20 @@
+   return 0;
+ }
+ 
++/* step 2: the carve after the opening, once the host has seen every frame begun with the smaller one done (the GE's finishes on the
++   PSP): each region whole; the people's arrays (p6[b], nge_np6_bytes() each, zeroed; their references after them: xc_nge_ref6, set at
++   nge_host_setup) from then, when the people can be native (p6 0: the host's own arrays, x86) */
++void nge_grow(uint8_t *const p6[2], long vb)
++{
++  if (nge_grown) return;
++  nge_grown = 1; nge_grown_vb = vb;
++  for (int g = 0; g < nge_nrg; g++) nge_rg[g].lo = 0;
++  if (p6 && p6[0] && p6[1]) for (int b = 0; b < 2; b++) { memset(p6[b], 0, nge_np6_bytes()); g_np6[b].g = (NatP6 *)(void *)p6[b]; }
++  if (nge_p6) g_np6_ok = 1;
++  fprintf(stderr, "nge: step 2: the carve after the opening at vb %ld: %d region(s) of %u KB now whole%s\n", vb, nge_nrg,
++          (unsigned)(nge_nrg ? nge_rg[0].cap >> 10 : 0), nge_p6 ? "; the people's arrays there from now" : "");
++}
++
+ /* ---- the arena ---- */
+ static int nge_held(const NgeEnt *e) { return g_dg_seq - e->last < NGE_GUARD || (nge_fin && *nge_fin - e->fin < 3); }
+ static void nge_free(int k)   /* the mesh's block back to its region */
+@@ -149,7 +207,7 @@
+ }
+ static int nge_fit(NgeReg *r, uint32_t size, uint32_t *off, int *pos)
+ {
+-  uint32_t at = 64;
++  uint32_t at = r->lo > 64 ? r->lo : 64;
+   if (r->nb >= NGE_NBLK) return 0;
+   for (int j = 0; j <= r->nb; j++) {
+     const uint32_t end = j < r->nb ? r->b[j].off : r->cap;
+@@ -210,6 +268,162 @@
+   return k;
+ }
+ 
++/* ---- native step 2: the people's cook (ge/nge.h NgeP6G; the stub boot/np6_stub.h calls nge6_rec for a stubbed call's groups) ----
++   A people mesh (0x12e8b8's R[4]) is cooked whole on a miss into the arena, in the ship's table under the key mesh | 1: an NgeP6G a
++   group, then each drawable group's vertices (ge/vu1conv.c vc_p06_c2v on its streams, at alpha 255 and without ADC: the converter's
++   own loop), strips (vc_strips of the stream's flags), the blended vertices' indices and the box.  The check at each use: the
++   descriptor array, the six stream bases, the group count and the descriptors' sum.  A group is drawn natively (ok) when today's C2 path
++   could take it on the data alone: no factor stream (TINT), 1..64 vertices, pass 3 not the light ramp and drawn with pass 2 or neither,
++   streams A, B, C (and D with pass 2) sent and long enough, in RAM, and vc_p06_c2v takes it (UVs and weights in range) */
++#include "../ge/vu1conv.h"
++enum { N6K_CALLS, N6K_GRP, N6K_REF, N6K_REUSE, N6K_COOK, N6K_RECOOK, N6K_NOROOM, N6K_BAD, N6K_TFULL, N6K_GRP_NOT, N6K_BYTES,
++       N6K_W_DESC, N6K_W_BASE, N6K_W_SUM, N6K_W_DATA, N6K_HASHED, N6K_N };
++static const char *const n6k_cn[N6K_N] = { "people calls", "people groups", "people groups referenced", "people meshes reused",
++  "people meshes cooked", "people meshes re-cooked (changed)", "people meshes not cooked: no room", "people meshes not cookable",
++  "people table full", "people groups not drawn natively (today's path)", "people bytes cooked",
++  "changed: descriptor array or count", "changed: a base of streams A B C", "changed: descriptor words or a base of D E F",
++  "changed: stream contents only", "stream bytes hashed at use" };
++long g_np6k[N6K_N];
++static uint8_t n6_v[2 * 64 * 24 + 32]; static uint16_t n6_fl[64], n6_runs[2 * 128];   /* (main CPU only) */
++static uint32_t n6_mix(uint32_t s, uint32_t w) { return ((s << 5) | (s >> 27)) + w * 0x9e3779b1u; }
++/* the check's last part: a hash of the words of streams A B C D the mesh's groups take from the cursors cur (0x12e8b8's order: each
++   group nq quadwords of each stream it sends, so each stream one run from its cursor), the words its cook read.  A mesh whose vertices
++   the game rewrites in place keeps its descriptors and bases (the opening, vb 8,755: 33 groups' normals) */
++typedef uint32_t __attribute__((may_alias)) n6w32;
++static uint32_t n6_csum(const uint8_t *ram, uint32_t desc, int ng, const uint32_t *cur, long *nbytes)
++{
++  uint32_t q[4] = { 0, 0, 0, 0 }, h = 0x2545f491u;
++  for (int i = 0; i < ng; i++) for (int k = 0; k < 4; k++) q[k] += nc_rd8(ram, desc + 32u * (uint32_t)i + 14u + (uint32_t)k);
++  for (int k = 0; k < 4; k++) {
++    if (!cur[k] || !q[k]) continue;
++    const uint32_t a = cur[k] & ~15u, nb = 16u * q[k];
++    if (!nc_in_ram(a, nb)) { h = n6_mix(h, 0xdead0000u + (uint32_t)k); continue; }
++    const n6w32 *w = (const n6w32 *)(const void *)(ram + (a & NGE_RAM_MASK));
++    uint32_t sum = 0, x = 0;
++    for (uint32_t j = 0; j < nb / 4u; j++) { sum += w[j]; x = ((x << 5) | (x >> 27)) ^ w[j]; }
++    h = n6_mix(n6_mix(h, sum), x);
++    if (nbytes) *nbytes += (long)nb;
++  }
++  return h;
++}
++static int n6_cook(NgeArena *a, const uint8_t *ram, uint32_t mesh, NgeMesh *m, uint8_t reg)
++{
++  const int ng = (int16_t)nc_rd16(ram, mesh + 0xcc);
++  const uint32_t desc = nc_rd32(ram, mesh + 0xf4);
++  uint32_t cur[6];
++  for (int k = 0; k < 6; k++) cur[k] = nc_rd32(ram, mesh + 0xdc + 4u * (uint32_t)k);
++  if (ng <= 0 || ng > 1024 || !nc_in_ram(desc, 32u * (uint32_t)ng)) return NGE_E_BAD;
++  m->csum = n6_csum(ram, desc, ng, cur, 0);
++  a->used = 0;
++  const uint32_t go = nc_take(a, (uint32_t)ng * (uint32_t)sizeof(NgeP6G), 16);
++  if (go == ~0u) return NGE_E_ROOM;
++  m->mesh = mesh | 1u; m->desc = desc; m->sa = cur[0]; m->sb = cur[1]; m->sc = cur[2];
++  m->dsum = n6_mix(n6_mix(n6_mix(nge_desc_sum(ram, desc, ng), cur[3]), cur[4]), cur[5]); m->ng = (uint16_t)ng; m->pre = 2; m->alpha = 0xff;
++  const int tint = cur[5] != 0;   /* (the builder's MSCAL: idx (desc0 & 1) + 2 when stream F's cursor is not 0) */
++  for (int i = 0; i < ng; i++) {
++    const uint32_t dd = desc + 32u * (uint32_t)i, d0 = nc_rd32(ram, dd), n = nc_rd8(ram, dd + 12), hy = d0 & 0xffffu;
++    uint32_t sa[6], nq[6];
++    for (int k = 0; k < 6; k++) {
++      nq[k] = nc_rd8(ram, dd + 14 + (uint32_t)k);
++      if (cur[k] && nq[k]) { sa[k] = cur[k] & ~15u; cur[k] += 16u * nq[k]; } else { sa[k] = 0; nq[k] = 0; }
++    }
++    NgeP6G q; memset(&q, 0, sizeof q);
++    q.n = (uint16_t)n; q.hy = (uint16_t)hy; q.skin = (uint8_t)(d0 & 1); q.st = q.skin ? 24 : 20; q.reg = reg;
++    const int chk2 = (hy & 0x10) != 0, p3 = (hy & 0x100) ? -1 : (hy & 0x600) ? ((hy & 0x400) ? 2 : 1) : 0;
++    /* the streams vc_p06_c2 reads (A, B V4-16: 2 vertices a quadword; C, D V2-16: 4), sent, long enough and in RAM */
++#define N6S(k, per) (sa[k] && (per) * nq[k] >= n && nc_in_ram(sa[k], 16u * nq[k]))
++    int ok = !tint && n >= 1 && n <= 64 && p3 != 2 && (p3 == 1) == chk2 && N6S(0, 2) && N6S(1, 2) && N6S(2, 4) && (!chk2 || N6S(3, 4));
++#undef N6S
++    if (ok) {
++      const void *p[6]; VcLit L; VcP6C2 k;
++      for (int j = 0; j < 6; j++) p[j] = sa[j] ? (const void *)(ram + (sa[j] & NGE_RAM_MASK)) : 0;
++      memset(&L, 0, sizeof L); memset(&k, 0, sizeof k);
++      L.n = (int)n; L.hy = hy; k.skin = q.skin; k.chk2 = chk2; k.a2 = 0xffu;   /* (no factor, no ADC: the call's parts are done by the converter) */
++      ok = vc_p06_c2v(p, &L, &k, n6_v, n6_fl, 0, 0, 0) == (int)n;
++      if (ok) {
++        const int nst = vc_strips(n6_fl, (int)n, n6_runs, 128), uv2 = L.uv2;
++        const uint32_t a1 = (n * q.st + 15u) & ~15u, vbn = uv2 == 2 ? 2 * a1 : a1;
++        uint8_t bl[64]; uint32_t nb = 0;
++        if (q.skin) { const int16_t *A = (const int16_t *)p[0]; for (uint32_t v = 0; v < n; v++) if (A[4 * v + 3] != 4096) bl[nb++] = (uint8_t)v; }
++        vc_p06_c2box(p, (int)n, &k);
++        const uint32_t vo = nc_take(a, vbn, 16), ro = vo == ~0u ? ~0u : nc_take(a, 4u * (uint32_t)nst, 4), bo = ro == ~0u ? ~0u : nc_take(a, nb, 1);
++        if (bo == ~0u) return NGE_E_ROOM;
++        q.vb = a->base + vo; q.runs = a->base + ro; q.bl = nb ? a->base + bo : 0; q.nst = (uint16_t)nst; q.nb = (uint16_t)nb;
++        q.uv2 = (uint8_t)uv2; q.du = L.du; q.dv = L.dv; q.cull = (uint8_t)L.cull; q.ok = 1;
++        for (int j = 0; j < 3; j++) { q.blo[j] = k.blo[j]; q.bhi[j] = k.bhi[j]; }
++        if (a->mem) { memcpy(a->mem + vo, n6_v, vbn); memcpy(a->mem + ro, n6_runs, 4u * (uint32_t)nst); if (nb) memcpy(a->mem + bo, bl, nb); }
++      }
++    }
++    if (!ok) g_np6k[N6K_GRP_NOT] += a->mem != 0;
++    if (a->mem) memcpy(a->mem + go + (uint32_t)i * sizeof(NgeP6G), &q, sizeof q);
++  }
++  return NGE_OK;
++}
++/* N6K_REUSE: the cook matches RAM now; else what changed first (N6K_W_*) */
++static int n6_same(const NgeMesh *m, const uint8_t *ram)
++{
++  const uint32_t mesh = m->mesh & ~1u; uint32_t c[6];
++  if (nc_rd32(ram, mesh + 0xf4) != m->desc || (int16_t)nc_rd16(ram, mesh + 0xcc) != (int)m->ng) return N6K_W_DESC;
++  for (int k = 0; k < 6; k++) c[k] = nc_rd32(ram, mesh + 0xdc + 4u * (uint32_t)k);
++  if (c[0] != m->sa || c[1] != m->sb || c[2] != m->sc) return N6K_W_BASE;
++  if (n6_mix(n6_mix(n6_mix(nge_desc_sum(ram, m->desc, m->ng), c[3]), c[4]), c[5]) != m->dsum) return N6K_W_SUM;
++  return n6_csum(ram, m->desc, m->ng, c, &g_np6k[N6K_HASHED]) == m->csum ? N6K_REUSE : N6K_W_DATA;
++}
++/* the people mesh's entry with a live cook that matches RAM now (cooked on a miss), or -1 (nge_get's, with key mesh | 1) */
++static int nge6_get(uint32_t mesh)
++{
++  const uint32_t key = mesh | 1u;
++  int k = nge_bkt[key >> 4 & (NGE_NBKT - 1)];
++  while (k >= 0 && nge_e[k].mesh != key) k = nge_e[k].next;
++  if (k >= 0 && nge_e[k].live) {
++    const int why = n6_same(&nge_e[k].m, g_mem);
++    g_np6k[why]++;
++#ifndef __psp__
++    if (n6_dbg && why != N6K_REUSE) { const NgeMesh *o = &nge_e[k].m; const uint32_t mm = mesh & ~1u;
++      fprintf(stderr, "nge6 re vb %ld why %d mesh %08x ng %d desc %08x/%08x a %08x/%08x b %08x/%08x c %08x/%08x\n", (long)k_vblanks, why,
++              (unsigned)mm, (int)o->ng, (unsigned)o->desc, (unsigned)nc_rd32(g_mem, mm + 0xf4), (unsigned)o->sa, (unsigned)nc_rd32(g_mem, mm + 0xdc),
++              (unsigned)o->sb, (unsigned)nc_rd32(g_mem, mm + 0xe0), (unsigned)o->sc, (unsigned)nc_rd32(g_mem, mm + 0xe4)); }
++#endif
++    if (why == N6K_REUSE) return k;
++    if (!nge_retire(k)) { g_np6k[N6K_TFULL]++; return -1; }
++    g_np6k[N6K_RECOOK]++; nge_cur.rc++;
++  } else if (k >= 0 && nge_e[k].seen) { g_nge_c[NGE_C_RECOOK_EV]++; nge_cur.rc++; }
++  NgeArena a; NgeMesh m;
++  nge_arena_at(&a, 0, ~0u, 0, 0);
++  if (n6_cook(&a, g_mem, mesh, &m, 0) != NGE_OK) { g_np6k[N6K_BAD]++; return -1; }
++  if (k < 0) {
++    if ((k = nge_slot()) < 0) { g_np6k[N6K_TFULL]++; return -1; }
++    nge_e[k].mesh = key; nge_e[k].live = 0; nge_e[k].seen = 0;
++    nge_e[k].next = nge_bkt[key >> 4 & (NGE_NBKT - 1)]; nge_bkt[key >> 4 & (NGE_NBKT - 1)] = (int16_t)k;
++  }
++  const uint32_t size = (a.used + 63) & ~63u;
++  if (!nge_place(k, size)) { g_np6k[N6K_NOROOM]++; nge_cur.nr++; return -1; }
++  NgeReg *r = &nge_rg[nge_e[k].reg];
++  nge_arena_at(&a, r->mem + nge_e[k].off, size, nge_e[k].off, r->ge);
++  if (n6_cook(&a, g_mem, mesh, &nge_e[k].m, (uint8_t)nge_e[k].reg) != NGE_OK) { nge_free(k); g_np6k[N6K_BAD]++; return -1; }
++  nge_e[k].live = 1; nge_e[k].seen = 1; g_np6k[N6K_COOK]++; g_np6k[N6K_BYTES] += size; nge_cur.ck++;
++  return k;
++}
++/* a stubbed people call's ng groups, recorded from index n0 of buffer b: each group's reference (0: today's path) */
++static void nge6_rec(int b, uint32_t n0, int ng, uint32_t mesh)
++{
++  uint32_t *rf = xc_nge_ref6[b] + n0; int i, nat = 0;
++  g_np6k[N6K_CALLS]++; g_np6k[N6K_GRP] += ng;
++  const int k = nge6_get(mesh);
++  if (k < 0 || nge_e[k].m.ng != (uint16_t)ng) { for (i = 0; i < ng; i++) rf[i] = 0; return; }
++  NgeEnt *e = &nge_e[k]; const NgeP6G *q = (const NgeP6G *)(void *)(nge_rg[e->reg].mem + e->off);
++  for (i = 0; i < ng; i++) { rf[i] = q[i].ok ? NGE_RO(e->reg, e->off + (uint32_t)i * (uint32_t)sizeof(NgeP6G)) : 0u; nat += q[i].ok; }
++  e->last = g_dg_seq; e->fin = nge_fin ? *nge_fin : 0;
++  g_np6k[N6K_REF] += nat; nge_cur.nat += (uint32_t)nat;
++}
++static void nge6_line(const char *what, const long *c, const long *c0)
++{
++  fprintf(stderr, "nge %s:", what);
++  for (int i = 0; i < N6K_N; i++) fprintf(stderr, "%s %s %ld", i ? ";" : "", n6k_cn[i], c[i] - (c0 ? c0[i] : 0));
++  fprintf(stderr, "\n");
++}
++static long g_np6k0[N6K_N];
++
+ /* ---- the fill lines ---- */
+ static void nge_flush(void)
+ {
+@@ -241,6 +455,7 @@
+   for (int i = 0; i < NGE_C_N; i++) fprintf(stderr, "%s %s %ld", i ? ";" : "", nge_cn[i], g_nge_c[i] - nge_c0[i]);
+   fprintf(stderr, "; arena used %u KB, most %u KB, of %u KB in %d region(s)\n", (unsigned)(nge_used >> 10), (unsigned)(nge_tpeak >> 10),
+           (unsigned)(nge_nrg * nge_rg[0].cap >> 10), nge_nrg);
++  if (g_np6k[N6K_CALLS] != g_np6k0[N6K_CALLS]) { nge6_line("people turn", g_np6k, g_np6k0); memcpy(g_np6k0, g_np6k, sizeof g_np6k0); }   /* step 2 */
+   memcpy(nge_c0, g_nge_c, sizeof nge_c0); nge_tpeak = nge_used;
+ }
+ void nge_end_line(void)
+@@ -251,10 +466,15 @@
+   fprintf(stderr, "nge totals:");
+   for (int i = 0; i < NGE_C_N; i++) fprintf(stderr, "%s %s %ld", i ? ";" : "", nge_cn[i], g_nge_c[i]);
+   fprintf(stderr, "; arena used now %u KB of %u KB in %d region(s)\n", (unsigned)(nge_used >> 10), (unsigned)(nge_nrg * nge_rg[0].cap >> 10), nge_nrg);
++  nge6_line("people totals", g_np6k, 0);   /* step 2 */
+   { static const char *const nn[NGN_N] = NGN_NAMES;   /* the converter's (ge/xconv.c; on the PSP the ME's words as RAM holds them) */
+     fprintf(stderr, "nge converter:");
+     for (int i = 0; i < NGN_N; i++) fprintf(stderr, "%s %s %ld", i ? ";" : "", nn[i], xc_nge_n[i]);
+     fprintf(stderr, "\n"); }
++  { static const char *const nn[NG6_N] = NG6_NAMES;   /* step 2: the people's (ge/xconv.c xc_lit_c2) */
++    fprintf(stderr, "nge converter people:");
++    for (int i = 0; i < NG6_N; i++) fprintf(stderr, "%s %s %ld", i ? ";" : "", nn[i], xc_nge6_n[i]);
++    fprintf(stderr, "\n"); }
+ }
+ 
+ /* ---- the stub's ---- */
+--- a/boot/np6_stub.h
++++ b/boot/np6_stub.h
+@@ -0,0 +1,190 @@
++/* np6_stub.h: native step 2 (attic/ge_native/step2_results.md), the main CPU's part for the people: the 0x12e8b8 builder's stub and its
++   records (ge/natp06.h).  Included by nat_stub.h after nge_stub.h (one text for the PSP and the x86 twin, as nat_stub.h): the stub's
++   choices are part of the run (a stubbed call writes no packet), so they are the same on both.
++
++   The builder 0x12e8b8 (gen: P12e8b8; one caller, 0x12f060's loop over an object's meshes, which sets SPR 0xc70 = mesh+0xF8 and SPR
++   0xd34 = mesh+0xFC just before) and the template's set-up 0x12e790 (called twice at each people pass's start, 0x12f130, for the two
++   template halves at SPR 0x190 and 0x260) are reached through the wrappers below (the generated functions linked as P12e8b8_orig and
++   P12e790_orig).  In a full call of the draw pipeline (g_zt set, g_dg_lite clear) the builder's wrapper asks rt_nat_p06: 1 = stubbed.
++
++   The builder's loop in C (gen P12e8b8, 0x12e990 .. 0x12f03c), per group i of the mesh's (int16) mesh+0xCC:
++     - the template half flips (SPR 0xd2c = 1 - itself; half t at SPR 0x190 + 208 t, 13 quadwords);
++     - each stream k (A .. F: mesh+0xDC .. +0xF0, the cursor; its quadwords desc+0x0E + k) is sent when the cursor and the count are
++       not 0 (REF n, the cursor, UNPACK V4-16 / V2-16 masked to T + 0x100 + k), the cursor then moving by 16 n; else a CNT of 0 and a NOP;
++     - each material j (desc+0x14 + 4 j) is sent when it is not 0 and not the half's last sent one (the template word itself: a memo
++       the set-up clears to 0 at the pass's start); else a CNT of 0 and a NOP;
++     - the header: desc+0x0C (byte), desc word 0; for the call's first two groups also SPR 0xc70 and mesh+0xC8 & 1 (the later groups
++       keep the half's, which those two wrote: the same values), and the constant block's REF from SPR 0xd34 (q0, sent by those two only);
++     - MSCAL: SPR 0xc7c + 2 idx, idx = (desc0 & 1) + 2 (stream F's cursor after the group not 0);
++     - the group's 13 (or 12) quadwords go to the packet control's place (SPR 0xd40: qwc +4, cap +8, RAM destination +0x10, end +0x14),
++       unless end < destination + qwc (skipped: never seen).
++   The stub keeps the memo itself (np6_memo, both halves, and the half to use), cleared by the set-up's wrapper and moved by every
++   group it records, so its choices are the builder's while every call of the pass is stubbed.  A call the stub gives back to the builder
++   (a fallback) leaves the game's own memo behind the stub's: such a call is counted (N6_FB_MEMO when the memos differ); none on the
++   routes is the requirement, read from the counts.
++
++   MGS2_NP6=<arm> for the whole run, else the arm follows MGS2_NGE_CYCLE's digit (ge/nge stub: 2 = the people native too: arm 3; else 0):
++     0  the builder runs, nothing recorded;
++     3  native: the call is stubbed and its groups recorded in the array of the packet buffer the call writes; the walk draws them;
++     4  stubbed and not drawn (timing only);
++     1, 2  x86 only (shadow): the builder runs and the groups are recorded with their packets' addresses; 1 the walk compares each
++           record's words with the packet's, 2 the walk draws the record and steps over the packet.
++   A call in arm 3 runs the builder instead (returns 0, counted) when its buffer's array is full, a count is over its UNPACK's field, the
++   packet control's destination is not in the buffer the pipeline call started in, its key is below the last one recorded, or the packet
++   position with every stubbed group's quadwords added is within NAT_END_MARGIN of the buffer's end (as rt_nat_p04).
++   Host memory only is written here (the arrays, the memo, counts); the game's state is read. */
++#include "../ge/natp06.h"
++
++NatP6Buf g_np6[2];               /* [1]: the lower packet buffer (NAT_BUF), as g_nat */
++int g_np6_arm = -1;              /* the arm of the pipeline call g_np6_seq */
++int g_np6_cfg;                   /* 1: MGS2_NP6 or MGS2_NGE_CYCLE can name an arm other than 0 */
++int g_np6_ok;                    /* step 2: 1: the arrays are there for arm 3 (boot/nge_stub.h nge_grow, or the host's own, nge_host_setup) */
++long g_np6_c[N6_N];
++static int np6_set, np6_all = -1; static uint32_t np6_seq = ~0u;
++static int np6_nat;              /* step 2b: this picture's people are cooked and referenced (arm 3, MGS2_NGE's digit 2, the arena there, C2 on) */
++typedef char np6_refs_fit[NP6_MAXGRP == NGE_P6REF ? 1 : -1];
++#ifndef __psp__
++static int np6_cap_dev; long np6_gmax[2], np6_gmax_vb[2];   /* dev (x86): MGS2_NP6_CAP=<n> the array's entries; the most groups in a picture before / from vb 24,000 */
++#define NP6_CAP (np6_cap_dev ? (uint32_t)np6_cap_dev : (uint32_t)NP6_MAXGRP)
++#else
++#define NP6_CAP ((uint32_t)NP6_MAXGRP)
++#endif
++static uint32_t np6_memo[2][3]; static uint32_t np6_half;   /* the stub's memo of the two halves' last materials, and the half last used */
++static void np6_setup(void)
++{
++  const char *e = getenv("MGS2_NP6");
++  np6_set = 1;
++  if (e) np6_all = atoi(e);
++  if (!nge_cfg_set) nge_cfg();
++  g_np6_cfg = np6_all > 0; for (int i = 0; i < nge_ncyc; i++) if (nge_cyc[i] == 2) g_np6_cfg = 1; if (nge_all == 2) g_np6_cfg = 1;
++#ifndef __psp__
++  if ((e = getenv("MGS2_NP6_CAP"))) { np6_cap_dev = atoi(e); if (np6_cap_dev < 0 || np6_cap_dev > 8192) np6_cap_dev = 0; }
++  if (g_np6_cfg && !((e = getenv("MGS2_NAT_NOMEM")) && atoi(e))) { g_np6[0].g = calloc(NP6_CAP, sizeof(NatP6)); g_np6[1].g = calloc(NP6_CAP, sizeof(NatP6)); }
++#endif
++  if (g_np6_cfg) fprintf(stderr, "np6: native step 2, the people: MGS2_NP6 %d (-1: by MGS2_NGE_CYCLE's digit 2), %d groups a picture, %u B each\n",
++                         np6_all, NP6_MAXGRP, (unsigned)sizeof(NatP6));
++}
++int rt_np6_arm_at(long vb)   /* the arm for the picture the pipeline call of vblank vb makes */
++{
++  if (!np6_set) np6_setup();
++  if (np6_all >= 0) return np6_all;
++  return rt_nge_at(vb + 1) == 2 ? 3 : 0;
++}
++static void np6_tpl(uint32_t a)   /* the set-up's wrapper: half a (SPR 0x190 or 0x260) cleared, the halves' order back to its start */
++{
++  uint32_t h = (a & 0x3fff) == 0x260 ? 1u : 0u;
++  np6_memo[h][0] = np6_memo[h][1] = np6_memo[h][2] = 0; np6_half = 0; g_np6_c[N6_MEMO_RESET]++;
++}
++static void np6_game_memo(uint32_t m[2][3], uint32_t *half)   /* the game's memo: the template words, and SPR 0xd2c */
++{
++  for (uint32_t h = 0; h < 2; h++) for (uint32_t j = 0; j < 3; j++) m[h][j] = nat_spr32(0x190 + 208 * h + 20 + 16 * j);
++  *half = nat_spr32(0xd2c);
++}
++static int np6_memo_differs(void) { uint32_t m[2][3], h; np6_game_memo(m, &h); return h != np6_half || memcmp(m, np6_memo, sizeof m) != 0; }
++static int np6_resync;   /* a fallback in arm 3: the stub's memo taken from the game's after the builder ran */
++#ifndef __psp__
++void np6_x86_rec(int b, uint32_t g0, int ng, uint32_t mesh);   /* dev: boot/nat_x86.c's counts */
++#endif
++/* the builder's call (R[4] the mesh): 1 = stubbed */
++int rt_nat_p06(void)
++{
++  uint32_t mesh, desc, qwc, cap, dest, end, d, blk, fog, clip, cur[6], key = 0, vq = 0, kq, half, memo[2][3]; int32_t ng; int b, arm, i, stub; NatP6Buf *s; NatP6 *g;
++  static NatP6 tmp;
++  if (np6_seq != g_dg_seq) { np6_seq = g_dg_seq; g_np6_arm = rt_np6_arm_at(k_vblanks);
++    if (g_np6_arm == 3 && ((!g_np6_ok && (nge_np6_bytes() || !g_np6[0].g || !g_np6[1].g)) || k_vblanks + 1 < nge_p6_vb())) {   /* step 2: no
++        arrays (before the carve after the opening, or none made) or before the people's start (nge_p6_vb): the builder runs */
++      g_np6_arm = 0; g_np6_c[N6_NOARR]++; if (nge_p6_vb() >= 0 && k_vblanks + 1 >= nge_p6_vb()) g_np6_c[N6_LATE]++; }
++    np6_nat = g_nge && g_np6_arm == 3 && rt_nge_at(k_vblanks + 1) == 2 && (g_opt2 & OPT2_C2); }   /* step 2b: C2 cooked (nge_stub.h nge6_rec) */
++  arm = g_np6_arm;
++  if (arm <= 0) return 0;
++  if (arm == 4) { g_np6_c[N6_STUBC]++; return 1; }
++#ifdef __psp__
++  if (arm != 3) return 0;
++#endif
++  stub = arm == 3;
++  mesh = (uint32_t)R[4];
++  dest = nat_spr32(0xd50); d = dest & (GUEST_SIZE - 1);
++#define NP6_FB(k) do { g_np6_c[k]++; if (stub && np6_memo_differs()) g_np6_c[N6_FB_MEMO]++; np6_resync = stub; return 0; } while (0)
++  if (d < NAT_PKT0 || d >= NAT_PKT1) NP6_FB(N6_FB_OTHER);
++  b = NAT_BUF(d);
++  if (g_nat_bseq[b] != g_dg_seq) NP6_FB(N6_FB_OTHER);
++  s = &g_np6[b];
++  if (s->seq != g_dg_seq) {   /* this pipeline call's first: the array starts again */
++    if (s->draw && s->cur < s->n) g_np6_c[N6_LEFT] += (long)(s->n - s->cur);
++    if (g_nat_sync) g_nat_sync(b);   /* (the PSP: the ME's copies of this buffer's records made before the array is written again) */
++    s->seq = g_dg_seq; s->n = s->cur = s->vq = s->last_key = 0; s->draw = arm >= 2; g_np6_c[N6_PICS]++; }
++  ng = (int32_t)(int16_t)nat_r16(mesh + 0xcc);
++  if (ng <= 0) { g_np6_c[N6_EMPTY]++; return stub; }
++  if (ng > 1024 || s->n + (uint32_t)ng > NP6_CAP) NP6_FB(ng > 1024 ? N6_FB_OTHER : N6_FB_FULL);
++  clip = (uint32_t)(int16_t)nat_r16(mesh + 0xc8) & 1; desc = nat_r32(mesh + 0xf4);
++  for (int k = 0; k < 6; k++) cur[k] = nat_r32(mesh + 0xdc + 4u * (uint32_t)k);
++  qwc = nat_spr32(0xd44); cap = nat_spr32(0xd48); end = nat_spr32(0xd54); blk = nat_spr32(0xd34); fog = nat_spr32(0xc70);
++  if (stub) {
++    key = dest + 16 * qwc; kq = key & (GUEST_SIZE - 1) & ~15u;
++    if (kq < s->last_key) NP6_FB(N6_FB_ORDER);
++    if ((int32_t)end - (int32_t)(dest + 16u * (qwc + s->vq + 13u * (uint32_t)ng)) < NAT_END_MARGIN) NP6_FB(N6_FB_END);
++    for (i = 0; i < ng; i++) {   /* the counts first: nothing is committed (the memo) before the call is known to be taken */
++      uint32_t dd = desc + 32u * (uint32_t)i;
++      for (int k = 0; k < 6; k++) { uint32_t n = nat_r8(dd + 14 + (uint32_t)k); if (n > ((k >= 2 && k <= 4) ? 64u : 128u)) NP6_FB(N6_FB_OTHER); }
++    }
++  }
++  if (stub) { half = np6_half; memcpy(memo, np6_memo, sizeof memo); }
++  else np6_game_memo(memo, &half);   /* (the shadow arms: the game's own memo, as the builder that runs after sees it) */
++  for (i = 0; i < ng; i++) {
++    uint32_t dd = desc + 32u * (uint32_t)i, d0 = nat_r32(dd), m = i < 2 ? 13u : 12u, idx;
++    g = s->g ? &s->g[s->n + (uint32_t)i] : &tmp;
++    half = 1u - half;
++    for (int k = 0; k < 6; k++) {
++      uint32_t n = nat_r8(dd + 14 + (uint32_t)k);
++      if (cur[k] && n) { g->s[k] = cur[k]; g->n[k] = (uint8_t)n; cur[k] += 16 * n; } else { g->s[k] = 0; g->n[k] = 0; }
++    }
++    for (int j = 0; j < 3; j++) {
++      uint32_t mt = nat_r32(dd + 20 + 4u * (uint32_t)j);
++      if (mt && mt != memo[half][j]) { g->mat[j] = mt; memo[half][j] = mt; } else g->mat[j] = 0;
++    }
++    g->hdr[0] = nat_r8(dd + 12); g->hdr[1] = d0; g->hdr[2] = fog; g->hdr[3] = clip; g->blk = blk;
++    idx = (d0 & 1) + (cur[5] ? 2u : 0u);
++    g->mscal = (uint32_t)(int32_t)(int16_t)nat_r16(0x70000c7cu + 2 * idx) | 0x14000000u;
++    g->flags = i < 2 ? NP6G_FULL : 0; g->pad = 0;
++    if (stub) g->key = key;
++#ifndef __psp__
++    else {   /* shadow: the group's own packet address, as the builder places it (the flush moves the destination by the quadwords before) */
++      if ((int32_t)end < (int32_t)(dest + qwc)) { g->flags |= 0x80; g->key = dest + 16 * qwc; continue; }   /* skipped (never seen): left out below */
++      if ((int32_t)cap < (int32_t)(qwc + m)) { dest += 16 * qwc; qwc = 0; }
++      g->key = dest + 16 * qwc; g->flags |= NP6G_PKT; qwc += m;
++    }
++#endif
++    vq += m;
++  }
++  if (stub) { np6_half = half; memcpy(np6_memo, memo, sizeof memo); }
++#ifndef __psp__
++  if (!stub && s->g) { int o = 0; for (i = 0; i < ng; i++) if (!(s->g[s->n + (uint32_t)i].flags & 0x80)) s->g[s->n + (uint32_t)o++] = s->g[s->n + (uint32_t)i]; ng = o; }
++  np6_x86_rec(b, s->n, ng, mesh);
++#endif
++  if (!s->g) g_np6_c[N6_NOMEM]++;
++  else if (stub && xc_nge_ref6[b] && s->n + (uint32_t)ng <= NGE_P6REF) { if (np6_nat) nge6_rec(b, s->n, ng, mesh); else memset(xc_nge_ref6[b] + s->n, 0, 4u * (uint32_t)ng); }   /* step 2b */
++  s->n += (uint32_t)ng; s->vq += vq; if (stub) s->last_key = key & (GUEST_SIZE - 1) & ~15u;
++  g_np6_c[N6_REC]++; g_np6_c[N6_GRP] += ng; if ((long)s->n > g_np6_c[N6_GRP_MAX]) g_np6_c[N6_GRP_MAX] = (long)s->n;
++#ifndef __psp__
++  { int r = k_vblanks >= 24000; if ((long)s->n > np6_gmax[r]) { np6_gmax[r] = (long)s->n; np6_gmax_vb[r] = k_vblanks; } }
++#endif
++#undef NP6_FB
++  return stub;
++}
++void P12e8b8_orig(void);
++void P12e8b8(void) __attribute__((section(".text.nat_P12e8b8")));
++void P12e8b8(void)
++{
++  if (__builtin_expect(!np6_set, 0)) np6_setup();
++  if (g_np6_cfg && g_zt && !g_dg_lite && rt_nat_p06()) return;
++  P12e8b8_orig();
++  if (np6_resync) { np6_resync = 0; np6_game_memo(np6_memo, &np6_half); }
++}
++void P12e790_orig(void);
++void P12e790(void) __attribute__((section(".text.nat_P12e790")));
++void P12e790(void)
++{
++  uint32_t a = (uint32_t)R[4];
++  P12e790_orig();
++  np6_tpl(a);
++}
+--- a/boot/xlive_chk.c
++++ b/boot/xlive_chk.c
+@@ -106,7 +106,10 @@
+ #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+ #include "../ge/nge.h"       /* native step 1 (MGS2_NGE) */
+ uint32_t nge_cfg_bytes(void);   /* (boot/nge_stub.h) */
+-int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, uint32_t cap0, uint32_t *const p6r[2],
++                   volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++uint32_t nge_cfg_bytes2(void); uint32_t nge_np6_bytes(void); long nge_grow_vb(void); void nge_grow(uint8_t *const p6[2], long vb);
++static uint32_t nge_x86_k1, nge_x86_kg;   /* step 2: the carve before and after the opening (the PSP's: each frame memory's arena tail) */
+ static void *nge_x86_alloc(uint32_t n, const char *name) { void *p = 0; (void)name; return posix_memalign(&p, 64, n) ? 0 : p; }
+ #define NGE_X86_GE0 0x09400000u   /* the cooked regions' GE addresses on the twin (the PSP's are their RAM addresses) */
+ #define NGE_X86_GE1 0x09800000u
+@@ -174,6 +177,8 @@
+   if (q >= gx_arena && q <= gx_arena + GL_PSP_ARENA) return 0x08600000u + (uint32_t)(q - gx_arena);
+   if (q >= gx_lb && q <= gx_lb + gx_listn) return 0x08600000u + GL_PSP_ARENA + (uint32_t)(q - gx_lb);
+   if (q >= gx_pool && q <= gx_pool + gx_pool_n) return 0x09000000u + (uint32_t)(q - gx_pool);
++  if (nge_x86_m[0] && q >= nge_x86_m[0] && q < nge_x86_m[0] + nge_x86_n) return NGE_X86_GE0 + (uint32_t)(q - nge_x86_m[0]);   /* native step 2: */
++  if (nge_x86_m[1] && q >= nge_x86_m[1] && q < nge_x86_m[1] + nge_x86_n) return NGE_X86_GE1 + (uint32_t)(q - nge_x86_m[1]);   /* N-ref vertices */
+   fprintf(stderr, "xlive gx: an address outside the frame memory, the aux and the pool\n"); exit(2);
+ }
+ /* sb15 (task #152): MGS2_GX_SEM=1, the GE list as the GE draws it, independent of where its data lies and of how its primitives are
+@@ -1109,6 +1114,14 @@
+ extern NatBuf g_nat[2]; extern uint32_t g_nat_bseq[2];
+ static int nlw_mode = -1; static XmPic nlw_p; static XmCopy nlw_c; static XmView nlw_v;
+ static long nlw_tr, nlw_plan_fail, nlw_room_fail, nlw_planned, nlw_direct; static uint32_t nlw_used_max, nlw_ext_max;
++extern NatP6Buf g_np6[2]; static long nlw_planned6, nlw_direct6, nlw_room6;   /* native step 2: the people's records */
++static long nlw_chig[NS_CH + 1][2];   /* step 2: the groups taken by chain (ship, people) */
++static int nlw_pend6(int b, const NatP6 **g)
++{
++  const NatP6Buf *q = &g_np6[b];
++  if (!q->g || !q->draw || q->seq != g_nat_bseq[b] || q->cur >= q->n) return 0;
++  *g = q->g + q->cur; return (int)(q->n - q->cur);
++}
+ static int nlw_pend(int b, const NatGrp **g)
+ {
+   const NatBuf *s = &g_nat[b];
+@@ -1125,6 +1138,13 @@
+           nlw_p.nat_core, nlw_p.nat_fed, nlw_p.nat_bad, nlw_p.nat_late, nlw_p.nat_stop, nlw_p.nat_in, nlw_p.nat_out, nlw_p.nat_part,
+           nlw_c.nat_grp, nlw_p.lw_grp[1], nlw_p.lw_grp[2], nlw_p.lw_grp[3], nlw_p.lw_grp[4], nlw_p.lw_bad, (unsigned)nlw_used_max,
+           (unsigned)nlw_ext_max);
++  fprintf(stderr, "nat lw people: groups planned and copied %ld (no room %ld), taken by walks from RAM %ld; merge runs %ld, groups to the core %ld, "
++          "fed word by word %ld, dropped %ld, drawn at a planned walk's end %ld; groups the plans counted %ld\n", nlw_planned6, nlw_room6, nlw_direct6,
++          nlw_p.np6_runs, nlw_p.np6_core, nlw_p.np6_fed, nlw_p.np6_bad, nlw_p.np6_late, nlw_c.np6_grp);   /* step 2 */
++  fprintf(stderr, "nat lw chains (step 2, ge/bound.h BD_CHI_NAT0..1): the native records' groups by the chain of the transfer that took them "
++          "(chain: ship people; -1 not in the list):");
++  for (int i = 0; i <= NS_CH; i++) if (nlw_chig[i][0] | nlw_chig[i][1]) fprintf(stderr, " %d: %ld %ld", i == NS_CH ? -1 : i, nlw_chig[i][0], nlw_chig[i][1]);
++  fprintf(stderr, "\n");
+   fprintf(stderr, "nat lw: gl40 XP totals: plans %ld (failed: ranges %ld, extents %ld, arena %ld, chain %ld), xc_add calls %ld, ranges into the merges ra %ld "
+           "rb %ld mk %ld, sort moves %ld, copied back %ld, extents %ld; XP check: plans compared %ld, DIFFERING %ld (first at vb %ld: results %x, extents "
+           "%u / %u), by result only %ld\n", nlw_c.xp_plans, nlw_c.fails[1], nlw_c.fails[2], nlw_c.fails[3], nlw_c.fails[4], nlw_c.xp_adds, nlw_c.xp_ra,
+@@ -1134,10 +1154,13 @@
+ static void nlw_dma(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)
+ {
+   const NatGrp *g[2] = { 0, 0 }; int n[2], r = 1, x0 = 0, nx = 0;
++  const NatP6 *g6[2] = { 0, 0 }; int n6[2];   /* step 2 */
+   n[0] = nlw_pend(0, &g[0]); n[1] = nlw_pend(1, &g[1]); nlw_tr++;
+-  for (int b = 0; b < 2; b++) { nlw_p.nat_i0[b] = (int)g_nat[b].cur; nlw_p.nat_ru[b] = (int)g_nat[b].ru; }   /* gl36 (ge/xlme.h) */
++  n6[0] = nlw_pend6(0, &g6[0]); n6[1] = nlw_pend6(1, &g6[1]);
++  for (int b = 0; b < 2; b++) { nlw_p.nat_i0[b] = (int)g_nat[b].cur; nlw_p.nat_ru[b] = (int)g_nat[b].ru; nlw_p.np6_i0[b] = (int)g_np6[b].cur; }   /* gl36 (ge/xlme.h) */
+   nlw_p.m = &M; nlw_p.lw_on = 1; nlw_p.lanes = 15;
+   nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0; nlw_p.nat_b = -1; nlw_p.nat_used = 0;
++  nlw_p.np6_n[0] = nlw_p.np6_n[1] = 0; nlw_p.np6_b = -1; nlw_p.np6_used = 0;
+   if (nlw_mode == 2) {
+     XmCopy *c = &nlw_c;
+     if (!c->arena) { c->cap = 16384; c->ext_cap = 16384; c->arena_n = 8u << 20;
+@@ -1145,27 +1168,47 @@
+       c->tmp = malloc((size_t)c->cap * sizeof(XcR)); c->ext = malloc((size_t)c->ext_cap * sizeof(XvExt)); c->arena = malloc(c->arena_n); }
+     c->mem = M.mem; c->spr = M.spr; c->mem_size = GSZ; c->nmk = 0; c->next = 0; c->used = 0;
+     c->nat_g[0] = g[0]; c->nat_g[1] = g[1]; c->nat_n[0] = n[0]; c->nat_n[1] = n[1];
++    c->np6_g[0] = g6[0]; c->np6_g[1] = g6[1]; c->np6_n[0] = n6[0]; c->np6_n[1] = n6[1];
+     { extern int rt_xp_at(long); const long d0 = c->xp_dif;   /* gl40: XP of the turn (boot/nat_stub.h), as psp/xl_psp.c mq_plan */
+       c->xp = rt_xp_at(cur_vb);
+       r = xm_plan(c, chcr, madr, qwc, tadr, &x0, &nx);
+       if (!d0 && c->xp_dif) c->xp_dif_vb = (int32_t)cur_vb; }
+     if (r) nlw_plan_fail++;
+-    else { int b = c->nat_b, gn = c->nat_cur; uint32_t off = 0;
+-      if (b >= 0 && gn > 0) {
+-        if (xm_nat_room(c, (uint32_t)gn * (uint32_t)sizeof(NatGrp), &off)) { r = 3; nlw_room_fail++; }
+-        else { memcpy(c->arena + off, g[b], (size_t)gn * sizeof(NatGrp)); g_nat[b].cur += (uint32_t)gn; nlw_planned += gn;
+-          nlw_p.nat_b = b; nlw_p.nat_g[b] = (const NatGrp *)(const void *)(c->arena + off); nlw_p.nat_n[b] = gn; } }
++    else { const int b = c->nat_b, gn = c->nat_cur, pn = c->np6_cur; uint32_t off = 0;   /* step 2: one copy as psp/xl_psp.c mq_plan's
++                                                     (ge/xme.h XME_NATBYTES): the ship's groups and references, the people's and theirs */
++      if (b >= 0 && (gn > 0 || pn > 0)) {
++        if (xm_nat_room(c, XME_NATBYTES(gn, pn), &off)) { r = 3; nlw_room_fail++; if (pn > 0) nlw_room6++; }
++        else {
++          const uint32_t nro = off + XME_R16((uint32_t)gn * sizeof(NatGrp)), po = nro + XME_R16((uint32_t)gn * sizeof(NgeRef)),
++                         pro = po + XME_R16((uint32_t)pn * sizeof(NatP6));
++          if (gn > 0) { memcpy(c->arena + off, g[b], (size_t)gn * sizeof(NatGrp));
++            if (xc_nge_ref[b]) memcpy(c->arena + nro, xc_nge_ref[b] + g_nat[b].cur, (size_t)gn * sizeof(NgeRef));
++            nlw_p.nat_r[b] = xc_nge_ref[b] ? (const NgeRef *)(const void *)(c->arena + nro) : 0;
++            g_nat[b].cur += (uint32_t)gn; nlw_planned += gn;
++            nlw_p.nat_b = b; nlw_p.nat_g[b] = (const NatGrp *)(const void *)(c->arena + off); nlw_p.nat_n[b] = gn; }
++          if (pn > 0) { memcpy(c->arena + po, g6[b], (size_t)pn * sizeof(NatP6));
++            if (xc_nge_ref6[b]) memcpy(c->arena + pro, xc_nge_ref6[b] + g_np6[b].cur, 4u * (uint32_t)pn);
++            nlw_p.np6_r[b] = xc_nge_ref6[b] ? (const uint32_t *)(const void *)(c->arena + pro) : 0;
++            g_np6[b].cur += (uint32_t)pn; nlw_planned6 += pn;
++            nlw_p.np6_b = b; nlw_p.np6_g[b] = (const NatP6 *)(const void *)(c->arena + po); nlw_p.np6_n[b] = pn; } } }
+       if (!r) { xm_fill(c, x0, nx, 0, 0, 0);
+         nlw_v.x = c->ext + x0; nlw_v.n = nx; nlw_v.arena = c->arena; nlw_v.mem = M.mem; nlw_v.spr = M.spr; nlw_v.mem_size = GSZ; nlw_v.last = 0;
+         M.view = &nlw_v; if (c->used > nlw_used_max) nlw_used_max = c->used; if ((uint32_t)nx > nlw_ext_max) nlw_ext_max = (uint32_t)nx; } }
+   }
+-  if (r) { nlw_p.nat_g[0] = g[0]; nlw_p.nat_g[1] = g[1]; nlw_p.nat_n[0] = n[0]; nlw_p.nat_n[1] = n[1]; nlw_p.nat_b = -1; }
++  if (r) { nlw_p.nat_g[0] = g[0]; nlw_p.nat_g[1] = g[1]; nlw_p.nat_n[0] = n[0]; nlw_p.nat_n[1] = n[1]; nlw_p.nat_b = -1;
++    nlw_p.np6_g[0] = g6[0]; nlw_p.np6_g[1] = g6[1]; nlw_p.np6_n[0] = n6[0]; nlw_p.np6_n[1] = n6[1]; nlw_p.np6_b = -1;   /* (step 2) */
++    for (int b = 0; b < 2; b++) { nlw_p.np6_r[b] = xc_nge_ref6[b] ? xc_nge_ref6[b] + g_np6[b].cur : 0;
++      nlw_p.nat_r[b] = xc_nge_ref[b] ? xc_nge_ref[b] + g_nat[b].cur : 0; } }
+   nlw_p.ch_i = -1;   /* gl34 (no clock here: the chains are not timed) */
+   { static int hc = -1; if (hc < 0) { const char *e = getenv("MGS2_NAT_HCHK"); hc = e ? atoi(e) : 0; } nlw_p.nh_chk = hc; }   /* gl34 (ge/xlme.c lw_nptr_h) */
+   xm_walk(&nlw_p, 1, chcr, madr, qwc, tadr, g_xl_lane, g_opt);
+   M.view = 0;
+   if (r && nlw_p.nat_b >= 0) { g_nat[nlw_p.nat_b].cur += (uint32_t)nlw_p.nat_used; nlw_direct += nlw_p.nat_used; }
+-  nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0;
++  if (r && nlw_p.np6_b >= 0) { g_np6[nlw_p.np6_b].cur += (uint32_t)nlw_p.np6_used; nlw_direct6 += nlw_p.np6_used; }   /* step 2 */
++  { const int ci = gl_bd_chi >= 0 && gl_bd_chi < NS_CH ? gl_bd_chi : NS_CH;   /* step 2: by chain */
++    nlw_chig[ci][0] += r ? (nlw_p.nat_b >= 0 ? nlw_p.nat_used : 0) : nlw_p.nat_n[0] + nlw_p.nat_n[1];
++    nlw_chig[ci][1] += r ? (nlw_p.np6_b >= 0 ? nlw_p.np6_used : 0) : nlw_p.np6_n[0] + nlw_p.np6_n[1]; }
++  nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0; nlw_p.np6_n[0] = nlw_p.np6_n[1] = 0;
+ }
+ #endif
+ static void setup(void);
+@@ -1444,16 +1487,20 @@
+         memset(gx_pool, 0, gx_pool_n); memset(gx_arena, 0, GL_PSP_ARENA); memset(gx_lb, 0, gx_listn);
+         gu_keys(map, 1); gu_zero_empty(map, 1);
+         if (!(tkc = tk_new(map, gx_pool_n / 8 * 7)) || tk_pool(tkc, gx_pool, gx_pool_n)) { fprintf(stderr, "xlive: no texture cache\n"); exit(1); }
+-        nge_x86_n = nge_cfg_bytes();   /* native step 1 (boot/nge_stub.h): the PSP's carve, each frame memory's arena's tail */
+-        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_n, GL_PSP_NB, GL_PSP_NV)) {
++        nge_x86_k1 = nge_cfg_bytes(); nge_x86_n = nge_cfg_bytes2();   /* native step 1 (boot/nge_stub.h): the PSP's carve, each frame memory's arena's
++                                                    tail; step 2: the regions at their size after the opening, the top k1 of them used until then */
++        nge_x86_kg = nge_x86_n > nge_x86_k1 ? nge_x86_n + nge_np6_bytes() : 0;
++        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_k1, GL_PSP_NB, GL_PSP_NV)) {
+           fprintf(stderr, "xlive: no memory for the live frame\n"); exit(1); }
+         if (nge_x86_n) {
+           if (posix_memalign((void **)&nge_x86_m[0], 64, nge_x86_n) || posix_memalign((void **)&nge_x86_m[1], 64, nge_x86_n)) { fprintf(stderr, "xlive: no memory for nge\n"); exit(1); }
+           memset(nge_x86_m[0], 0, nge_x86_n); memset(nge_x86_m[1], 0, nge_x86_n);
+           xc_nge_chk = getenv("MGS2_NGE_CHK") && atoi(getenv("MGS2_NGE_CHK"));
+-          if (nge_host_setup(nge_x86_m[0], NGE_X86_GE0, nge_x86_m[1], NGE_X86_GE1, nge_x86_n, 0, nge_x86_alloc)) exit(1);
+-          fprintf(stderr, "xlive mode: native step 1: the frame arena %u KB (the PSP's %u KB less the cooked region), check mode (MGS2_NGE_CHK) %d\n",
+-                  (unsigned)((GL_PSP_ARENA - nge_x86_n) >> 10), (unsigned)(GL_PSP_ARENA >> 10), xc_nge_chk); }
++          if (nge_host_setup(nge_x86_m[0], NGE_X86_GE0, nge_x86_m[1], NGE_X86_GE1, nge_x86_n, nge_x86_k1, 0, 0, nge_x86_alloc)) exit(1);
++          fprintf(stderr, "xlive mode: native step 1: the frame arena %u KB (the PSP's %u KB less the cooked region), check mode (MGS2_NGE_CHK) %d; "
++                  "step 2: %u KB from vb %ld (the carve after the opening%s)\n", (unsigned)((GL_PSP_ARENA - nge_x86_k1) >> 10), (unsigned)(GL_PSP_ARENA >> 10),
++                  xc_nge_chk, (unsigned)((GL_PSP_ARENA - (nge_x86_kg ? nge_x86_kg : nge_x86_k1)) >> 10), nge_x86_kg ? nge_grow_vb() : -1L,
++                  nge_x86_kg ? (nge_np6_bytes() ? ": the region and the people's block" : ": the region") : ": none"); }
+         gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;   /* one block, as the PSP's */
+         if (gx_listn != GL_PSP_LIST) fprintf(stderr, "xlive mode: a list block of %u KB (MGS2_XLIVE_GX_LIST: not the PSP's)\n", gx_listn >> 10);
+         gx_sem_on = getenv("MGS2_GX_SEM") ? atoi(getenv("MGS2_GX_SEM")) : 0;   /* sb15; native step 1: 2 also "drawn2" */
+@@ -1571,6 +1618,11 @@
+         if (cw > 0 && vb >= cnx) { const long *u = xc_stats()->cull_n; fprintf(stderr, "natcull win: vb %ld:", vb); cnx = (vb / cw + 1) * cw;
+           for (int k = 0; k < 16; k++) { fprintf(stderr, " %ld", u[k]); }
+           fprintf(stderr, "\n"); } }
++      { static int gst; static long gn;   /* step 2: the carve after the opening, as psp/xl_psp.c's (its guard: 3 frames here) */
++        if (nge_x86_kg && !gst && vb >= nge_grow_vb()) { gst = 1; gn = 0;
++          if (gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_kg, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "xlive: the carve after the opening failed\n"); exit(1); }
++          fprintf(stderr, "picture: step 2: vb %ld: frames begin with the smaller arena (%u KB)\n", vb, (unsigned)((GL_PSP_ARENA - nge_x86_kg) >> 10)); }
++        else if (gst == 1 && ++gn >= 3) { gst = 2; nge_grow(0, vb); } }
+       gl_begin(&glf);
+       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
+   if (on && vc_on) vc_cline(vb - 1);
+--- a/ge/bound.h
++++ b/ge/bound.h
+@@ -13,16 +13,22 @@
+      kind 7 (K7)  nothing drawn: every transfer left out, and on the PSP the turn is the main CPU's with the ME resting, BD_ALL
+                   (the builder's stub stays arm 3: the main CPU's game code does K0's work)
+      kind 8 (K8)  gl39: nothing drawn as K7, but the turn stays the ME's (BD_ALL | BD_ME): empty pictures go through the hand-over, the
+-                  ME and the GE; with MGS2_LOAD_CYCLE the ME also runs a load loop on its own memory (ge/xme.c xme_load) */
++                  ME and the GE; with MGS2_LOAD_CYCLE the ME also runs a load loop on its own memory (ge/xme.c xme_load)
++     kind 9 (K-N2R, native step 2)  only the chains that carry the native ship and people (BD_CHI_NAT0..BD_CHI_NAT1: the people's chain 2,
++                  the ship's 3 and 4) translated: every other transfer left out before it is queued (chains 0-1, 5-10 built by the game, not
++                  drawn; the screen's set-up stays the host's), BD_NATIVE.  The turn stays the ME's.  With MGS2_NGE_CYCLE's digit 2 in the same
++                  turn the ship's and the people's groups there are the native ones; BD_NATIVE is the main CPU's (not in the ME's 8 bits) */
+ #ifndef MGS2_BOUND_H
+ #define MGS2_BOUND_H
+-enum { BD_SHIP = 1, BD_PEOPLE = 2, BD_SORT = 4, BD_RAIN = 8, BD_STAGE = 16, BD_CH6 = 32, BD_ALL = 64, BD_ME = 128 };
+-enum { BD_CHI_PEOPLE = 2, BD_CHI_SORT = 6, BD_CHI_STAGE = 10 };   /* the chains' places in the frame's chain list (ge/natsplit.h) */
+-#define BD_KINDS 9
+-#define BD_MASKS { 0, BD_SHIP, BD_PEOPLE, BD_SORT, BD_RAIN, BD_STAGE, BD_SHIP | BD_PEOPLE | BD_CH6, BD_ALL, BD_ALL | BD_ME }
++enum { BD_SHIP = 1, BD_PEOPLE = 2, BD_SORT = 4, BD_RAIN = 8, BD_STAGE = 16, BD_CH6 = 32, BD_ALL = 64, BD_ME = 128, BD_NATIVE = 256 };
++enum { BD_CHI_PEOPLE = 2, BD_CHI_SORT = 6, BD_CHI_STAGE = 10, BD_CHI_NAT0 = 2, BD_CHI_NAT1 = 4 };   /* the chains' places in the frame's chain
++                                                    list (ge/natsplit.h); step 2: the native groups' chains [C twin: boot/xlive_chk.c "nat lw chains"] */
++#define BD_KINDS 10
++#define BD_MASKS { 0, BD_SHIP, BD_PEOPLE, BD_SORT, BD_RAIN, BD_STAGE, BD_SHIP | BD_PEOPLE | BD_CH6, BD_ALL, BD_ALL | BD_ME, BD_NATIVE }
+ /* 1: the transfer of chain chi is left out under mask bd */
+ static inline int bd_drop_chain(int bd, int chi)
+ {
++  if (bd & BD_NATIVE) return chi < BD_CHI_NAT0 || chi > BD_CHI_NAT1;   /* step 2, K-N2R (chi -1: not in the list) */
+   return (bd & BD_ALL) || ((bd & BD_PEOPLE) && chi == BD_CHI_PEOPLE) || ((bd & BD_STAGE) && chi == BD_CHI_STAGE) || ((bd & BD_CH6) && chi == BD_CHI_SORT);
+ }
+ #endif
+--- a/ge/gelist.c
++++ b/ge/gelist.c
+@@ -75,6 +75,8 @@
+   const uint8_t *q = (const uint8_t *)p;
+   if (F->v && q >= (const uint8_t *)F->v && q <= (const uint8_t *)(F->v + F->nv)) { *region = R_VERT; *off = (uint32_t)(q - (const uint8_t *)F->v); }
+   else if (L->aux && q >= L->aux + L->alow && q <= L->aux + L->cap_aux) { *region = R_AUX; *off = (uint32_t)(q - L->aux); }
++  else if (xc_nge_mem[0] && q >= xc_nge_mem[0] && q < xc_nge_mem[0] + xc_nge_cap) { *region = R_NGE; *off = NGE_RO(0, (uint32_t)(q - xc_nge_mem[0])); }   /* native step 2: */
++  else if (xc_nge_mem[1] && q >= xc_nge_mem[1] && q < xc_nge_mem[1] + xc_nge_cap) { *region = R_NGE; *off = NGE_RO(1, (uint32_t)(q - xc_nge_mem[1])); }   /* N-ref vertices */
+   else if (F->d && q >= F->d) { *region = R_DATA; *off = (uint32_t)(q - F->d); }
+   else { *region = R_NONE; *off = 0; }
+ }
+@@ -413,7 +415,8 @@
+   const uint8_t *p0 = F->d + b->first; const GerLit *p = (const GerLit *)p0;
+   const GerXform *x = (const GerXform *)(p0 + p->xf); const GerC2 *g = (const GerC2 *)(p0 + p->vtx);
+   const int pass = (int)(p->pass & 15);
+-  const uint8_t *v = (const uint8_t *)g + g->voff[pass - 1]; const uint16_t *runs = (const uint16_t *)(p0 + p->run);
++  const uint8_t *v = nge_c2v(p->pass, g, GERC2_SIZE(g->skin), g->voff[pass - 1]);   /* native step 2: N-ref, the arena's */
++  const uint16_t *runs = (const uint16_t *)(p0 + p->run);
+   if (room() < BATCH_WORDS + C1_WORDS + 3 * p->nst + RESERVE) return -1;
+   const uint32_t n0 = L->n;
+   if (L->s_xf != &IDW) { put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, ID12[k]); L->s_xf = &IDW; }
+--- a/ge/gelive.c
++++ b/ge/gelive.c
+@@ -247,7 +247,7 @@
+       if (p->pass & GERL_C2) {   /* sb12 C2: 16-bit positions; skinned, blended by the two 16-bit weights over bone 0 (32768 I) and the
+                                     call's bone 1, as the GE does (a float sum: the check's) */
+         static const float B0[12] = { 32768.0f, 0, 0, 0, 32768.0f, 0, 0, 0, 32768.0f, 0, 0, 0 };
+-        const GerC2 *g = (const GerC2 *)((const uint8_t *)p + p->vtx); const uint8_t *v = (const uint8_t *)g + g->voff[0];
++        const GerC2 *g = (const GerC2 *)((const uint8_t *)p + p->vtx); const uint8_t *v = nge_c2v(p->pass, g, GERC2_SIZE(g->skin), g->voff[0]);   /* (native step 2: N-ref) */
+         const uint16_t *runs = (const uint16_t *)((const uint8_t *)p + p->run); const int sk = g->skin != 0;
+         const float *bm[2] = { B0, g->bone1 };
+         int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2;
+@@ -631,7 +631,7 @@
+   for (; i < n; i++) { h ^= b[i]; h *= 0x100000001b3ull; }
+   return h;
+ }
+-#ifndef __psp__
++/* (step 2, as gl41: on the PSP too, psp/xl_psp.c prints it with each digest picture; x86 code unchanged) */
+ uint64_t gl_digest_c(const GlFrame *f)
+ {
+   const GbOut *o = &f->o; uint64_t h = 0xcbf29ce484222325ull;
+@@ -643,13 +643,19 @@
+     const uint8_t *p = o->d + b.first; b.first = 0; h = hw(h, &b, sizeof b);
+     if (b.kind == GERK_LIT) {
+       const GerLit *l = (const GerLit *)p;
+-      h = hw(h, l, sizeof *l); h = hw(h, p + l->xf, sizeof(GerXform));
++      if (l->pass & GERL_NGE) {   /* native step 2, N-ref: hashed as today's batch (its GerLit's pass and offsets today's: NgeC2Tail) */
++        const GerC2 *g = (const GerC2 *)(p + l->vtx); const NgeC2Tail *tl = (const NgeC2Tail *)(const void *)((const uint8_t *)g + GERC2_SIZE(g->skin));
++        GerLit e = *l; const int32_t at = -l->xf; e.pass &= ~GERL_NGE; e.vtx = (int32_t)tl->og - at; e.run = (int32_t)tl->orun - at;
++        h = hw(h, &e, sizeof e);
++      } else h = hw(h, l, sizeof *l);
++      h = hw(h, p + l->xf, sizeof(GerXform));
+       if (l->pass & GERL_C1) {   /* sb11 C1: its GerC1, then the pass's vertices */
+         const GerC1 *g = (const GerC1 *)(p + l->vtx);
+         h = hw(h, g, GERC1_SIZE(g->nw)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
+       } else if (l->pass & GERL_C2) {   /* sb12 C2: its GerC2, then the pass's vertices */
+         const GerC2 *g = (const GerC2 *)(p + l->vtx);
+-        h = hw(h, g, GERC2_SIZE(g->skin)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
++        h = hw(h, g, GERC2_SIZE(g->skin));
++        h = hw(h, nge_c2v(l->pass, g, GERC2_SIZE(g->skin), g->voff[(l->pass & 15) - 1]), l->nv * l->stride);   /* (native step 2: N-ref, the arena's) */
+       } else h = hw(h, p + l->vtx, l->nv * l->stride);
+       h = hw(h, p + l->run, l->nst * 4);
+     } else if (b.kind == GERK_XFORM && ((const GerXform *)p)->pad == NGE_MAGIC) {   /* native step 1: as today's batch would be (pad 0,
+@@ -674,7 +680,6 @@
+   float z[4] = { f->zlo, f->zhi, f->map_lo, f->map_hi }; h = hw(h, z, sizeof z);
+   return h;
+ }
+-#endif
+ uint64_t gl_digest(const GlFrame *f, const GxList *l)
+ {
+   const GbOut *o = &f->o; uint64_t h = 0xcbf29ce484222325ull;
+--- a/ge/natp06.h
++++ b/ge/natp06.h
+@@ -0,0 +1,94 @@
++/* natp06.h: native step 2 (attic/ge_native/step2_results.md): people meshes, the 0x12e8b8 builder's groups as records.  The format
++   both CPUs share (guest addresses and words, no host pointers) and the walk's front end: a record to lane 2's translator entry
++   (ge/xlate.h xl_lane_p06) with the record's pointers and words in place of the packet's, so the converters get the same call as from
++   the packet (runtime/ee_io.h lane_p06).  The main CPU (boot/np6_stub.h) writes the groups inside the pipeline call, one array per
++   packet buffer, beside the ship's (ge/natsnap.h); the walks (boot/nat_x86.c on the twin; ge/xlme.c on the PSP) draw them by the
++   ship's rule: before a top-level tag of the groups' packet buffer, every group whose key is at or below the tag's address.
++   A header for the walk that includes it, which defines NATP_PTR and NATP_SPAN before it (as ge/natp04.h).  ME-safe: no C library, no
++   system call, no static data; every guest pointer goes through NATP_PTR and every count is capped before use.
++   Game data passes through it: personal use only. */
++#ifndef MGS2_NATP06_H
++#define MGS2_NATP06_H
++#include <stdint.h>
++#include "natsnap.h"
++#include "xlate.h"
++
++#define NP6_MAXGRP 1024          /* people groups a picture holds (more: the builder runs; the same on the twin and the PSP) */
++/* the template's words (0x12e790 + 0x18ec40 at the pass's start; re/mesh_packets.md 6) */
++#define NP6T_S11 0x01000101u     /* STCYCL 1 / 1: the constant block, the materials, the header's CNT */
++#define NP6T_S61 0x01000106u     /* STCYCL 6 / 1: the six streams */
++#define NP6T_BLK 0x6c188000u     /* UNPACK V4-32 24 -> T + 0 */
++#define NP6T_MAT 0x6c0880e8u     /* UNPACK V4-32 8 -> T + 0xe8 (+ 8 a material) */
++#define NP6T_V4 0x6d008100u      /* UNPACK V4-16 2 n -> T + 0x100 + k (A, B, F; | 2 n << 16) */
++#define NP6T_V2 0x75008100u      /* UNPACK V2-16 masked 4 n -> T + 0x100 + k (C, D, E; | 4 n << 16) */
++#define NP6T_HDR 0x6c018014u     /* UNPACK V4-32 1 -> T + 0x14 */
++enum { NP6G_FULL = 1,            /* the constant block's REF first (the call's first two groups) */
++       NP6G_PKT = 2 };           /* x86 shadow arms: the builder ran too, the group's packet lies at key */
++typedef struct {                 /* 72 B */
++  uint32_t key;                  /* the order key: the packet position (RAM) of the next item at the call (every group of a call has its
++                                    call's), or the group's own first tag (x86 shadow arms) */
++  uint32_t blk;                  /* SPR 0xd34 = mesh+0xFC: the constant block (NP6G_FULL only) */
++  uint32_t mat[3];               /* desc+0x14, +0x18, +0x1C when sent (the builder's memo: not 0 and not the last sent in the template's
++                                    half), else 0: a CNT of 0 and a NOP */
++  uint32_t s[6];                 /* streams A .. F (the mesh's cursors), 0: not sent */
++  uint8_t n[6];                  /* their quadwords: desc+0x0E .. +0x13 */
++  uint8_t flags, pad;            /* NP6G_* */
++  uint32_t hdr[4];               /* the header quadword: desc+0x0C the count, desc word 0, SPR 0xc70 (mesh+0xF8, the fog word), mesh+0xC8 & 1 */
++  uint32_t mscal;                /* 0x14000000 | the VU1 entry's halfword (SPR 0xc7c + 2 idx) */
++} NatP6;
++typedef struct {
++  NatP6 *g;                      /* NP6_MAXGRP entries, or 0 */
++  uint32_t n, cur, draw, seq, vq, last_key;   /* as ge/natsnap.h NatBuf */
++} NatP6Buf;
++/* the stub's counts (boot/np6_stub.h g_np6_c) */
++enum { N6_REC, N6_GRP, N6_STUBC, N6_EMPTY, N6_FB_FULL, N6_FB_ORDER, N6_FB_END, N6_FB_OTHER, N6_NOMEM, N6_PICS, N6_GRP_MAX, N6_LEFT, N6_MEMO_RESET,
++       N6_FB_MEMO, N6_NOARR, N6_LATE, N6_N };   /* step 2: N6_NOARR pipeline calls in arm 3 before the people's arrays were there or before the
++                                                    people's start (the builder ran); N6_LATE those of them from the start on (the growth late) */
++
++/* the group's quadwords as the builder copies them to the packet (13 from q0 with NP6G_FULL, else 12 from q1).  A slot not sent: a CNT of
++   0 whose ADDR the builder leaves as it was (here 0; the shadow compare skips it) */
++static inline int np6_words(const NatP6 *g, uint32_t *w)
++{
++  int q = 0;
++#define Q4(a, b, c, d) do { w[4 * q] = (a); w[4 * q + 1] = (b); w[4 * q + 2] = (c); w[4 * q + 3] = (d); q++; } while (0)
++  if (g->flags & NP6G_FULL) Q4(0x30000018u, g->blk, NP6T_S11, NP6T_BLK);
++  for (int j = 0; j < 3; j++) { if (g->mat[j]) Q4(0x30000008u, g->mat[j], NP6T_S11, NP6T_MAT + 8u * (uint32_t)j); else Q4(0x10000000u, 0, NP6T_S11, 0); }
++  for (int k = 0; k < 6; k++) { uint32_t n = g->n[k], v2 = k >= 2 && k <= 4;
++    if (g->s[k] && n) Q4(0x30000000u | n, g->s[k], NP6T_S61, (v2 ? NP6T_V2 | ((4 * n) & 0xffu) << 16 : NP6T_V4 | ((2 * n) & 0xffu) << 16) + (uint32_t)k);
++    else Q4(0x10000000u, 0, NP6T_S61, 0); }
++  Q4(0x10000002u, 0, NP6T_S11, NP6T_HDR);
++  Q4(g->hdr[0], g->hdr[1], g->hdr[2], g->hdr[3]);
++  Q4(g->mscal, 0, 0, 0);
++#undef Q4
++  return q;
++}
++
++#endif
++#if defined(NATP_PTR) && !defined(MGS2_NATP06_WALK)   /* the walk's part: after ge/natp04.h, with NATP_PTR and NATP_SPAN defined */
++#define MGS2_NATP06_WALK
++/* the group to the translator: lane 2's entry with the packet's words made from the record (its data pointers from NATP_PTR), else (the
++   translator declines lane 2: data waiting, or an UNPACK it would not take at once) the generic walk's order, word by word.  NATP_CORE:
++   lane 2 took it; NATP_FED; NATP_BAD_*: dropped */
++static inline __attribute__((always_inline)) int nat_p06_group(const NatP6 *g)
++{
++  uint32_t w[4 * 16]; const uint32_t *dp[10]; const int q0 = (g->flags & NP6G_FULL) != 0, nr = 9 + q0; int nq, j;
++  for (j = 0; j < 6; j++) if (g->n[j] > 128u) return NATP_BAD_CNT;   /* the UNPACK's count field: 2 n (4 n for C, D, E: 64) <= 256 */
++  if (g->n[2] > 64u || g->n[3] > 64u || g->n[4] > 64u) return NATP_BAD_CNT;
++  nq = np6_words(g, w);
++  for (j = 0; j < nr; j++) {
++    const uint32_t *t = w + 4 * j, n = t[0] & 0xffffu;
++    dp[j] = 0;
++    if (t[0] >> 28 == 3 && !(dp[j] = NATP_PTR(t[1] & 0xfffffff0u, n))) return NATP_BAD_PTR;
++  }
++  if (xl_lane_p06(w, g->key, q0, dp)) return NATP_CORE;
++  for (j = 0; j < nr; j++) {   /* each tag's TTE words, then a sent slot's data where it lies */
++    NATP_SPAN(w + 4 * j + 2, 2, g->key + 16u * (uint32_t)j + 8u);
++    if (dp[j]) NATP_SPAN(dp[j], 4u * (w[4 * j] & 0xffffu), w[4 * j + 1] & 0xfffffff0u);
++  }
++  NATP_SPAN(w + 4 * nr + 2, 2, g->key + 16u * (uint32_t)nr + 8u);   /* the CNT: STCYCL, the header's UNPACK, its quadword, MSCAL and NOPs */
++  NATP_SPAN(w + 4 * (nr + 1), 4, g->key + 16u * (uint32_t)(nr + 1));
++  NATP_SPAN(w + 4 * (nr + 2), 4, g->key + 16u * (uint32_t)(nr + 2));
++  (void)nq;
++  return NATP_FED;
++}
++#endif
+--- a/ge/nge.h
++++ b/ge/nge.h
+@@ -38,4 +38,54 @@
+ static inline const void *nge_p(uint32_t ro) { return xc_nge_mem[ro >> 28 & 1] + (ro & 0x0fffffffu); }
+ static inline void nge_walk(int b, int i) { const NgeRef *r = xc_nge_ref[b]; xc_nge_cur = r && r[i].g ? &r[i] : 0; xc_nge_cb = b; }
+ static inline void nge_walk_end(void) { xc_nge_cur = 0; }
++/* step 2's mirror of gl41's rule (the ME's walk runs after the main CPU has written its arrays again for a later picture): the walk takes
++   group i's reference from the references the record carries (XmPic.nat_r: copied with the groups at the record, ge/xme.h XME_NROFF; or
++   the main CPU's array for a walk from RAM, which the main CPU waits for) */
++static inline void nge_walkr(const NgeRef *r, int b, int i) { xc_nge_cur = r && r[i].g ? &r[i] : 0; xc_nge_cb = b; }
++
++/* ---- native step 2 (attic/ge_native/step2_results.md): the people, C2 cooked per model.  The stub (boot/np6_stub.h) cooks a people
++   mesh's groups once (a miss) into the arena with ge/vu1conv.c's own vertex loop (vc_p06_c2v, at the material-free values: alpha 255,
++   no ADC) and gives each recorded group (ge/natp06.h, the buffer's array index) a reference to its cooked group (xc_nge_ref6).  The
++   converter (ge/xconv.c xc_lit_c2), for a call whose group has one, takes the vertices, strips, UV2 form and box from the cook and does
++   per call only what depends on the frame: the d of the blended vertices (skinned, weight not 1.0: the frame's bones; vc_p06_c2bl), the
++   alpha when it is not 255, the depth range's w (vc_p06_c2z, when needed) and ADC (nothing drawn).  N-ref: no blended vertex and alpha
++   255: the batch's GerC2 is followed by an NgeC2Tail and the GE reads the cooked vertices (GerLit.pass | GERL_NGE); else N-copy: today's
++   batch, its vertices copied from the cook and those parts redone.  A group without a reference, or whose cook does not match the call
++   (count, header y, skin), takes today's path. */
++#define GERL_NGE 0x40u          /* GerLit.pass: N-ref (the pass's vertices in the arena: the NgeC2Tail after its GerC2) */
++typedef struct {                /* one cooked people group (48 B), in the arena */
++  uint32_t vb;                  /* region offset of VB1 (n st bytes, then zeros to 16) and, uv2 2, VB2 (pass 2's own: UV2) after it */
++  uint32_t runs;                /* region offset of its strips: nst (uint16 first vertex, uint16 count), of the flags without ADC */
++  uint32_t bl;                  /* region offset of the blended vertices' indices (nb bytes), 0: none */
++  int32_t du, dv;               /* uv2 1: pass 2's UV offset (L.du, L.dv) */
++  uint16_t n, nst;              /* vertices; strips */
++  uint16_t hy, nb;              /* the header's y it was cooked for; blended vertices */
++  uint8_t st, skin, uv2, cull;  /* the stride (20, 24); 1 skinned; L.uv2; L.cull */
++  uint8_t ok, reg, pad[2];      /* 1: drawn natively; the region */
++  int16_t blo[3], bhi[3];       /* vc_p06_c2box: the positions' box (skinned: the depth range's bound) */
++} NgeP6G;
++typedef struct { uint32_t vb[2], og, orun; } NgeC2Tail;   /* N-ref, after the GerC2: VB1 and pass 2's VB (NGE_RO each); the blob offsets
++                                                             of the GerC2 and of the strips today's batch would have (the digest's) */
++#define NGE_P6REF 1024          /* the people references a packet buffer holds (ge/natp06.h NP6_MAXGRP) */
++extern uint32_t *xc_nge_ref6[2];        /* each packet buffer's people references (NP6_MAXGRP; NGE_RO of the NgeP6G, 0: today's path) */
++extern uint32_t xc_nge_cur6;            /* the walk's: the people group being converted has this reference (0: none) */
++extern uint32_t xc_nge_cap;             /* each region's bytes (the list's digest: a pointer into a region) */
++enum { NG6_TRY, NG6_REF, NG6_COPY, NG6_EMPTY, NG6_NO_MATCH, NG6_NO_CHK, NG6_BLEND_V, NG6_ALPHA, NG6_ZW, NG6_CHK, NG6_D_VERT, NG6_D_RUN,
++       NG6_D_L, NG6_D_Z, NG6_N };
++#define NG6_NAMES { "people groups with a cook converted", "N-ref batches", "N-copy batches", "nothing drawn (ADC or no strip)", \
++  "declined: the cook does not match the call", "declined: another check mode on", "blended vertices redone", \
++  "batches with alpha not 255", "depth range w computed from the cook", "check: compared", "check: vertices differ", \
++  "check: strips differ", "check: uv2, du, dv, amin or cull differ", "check: depth range differs" }
++extern long xc_nge6_n[NG6_N];
++static inline void nge_walk6(int b, uint32_t i) { const uint32_t *r = xc_nge_ref6[b]; xc_nge_cur6 = r && i < NGE_P6REF ? r[i] : 0; }
++static inline void nge_walk6_end(void) { xc_nge_cur6 = 0; }
++/* the walk's (ge/xlme.c lw_nat6): the reference of group i from the references the record carries (XmPic.np6_r: the copy made with the
++   groups at the record, or the main CPU's array for a walk from RAM, which the main CPU waits for), never the main CPU's array later */
++static inline void nge_walk6r(const uint32_t *r, int i) { xc_nge_cur6 = r ? r[i] : 0; }
++/* a C2 pass's vertices: in the blob after its GerC2 (today's), or N-ref the arena's */
++static inline const uint8_t *nge_c2v(uint32_t pass, const void *g, uint32_t gsz, int32_t voff)
++{
++  if (pass & GERL_NGE) return (const uint8_t *)nge_p(((const NgeC2Tail *)(const void *)((const uint8_t *)g + gsz))->vb[(pass & 15) == 2]);
++  return (const uint8_t *)g + voff;
++}
+ #endif
+--- a/ge/texcache.c
++++ b/ge/texcache.c
+@@ -34,6 +34,9 @@
+   int uf; struct UfE *ufe; uint8_t ufm[16];        /* sb10 T1 tk_ufront: the memo's front (made with G and T), each set's most recent way */
+ };
+ #define TK_NIL 0xffffffffu
++/* step 2's emulator build, as gl41's heap fix (a): the entry table made 128 KB at once (gl40: 256 entries, doubled as it filled; its last
++   growth, 64 -> 128 KB at vb 10,850, made newlib take 128 KB fresh at its top).  The entries are handed out in the same order either way */
++#define TK_CAP0 ((int)(131072u / sizeof(Ent)))
+ 
+ static uint64_t mix(uint64_t h, uint64_t v) { h = (h ^ v) * 0x9e3779b97f4a7c15ull; return h ^ h >> 31; }
+ 
+@@ -175,7 +178,7 @@
+   c->kgen++;   /* gl35 */
+   make_room(c, size);
+   if (c->freel < 0) {
+-    int n = c->cap ? 2 * c->cap : 256; Ent *q = grow_table(c, n); if (!q) return -1;
++    int n = c->cap ? 2 * c->cap : TK_CAP0; Ent *q = grow_table(c, n); if (!q) return -1;
+     memset(q + c->cap, 0, (size_t)(n - c->cap) * sizeof *q);
+     for (int i = n - 1; i >= c->cap; i--) { q[i].next = c->freel; c->freel = i; }
+     c->e = q; c->cap = n;
+--- a/ge/vu1conv.c
++++ b/ge/vu1conv.c
+@@ -1508,6 +1508,62 @@
+     default: return p6_c2loop(p, L, k, v, flags, zr, zw, zn, 1, 1);
+   }
+ }
++/* native step 2 (ge/nge.h NgeP6G): the parts of vc_p06_c2v's vertices that depend on the call, on a copy of a cooked group's (made by
++   vc_p06_c2v with alpha 255): the alpha a2 of every vertex when it is not 255, then the d of the nb blended vertices bl[] (skinned,
++   weight not 1.0) from the call's skin matrix, p6_c2loop's blend in its order and float mode (the normal and the weight read back from
++   the vertex: the weight word's low half is 8 w); both in VB1 and, uv2 2, in VB2 at v + a1 */
++void vc_p06_c2bl(uint8_t *v, int n, uint32_t a1, int uv2, const uint8_t *bl, int nb, const VcP6C2 *k)
++{
++  const int st = k->skin ? 24 : 20, co = k->skin ? 8 : 4, nc = uv2 == 2 ? 2 : 1;
++  const uint32_t ac = k->a2 << 24;
++  if (k->a2 != 0xffu)
++    for (int c = 0; c < nc; c++) for (int i = 0; i < n; i++) { p6u32 *w = (p6u32 *)(v + c * a1 + (uint32_t)(st * i + co)); *w = (*w & 0xffffffu) | ac; }
++  if (!k->skin || !nb) return;
++  const float i12 = 1.0f / 4096, T254 = VC_C2T.f[254];
++  const float b00 = k->b[0][0], b01 = k->b[0][1], b02 = k->b[0][2], b10 = k->b[1][0], b11 = k->b[1][1], b12 = k->b[1][2];
++  const float b20 = k->b[2][0], b21 = k->b[2][1], b22 = k->b[2][2];
++  for (int j = 0; j < nb; j++) {
++    uint8_t *o = v + 24u * bl[j];
++    const p6h16 *h = (const p6h16 *)o;
++    const int32_t PW = (int32_t)((uint32_t)(uint16_t)h[0] >> 3), N0 = h[6], N1 = h[7], N2 = h[8];
++    float n0 = (float)N0 * i12, n1 = (float)N1 * i12, n2 = (float)N2 * i12;
++    const float w = (float)PW * i12, w1 = 1.0f - w;
++    const float bn0 = (b00 * n0 + b10 * n1) + b20 * n2, bn1 = (b01 * n0 + b11 * n1) + b21 * n2, bn2 = (b02 * n0 + b12 * n1) + b22 * n2;
++    n0 = n0 * w + bn0 * w1; n1 = n1 * w + bn1 * w1; n2 = n2 * w + bn2 * w1;
++    const float s = (n0 * n0 + n1 * n1) + n2 * n2;
++    const uint32_t d = s >= T254 ? 255u : c2_d(s), c = d * 0x010101u | ac;
++    *(p6u32 *)(o + 8) = c;
++    if (uv2 == 2) *(p6u32 *)(o + a1 + 8) = c;
++  }
++}
++/* native step 2: vc_p06_c2v's depth range part (zr given) for a cooked group's n vertices at v (the position and, skinned, the weight
++   read back from the vertex), in p6_c2loop's order and float mode: zw[0], zw[1] the least and largest w above 0, *zn their count */
++void vc_p06_c2z(const uint8_t *v, int n, const VcP6C2 *k, const float *zr, float *zw, long *zn)
++{
++  const float i12 = 1.0f / 4096, za = zr[0], zb = zr[1], zc = zr[2], zt = zr[3];
++  float lo = 3.0e38f, hi = 0; long cnt = 0;
++  if (k->skin) {
++    const float b00 = k->b[0][0], b01 = k->b[0][1], b02 = k->b[0][2], b10 = k->b[1][0], b11 = k->b[1][1], b12 = k->b[1][2];
++    const float b20 = k->b[2][0], b21 = k->b[2][1], b22 = k->b[2][2], b30 = k->b[3][0], b31 = k->b[3][1], b32 = k->b[3][2];
++    for (int i = 0; i < n; i++) {
++      const p6h16 *h = (const p6h16 *)(v + 24 * i);
++      const int32_t PW = (int32_t)((uint32_t)(uint16_t)h[0] >> 3), P0 = h[9], P1 = h[10], P2 = h[11];
++      const float p0 = (float)P0, p1 = (float)P1, p2 = (float)P2, w = (float)PW * i12, w1 = 1.0f - w;
++      const float bp0 = ((b00 * p0 + b10 * p1) + b20 * p2) + b30, bp1 = ((b01 * p0 + b11 * p1) + b21 * p2) + b31;
++      const float bp2 = ((b02 * p0 + b12 * p1) + b22 * p2) + b32;
++      const float q0 = p0 * w + bp0 * w1, q1 = p1 * w + bp1 * w1, q2 = p2 * w + bp2 * w1;
++      const float wz = q0 * za + q1 * zb + q2 * zc + zt;
++      if (wz > 0) { if (wz < lo) lo = wz; if (wz > hi) hi = wz; cnt++; }
++    }
++  } else
++    for (int i = 0; i < n; i++) {
++      const p6h16 *h = (const p6h16 *)(v + 20 * i);
++      const int32_t P0 = h[7], P1 = h[8], P2 = h[9];
++      const float wz = (float)P0 * za + (float)P1 * zb + (float)P2 * zc + zt;
++      if (wz > 0) { if (wz < lo) lo = wz; if (wz > hi) hi = wz; cnt++; }
++    }
++  zw[0] = lo; zw[1] = hi; *zn = cnt;
++}
+ 
+ /* ---- Stage C step 4 (vu1conv.h): P04+0x3740, the sprites ---- */
+ static float vdiv(float a, float b)   /* the VU's DIV as the interpreters model it: b = 0 gives the largest value of a's sign times b's */
+--- a/ge/vu1conv.h
++++ b/ge/vu1conv.h
+@@ -255,6 +255,11 @@
+    above 0 the least and largest in zw[0], zw[1] and their count in *zn.  Returns n, or -8 where p06_main would not take the call (a UV1
+    above 32767) or the GE cannot draw it (a weight outside 0..4096, a factor's colour other than 4096 (1.0), with uv2 2 a UV2 above 32767) */
+ int vc_p06_c2v(const void *const *p, VcLit *L, const VcP6C2 *k, uint8_t *v, uint16_t *flags, const float *zr, float *zw, long *zn);
++/* native step 2 (ge/nge.h NgeP6G; vu1conv.c): on a copy of a cooked group's vertices (vc_p06_c2v's at alpha 255), vc_p06_c2bl the call's
++   alpha (when not 255) and the d of the nb blended vertices bl[] from the call's skin matrix; vc_p06_c2z the depth range's part (zr) of
++   vc_p06_c2v from the cooked vertices.  The same bits as vc_p06_c2v gives the call */
++void vc_p06_c2bl(uint8_t *v, int n, uint32_t a1, int uv2, const uint8_t *bl, int nb, const VcP6C2 *k);
++void vc_p06_c2z(const uint8_t *v, int n, const VcP6C2 *k, const float *zr, float *zw, long *zn);
+ 
+ /* ---- Stage C step 4 (stagec_notes.md step 4): the effects P12d910 sends that the GE did not draw before ---- */
+ #define VC_SPR 0x19bb50u    /* P04+0x3740: sprites (the rain's mist and spray) */
+--- a/ge/xconv.c
++++ b/ge/xconv.c
+@@ -163,6 +163,7 @@
+    WORLD and the projection from the stub's transform, then NgeTail ---- */
+ uint8_t *xc_nge_mem[2]; uint32_t xc_nge_ge[2]; NgeRef *xc_nge_ref[2]; NgeXf *xc_nge_xfa[2]; const NgeRef *xc_nge_cur; int xc_nge_cb;
+ long xc_nge_n[NGN_N]; int xc_nge_chk;
++uint32_t *xc_nge_ref6[2]; uint32_t xc_nge_cur6, xc_nge_cap; long xc_nge6_n[NG6_N];   /* native step 2 (ge/nge.h: the people) */
+ static const NgeGroup *Dnge; static const NgeXf *Dngx;
+ static uint32_t xc_a2(int a) { return a >= 0x80 ? 0xffu : (uint32_t)(a < 0 ? 0 : a * 2); }   /* ge/vu1conv.c vc_a2 */
+ #ifndef __psp__
+@@ -304,9 +305,9 @@
+ static int xc_nge_batch(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+ {
+   const NgeGroup *q = Dnge; const int n = Dn;
+-  VcXform x = Dx; memcpy(x.world, Dngx->world, sizeof x.world); x.pa = Dngx->pa; x.pb = Dngx->pb;
+-  if (memcmp(x.world, Dx.world, sizeof x.world) || memcmp(&x.pa, &Dx.pa, 4) || memcmp(&x.pb, &Dx.pb, 4)) xc_nge_n[NGN_W_ALL]++;   /* (the PSP: the
+-                                                     stub read the constant block at its call, the ME's walk reads it later) */
++  VcXform x = Dx;   /* step 2 (gl41's rule): WORLD and the projection's terms the converter's own (Dx), never the stub's array (NgeXf), which
++                       the main CPU may have written again for a later picture before the ME's walk; the stub's only counted where it differs */
++  if (memcmp(Dngx->world, Dx.world, sizeof x.world) || memcmp(&Dngx->pa, &Dx.pa, 4) || memcmp(&Dngx->pb, &Dx.pb, 4)) xc_nge_n[NGN_W_ALL]++;
+   GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
+ #ifndef __psp__
+   if (xc_nge_chk) { GerXform e; xc_xform(&Dx, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &e);   /* today's batch's transform words */
+@@ -1091,8 +1092,25 @@
+   const float lo = (d0 - r0 < d1 - r1 ? d0 - r0 : d1 - r1) - E, hi = (d0 + r0 > d1 + r1 ? d0 + r0 : d1 + r1) + E;
+   return lo > 0 && lo >= z->wmin && hi <= z->wmax;
+ }
++#ifndef __psp__
++static void xc_c2n_check(const XlCall *c, const VcLit *L, const VcP6C2 *k, const NgeP6G *q, const uint8_t *v, uint32_t a1, int nst,
++                         const float *zr, const float *zw, long zn);
++#endif
++/* native step 2 (ge/nge.h): the call's cooked people group, or 0 (today's vertex loop): its reference (the held call's, or the walk's), a
++   cook drawn natively whose count, header y and skin are the call's, no factor (TINT) */
++static const NgeP6G *xc_c2n_cook(const VcLit *L, const VcP6C2 *k, int n)
++{
++  const uint32_t ref = Hr ? Hr->ng6 : xc_nge_cur6;
++  if (!ref) return 0;
++  const NgeP6G *q = (const NgeP6G *)nge_p(ref);
++  xc_nge6_n[NG6_TRY]++;
++  if (!q->ok || q->n != (uint32_t)n || q->hy != (L->hy & 0xffffu) || q->skin != (uint32_t)k->skin || k->tint) { xc_nge6_n[NG6_NO_MATCH]++; return 0; }
++  return q;
++}
+ /* -8: today's path takes the call (vc_p06_c2 -8 or -9, vc_p06_c2v -8, or less room than its bound: counted in St.c2_fall); 0 nothing
+-   drawn; 1 the batch (pass 1's), as xc_lit */
++   drawn; 1 the batch (pass 1's), as xc_lit.  Native step 2: a call with a cooked group (xc_c2n_cook) takes its vertices, strips and
++   uv2 form from the cook; N-ref (no blended vertex, alpha 255) leaves the vertices in the arena (GERL_NGE, the NgeC2Tail after the
++   GerC2), N-copy copies them into the blob and redoes the call's parts (vc_p06_c2bl); the depth range's w from the cook (vc_p06_c2z) */
+ static int xc_lit_c2(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap,
+                      uint32_t *size, uint32_t fogcol, uint32_t hy, uint16_t *fl, uint16_t *runs)
+ {
+@@ -1103,29 +1121,55 @@
+   const int np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);
+   if (cap < xc_c2_bound((uint32_t)n, hy)) { St.c2_fall[3]++; return -8; }
+   const uint32_t o1 = C1_GXL(np), ov = (o1 + 15u) & ~15u, st = k.skin ? 24u : 20u, a1 = ((uint32_t)n * st + 15u) & ~15u;
++  const NgeP6G *q = xc_c2n_cook(&L, &k, n);   /* native step 2 */
+   xc_state(d, ti, c->entry, b);   /* (here, as xc_lit_c1: its flags say whether the depth range takes the call) */
+   const int zneed = h->zr && (b->flags & GERF_ZWRITE) && b->ztst >= 2;
+   float zr[4] = { 0, 0, 0, 0 }, zw[2] = { 0, 0 }; long zn = 0; int zin = 0;
+   if (zneed) {   /* xc_zr_lit's w row: positions as the GE reads them, 16-bit ones / 32768 (unskinned), floats (skinned: the blend) */
+     const float ps = k.skin ? 1.0f : 32768.0f;
+     zr[0] = L.x.world[2] / ps; zr[1] = L.x.world[5] / ps; zr[2] = L.x.world[8] / ps; zr[3] = L.x.world[11];
+-    if (k.skin) { vc_p06_c2box(rr->p, n, &k); zin = xc_c2_zin(h->zr, &L.x, &k, zr); }
+-  }
+-  if (vc_p06_c2v(rr->p, &L, &k, blob + ov, fl, zneed && !zin ? zr : 0, zw, &zn) < 0) { St.c2_fall[2]++; return -8; }
++    if (k.skin) {
++      if (q) { for (int j = 0; j < 3; j++) { k.blo[j] = q->blo[j]; k.bhi[j] = q->bhi[j]; } } else vc_p06_c2box(rr->p, n, &k);
++      zin = xc_c2_zin(h->zr, &L.x, &k, zr); }
++  }
++  int nst, nref = 0; const uint8_t *cv = 0;
++  if (q) {   /* native step 2: the cook's (vc_p06_c2v's L parts: uv2, du, dv, cull from the cook; amin the call's a1, no factor) */
++    L.uv2 = q->uv2; L.du = q->uv2 == 1 ? (int)q->du : 0; L.dv = q->uv2 == 1 ? (int)q->dv : 0; L.amin = (int)k.a1; L.cull = q->cull;
++    cv = (const uint8_t *)nge_p(NGE_RO(q->reg, q->vb));
++    nst = k.adc ? 0 : (int)q->nst;   /* (ADC on every vertex: no strip, as vc_strips makes none) */
++    if (nst) {
++      if (zneed && !zin) { vc_p06_c2z(cv, n, &k, zr, zw, &zn); xc_nge6_n[NG6_ZW]++; }
++      nref = !q->nb && k.a2 == 0xffu;
++      if (!nref) {
++        memcpy(blob + ov, cv, q->uv2 == 2 ? 2 * a1 : a1);
++        vc_p06_c2bl(blob + ov, n, a1, q->uv2, q->nb ? (const uint8_t *)nge_p(NGE_RO(q->reg, q->bl)) : 0, q->nb, &k);
++        xc_nge6_n[NG6_BLEND_V] += q->nb; if (k.a2 != 0xffu) xc_nge6_n[NG6_ALPHA]++; }
++      memcpy(runs, nge_p(NGE_RO(q->reg, q->runs)), (size_t)nst * 4);
++    }
++#ifndef __psp__
++    if (xc_nge_chk) xc_c2n_check(c, &L, &k, q, nref ? cv : blob + ov, a1, nst, zneed && !zin ? zr : 0, zw, zn);
++#endif
++  } else if (vc_p06_c2v(rr->p, &L, &k, blob + ov, fl, zneed && !zin ? zr : 0, zw, &zn) < 0) { St.c2_fall[2]++; return -8; }
++  else nst = -1;
+   NS_PMARK(NS_P_VTX);
+   St.lit_kind[L.kind]++; St.lit_v += n; St.lit_cull += L.cull;   /* (xc_lit's counts: every C2 call is in the fast form, no ramp) */
+   if (L.uv2 == 2) St.lit_own2++;
+   if (L.p3 < 0) St.lit_nopass[3]++;
+-  const uint32_t og = ov + (L.uv2 == 2 ? 2 * a1 : a1), gsz = GERC2_SIZE(k.skin);
++  if (nst < 0) nst = vc_strips(fl, n, runs, 128);
++  if (!nst) { if (q) xc_nge6_n[NG6_EMPTY]++; return 0; }
++  const uint32_t ogt = ov + (L.uv2 == 2 ? 2 * a1 : a1), gsz = GERC2_SIZE(k.skin), ortt = (ogt + gsz + 15u) & ~15u;   /* today's GerC2 and strips */
++  const uint32_t og = nref ? ov : ogt, ot = og + gsz + (nref ? (uint32_t)sizeof(NgeC2Tail) : 0u), orun = (ot + 15u) & ~15u;
+   GerC2 *g = (GerC2 *)(blob + og);
+-  g->voff[0] = g->voff[2] = (int32_t)ov - (int32_t)og; g->voff[1] = L.uv2 == 2 ? (int32_t)(ov + a1) - (int32_t)og : g->voff[0];
++  g->voff[0] = g->voff[2] = (int32_t)ov - (int32_t)ogt; g->voff[1] = L.uv2 == 2 ? (int32_t)(ov + a1) - (int32_t)ogt : g->voff[0];
+   g->skin = (uint32_t)k.skin; memcpy(g->lcol, k.lcol, sizeof g->lcol); g->emis = k.emis;
+   memcpy(g->ldir, k.ldir, sizeof g->ldir); memcpy(g->tgen, k.tgen, sizeof g->tgen);
+   if (k.skin) memcpy(g->bone1, k.bone1, sizeof g->bone1);
+-  const int nst = vc_strips(fl, n, runs, 128);
+-  if (!nst) return 0;
+-  const uint32_t orun = (og + gsz + 15u) & ~15u, end = orun + (uint32_t)nst * 4u;
+-  memset(blob + og + gsz, 0, orun - og - gsz); memcpy(blob + orun, runs, (size_t)nst * 4);
++  if (nref) {   /* N-ref: where the GE reads the vertices, and today's offsets (the digest's) */
++    NgeC2Tail tl; tl.vb[0] = NGE_RO(q->reg, q->vb); tl.vb[1] = NGE_RO(q->reg, q->vb + (q->uv2 == 2 ? a1 : 0u)); tl.og = ogt; tl.orun = ortt;
++    memcpy(blob + og + gsz, &tl, sizeof tl); xc_nge6_n[NG6_REF]++; }
++  else if (q) xc_nge6_n[NG6_COPY]++;
++  const uint32_t end = orun + (uint32_t)nst * 4u;
++  memset(blob + ot, 0, orun - ot); memcpy(blob + orun, runs, (size_t)nst * 4);
+   GerXform gx; xc_xform(&L.x, d, t, 8, h, fogcol, &gx);   /* (xc_lit's: UV1 16-bit) */
+   gx.fog1 = (float)L.fog / 255.0f * 1099511627776.0f; gx.fog2 = 1.0f / 1099511627776.0f;   /* (xc_lit's: the constant F) */
+   gx.nv = (uint32_t)n; gx.nst = (uint32_t)nst; gx.nidx = 0;
+@@ -1138,7 +1182,7 @@
+     const uint32_t at = (uint32_t)(sizeof gx + kk++ * sizeof(GerLit));
+     GerLit p; memset(&p, 0, sizeof p);
+     p.xf = -(int32_t)at; p.vtx = (int32_t)og - (int32_t)at; p.run = (int32_t)orun - (int32_t)at;
+-    p.vtype = VT_C2(k.skin); p.stride = st; p.nv = (uint32_t)n; p.nst = (uint32_t)nst; p.pass = (uint32_t)pass | GERL_C2;
++    p.vtype = VT_C2(k.skin); p.stride = st; p.nv = (uint32_t)n; p.nst = (uint32_t)nst; p.pass = (uint32_t)pass | GERL_C2 | (nref ? GERL_NGE : 0u);
+     p.su = gx.su; p.sv = gx.sv; p.tu = gx.tu; p.tv = gx.tv;   /* pass 1's; xc_pass writes the others' */
+     memcpy(blob + at, &p, sizeof p);
+     if (pass == 1 || (pass == 2 && L.uv2 > 0) || (pass == 3 && L.p3 > 0)) Lp.rec[pass] = at;
+@@ -1487,6 +1531,7 @@
+ void xc_hold(const XlCall *c, const XcHost *h, XcHeld *r)
+ {
+   Lp.on = 0;   /* xc_call's work before xc_lit, in its order */
++  r->ng6 = c->entry == VC_P07 ? 0u : xc_nge_cur6;   /* native step 2: the people group's reference, as the walk gave it at the call */
+   if (c->entry == VC_P07) {   /* sb10 T2 */
+     St.calls[4]++;
+     xc_gs(c->gr, &r->d);
+@@ -1688,6 +1733,31 @@
+     if (memcmp(eb, q->box, sizeof eb)) xc_nge_n[NGN_D_BOX]++;
+     if (i1 != q->i1) xc_nge_n[NGN_D_I1]++; }
+ }
++/* native step 2's check mode (MGS2_NGE_CHK=1, x86; reads only): a people call drawn from its cook, against today's vertex loop on the
++   call's streams (vc_p06_c2v with the call's constants): the vertices as the GE reads them (v: the blob's copy, or N-ref the cook's;
++   VB2 too and the pads), the strips (none with ADC), uv2, du, dv, amin, cull, and the depth range's w when the call computes it */
++static void xc_c2n_check(const XlCall *c, const VcLit *L, const VcP6C2 *k, const NgeP6G *q, const uint8_t *v, uint32_t a1, int nst,
++                         const float *zr, const float *zw, long zn)
++{
++  static uint8_t ev[2 * 64 * 24 + 32]; static uint16_t efl[64], er[2 * 128];
++  VcLit le = *L; float ezw[2] = { 0, 0 }; long ezn = 0;
++  xc_nge6_n[NG6_CHK]++;
++  const int n = L->n;
++  if (vc_p06_c2v(c->rec->p, &le, k, ev, efl, zr, ezw, &ezn) != n) { xc_nge6_n[NG6_D_VERT]++; return; }
++  const int ens = vc_strips(efl, n, er, 128);
++  if (le.uv2 != L->uv2 || le.du != L->du || le.dv != L->dv || le.amin != L->amin || le.cull != L->cull) xc_nge6_n[NG6_D_L]++;
++  if (ens != nst || (nst && memcmp(er, nge_p(NGE_RO(q->reg, q->runs)), 4u * (uint32_t)nst))) xc_nge6_n[NG6_D_RUN]++;
++  if (!nst) return;   /* (nothing drawn: no vertex read) */
++  if (memcmp(ev, v, le.uv2 == 2 ? 2 * a1 : a1)) {
++    xc_nge6_n[NG6_D_VERT]++;
++    if (xc_nge6_n[NG6_D_VERT] <= 8) {
++      const uint32_t st = k->skin ? 24u : 20u; uint32_t i = 0; while (i < a1 && ev[i] == v[i]) i++;
++      fprintf(stderr, "nge6 check: vertices differ (#%ld): n %d skin %d uv2 %d nb %u a2 %02x, first byte %u (vertex %u, byte %u): today %02x cook %02x\n",
++              xc_nge6_n[NG6_D_VERT], n, k->skin, le.uv2, (unsigned)q->nb, (unsigned)k->a2, (unsigned)i, (unsigned)(i / st), (unsigned)(i % st),
++              (unsigned)ev[i < sizeof ev ? i : 0], (unsigned)v[i < sizeof ev ? i : 0]); }
++  }
++  if (zr && (ezn != zn || memcmp(ezw, zw, sizeof ezw))) xc_nge6_n[NG6_D_Z]++;
++}
+ enum { FCN_W = 380, FCN_C = 16, FCN_T = 1 << 16 };
+ typedef struct { const void *k; int occ; long pic; uint64_t hs, ht, hv[XC_7S]; } FcnE;
+ typedef struct { const void *k; long pic; int n; } FcnO;
+--- a/ge/xconv.h
++++ b/ge/xconv.h
+@@ -195,6 +195,7 @@
+ typedef struct {
+   uint32_t entry, top, hy, fogcol;   /* the call; header y (its pass flags; P07: T + 0 w); FOGCOL (xc_xform) */
+   int np, slot, pslot[2], pk[2];     /* drawn passes so far, the batch slots of the call and of those passes, their numbers */
++  uint32_t ng6;                      /* native step 2 (ge/nge.h): the call's people reference at the call (xc_nge_cur6), 0 none */
+   union {
+     uint32_t img[XC_HI][4] __attribute__((aligned(64)));   /* P06 (addresses 0, 1 of that memory are the record's 32 bytes before img,
+                                                             pk and padding: P06 never reads them) */
+--- a/ge/xlme.c
++++ b/ge/xlme.c
+@@ -91,6 +91,7 @@
+ #define NATP_PTRH(a, n, s) lw_nptr_h((a), (n), (s))
+ #define NATP_SPAN(p, nw, a) xl_vif1_span((p), (nw), (a))
+ #include "natp04.h"
++#include "natp06.h"   /* native step 2: the people's front end (nat_p06_group) */
+ /* the groups of buffer b from *cur whose key is at or below RAM offset a (all of them: a = 0xffffffff), in order, to the translator.
+    Returns the quadwords of the packet to step over (x86 shadow: the last group's own packet lies at a), else 0 */
+ static inline __attribute__((always_inline)) uint32_t lw_nat(XmPic *x, int b, int *cur, uint32_t a)
+@@ -108,8 +109,8 @@
+     if (ns && --g_ns.cd <= 0) { g_ns.cd = 24 + (int)((g_ns.n * 5) & 15); g_ns.n++; g_ns.clk = x->nat_clk; g_ns.last = ME_CALLP(x->nat_clk)(); }   /* gl34: this group timed by stage */
+     if (nr) xl_nr_group(i - i0);
+     xl_f1_j = i - i0;
+-    nge_walk(b, x->nat_i0[b] + i); int rc = nat_p04_group(&g[i]); nge_walk_end();   /* native step 1: the group's reference (ge/nge.h),
+-                                                     by its index in the whole array: g starts at the pending groups (nat_i0) */
++    nge_walkr(x->nat_r[b], b, i); int rc = nat_p04_group(&g[i]); nge_walk_end();   /* native step 1: the group's reference (ge/nge.h);
++                                                     step 2: from the record's own (nat_r, gl41's rule) */
+     if (g_ns.clk) { NS_MARK(NS_END); g_ns.clk = 0; }
+     if (rc == NATP_CORE) { x->nat_core++; nrt++; } else if (rc == NATP_FED) x->nat_fed++; else x->nat_bad++;
+     skip = (g[i].flags & NATG_PKT) && (g[i].key & (lw_size - 1) & ~15u) == a ? 7u + (g[i].flags & NATG_FULL) : 0;
+@@ -122,10 +123,26 @@
+   x->nat_runs++; *cur = i;
+   return skip;
+ }
+-static void lw_nat_end(XmPic *x, int b, int cur, int plan)   /* the walk ends: a planned transfer's groups the tags did not reach, drawn now */
++/* native step 2: the people's groups of buffer b from *cur whose key is at or below lim, in order, to the translator (lane 2), each with
++   its reference (ge/nge.h nge_walk6r: np6_r[b][i], taken with the groups) */
++#define LW_K6(g) ((g).key & (lw_size - 1) & ~15u)
++static void lw_nat6(XmPic *x, int b, int *cur, uint32_t lim)
++{
++  const NatP6 *g = x->np6_g[b]; const int n = x->np6_n[b]; int i = *cur;
++  if (i >= n || LW_K6(g[i]) > lim) return;
++  do {
++    nge_walk6r(x->np6_r[b], i); const int rc = nat_p06_group(&g[i]); nge_walk6_end();
++    if (rc == NATP_CORE) x->np6_core++; else if (rc == NATP_FED) x->np6_fed++; else x->np6_bad++;
++    i++;
++  } while (i < n && LW_K6(g[i]) <= lim);
++  x->np6_runs++; *cur = i;
++}
++static void lw_nat_end(XmPic *x, int b, int cur, int pcur, int plan)   /* the walk ends: a planned transfer's groups the tags did not reach, drawn now */
+ {
+   lw_stop = 0xffffffffu;
+   if (b >= 0 && plan && cur < x->nat_n[b]) { x->nat_late += x->nat_n[b] - cur; (void)lw_nat(x, b, &cur, 0xffffffffu); }
++  if (b >= 0 && plan && pcur < x->np6_n[b]) { x->np6_late += x->np6_n[b] - pcur; lw_nat6(x, b, &pcur, 0xffffffffu); }   /* step 2 */
++  x->np6_b = b; x->np6_used = b >= 0 ? pcur : 0;
+   x->nat_b = b; x->nat_used = cur;
+   x->nat_in += lw_nat_in; x->nat_out += lw_nat_out; x->nat_part += lw_nat_part; lw_nat_in = lw_nat_out = lw_nat_part = 0;
+   x->nat_stop += lw_stop_hit; lw_stop_hit = 0;
+@@ -172,13 +189,14 @@
+ static void lw_walk(XmPic *x, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int lanes, uint32_t opt)   /* ge/xlive.c walk(), VIF1 */
+ {
+   XlvMem *m = x->m; uint32_t asp[2], nasp = 0, guard = 0;
+-  int nb = x->nat_b, ncur = 0, nplan = nb >= 0, non = (x->nat_n[0] | x->nat_n[1]) != 0 && (chcr & 0x40);   /* native step 1 */
++  int nb = x->nat_b >= 0 ? x->nat_b : x->np6_b, ncur = 0, pcur = 0, nplan = nb >= 0;   /* native step 1; step 2: the people's (pcur) */
++  const int non = (x->nat_n[0] | x->nat_n[1] | x->np6_n[0] | x->np6_n[1]) != 0 && (chcr & 0x40);
+   m->transfers++; x->lw_tr++; lw_mem = m->mem; lw_spr = m->spr; lw_size = m->mem_size; lw_view = m->view;
+-  if (((chcr >> 2) & 3) == 0) { lw_run(m, madr & ~0x80000000u, qwc, chcr); if (non) lw_nat_end(x, nb, 0, nplan); return; }   /* normal mode: RAM only */
++  if (((chcr >> 2) & 3) == 0) { lw_run(m, madr & ~0x80000000u, qwc, chcr); if (non) lw_nat_end(x, nb, 0, 0, nplan); return; }   /* normal mode: RAM only */
+   if (qwc) {
+     uint32_t id = (chcr >> 28) & 7;
+     lw_run(m, madr, qwc, chcr);
+-    if (id == 0 || id == 7 || ((chcr & 0x80) && (chcr >> 31))) { if (non) lw_nat_end(x, nb, 0, nplan); return; }
++    if (id == 0 || id == 7 || ((chcr & 0x80) && (chcr >> 31))) { if (non) lw_nat_end(x, nb, 0, 0, nplan); return; }
+   }
+   for (;;) {
+     const uint32_t *t = lw_q(m, tadr); uint64_t tag; uint32_t n, id, addr, data, next; int end = 0;
+@@ -187,10 +205,15 @@
+       uint32_t a = tadr & (lw_size - 1) & ~15u;
+       if (a >= NAT_PKT0 && a < NAT_PKT1) {
+         int b = NAT_BUF(a);
+-        if (nb < 0 && x->nat_n[b] > 0) nb = b;   /* (a walk with no plan: bound as xc_walk binds it) */
+-        if (b == nb) {
++        if (nb < 0 && (x->nat_n[b] > 0 || x->np6_n[b] > 0)) nb = b;   /* (a walk with no plan: bound as xc_walk binds it) */
++        if (b == nb) {   /* step 2: the people at or below both the tag and the next ship group first, then the ship's, then the
++                            people interleaved (boot/nat_x86.c's order) */
++          const uint32_t ks = ncur < x->nat_n[b] ? x->nat_g[b][ncur].key & (lw_size - 1) & ~15u : 0xffffffffu;
++          lw_nat6(x, b, &pcur, a < ks ? a : ks);
+           uint32_t sk = lw_nat(x, b, &ncur, a);
++          lw_nat6(x, b, &pcur, a);
+           lw_stop = ncur < x->nat_n[b] ? x->nat_g[b][ncur].key & (lw_size - 1) & ~15u : 0xffffffffu;
++          if (pcur < x->np6_n[b] && LW_K6(x->np6_g[b][pcur]) < lw_stop) lw_stop = LW_K6(x->np6_g[b][pcur]);
+           if (sk) { tadr += 16 * sk; guard += sk; continue; } } } }
+     if ((chcr & 0x40) && (t[2] & 0xffffff00u) == 0x01000100u) {   /* vif1_chain_fast's lane block */
+       uint32_t nx, cl = t[2] & 0xff; int nt = 0, ln = 0; LwLoc s; memset(&s, 0, sizeof s);
+@@ -229,7 +252,7 @@
+     tadr = next;
+     if (++guard > 1000000) { m->guard_stops++; break; }
+   }
+-  if (non) lw_nat_end(x, nb, ncur, nplan);
++  if (non) lw_nat_end(x, nb, ncur, pcur, nplan);
+ }
+ /* one transfer of a record: the late walk for one the runtime's walk would have fed to the translator (lanes: the lanes it would have
+    run), as xlv_dma does it otherwise (its xl_flush included) */
+@@ -303,10 +326,20 @@
+                                          there (lw_nptr's "outside the copy" path) */
+   for (int k = 0; k < 3; k++) if (g->s[k] && g->n[k]) { xc_run(c, 1, g->s[k] & 0xfffffff0u, g->n[k]); c->nat_qw += g->n[k]; }
+ }
++/* native step 2: a people group the walk will draw from its record: its data kept as its packet's REF tags would have kept it (the
++   constant block, the materials sent, the six streams; nat_p06_group's caps: a group it drops adds nothing) */
++static void xc_nat6(XmCopy *c, const NatP6 *g)
++{
++  for (int j = 0; j < 6; j++) if (g->n[j] > 128u) return;
++  if (g->n[2] > 64u || g->n[3] > 64u || g->n[4] > 64u) return;
++  if (g->flags & NP6G_FULL) { xc_run(c, 1, g->blk & 0xfffffff0u, 24); c->nat_qw += 24; }
++  for (int j = 0; j < 3; j++) if (g->mat[j]) { xc_run(c, 1, g->mat[j] & 0xfffffff0u, 8); c->nat_qw += 8; }
++  for (int k = 0; k < 6; k++) if (g->s[k] && g->n[k]) { xc_run(c, 1, g->s[k] & 0xfffffff0u, g->n[k]); c->nat_qw += g->n[k]; }
++}
+ static int xc_walk(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* ge/xlive.c walk()'s chain rules */
+ {
+-  uint32_t asp[2], nasp = 0, guard = 0; int non = (c->nat_n[0] | c->nat_n[1]) != 0 && (chcr & 0x40);
+-  c->nat_b = -1; c->nat_cur = 0;
++  uint32_t asp[2], nasp = 0, guard = 0; int non = (c->nat_n[0] | c->nat_n[1] | c->np6_n[0] | c->np6_n[1]) != 0 && (chcr & 0x40);
++  c->nat_b = -1; c->nat_cur = 0; c->np6_b = -1; c->np6_cur = 0;   /* (step 2: the people bound with the ship's buffer) */
+   if (((chcr >> 2) & 3) == 0) { xc_run(c, 1, madr & ~0x80000000u, qwc); return 0; }   /* normal mode: RAM only */
+   if (qwc) {
+     uint32_t id = (chcr >> 28) & 7;
+@@ -321,9 +354,10 @@
+       uint32_t a = tadr & (c->mem_size - 1) & ~15u;
+       if (a >= NAT_PKT0 && a < NAT_PKT1) {
+         int b = NAT_BUF(a);
+-        if (c->nat_b < 0 && c->nat_n[b] > 0) c->nat_b = b;
+-        if (b == c->nat_b) { const NatGrp *g = c->nat_g[b];
+-          while (c->nat_cur < c->nat_n[b] && (g[c->nat_cur].key & (c->mem_size - 1) & ~15u) <= a) { xc_nat(c, &g[c->nat_cur]); c->nat_cur++; c->nat_grp++; } } } }
++        if (c->nat_b < 0 && (c->nat_n[b] > 0 || c->np6_n[b] > 0)) c->nat_b = c->np6_b = b;
++        if (b == c->nat_b) { const NatGrp *g = c->nat_g[b]; const NatP6 *q = c->np6_g[b];
++          while (c->nat_cur < c->nat_n[b] && (g[c->nat_cur].key & (c->mem_size - 1) & ~15u) <= a) { xc_nat(c, &g[c->nat_cur]); c->nat_cur++; c->nat_grp++; }
++          while (c->np6_cur < c->np6_n[b] && (q[c->np6_cur].key & (c->mem_size - 1) & ~15u) <= a) { xc_nat6(c, &q[c->np6_cur]); c->np6_cur++; c->np6_grp++; } } } }
+     xc_tag(c, tadr);
+     switch (id) {   /* (no jump table: -fno-jump-tables) */
+     case 0: data = addr; next = 0; end = 1; break;
+@@ -423,6 +457,7 @@
+   r = xc_plan(c, chcr, madr, qwc, tadr, x0, nx);
+   {
+     const int na = c->na, nb = c->nb, over = c->over, nab = c->nat_b, nac = c->nat_cur, nam = c->na_max, nbm = c->nb_max, nkm = c->nmk_max;
++    const int pb = c->np6_b, pc = c->np6_cur; const long pg = c->np6_grp;   /* step 2 */
+     const long ng = c->nat_grp, rc = c->rb_cut, pl = c->xp_plans, ad = c->xp_adds, mv = c->xp_moves, cp = c->xp_cpy, ra = c->xp_ra, rb = c->xp_rb, mk = c->xp_mk;
+     const uint64_t nq = c->nat_qw, mr = c->marked, tw = c->xp_tw, ts = c->xp_ts; long fl[5];
+     uint32_t (*const ck)(void) = c->clk;
+@@ -437,6 +472,7 @@
+     c->xp_chk++;
+     if (bad && !c->xp_dif++) { c->xp_dif_w[0] = (uint32_t)r | (uint32_t)r0 << 8; c->xp_dif_w[1] = (uint32_t)(r ? 0 : *nx); c->xp_dif_w[2] = (uint32_t)m0; c->xp_dif_vb = -1; }
+     c->na = na; c->nb = nb; c->over = over; c->nat_b = nab; c->nat_cur = nac; c->na_max = nam; c->nb_max = nbm; c->nmk_max = nkm;
++    c->np6_b = pb; c->np6_cur = pc; c->np6_grp = pg;
+     c->nat_grp = ng; c->rb_cut = rc; c->nat_qw = nq; c->marked = mr; c->xp_plans = pl; c->xp_adds = ad; c->xp_moves = mv; c->xp_cpy = cp;
+     c->xp_ra = ra; c->xp_rb = rb; c->xp_mk = mk; c->xp_tw = tw; c->xp_ts = ts;
+     for (i = 0; i < 5; i++) c->fails[i] = fl[i];
+@@ -573,6 +609,9 @@
+   p->lists++; if (r) p->list_fail++;
+   if (dig) { GxList *l = p->gxl; const uint32_t c = l->clk ? ME_CALLP(l->clk)() : 0;   /* gl38: the frame's digest timed apart */
+     p->dig_frame = gl_digest(f, l);
++#ifdef __psp__
++    p->dig_c = gl_digest_c(f);   /* step 2, as gl41: the content digest (the twin prints it from its own frame) */
++#endif
+     if (l->clk) l->t_k[GX_T_DIG] += ME_CALLP(l->clk)() - c; }
+   return r;
+ }
+--- a/ge/xlme.h
++++ b/ge/xlme.h
+@@ -27,6 +27,13 @@
+ #include "gelist.h"
+ #include "xlview.h"   /* task #180 */
+ #include "natsnap.h"  /* native step 1 */
++#include "natp06.h"   /* native step 2: the people's records (its data part: ge/xlme.c includes it again for the walk's) */
++#include "nge.h"      /* step 2: NgeRef (XmPic.nat_r) */
++/* step 2 (gl41's rule): a record's copy of its native groups (ge/xme.h XME_NROFF, XME_POFF, XME_P6ROFF): the ship's groups, their
++   references, the people's groups, their references, each part on 16 bytes; its room */
++#define XME_R16(n) (((uint32_t)(n) + 15u) & ~15u)
++#define XME_NATBYTES(ng, pn) (XME_R16((uint32_t)(ng) * (uint32_t)sizeof(NatGrp)) + XME_R16((uint32_t)(ng) * (uint32_t)sizeof(NgeRef)) + \
++                              XME_R16((uint32_t)(pn) * (uint32_t)sizeof(NatP6)) + 4u * (uint32_t)(pn))
+ #include "natsplit.h" /* gl34 */
+ 
+ #define XM_F_LANES 1u   /* the translator's lanes (OPT_XL_LANE, LANE2, LANE3, LANE4 within XmPic.lanes), OPT_XL_EAGER and OPT_XL_MARK */
+@@ -50,6 +57,9 @@
+   int sw[XS_N];               /* each switch as last set; -1: not known (set at the next record) */
+   GxFrame gxf;                /* the last list's frame */
+   uint64_t dig_frame;         /* the last list's frame digest (gl_digest), when xm_list was asked for it */
++#ifdef __psp__
++  uint64_t dig_c;             /* step 2, as gl41: its content digest (gl_digest_c), for the PSP's "picture: vb N content" line */
++#endif
+   /* counts */
+   long calls, prims, lists, list_fail;
+   long lw_tr, lw_tags[5], lw_grp[5], lw_bad;   /* the late walk: transfers; tags and groups each lane took; walks that missed a group's end */
+@@ -60,6 +70,8 @@
+      counted in nat_late); nat_b -1: a walk with no plan (from RAM): the walk binds the buffer of the first such tag where groups
+      wait, as the plan does, and takes what its tags reach.  After the walk: nat_b the buffer, nat_used the groups taken */
+   const NatGrp *nat_g[2]; int nat_n[2], nat_b, nat_used;
++  const NgeRef *nat_r[2];     /* step 2 (gl41's rule): each nat_g's references (ge/nge.h xc_nge_ref), index for index: copied with the groups
++                                 (ge/xme.h XME_NROFF), or the main CPU's for a walk it waits for; 0: none */
+   uint32_t (*nat_clk)(void);  /* the merge runs' clock (0: not timed) */
+   uint64_t nat_t;             /* their time in its ticks */
+   long nat_runs, nat_core, nat_fed, nat_bad, nat_late, nat_stop;   /* merge runs; groups the core took, fed word by word, dropped (a
+@@ -73,6 +85,14 @@
+   /* gl36 (ge/xlate.h xl_nr_*): per packet buffer, the index in its picture's array of nat_g[b][0], and the picture's reuse switch
+      (boot/nat_stub.h NatBuf.ru), set by the host with nat_g */
+   int nat_i0[2]; int nat_ru[2];
++  /* native step 2 (ge/natp06.h): the people's groups, beside the ship's and by the same rule (np6_g / np6_n / np6_b / np6_used / np6_i0
++     as nat_g / nat_n / nat_b / nat_used / nat_i0; one buffer bound for both: a transfer walks one packet buffer).  At a tag, the people
++     whose key is at or below both the tag and the next ship group's key first, then the ship's, then the people interleaved (as the
++     twin's walk, boot/nat_x86.c) */
++  const NatP6 *np6_g[2]; int np6_n[2], np6_b, np6_used, np6_i0[2];
++  const uint32_t *np6_r[2];   /* step 2: each np6_g's references (ge/nge.h xc_nge_ref6), index for index: copied with the groups (ge/xme.c
++                                 XME_P6ROFF), or the main CPU's for a walk it waits for; 0: none (today's path) */
++  long np6_runs, np6_core, np6_fed, np6_bad, np6_late;
+ } XmPic;
+ extern long lw_nh_n[3];             /* gl34 (ge/xlme.c lw_nptr_h): hinted look-ups, of them differing from lw_nptr's, checked */
+ 
+@@ -139,6 +159,8 @@
+      xm_plan: nat_b the buffer bound (-1: none), nat_cur the groups taken; the host gives them room in the arena (xm_nat_room) */
+   const NatGrp *nat_g[2]; int nat_n[2], nat_b, nat_cur;
+   long nat_grp;                        /* groups planned */
++  const NatP6 *np6_g[2]; int np6_n[2], np6_b, np6_cur;   /* native step 2: the people's, as nat_* (ge/natp06.h; XmPic) */
++  long np6_grp;
+   uint64_t nat_qw;                     /* gl34: the quadwords their ranges asked for (before the merge with the transfer's own) */
+   /* gl40 lever XP (attic/gl40/gl40_plan.md 1d), the host's, set before each xm_plan (0: gl39's plan): XP_PP the merge sort's passes
+      alternate the array and the scratch (the copy back after every pass dropped; the same merges in the same order), XP_LOOK a range that
+--- a/ge/xme.c
++++ b/ge/xme.c
+@@ -3,6 +3,7 @@
+    (4d), its thread on the emulator (4c) and the main CPU's own turns.  Step 4d: the cache steps through the host's hook (xme.h). */
+ #include <string.h>
+ #include "xme.h"
++#include "nge.h"   /* step 2: xc_nge_ref6 */
+ #include "hot39.h"   /* gl39 */
+ #include "me_rt.h"                      /* -DMGS2_ME_SAFE: ME_CALLP */
+ 
+@@ -47,8 +48,19 @@
+     const NatGrp *g = x->nat_g[r->nb] + r->ng0[r->nb]; uint32_t n = (uint32_t)r->ngn[r->nb] * (uint32_t)sizeof *g;
+     xme_cache(x, XME_C_INV, g, n);
+     memcpy(x->fc.arena + r->noff, g, n);
++    if (xc_nge_ref[r->nb]) {   /* step 2 (gl41's rule): their references with them (XME_NROFF) */
++      const NgeRef *rf = xc_nge_ref[r->nb] + r->ng0[r->nb]; const uint32_t rn = (uint32_t)r->ngn[r->nb] * (uint32_t)sizeof *rf;
++      xme_cache(x, XME_C_INV, rf, rn); memcpy(x->fc.arena + XME_NROFF(r), rf, rn); }
+     x->n_natrec++; x->n_natg += r->ngn[r->nb]; x->n_natb += n;
+     x->t_r[XME_R_NAT] += XME_CLK(x, w) - c2; }
++  if (r->nb >= 0 && r->nb < 2 && r->pn[r->nb] > 0 && x->np6_g[r->nb]) {   /* native step 2: the people's records, after the ship's */
++    const NatP6 *g = x->np6_g[r->nb] + r->p0[r->nb]; const uint32_t n = (uint32_t)r->pn[r->nb] * (uint32_t)sizeof *g;
++    xme_cache(x, XME_C_INV, g, n);
++    memcpy(x->fc.arena + XME_POFF(r), g, n);
++    if (xc_nge_ref6[r->nb]) {   /* their references with them (XME_P6ROFF) */
++      const uint32_t *rf = xc_nge_ref6[r->nb] + r->p0[r->nb], rn = 4u * (uint32_t)r->pn[r->nb];
++      xme_cache(x, XME_C_INV, rf, rn); memcpy(x->fc.arena + XME_P6ROFF(r), rf, rn); }
++    x->n_np6g += r->pn[r->nb]; x->n_np6b += n; }
+   if (r->now) x->n_now++; else x->n_early++;
+ }
+ static void xme_fill(XmeCtx *x, int nlog)              /* the log over the early copies since the last FILL: they hold the bytes as their
+@@ -78,14 +90,24 @@
+     p->nat_n[0] = p->nat_n[1] = 0; p->nat_b = -1;   /* native step 1 (xme.h XmeRec) */
+     for (int b = 0; b < 2; b++) { p->nat_i0[b] = r->ng0[b]; p->nat_ru[b] = r->nru[b]; }   /* gl36 (xlme.h) */
+     if (r->nx >= 0) { if (r->nb >= 0 && r->nb < 2 && r->ngn[r->nb] > 0 && x->nat_g[r->nb]) {
+-        p->nat_b = r->nb; p->nat_g[r->nb] = (const NatGrp *)(const void *)(x->fc.arena + r->noff); p->nat_n[r->nb] = r->ngn[r->nb]; } }
+-    else for (int b = 0; b < 2; b++) if (r->ngn[b] > 0 && x->nat_g[b]) { p->nat_g[b] = x->nat_g[b] + r->ng0[b]; p->nat_n[b] = r->ngn[b]; }
++        p->nat_b = r->nb; p->nat_g[r->nb] = (const NatGrp *)(const void *)(x->fc.arena + r->noff); p->nat_n[r->nb] = r->ngn[r->nb];
++        p->nat_r[r->nb] = xc_nge_ref[r->nb] ? (const NgeRef *)(const void *)(x->fc.arena + XME_NROFF(r)) : 0; } }
++    else for (int b = 0; b < 2; b++) if (r->ngn[b] > 0 && x->nat_g[b]) { p->nat_g[b] = x->nat_g[b] + r->ng0[b]; p->nat_n[b] = r->ngn[b];
++        p->nat_r[b] = xc_nge_ref[b] ? xc_nge_ref[b] + r->ng0[b] : 0; }   /* (a walk from RAM: the main CPU waits for it) */
+     p->nat_used = 0;
++    p->np6_n[0] = p->np6_n[1] = 0; p->np6_b = -1; p->np6_used = 0;   /* native step 2: the people's, as the ship's */
++    for (int b = 0; b < 2; b++) p->np6_i0[b] = r->p0[b];
++    if (r->nx >= 0) { if (r->nb >= 0 && r->nb < 2 && r->pn[r->nb] > 0 && x->np6_g[r->nb]) {
++        p->np6_b = r->nb; p->np6_g[r->nb] = (const NatP6 *)(const void *)(x->fc.arena + XME_POFF(r)); p->np6_n[r->nb] = r->pn[r->nb];
++        p->np6_r[r->nb] = xc_nge_ref6[r->nb] ? (const uint32_t *)(const void *)(x->fc.arena + XME_P6ROFF(r)) : 0; } }
++    else for (int b = 0; b < 2; b++) if (r->pn[b] > 0 && x->np6_g[b]) { p->np6_g[b] = x->np6_g[b] + r->p0[b]; p->np6_n[b] = r->pn[b];
++        p->np6_r[b] = xc_nge_ref6[b] ? xc_nge_ref6[b] + r->p0[b] : 0; }   /* (a walk from RAM: the main CPU waits for it) */
+     p->ns_on = x->ns_on; p->ch_i = r->chi; p->nh_chk = x->nh_chk;   /* gl34 (ge/natsplit.h, ge/xlme.c lw_nptr_h) */
+     gl_bd_chi = r->chi;   /* gl38 (ge/gelive.h): the chain of the calls this walk makes */
+     xm_walk(p, r->ch, r->chcr, r->madr, r->qwc, r->tadr, r->lanes, r->opt);
+     if (r->nx < 0 && (p->nat_n[0] | p->nat_n[1])) { XS(x)->nat_b = p->nat_b; XS(x)->nat_used = (uint32_t)p->nat_used; }
+-    p->nat_n[0] = p->nat_n[1] = 0;
++    if (r->nx < 0 && (p->np6_n[0] | p->np6_n[1])) { XS(x)->np6_b = p->np6_b; XS(x)->np6_used = (uint32_t)p->np6_used; }   /* step 2 */
++    p->nat_n[0] = p->nat_n[1] = 0; p->np6_n[0] = p->np6_n[1] = 0;
+     m->view = 0; xme_sum(x); XS(x)->heart++; x->n_walked++;
+   }
+   xm_tsplit(0, 0, 0);   /* gl26: no clock outside a walk */
+@@ -140,6 +162,9 @@
+     s = &x->res[XS(x)->listed % XME_NRES];
+     s->fvb = h->vb - 1; s->d = h->d; s->r = r; s->nt = (int)p->glf->o.nt; s->dig = h->dig; s->list = p->gxl->w;
+     s->dig_list = p->gxl->dig; s->dig_frame = h->dig ? p->dig_frame : 0; s->c = p->gxl->c;
++#ifdef __psp__
++    s->dig_c = h->dig ? p->dig_c : 0;   /* step 2, as gl41 */
++#endif
+     s->dz = h->dz; s->dzn = h->dzn; s->dc = p->gxl->dc; s->t_list = c3 - c2;   /* gl29 */
+     s->a_nb = (int32_t)p->glf->o.nb; s->a_nv = (int32_t)p->glf->o.nv; s->a_nd = (int32_t)p->glf->o.nd;   /* native step 1: the frame arena's fill */
+     s->t_me = w == x->w_me; s->me_turn = w == x->w_me || w == x->w_thr;
+@@ -149,13 +174,16 @@
+   }
+   if (h->begin) {   /* the GE must have finished every list before: the frame's arena, the list buffer, the cache's last textures */
+     uint32_t c0 = XME_CLK(x, w); int two = XS(x)->ge2 && x->fm[1];   /* gl23: or every list but the last, with two frame memories */
++    const uint32_t fa = (h->begin >> 24 & 1) && x->fm_arena2 ? x->fm_arena2 : x->fm_arena;   /* step 2: the carve after the opening (xme.h) */
+     while ((int32_t)(XS(x)->listed - xme_released(x)) > two) { x->n_gewait++; XS(x)->heart++; XS(x)->at = XME_AT_GEWAIT; ME_CALLP(w)(x, 1); }
+     const uint32_t cb = XME_CLK(x, w); x->t_k[XME_T_GEW] += cb - c0;
+     if (two) {   /* gl23: the other frame memory and list; the textures of the frame just ended kept while the GE may draw it */
+       if ((int32_t)(XS(x)->listed - xme_released(x)) > 0) x->n_ge2++;
+       tk_guard(p->tk, x->tk_fb);
+-      x->fm_k ^= 1; gb_arena(&p->glf->o, x->fm[x->fm_k], x->fm_arena, x->fm_nb, x->fm_nv); p->gxl = x->fl[x->fm_k];
+-    } else tk_guard(p->tk, TK_NO_GUARD);
++      x->fm_k ^= 1; gb_arena(&p->glf->o, x->fm[x->fm_k], fa, x->fm_nb, x->fm_nv); p->gxl = x->fl[x->fm_k];
++    } else { tk_guard(p->tk, TK_NO_GUARD);
++      if (fa != x->fm_arena) gb_arena(&p->glf->o, (void *)p->glf->o.b, fa, x->fm_nb, x->fm_nv); }   /* (step 2: the frame memory in use,
++                                                    the smaller arena: a main CPU's turn, one frame on the GE) */
+     x->tk_fb = tk_now(p->tk);
+     XS(x)->at = XME_AT_BEGIN; xm_begin(p, h->opt, h->opt2); p->glf->h.cull = h->begin >> 8 & 0xff; p->glf->bd = h->begin >> 16 & 0xff; x->n_begin++;   /* (cull study v3: xme.h XmeHook.begin) */
+     x->t_h[XME_H_BEGIN] += XME_CLK(x, w) - cb;
+--- a/ge/xme.h
++++ b/ge/xme.h
+@@ -30,6 +30,7 @@
+ #define MGS2_XME_H
+ #include <stdint.h>
+ #include "xlme.h"
++#include "nge.h"    /* step 2: NgeRef (the copy's references) */
+ #include "xconv.h"   /* XcThin */
+ #include "fxthin.h"  /* gl38: FxBd */
+ 
+@@ -60,11 +61,24 @@
+ enum { XME_AT_WALK = 0x100, XME_AT_LAY = 0x200, XME_AT_RESFULL = 0x300, XME_AT_GEWAIT = 0x301, XME_AT_END = 0x310, XME_AT_LIST = 0x311,
+        XME_AT_BEGIN = 0x312, XME_AT_TKFRAME = 0x313, XME_AT_IDLE = 0x500, XME_AT_HANG = 0x600 };
+ typedef struct { int ch, lanes, restart, x0, nx, t, now; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+-                 int nb, ng0[2], ngn[2]; uint32_t noff;
++                 int nb; int16_t ng0[2], ngn[2], p0[2], pn[2]; uint32_t noff;   /* step 2: ng0 / ngn int16 (NAT_MAXGRP 2304), the people's
++                                                    p0 / pn beside them in the bytes that took (the record keeps its size) */
+                  int16_t chi;                    /* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list (-1: none; < NS_CH) */
+                  uint8_t nru[2];                 /* gl36: each buffer's reuse switch (boot/nat_stub.h NatBuf.ru, 0 or 1) as the record was made;
+                                                     fix B: with chi in the 4 bytes gl35's int chi took (the queue keeps gl35's size) */
+                } XmeRec;   /* native step 1 (xlme.h XmPic): the ship-mesh groups the record's walk
++                                                 draws (step 2: and the people's, p0 / pn as ng0 / ngn, their copy in the arena right after
++                                                 the ship's: XME_POFF) */
++/* step 2 (gl41's rule): the copy at the record is the ship's groups, their references (ge/nge.h NgeRef), the people's groups, their
++   references, each part on 16 bytes, so that the walk never reads the main CPU's arrays, which the stub writes again for a later picture
++   while the ME's walk may still be to come */
++#define XME_NROFF(r) ((r)->noff + XME_R16((uint32_t)(r)->ngn[(r)->nb] * (uint32_t)sizeof(NatGrp)))
++#define XME_POFF(r) (XME_NROFF(r) + XME_R16((uint32_t)(r)->ngn[(r)->nb] * (uint32_t)sizeof(NgeRef)))
++/* (step 2:) the people's references (ge/nge.h xc_nge_ref6), pn words right after their groups: copied with them at the record, so the walk
++   never reads the main CPU's array, which the stub writes again for a later picture while the ME's walk may still be to come */
++#define XME_P6ROFF(r) (XME_POFF(r) + XME_R16((uint32_t)(r)->pn[(r)->nb] * (uint32_t)sizeof(NatP6)))
++/* (XME_R16, XME_NATBYTES: ge/xlme.h, which boot/xlive_chk.c's mirror reads too) */
++/* (native step 1's note:) the ship-mesh groups the record's walk
+                                                  draws.  A record with a copy (nx >= 0): nb the packet buffer its plan bound (-1: none),
+                                                  ngn[nb] groups from index ng0[nb] of that buffer's array, which the ME copies into the
+                                                  arena at noff as it copies the extents (REC).  A record walked from RAM (nx -1): nb -1,
+@@ -78,7 +92,11 @@
+ typedef char xme_hook_size_check[sizeof(XmeHook) == 40 ? 1 : -1];   /* cull study v3: gl35's 40 B */
+ typedef char xme_e_size_check[sizeof(XmeE) == 132 ? 1 : -1];       /* cull study v3: gl35's 132 B (the queue's entry) */
+ typedef struct { int32_t fvb; int d, r, nt, dig; uint32_t *list; uint64_t dig_list, dig_frame; GxCount c;
+-                 int dz, dzn; GxDzCount dc; uint32_t t_list; int t_me, me_turn; int32_t a_nb, a_nv, a_nd; } XmeRes;   /* gl29: the list's arm, steps and counts; xm_list's
++                 int dz, dzn; GxDzCount dc; uint32_t t_list; int t_me, me_turn; int32_t a_nb, a_nv, a_nd;
++#ifdef __psp__
++                 uint64_t dig_c;   /* step 2, as gl41: the content digest (xm_list), printed with the list line */
++#endif
++                 } XmeRes;   /* gl29: the list's arm, steps and counts; xm_list's
+                                                  own time in the loop's clock's ticks (t_me 1: the ME's Count, else microseconds); me_turn 1:
+                                                  made by the loop on the ME or its thread (an ME turn), 0: by the main CPU in its own turn */
+ typedef struct XmeSh {      /* step 4d-4: the words both cores write, in XmeCtx.sh; reached only through XS(x): on the PSP the uncached alias
+@@ -104,6 +122,7 @@
+                                  it writes them).  gl20-23 kept it in t_k[XME_T_IDLE], a cached write in the main CPU's turns (its line
+                                  holds tk_fb and fm_k).  gl23's stale turn lines (hooks 0, lists < 0) came from n_sync++ and t_k[XE_SYNC]
+                                  written after the hand-over's write-back: gl24b writes the cache back after them (ge/xme.c xme_run) */
++  int32_t np6_b; uint32_t np6_used;   /* native step 2: the people's, as nat_b / nat_used */
+   int32_t nat_b; uint32_t nat_used;   /* native step 1: the last record walked from RAM with groups: the buffer its walk bound (-1: none)
+                                  and the groups it took (the loop's; the main CPU reads them after its wait for that walk) */
+ } XmeSh;
+@@ -156,6 +175,8 @@
+   long n_rec, n_now, n_early, n_ram, n_lay, n_fill, n_walk, n_walked, n_hook, n_thin, n_list, n_begin, n_gewait, n_restart, n_over, n_resfull;
+   long n_sync, n_rq;          /* step 4d: hand-overs; heap requests */
+   long n_natrec, n_natg; uint64_t n_natb;   /* native step 1: records with groups copied, their groups and bytes */
++  const NatP6 *np6_g[2];      /* native step 2: the people's arrays (boot/np6_stub.h g_np6[].g; 0: none), as nat_g */
++  long n_np6g; uint64_t n_np6b;   /* native step 2: the people's groups copied and their bytes */
+   int fm_k; long tk_fb, n_ge2;   /* gl23: the frame memory in use; the texture cache's frame at the last frame's start; frames begun
+                                     while the GE still had the one before */
+   uint64_t t_k[XME_T_N];      /* gl20: the loop's own time in clk's ticks: XME_T_IDLE unused (gl24: XmeSh t_idle), 1-7 each entry kind's whole time
+@@ -170,6 +191,7 @@
+      n_gx the lists' parts and batches by kind (ge/gelist.h GX_T_*); t_r (XME_R_*) the parts of XE_REC */
+   long n_load, n_load_it[4]; uint64_t t_load[4]; uint32_t ld_ri, ld_sum;   /* gl39: XE_LOAD entries, their blocks and time by flavour, the read's place, the sum */
+   uint64_t t_h[6], t_gx[10], t_r[3]; long n_gx[4], n_gxl, n_gxc;   /* (n_gxl: the lists timed by part, one in XME_GX_EVERY; n_gxc: their changes of kind) */
++  uint32_t fm_arena2;         /* step 2: the arena's bytes of a frame begun with XmeHook.begin's bit 24 (the carve after the opening; 0: none) */
+ } XmeCtx;
+ #define XME_GX_EVERY 4       /* a list in 4 is timed by part (a clock read at each change of the batches' kind: about 0.5 us each on the ME) */
+ enum { XME_H_END = 0,     /* the frame's end (gl_end: the last held calls' conversion, the counts) */
+--- a/nge/nge_fmt.h
++++ b/nge/nge_fmt.h
+@@ -59,6 +59,7 @@
+   uint32_t dsum;             /* a sum of the group descriptors' words (design 2.1 "header word sum") */
+   uint16_t ng, pre;          /* groups; 1 pre-lit */
+   uint32_t alpha;            /* the vertex alpha cooked in (GE scale, 0..255) */
++  uint32_t csum;             /* native step 2, the people's: a hash of the stream words the cook read (boot/nge_stub.h n6_csum); ship 0 */
+ } NgeMesh;
+ 
+ typedef struct {             /* a bump view over one block of a region (the cooker's output); mem 0: a dry run that only counts */
+--- a/psp/xl_psp.c
++++ b/psp/xl_psp.c
+@@ -332,8 +332,16 @@
+ /* native step 1 (MGS2_NGE; boot/nge_stub.h, ge/nge.h): the cooked meshes' arena, the tail of each frame memory's arena (nge_k bytes each,
+    0: off and every size as before); the GE's finishes (ge_fin_n, below) hold an eviction until the lists that may use a mesh are done */
+ uint32_t nge_cfg_bytes(void); void nge_turn_line(long vb0, long vb1); void nge_end_line(void);
+-int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, uint32_t cap0, uint32_t *const p6r[2],
++                   volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
++uint32_t nge_cfg_bytes2(void); uint32_t nge_np6_bytes(void); long nge_grow_vb(void); void nge_grow(uint8_t *const p6[2], long vb);
+ static uint32_t nge_k; static int nge_done; static volatile uint32_t ge_fin_n;
++/* step 2, the carve after the opening: each frame memory's arena tail nge_kg from the first frame begun at or after nge_grow_vb (the hook's
++   begin bit 24: ge/xme.c gives that frame the smaller arena, mq->fm_arena2); nge_gst 1 from there, 2 once the GE finished 3 lists after it
++   (as the evictions' guard) AND the GE finished a list of a frame begun with the smaller arena (nge_gok, gl_show: lists go to the GE one at
++   a time in order, so every list of a frame begun with the larger arena is done, even one that waited in the ME's results): then the
++   regions whole and the people's arrays there */
++static uint32_t nge_kg, nge_gfin; static int nge_gst, nge_gok; static long nge_gvb0; static uint8_t *nge_p6b[2];
+ static void gl_line(FILE *f, const GlCount *n, int64_t db, int64_t tb, const char *what)   /* as boot/xlive_chk.c's gb_line; db, tb: n's data
+                                                                                      and texture bytes (64-bit sums for the totals) */
+ {
+@@ -385,6 +393,7 @@
+     else fprintf(stderr, "gl28 live (MGS2_GL_LIVE %.40s): not from:to:every[:max_r] with every > 0, so off\n", e); }
+ }
+ /* with the translator's start (its first transfer): the texture pool, the frame memory, the GE */
++static XmeCtx *mq; static int mq_m4; static int np6_on; static void nat_psp_sync(int b);   /* step 2: nge_psp_setup's (defined below) */
+ /* native step 1: a block of the system's memory outside newlib's heap for the stub's tables (newlib's heap has about 64 KB to spare) */
+ static void *nge_sys_alloc(uint32_t n, const char *name)
+ {
+@@ -397,9 +406,21 @@
+ {
+   if (!nge_k || nge_done) return;
+   uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
+-  uint8_t *m0 = gl_vol + GL_PSP_ARENA - nge_k, *m1 = gl_vol2 ? gl_vol2 + GL_PSP_ARENA - nge_k : 0;
+-  int r = nge_host_setup(m0, (uint32_t)(uintptr_t)m0, m1, (uint32_t)(uintptr_t)m1, nge_k, &ge_fin_n, nge_sys_alloc);
++  uint32_t k2 = nge_cfg_bytes2(), p6 = nge_np6_bytes(); uint32_t *p6r[2] = { 0, 0 };
++  if (k2 > nge_k && !(mq && mq_m4 && gl_vol2)) {   /* (the smaller arena is given at the ME loop's frame start, two frame memories) */
++    fprintf(stderr, "picture: step 2: the carve after the opening needs mode 4's loop and two frame memories: none (each region %u KB)%s\n",
++            (unsigned)(nge_k >> 10), p6 ? "; the people stay the builder's" : ""); k2 = nge_k; p6 = 0; }
++  uint8_t *m0 = gl_vol + GL_PSP_ARENA - k2, *m1 = gl_vol2 ? gl_vol2 + GL_PSP_ARENA - k2 : 0;
++  if (k2 > nge_k) { nge_kg = k2 + p6; mq->fm_arena2 = GL_PSP_ARENA - nge_kg;
++    if (p6) { nge_p6b[0] = m0 - p6; nge_p6b[1] = m1 - p6; mq->np6_g[0] = (const NatP6 *)(void *)nge_p6b[0]; mq->np6_g[1] = (const NatP6 *)(void *)nge_p6b[1];
++      for (int b = 0; b < 2; b++) p6r[b] = (uint32_t *)(void *)(nge_p6b[b] + (((uint32_t)(NP6_MAXGRP * sizeof(NatP6)) + 63u) & ~63u));
++      np6_on = 1; g_nat_sync = nat_psp_sync; } }
++  int r = nge_host_setup(m0, (uint32_t)(uintptr_t)m0, m1, (uint32_t)(uintptr_t)m1, k2, nge_k, p6r, &ge_fin_n, nge_sys_alloc);
+   nge_done = 1;
++  if (r) { if (nge_kg) mq->fm_arena2 = 0; nge_kg = 0; if (nge_p6b[0]) { np6_on = 0; mq->np6_g[0] = mq->np6_g[1] = 0; nge_p6b[0] = nge_p6b[1] = 0; } }
++  else if (nge_kg) fprintf(stderr, "picture: step 2: the carve after the opening from vb %ld: each frame memory's arena %u KB then (the cooked "
++                           "region %u KB, the people's block %u KB at %08x and %08x)\n", nge_grow_vb(), (unsigned)((GL_PSP_ARENA - nge_kg) >> 10),
++                           (unsigned)(k2 >> 10), (unsigned)(p6 >> 10), (unsigned)(uintptr_t)nge_p6b[0], (unsigned)(uintptr_t)nge_p6b[1]);
+   fprintf(stderr, "picture: native step 1 %s: each frame memory's arena %u KB (%u KB less the cooked meshes' %u KB); the system's memory outside "
+           "newlib's heap before: largest block %u KB, total %u KB; after: %u KB, %u KB\n", r ? "NOT ON (today's path)" : "on",
+           (unsigned)((GL_PSP_ARENA - nge_k) >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nge_k >> 10), (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
+@@ -482,6 +503,7 @@
+ {
+   sceDisplaySetFrameBuf((void *)(0x44000000u + (gl_ge_buf ? GL_FB1 : GL_FB0)), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
+   gl_show_vc = sceDisplayGetVcount();   /* gl27 */
++  if (nge_gst == 1 && gl_ge_vb >= nge_gvb0) nge_gok = 1;   /* step 2: a frame begun with the smaller arena drawn (the growth's guard) */
+   gl_ge = 0; gl_shown++; gl_shown_buf = gl_ge_buf; gl_shown_vb = gl_ge_vb;
+   gl_buf_vb[gl_ge_buf & 1] = gl_ge_vb; gl_buf_n[gl_ge_buf & 1] = gl_shown;   /* gl28d: what each buffer holds (MGS2_GL_LIVE, MGS2_EYE) */
+ }
+@@ -513,6 +535,7 @@
+     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
+             "%ld dropped%s\n", fvb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
+             glf.o.nt, gxl.c.dropped, dz_on ? dz_txt(zt, sizeof zt, gxl.dz, gxl.dzn, &gxl.dc) : "");
++    fprintf(stderr, "picture: vb %ld content %016llx\n", fvb, (unsigned long long)gl_digest_c(&glf));   /* step 2, as gl41: equals the switch-off run's */
+   }
+   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
+   if (gl_shown && sceDisplayGetVcount() == gl_show_vc) flip_race_dir++;   /* gl27: counted only */
+@@ -726,7 +749,7 @@
+ static XmPic xmp ME_LN; static XmCopy xmc; static XmView mp_view ME_LN;   /* (ME_LN: step 4d-3) */
+ #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
+ typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+-                 int nb, ng0[2], ngn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec */
++                 int nb; int16_t ng0[2], ngn[2], p0[2], pn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec (step 2: p0 / pn the people's) */
+                  uint8_t nru[2];                          /* gl36: as ge/xme.h XmeRec (0 or 1) */
+                  int16_t chi;                             /* gl38: the transfer's chain (ns_chain_at, as it started) */ } MpRec;   /* (4b-2: t, filled,
+                                             and the check's line hashes h0 .. h0 + nh - 1) */
+@@ -1537,7 +1560,7 @@
+    walks did: ge/gelive.h GL_BD_*) */
+ static void bd_tline(const char *who, long vb0, long vb)
+ {
+-  static const uint8_t mask[BD_KINDS] = BD_MASKS; long tix; int bd, kind = 0;
++  static const uint16_t mask[BD_KINDS] = BD_MASKS; long tix; int bd, kind = 0;
+   if (!g_bd_cfg && !g_nat_f1cfg && !g_bd_rain) return;
+   bd = rt_bound_at(vb0, &tix); for (int i = 0; i < BD_KINDS; i++) if (mask[i] == bd) kind = i;
+   fprintf(stderr, "%s vb %ld-%ld gl38 bound: turn %ld kind %d (mask %d), F1 %d; frames begun with a mask %ld; transfers left out by chain:", who, vb0, vb, tix, kind, bd,
+@@ -1795,6 +1818,7 @@
+     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
+             "%ld dropped%s\n", (long)r->fvb, r->d, (unsigned long long)r->dig_list, (unsigned long long)g, c->words, c->aux, c->batches, c->prims,
+             r->nt, c->dropped, dz_on ? dz_txt(zt, sizeof zt, r->dz, r->dzn, &r->dc) : "");
++    fprintf(stderr, "picture: vb %ld content %016llx\n", (long)r->fvb, (unsigned long long)r->dig_c);   /* step 2, as gl41: the loop's content digest */
+   }
+   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
+   if (fbc_from >= 0 && me_vb >= fbc_from) fb_chk(r);   /* gl28d: MGS2_GL_FBCHK */
+@@ -2239,7 +2263,8 @@
+ #endif
+   xme_bind(mq, mq_wait_thr);   /* step 4d-4: the heap's requests' ctx and wait (the thread's) */
+   mq_sem = sceKernelCreateSema("me_pic", 0, 0, 1, 0);
+-  mq_th = mq_sem >= 0 ? sceKernelCreateThread("me_pic", mq_thread, pri, 64 << 10, PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, 0) : -1;
++  mq_th = mq_sem >= 0 ? sceKernelCreateThread("me_pic", mq_thread, pri, 16 << 10, PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, 0) : -1;   /* (step 2:
++                                                    16 KB as gl41's: 64 KB did not fit partition 2 after step 1's tables, and the loop ran on the main CPU) */
+   if (mq_th < 0 || sceKernelStartThread(mq_th, 0, 0) < 0) {
+     fprintf(stderr, "me picture loop: no thread (semaphore %08x, thread %08x): the main CPU runs the loop's entries itself\n", (unsigned)mq_sem,
+             (unsigned)mq_th);
+@@ -2431,6 +2456,18 @@
+ static SceUID nat_sys[2] = { -1, -1 }; static uint32_t nat_sys_free[4], nat_sys_n; static int nat_one;   /* nat_one: one array for both buffers */
+ static uint8_t nat_unf[2];               /* a buffer's groups are in a copy the ME may not have made yet (a record posted without a wait) */
+ static long nat_n_sync, nat_n_plan, nat_n_plang, nat_n_dirg, nat_n_room; static uint32_t nat_ca_max;
++/* native step 2: the people's arrays (boot/np6_stub.h g_np6), beside the ship's and by the same rules: a block each of the system's memory
++   outside newlib's heap (NP6_MAXGRP records of 72 B: 72 KB each); a transfer's plan takes the people its tags reach with the ship's, the
++   ME copies them after the ship's (ge/xme.h XME_POFF) */
++extern NatP6Buf g_np6[2]; extern int g_np6_cfg; extern long g_np6_c[N6_N];
++static int np6_on; static SceUID np6_sys[2] = { -1, -1 }; static long np6_n_plang, np6_n_dirg;
++static long np6_c0[N6_N], np6_t0n[8];   /* step 2: the people's counts at the turn's start (nat_t0set) */
++static int np6_pend(int b, const NatP6 **g)
++{
++  const NatP6Buf *q = &g_np6[b];
++  if (!np6_on || !q->g || !q->draw || q->seq != g_nat_bseq[b] || q->cur >= q->n) return 0;
++  *g = q->g + q->cur; return (int)(q->n - q->cur);
++}
+ static int nat_pend(int b, const NatGrp **g)   /* buffer b's groups no transfer has taken: the pipeline call that last started in b wrote them */
+ {
+   const NatBuf *s = &g_nat[b];
+@@ -2441,12 +2478,17 @@
+ {
+   const NatGrp *g;
+   e->nb = -1; e->noff = 0;
+-  for (int b = 0; b < 2; b++) { e->ngn[b] = e->ch == 1 && e->lanes ? nat_pend(b, &g) : 0; e->ng0[b] = (int)g_nat[b].cur; e->nru[b] = (int)g_nat[b].ru; }   /* gl36: nru */
++  for (int b = 0; b < 2; b++) { e->ngn[b] = (int16_t)(e->ch == 1 && e->lanes ? nat_pend(b, &g) : 0); e->ng0[b] = (int16_t)g_nat[b].cur; e->nru[b] = (uint8_t)g_nat[b].ru; }   /* gl36: nru */
+   if (e->ngn[0] | e->ngn[1]) { XS(mq)->nat_b = -1; XS(mq)->nat_used = 0; }
++  { const NatP6 *q; for (int b = 0; b < 2; b++) { e->pn[b] = (int16_t)(e->ch == 1 && e->lanes ? np6_pend(b, &q) : 0); e->p0[b] = (int16_t)g_np6[b].cur; } }   /* step 2 */
++  if (e->pn[0] | e->pn[1]) { XS(mq)->np6_b = -1; XS(mq)->np6_used = 0; }
+ }
+ static void nat_direct_post(const MpRec *e)   /* after the wait for that walk: the groups it took */
+ {
+   int b; uint32_t u;
++  if (e->pn[0] | e->pn[1]) {   /* step 2: the people's */
++    XME_BARRIER(); b = XS(mq)->np6_b; u = XS(mq)->np6_used;
++    if (b >= 0 && b < 2 && u <= (uint32_t)e->pn[b]) { g_np6[b].cur += u; np6_n_dirg += (long)u; } }
+   if (!(e->ngn[0] | e->ngn[1])) return;
+   XME_BARRIER(); b = XS(mq)->nat_b; u = XS(mq)->nat_used;
+   if (b >= 0 && b < 2 && u <= (uint32_t)e->ngn[b]) { g_nat[b].cur += u; nat_n_dirg += (long)u; }
+@@ -2461,6 +2503,26 @@
+                                                        before the hook that lays the sent picture's copies [C emulator q3]) */
+   nat_unf[0] = nat_unf[1] = 0;
+ }
++int rt_np6_arm_at(long vb);
++static void np6_psp_setup(void)          /* native step 2 (nat_psp_setup's start): the people's two arrays, when an arm or MGS2_NGE_CYCLE's digit 2 asks */
++{
++  const uint32_t one = ((uint32_t)NP6_MAXGRP * (uint32_t)sizeof(NatP6) + 63u) & ~63u; uint8_t *bl[2] = { 0, 0 };
++  (void)rt_np6_arm_at(0);   /* (the switches read: g_np6_cfg) */
++  if (!g_np6_cfg) return;
++  if (nge_np6_bytes()) { fprintf(stderr, "native step 2: the people's arrays come from the carve after the opening (nge_psp_setup)\n"); return; }
++  if (!mq_m4) { fprintf(stderr, "native step 2: the people's groups are drawn only by mode 4's loop (MGS2_ME_PIC=4): their calls stay stubbed "
++                        "and NOTHING DRAWS them in this run\n"); return; }
++  for (int i = 0; i < 2; i++) {
++    np6_sys[i] = sceKernelAllocPartitionMemory(2, i ? "np6_groups1" : "np6_groups0", PSP_SMEM_Low, one, 0);
++    if (np6_sys[i] >= 0) bl[i] = (uint8_t *)sceKernelGetBlockHeadAddr(np6_sys[i]);
++    if (bl[i] && ((uintptr_t)bl[i] & 63)) bl[i] = 0; }
++  if (bl[0] && bl[1]) { g_np6[0].g = (NatP6 *)(void *)bl[0]; g_np6[1].g = (NatP6 *)(void *)bl[1]; mq->np6_g[0] = g_np6[0].g; mq->np6_g[1] = g_np6[1].g; np6_on = 1;
++    g_nat_sync = nat_psp_sync; }   /* (the stub's, before a people array is written again: as the ship's) */
++  fprintf(stderr, "native step 2: the people's arrays: %d groups of %u B a packet buffer, 2 x %u KB of the system's memory outside newlib's heap: %s "
++          "(%08x, %08x); largest free block now %u KB, total %u KB\n", NP6_MAXGRP, (unsigned)sizeof(NatP6), (unsigned)(one >> 10),
++          np6_on ? "made" : "NOT MADE: the people's calls in arm 3 are stubbed with no record kept (NOTHING DRAWS them)",
++          (unsigned)(uintptr_t)bl[0], (unsigned)(uintptr_t)bl[1], (unsigned)(sceKernelMaxFreeMemSize() >> 10), (unsigned)(sceKernelTotalFreeMemSize() >> 10));
++}
+ static void nat_psp_setup(void)          /* mq_setup's end */
+ {
+   const char *e; uint32_t one = ((uint32_t)NAT_MAXGRP * (uint32_t)sizeof(NatGrp) + 63u) & ~63u;
+@@ -2475,6 +2537,7 @@
+   mq->ns_on = mq->nat_t_on && (e = mgs2_getenv("MGS2_NAT_SPLIT")) && atoi(e) > 0;   /* gl34 (ge/natsplit.h), before the ME starts */
+   fprintf(stderr, "nat split (gl34, MGS2_NAT_SPLIT; the lines 'nat split' and 'me chains' of each ME turn): %s; a group in about %d timed by stage\n",
+           mq->ns_on ? "on" : "off", NS_EVERY);
++  np6_psp_setup();   /* native step 2: the people's arrays */
+   if (!g_nat_cfg) { fprintf(stderr, "native step 1: off (no arm in MGS2_NAT or MGS2_NAT_CYCLE): the builder 0x1214a0 runs as always\n"); return; }
+   if (!mq_m4) { fprintf(stderr, "native step 1: the groups are drawn only by mode 4's loop (MGS2_ME_PIC=4): arm 3 stubs the builder and "
+                         "NOTHING DRAWS its groups in this run\n"); return; }
+@@ -2532,6 +2595,10 @@
+   nat_t0n[10] = xmp.nat_bad; nat_t0n[11] = xmp.nat_late; nat_t0n[12] = xmp.nat_stop; nat_t0n[13] = xmp.nat_in; nat_t0n[14] = xmp.nat_out;
+   nat_t0n[15] = xmp.nat_part; nat_t0t = xmp.nat_t; nat_w0[0] = mq_wus[MW_FILL]; nat_w0[1] = mq_wus[MW_NOW];
+   nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
++  for (int k = 0; k < N6_N; k++) np6_c0[k] = g_np6_c[k];   /* step 2 */
++  g_np6_c[N6_GRP_MAX] = 0;
++  np6_t0n[0] = np6_n_plang; np6_t0n[1] = np6_n_dirg; np6_t0n[2] = mq->n_np6g; np6_t0n[3] = xmp.np6_runs; np6_t0n[4] = xmp.np6_core;
++  np6_t0n[5] = xmp.np6_fed; np6_t0n[6] = xmp.np6_bad; np6_t0n[7] = xmp.np6_late;
+   nat_stc0 = g_nat_stc;   /* gl33 */
+   nk_kpt0 = g_nat_kpt; for (int k = 0; k < 9; k++) nk_n0[k] = xl_nk_n[k];   /* gl35 */
+   for (int k = 0; k < 20; k++) nr_n0[k] = xl_nr_n[k];   /* gl36 */
+@@ -2577,6 +2644,18 @@
+           (double)(mq_wus[MW_FILL] - nat_w0[0]) / 1000.0, (double)(mq_wus[MW_NOW] - nat_w0[1]) / 1000.0, (long)nat_fa[0], GL_PSP_NB,
+           (long)nat_fa[1], GL_PSP_NV, (long)(nat_fa[2] >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nat_ca_max >> 10),
+           (unsigned)((two ? two_ah : two_an ? two_an : xmc.arena_n) >> 10));
++  if (g_np6_cfg)   /* step 2: the people's records (boot/np6_stub.h) and their side of the picture */
++    fprintf(stderr, "np6 turn vb %ld-%ld %s arm %d: calls recorded %ld, groups %ld (most in a picture %ld), pictures %ld; stubbed with no record "
++            "%ld; calls with no group %ld; the builder run instead: array full %ld, key order %ld, near the buffer's end %ld, other %ld (the game's "
++            "memo behind the stub's %ld); recorded with no array %ld; groups left untaken %ld; groups planned with transfers %ld, taken by walks "
++            "from RAM %ld; the picture's side: groups copied %ld, runs %ld, groups to the core %ld, fed word by word %ld, dropped %ld, drawn at a "
++            "walk's end %ld; calls in arm 3 that ran the builder %ld (the growth late %ld)\n", vb0, vb, who, rt_np6_arm_at(vb0 + 1), g_np6_c[N6_REC] - np6_c0[N6_REC], g_np6_c[N6_GRP] - np6_c0[N6_GRP],
++            g_np6_c[N6_GRP_MAX], g_np6_c[N6_PICS] - np6_c0[N6_PICS], g_np6_c[N6_STUBC] - np6_c0[N6_STUBC], g_np6_c[N6_EMPTY] - np6_c0[N6_EMPTY],
++            g_np6_c[N6_FB_FULL] - np6_c0[N6_FB_FULL], g_np6_c[N6_FB_ORDER] - np6_c0[N6_FB_ORDER], g_np6_c[N6_FB_END] - np6_c0[N6_FB_END],
++            g_np6_c[N6_FB_OTHER] - np6_c0[N6_FB_OTHER], g_np6_c[N6_FB_MEMO] - np6_c0[N6_FB_MEMO], g_np6_c[N6_NOMEM] - np6_c0[N6_NOMEM],
++            g_np6_c[N6_LEFT] - np6_c0[N6_LEFT], np6_n_plang - np6_t0n[0], np6_n_dirg - np6_t0n[1], mq->n_np6g - np6_t0n[2],
++            xmp.np6_runs - np6_t0n[3], xmp.np6_core - np6_t0n[4], xmp.np6_fed - np6_t0n[5], xmp.np6_bad - np6_t0n[6], xmp.np6_late - np6_t0n[7],
++            g_np6_c[N6_NOARR] - np6_c0[N6_NOARR], g_np6_c[N6_LATE] - np6_c0[N6_LATE]);
+   fprintf(stderr, "nat inpl vb %ld-%ld %s arm %d inpl %d (gl33; 1: a static group's three streams stay in RAM): groups flagged static %ld\n",
+           vb0, vb, who, arm, rt_nat_inpl_at(vb0 + 1), g_nat_stc - nat_stc0);
+   /* gl34: the fast front end's counts (the picture's side counts the groups it drew in the turn; the flags are the recorder's) */
+@@ -2711,6 +2790,7 @@
+   e.r.ch = r->ch; e.r.lanes = r->lanes; e.r.restart = r->restart; e.r.x0 = r->x0; e.r.nx = r->nx; e.r.t = r->t; e.r.now = now;
+   e.r.chcr = r->chcr; e.r.madr = r->madr; e.r.qwc = r->qwc; e.r.tadr = r->tadr; e.r.opt = r->opt; e.r.opt2 = r->opt2;
+   e.r.nb = r->nb; e.r.ng0[0] = r->ng0[0]; e.r.ng0[1] = r->ng0[1]; e.r.ngn[0] = r->ngn[0]; e.r.ngn[1] = r->ngn[1]; e.r.noff = r->noff;   /* native step 1 */
++  e.r.p0[0] = r->p0[0]; e.r.p0[1] = r->p0[1]; e.r.pn[0] = r->pn[0]; e.r.pn[1] = r->pn[1];   /* step 2 */
+   e.r.nru[0] = r->nru[0]; e.r.nru[1] = r->nru[1];   /* gl36 */
+   e.r.chi = r->chi;   /* gl34 (gl38: found as the transfer started) */
+   if (r->nx >= 0 && r->nb >= 0 && !now) nat_unf[r->nb] = 1;
+@@ -2721,18 +2801,21 @@
+ {
+   uint32_t u0 = xmc.used; int r;
+   e->nb = -1; e->ngn[0] = e->ngn[1] = 0; e->noff = 0; e->nru[0] = e->nru[1] = 0;   /* native step 1: the groups this transfer's tags reach, planned with it */
+-  xmc.nat_n[0] = xmc.nat_n[1] = 0;
++  e->p0[0] = e->p0[1] = e->pn[0] = e->pn[1] = 0;   /* step 2: the people's */
++  xmc.nat_n[0] = xmc.nat_n[1] = 0; xmc.np6_n[0] = xmc.np6_n[1] = 0;
+   if (nat_on && e->ch == 1 && e->lanes) { xmc.nat_n[0] = nat_pend(0, &xmc.nat_g[0]); xmc.nat_n[1] = nat_pend(1, &xmc.nat_g[1]); }
++  if (np6_on && e->ch == 1 && e->lanes) { xmc.np6_n[0] = np6_pend(0, &xmc.np6_g[0]); xmc.np6_n[1] = np6_pend(1, &xmc.np6_g[1]); }
+   xmc.xp = rt_xp_at(me_vb); xmc.clk = p10_on > 0 ? p10_clk : 0;   /* gl40 */
+   { const long d0 = xmc.xp_dif;
+     r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, x0, nx);
+     if (!d0 && xmc.xp_dif) xmc.xp_dif_vb = (int32_t)me_vb; }
+-  if (!r && xmc.nat_b >= 0 && xmc.nat_cur > 0) {
+-    uint32_t off = 0;
+-    if (xm_nat_room(&xmc, (uint32_t)xmc.nat_cur * (uint32_t)sizeof(NatGrp), &off)) {   /* no room for their copy: the plan undone, as an arena
+-                                                                                         too full for the extents (xm_plan's 3) */
++  if (!r && xmc.nat_b >= 0 && (xmc.nat_cur > 0 || xmc.np6_cur > 0)) {   /* (step 2: the people's records right after the ship's: XME_POFF) */
++    const int b = xmc.nat_b; uint32_t off = 0;
++    int bad = xm_nat_room(&xmc, XME_NATBYTES(xmc.nat_cur, xmc.np6_cur), &off);   /* (step 2: both kinds' groups and references, ge/xme.h) */
++    if (bad) {   /* no room for their copy: the plan undone, as an arena too full for the extents (xm_plan's 3) */
+       xmc.copies--; xmc.exts -= *nx; xmc.bytes -= xmc.used - u0; xmc.next = *x0; xmc.used = u0; xmc.fails[3]++; nat_n_room++; r = 3; }
+-    else { e->nb = xmc.nat_b; e->ng0[e->nb] = (int)g_nat[e->nb].cur; e->ngn[e->nb] = xmc.nat_cur; e->noff = off; e->nru[e->nb] = (int)g_nat[e->nb].ru; } }   /* gl36: nru */
++    else { e->nb = b; e->ng0[b] = (int16_t)g_nat[b].cur; e->ngn[b] = (int16_t)xmc.nat_cur; e->noff = off; e->nru[b] = (uint8_t)g_nat[b].ru;   /* gl36: nru */
++      e->p0[b] = (int16_t)g_np6[b].cur; e->pn[b] = (int16_t)xmc.np6_cur; } }
+   if (!r) { uint32_t h = xmc.used - (two ? (uint32_t)two_h * two_ah : 0u); if (h > nat_ca_max) nat_ca_max = h; }
+   if (two && !r) { two_wx += *nx; two_wb += xmc.used - u0; }
+   return r;
+@@ -2779,7 +2862,8 @@
+   if (r) {   /* none: walked from RAM now (nx -1), with the records before */
+     MpRec keep; mp_direct++; e->nx = -1; nat_direct_pre(e); keep = *e; mq_rec(e, 0); mq_late(3, 1); nat_direct_post(&keep); return; }
+   e->x0 = x0; e->nx = nx;
+-  if (e->nb >= 0) { g_nat[e->nb].cur += (uint32_t)e->ngn[e->nb]; nat_n_plan++; nat_n_plang += e->ngn[e->nb]; }   /* native step 1: taken */
++  if (e->nb >= 0) { g_nat[e->nb].cur += (uint32_t)e->ngn[e->nb]; nat_n_plan++; nat_n_plang += e->ngn[e->nb];   /* native step 1: taken */
++    g_np6[e->nb].cur += (uint32_t)e->pn[e->nb]; np6_n_plang += e->pn[e->nb]; }   /* step 2 */
+   if (me_vb >= mp_dl && !mp_spr(e)) { e->filled = 0;   /* an early copy, laid at the FILL */
+     if (p10_on > 0) { uint32_t t0 = sceKernelGetSystemTimeLow(); mp_mark(e, 1); p10_mk++; p10_mkus += sceKernelGetSystemTimeLow() - t0; } else mp_mark(e, 1);
+     mp_unfilled++; mq_rec(e, 0); }
+@@ -2919,9 +3003,14 @@
+     if (dz_on) e.h.dz = gx_dz_arm(&dz_t, vb - 1, &e.h.dzn, 0); }   /* gl29: MGS2_GL_DZ's arm for the frame that ended */
+   if (gl_full && state == 1 && (g_opt & (OPT_XL | OPT_GL)) == (OPT_XL | OPT_GL)) {
+     bd_cur = rt_bound_at(vb, 0); gl_ft.all = (bd_cur & (BD_SORT | BD_RAIN)) != 0; bd_fr += bd_cur != 0;   /* gl38: the frame's mask, to the ME in begin's bits 16-23 */
+-    e.h.begin = 1 | rt_nat_cull_at(vb) << 8 | bd_cur << 16; e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
++    if (nge_kg && !nge_gst && vb >= nge_grow_vb()) { nge_gst = 1; nge_gfin = ge_fin_n; nge_gvb0 = vb;   /* step 2: frames from this one with the smaller arena */
++      fprintf(stderr, "picture: step 2: vb %ld: frames begin with the smaller arena (%u KB); the GE's finishes %u\n", vb,
++              (unsigned)((GL_PSP_ARENA - nge_kg) >> 10), (unsigned)ge_fin_n); }
++    e.h.begin = 1 | rt_nat_cull_at(vb) << 8 | (bd_cur & 0xff) << 16 | (nge_gst ? 1u << 24 : 0u);   /* (step 2: BD_NATIVE the main CPU's) */ e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
+     if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } }
+   mq_post(&e);
++  if (nge_gst == 1 && nge_gok && ge_fin_n - nge_gfin >= 3) { nge_gst = 2; nge_grow(nge_p6b[0] ? nge_p6b : 0, vb);
++    fprintf(stderr, "picture: step 2: vb %ld: grown (a frame begun at vb %ld or later drawn; the GE's finishes %u)\n", vb, nge_gvb0, (unsigned)ge_fin_n); }   /* step 2 (the guard above) */
+   if ((bd_cur & BD_ME) && gl_now && !mq_self && mq_m4 && !mq_dead) {   /* gl39, kind 8: the ME's load for this step, posted in every flavour (0: an entry
+                                                                         that does nothing), only when the loop has caught up */
+     if (XS(mq)->head - XS(mq)->tail <= 1) { XmeE l; memset(&l, 0, sizeof l); l.kind = XE_LOAD; l.why = rt_load_at(vb); l.nlog = (int)p9_load_us;
+@@ -3230,7 +3319,8 @@
+     if (bd_cur && bd_drop_chain(bd_cur, chi)) {
+       bd_tr[chi < 0 || chi >= NS_CH ? NS_CH : chi]++;
+       if (bd_cur & BD_ALL) for (int b = 0; b < 2; b++) { const NatGrp *g; int n = nat_pend(b, &g);   /* the picture's native groups: none will be drawn */
+-        if (n > 0) { g_nat[b].cur += (uint32_t)n; bd_grp += n; } }
++        if (n > 0) { g_nat[b].cur += (uint32_t)n; bd_grp += n; }
++        { const NatP6 *q; int m = np6_pend(b, &q); if (m > 0) { g_np6[b].cur += (uint32_t)m; bd_grp += m; } } }   /* (step 2: the people's) */
+       return; } }
+   if (mp_on) {   /* task #180: queued; its copy as it ends (xlive_chk_end) */
+     MpRec *r; int own;
+@@ -3240,6 +3330,7 @@
+     r->restart = mp_restart_due; mp_restart_due = 0; r->x0 = 0; r->nx = -1;
+     r->t = ++mp_seg; r->filled = 0; r->h0 = 0; r->nh = -1;   /* step 4b-2 */
+     r->nb = -1; r->ng0[0] = r->ng0[1] = r->ngn[0] = r->ngn[1] = 0; r->noff = 0;   /* native step 1 */
++    r->p0[0] = r->p0[1] = r->pn[0] = r->pn[1] = 0;   /* step 2 */
+     r->chi = (int16_t)bd_chi;   /* gl38 */
+     own = mq_m4 && mq_self;   /* step 4d: walked from RAM as it ends (mq_chk_end): no image marks, no guards */
+     xmc.nmk = 0; xmc.mk_full = 0; g_xl_img = !own; g_xl_end = 1; mp_queued++;
