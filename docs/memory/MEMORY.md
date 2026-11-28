@@ -10,7 +10,7 @@
 - Fable 5.2 standing (use it when needed; never above high effort without asking; it has a 5-hour limit, resume a stopped agent after the reset). Cards: every option explained in a message first. Workflow only on Ffm's opt-in (ultracode off 2026-11-22).
 - VISIBLE CHANGES: the deck's rain may go except the lines nearest the camera (Ffm 2026-11-22 "B"; guards' dice unchanged); trail and shadow wishes wait until the deck runs faster: [[mgs2-visible-choices]].
 
-## Status (2026-11-27 23:40; gl43 READ (rain cut B exact, 7.2 fps); gl44 in build, agents resumed after the usage limit): [[mgs2-status-now]]
+## Status (2026-11-28 06:40; gl44 DELIVERED (V44 rain stubs + black box), ONE BUILD OUT, waiting for its PSP run; gl43 read: 7.2 fps in the rain): [[mgs2-status-now]]
 - COURSE CHANGE 2026-11-23 15:58 (Ffm: "you are the boss, i dont take decisions"): all project decisions mine. Renderer steps 1+2 (ship, people native) exact on the PSP (gl41, gl42 r2). RENDERER CHECKPOINT DECIDED 2026-11-24 14:0x: P ~67 >= 62 -> not the route through the rain (rain is main-CPU/logic-bound: K7 floor 66.1, logic 34.4); kept for ME-bound scenes; half-rate NO-GO at this P ([[mgs2-halfrate-study]]). Next: rain logic cut B (gl43), being built 2026-11-27.
 - Plans: mgs2/plan_deck_25fps.md (lead plan), mgs2/plan_20fps_2026-11-22.md (20 fps in the rain is out of reach of costed levers; d01t cutscene 15-18.5 exact). Builds: [[mgs2-builds-gl20-gl25]] [[mgs2-builds-gl26-gl28]] [[mgs2-builds-gl29-gl36]]; native renderer [[mgs2-native-renderer]]; rain [[mgs2-rain-study]]; deck marks [[mgs2-deck-marks]].
 

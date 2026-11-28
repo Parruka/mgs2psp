@@ -143,6 +143,20 @@ static void b43_turn(long vb, int i)
               d[1][0], d[1][1], d[1][2], d[1][3], d[2][0], d[2][1], d[2][2], d[2][3], d[3][0], d[3][1], d[3][2], d[3][3]); }
   memcpy(n0, g_b43_n, sizeof n0); vb0 = vb; last = i; on0 = (g_opt2 & OPT2_B43) != 0;
 }
+/* gl44 V44 (boot/native_w00a.c, attic/gl44): its counters (the w00a overlay counts here) and the per-turn line: line_sph prims stubbed,
+   G0 + G0H prims done by G0 (V44 off), rain.c entries skipped, in-place entries run, last units shorter than the tail, stubs that placed
+   earlier prims first */
+long g_v44_n[6];
+static void v44_turn(long vb, int i)
+{
+  static int last = -1; static long vb0, n0[6]; static int on0;
+  if (i == last) return;
+  if (last >= 0) {
+    long d[6], s = 0; for (int a = 0; a < 6; a++) s += d[a] = g_v44_n[a] - n0[a];
+    if (s) fprintf(stderr, "v44 turn vb %ld-%ld: V44 %s; line_sph stubbed %ld, by G0 %ld; rain.c entries skipped %ld, in place and run %ld; "
+                   "short tails %ld, placed first %ld\n", vb0, vb - 1, on0 ? "on" : "off", d[0], d[1], d[2], d[3], d[4], d[5]); }
+  memcpy(n0, g_v44_n, sizeof n0); vb0 = vb; last = i; on0 = (g_opt2 & OPT2_V44) != 0;
+}
 static const struct { uint32_t act; uint32_t bit; const char *name; } half_tab[] = {
   { 0x25e2e0, 4, "wave.c" },        { 0x260238, 2, "fade_lgt.c" },    { 0x267b58, 1, "ropemain.c" },   { 0x268b70, 1, "ropemain2.c" },  /* d01t */
   { 0x290808, 8, "afterimage.c" },  { 0x292380, 2, "bonbori_yw.c" },  { 0x292b00, 2, "bonbori_red.c" }, { 0x2a7e68, 2, "c_light.c" },
@@ -186,7 +200,7 @@ static void opt_window(long vb)
       for (int i = 0; i < OPT_NCFG && *p; i++) { cfgh[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
     if (g_half || getenv("MGS2_HALF_CYCLE")) fprintf(stderr, "half: MGS2_HALF %x, turns %s (1 ropes, 2 lamps, 4 sea: every other step; 8 trail: off)\n",
                                                       (unsigned)g_half, getenv("MGS2_HALF_CYCLE") ? getenv("MGS2_HALF_CYCLE") : "none"); }
-  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; b43_turn(vb, i); }   /* gl43: b43_turn */
+  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; b43_turn(vb, i); v44_turn(vb, i); }   /* gl43: b43_turn; gl44: v44_turn */
   K_POLL_KICK();                                 /* (OPT_POLL_DUE may have changed) */
 }
 static void k_vblank_hook(int start)

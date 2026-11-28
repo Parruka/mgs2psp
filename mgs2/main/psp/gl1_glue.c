@@ -15,6 +15,7 @@ int me_bat_line(const char *why);       /* psp/v26me_bat.c */
 void me_bat_exit(void);                 /* psp/v26me_bat.c: SYS_DIAG's power callback out (gl2d); nothing in the other builds */
 void me_exc_vb(long vb);                /* psp/v26me4_exc.c */
 void me_exc_release(void);
+void bb_exit(void);                     /* psp/bbox.c (gl44) */
 
 void __real_host_vb_begin(long vb);
 void __wrap_host_vb_begin(long vb)
@@ -31,5 +32,6 @@ int __wrap_sceKernelExitGame(void)
   me_exc_release();
   me_bat_line("HOME");
   me_bat_exit();
+  bb_exit();                            /* gl44 H2: the black box's last record (EX), the program exits in order */
   return __real_sceKernelExitGame();
 }

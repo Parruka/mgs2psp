@@ -56,9 +56,10 @@ static int disc_pak_open(const char *path)
 /* the pack reads, for the PSP harness's per-step counts (audit 2026-10-23 M3: are the deck's IOP / sound spikes memory-stick reads in the
    game thread?); g_disc_clock (host microseconds) is set by the PSP harness only */
 uint32_t g_disc_reads, g_disc_sectors; uint64_t g_disc_us; uint64_t (*g_disc_clock)(void);
+volatile uint32_t g_disc_lsn, g_disc_k;   /* gl44 (psp/bbox.c, the black box): the pack read under way or the last one, before its clock */
 static void disc_pak_read(uint32_t lsn, uint32_t k, uint8_t *o)   /* k sectors from lsn; o is zeroed */
 {
-  uint64_t t0 = g_disc_clock ? g_disc_clock() : 0; g_disc_reads++; g_disc_sectors += k;
+  uint64_t t0; g_disc_lsn = lsn; g_disc_k = k; t0 = g_disc_clock ? g_disc_clock() : 0; g_disc_reads++; g_disc_sectors += k;
   while (k) {
     uint32_t lo = 0, hi = disc_pak_nr, n = 1;
     while (lo < hi) { uint32_t mid = (lo + hi) / 2; if (disc_pak_r[mid][0] + disc_pak_r[mid][1] <= lsn) lo = mid + 1; else hi = mid; }

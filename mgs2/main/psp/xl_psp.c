@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <stddef.h>       /* offsetof (task #180 step 4d-3's line check) */
 #include "host_time.h"
+#include "bbox.h"         /* gl44 H2: the black box's phase words (psp/bbox.c; main-CPU code only) */
 #include "../ge/xlive.h"
 #include "../ge/xlate.h"
 #include "../ge/gsfront.h"
@@ -598,7 +599,9 @@ static GL28D_COLD int gl_zdump(const char *p, uint32_t base, uint32_t *rd)
 /* the last frame shown, as a 24-bit BMP next to the EBOOT (gl28d: kept out of line, as before).  gl29: at the hook of vb; z 1: an
    MGS2_GL_SHOT shot (MGS2_GL_ZDUMP's depth from zd_from on), 0: an MGS2_GL_SHOT_RANGE one; with MGS2_GL_DZ or MGS2_GL_ZDUMP on, the
    line gains the arm, 'last list = shot frame', the depth files and the VRAM read times */
-static __attribute__((noinline)) void gl_shot(long vb, int z)
+static __attribute__((noinline)) void gl_shot_do(long vb, int z);
+static __attribute__((noinline)) void gl_shot(long vb, int z) { uint32_t o = bb_set(BB_SH); gl_shot_do(vb, z); bb_set(o); }   /* gl44: SH */
+static __attribute__((noinline)) void gl_shot_do(long vb, int z)
 {
   char p[256]; int ok, g29 = dz_on || zd_from >= 0; uint32_t rc = 0;
   snprintf(p, sizeof p, "%sshot_%ld.bmp", host_dir(), gl_shown_vb);
@@ -1696,7 +1699,7 @@ static void mq_wait(uint32_t seq, int why)
 {
   uint64_t t0, t1, t; uint32_t hb;
   if (mq_self || mq_done(seq)) return;
-  HOST_ENTER(HOST_GW);
+  HOST_ENTER(HOST_GW); bb_set(BB_MW(why));   /* gl44: MW (HOST_LEAVE sets the part below again) */
   uint32_t at = XS(mq)->at;
   t0 = t1 = mq_now(); hb = XS(mq)->heart; mq_wn[why]++;
   mq_w_t0 = t0; mq_w_r0 = mq_w_rounds; mq_w_words0 = (uint32_t)xl_stats()->words;
@@ -1732,7 +1735,7 @@ static void mq_probe(void)
     mq_me_tbk_exc = 1; mq_takeback(MW_PROBE); mq_hk_hb = 0; return; }   /* step 4d-4: an exception of the ME's, found at a hook */
 #endif
   if (mq_self || XS(mq)->tail == XS(mq)->head || hb != mq_hk_hb) { mq_hk_hb = hb; return; }
-  HOST_ENTER(HOST_GW);
+  HOST_ENTER(HOST_GW); bb_set(BB_MW(MW_PROBE));   /* gl44: MW */
   t0 = mq_now(); mq_wn[MW_PROBE]++;
   mq_w_t0 = t0; mq_w_r0 = mq_w_rounds; mq_w_words0 = (uint32_t)xl_stats()->words;
   while (!mq_self && XS(mq)->heart == hb && XS(mq)->tail != XS(mq)->head) {
@@ -2062,7 +2065,7 @@ static GL28D_COLD void gl_live(long vb, int r)
   snprintf(p, sizeof p, "%slive_%ld.bmp", host_dir(), vb);
   if (gl_ge) snprintf(g, sizeof g, "draws frame vb %ld into %s", gl_ge_vb, gl_ge_buf == b ? "THIS BUFFER" : "the other buffer");
   else snprintf(g, sizeof g, "idle");
-  ok = gl_bmp(p, b, &rd); if (ok != 1) live_bad++;
+  { uint32_t o = bb_set(BB_SH); ok = gl_bmp(p, b, &rd); bb_set(o); } if (ok != 1) live_bad++;   /* gl44: SH */
   fprintf(stderr, "picture: gl28 live vb %ld (%s%s) turn %s: buffer %d frame vb %ld (shown #%ld, %u display vblanks ago); the display scans "
           "buffer %s; the other buffer frame vb %ld; the GE %s; lists waiting %u; VRAM read %.1f ms, all %.1f ms: %s %s%s%s\n", vb,
           per ? "periodic" : "", rp ? (per ? ", R" : "R") : "", mq_on && !mq_self ? "me" : "main", b, gl_buf_vb[b & 1], gl_buf_n[b & 1],

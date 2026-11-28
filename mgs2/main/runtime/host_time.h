@@ -171,7 +171,12 @@ extern uint32_t g_opt;
 #define OPT2_B43 2097152u             /* gl43 B (Ffm's rain option "B", 2026-11-22 13:03/13:05; attic/gl43; boot/native_b43.h): the aft deck's
                                            floor and falling splashes keep only the seed's draws, the time and their slots' lives, and their
                                            prims and ripple.c's stay hidden.  A visible change (DEVIATIONS.md B entry): off by default */
-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R | OPT2_B43))   /* gl43: and B43; g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+#define OPT2_V44 4194304u             /* gl44 V44 (attic/gl44_vita, attic/gl44; boot/native_w00a.c): with G0 + G0H a line_sph prim is a stub
+                                           (the seed's draws, the time, the hide bits, the loop's registers, the head of the last unit's
+                                           scratchpad image), and with G0R + H3R rain.c's in-place entries skip their vertex and fill loops
+                                           (their polls' time added).  Seeds and time exact; RAM differs in hidden vertex buffers and
+                                           leftovers.  Off by default.  NOTE: gl43 and older cycle words have this bit set */
+#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R | OPT2_B43 | OPT2_V44))   /* gl44: and V44; gl43: and B43; g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
                                            ~OPT2_C1) */
 extern uint32_t g_opt2;

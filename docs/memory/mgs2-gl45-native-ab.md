@@ -1,6 +1,6 @@
 ---
 name: mgs2-gl45-native-ab
-description: 2026-11-27 gl45 study, batch 1: seven hand-native maths functions against the translation, exact on the twin; what native buys (about 0.5 ms a step) and what is not done
+description: 2026-11-27/28 gl45 study: hand-native code against the translation (7 maths leaves, then the pointer walk P14b008); where the translation's extra PSP slots come from; what a generator change could buy
 metadata:
   type: project
 ---
@@ -17,6 +17,15 @@ Results:
 - The translator inlines small leaves inside the ELF unit (MulMatrix 31 copies): a hook on the function serves real calls only (the stage units').
 - PSP asm strings assemble with psp-gcc but have never run on a PSP or emulator.
 
-Not done: an integer/pointer-walk function (candidate P14b008, the HZX trap walk), the indoor profile, CalcObjsCollisionWithInvM. PSP toolchain for counts: the pspdev tarball from the PC Sources folder unpacked at /home/claude/pspsdk/pspdev (psp-gcc 15.2.0).
+Batch 2 (asked by the lead 23:38, delivered 2026-11-28 00:25; section 7 of gl45_native.md): the pointer walk P14b008, rain wait, 26.5 calls a step.
+- Translated: about 5,550 PSP slots a call for 3,537 guest instructions (1.57x); 96% is one loop, 30 slots an entry (guest's own 17, address forming 9, clock/poll 4). Extra over the guest's work: address forming 61%, clock 27%; 64-bit halves + write-backs + entry/exit + call glue under 3% here but most of the once-a-call part (226 slots for ~65 guest instructions) [C psp-gcc + C twin weights].
+- Address slots an entry: 4 I/O-region test (GEN_FAST), 4 base adds (gen_hb's addu is asm, never merged or hoisted), 1 mask.
+- Generator levers [I]: drop the I/O test where proven (-4), host pointers for invariant bases (-3), clock in a register (-2): 30 -> ~21, about 1.4x on loop code.
+- Hand-written loop (bit 7, N45_HZX_FF at the loop head of a second copy of the translated text; polls batched by N45_FREE): 6 slots an entry, exact (1,526 whole-RAM compared calls equal; whole route with all 8 forms equal). ~1,390 slots a call, 4x, about -0.55 ms a step [I]. But 11 of the 24 slots saved an entry are the GUEST'S own code (stack-held loop state): a rewrite, not a translation fix.
+- Flatness [C twin x86, logic + draw prep mixed]: 910 translated functions ran; top 10 = 38%, top 50 = 74%, top 100 = 88%, top 200 = 95%.
+- psp-gcc -g changes the code slightly (1,169 vs 1,158 instructions): class tables come from the debug object, cross-checked by hand on the shipped one.
+- Tools: n45_bc.py (counters), n45_gcount.py, psp_flow.py + flow_spec.txt.
+
+Not done: the indoor profile, CalcObjsCollisionWithInvM, any PSP run of these forms. PSP toolchain for counts: the pspdev tarball from the PC Sources folder unpacked at /home/claude/pspsdk/pspdev (psp-gcc 15.2.0).
 
 Related: [[mgs2-gl44-rain-stubs]], [[vita-port-study]], [[mgs2-status-now]], [[mgs2-speed-work]].
