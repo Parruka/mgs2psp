@@ -1,0 +1,19 @@
+---
+name: ff8-stage3
+description: FF8 stage 3 PSP harness: b1 PSP results and FF8 cost model (2026-11-11), b2 with four exact speedups; build, check, deliver, profile tools
+metadata:
+  type: project
+  modified: 2026-11-11T00:14:58.982Z
+---
+
+Part of [[ff8-port]], after [[ff8-stage2]]. Notes: /mnt/project-files/ff8/stage3_notes.md (shared copies of our code in ff8/psp, ff8/recomp, ff8/ref).
+
+- Block-end fast path (exact, checked frame by frame): x86 86.1 s -> 56.0 s for 40,000 frames.
+- Pruned build: `recomp/build.sh prune` -> genp/ + psxrcp (only block starts in recomp/fb/cov_*.txt; coverage from `make G=gen psxrc_cov` + --covout + cov2keys.py). Modules keep all their code words for the validity check (else a partly matching old overlay wins). check: `BIN=psxrcp recomp/check.sh <dir>`.
+- PSP: toolchain /home/claude/pspdev (Ffm's tarball, Sources\; ephemeral). Build: `cd ff8/psp/bN && PATH=/home/claude/pspdev/bin:$PATH make -f ../Makefile -j2 TITLE="FF8 timing harness bN"`. Pre-check: headless PPSSPP 1.20.4 (/home/claude/ppsspp_src, -DUSE_FFMPEG=OFF, needs libglu1-mesa-dev) via psp/emu_run.sh; game folder /home/claude/msf/PSP/GAME/FF8T linked as /root/.ppsspp/PSP/GAME/FF8T (PPSSPP's ms0 root).
+- PC layout (Ffm's): `mg2 port\FF8\Builds\FF8T_<b>\FF8T\` (EBOOT, ff8.cfg, pad.txt, hashref.txt, README.txt from the container; disc1.bin and scph7001.bin copied on the PC from medievel\), logs to `FF8\LOGS\<b>\`. MGS2's Builds\ and LOGS\ are not used for FF8.
+- b1 PSP (log read 2026-11-11 10:35): 80/80 hashes, end line, out.txt = x86; 136.5 ms/frame avg (7.33 fps); title ~154, movie ~167, field 95-129. FF8 model fit: A 1.55, B 52.5, C 86 (errors -2.6..+4.1%, stage3_notes §10). b2 = b1 + four speedups, md5 725ac59b, predicted title 117 / movie 113 / field 84-109; delivered 2026-11-11 10:45 to FF8\Builds\FF8T_b2 (PPSSPP exact), logs to FF8\LOGS\b2. Levers + outlook (field ~25-35 ms [I] after all; full speed 16.7 UNKNOWN): ff8/speed_plan.md; decision card 10:50 on next focus (recommended stage 4 GE renderer).
+- Reading b1's log: name hot addresses with the public byte-matching decompile of our exact disc (roengstrom/ff8-decomp, USA SLUS_008.92; Ffm's four .bin SHA1s match its setup), survey in /mnt/project-files/ff8/decomp_survey.md. DECIDED by Ffm 2026-11-11 01:31 ("if it is useful lets us it, but always verify"): its C (CC0) may be used where useful, always verified (per-frame hash + cycle test against the reference); replaces "own code only" for FF8; conditions in [[ff8-decomp]] (decomp_survey.md §2: commit + function names recorded, PS1-only parts replaced, PS1 cycle charge kept).
+- Test plan (Ffm 2026-11-11 02:03 asked, 👍 on the answer): exactness checks always in the container's PPSSPP (no PSP run needed); after b1's log, fit an FF8 cost model (as MGS2's: instructions + cache misses -> PSP ms) so most speed tests run in PPSSPP as [I] estimates; Ffm runs only milestone builds on the PSP to confirm real numbers.
+- Speed tools (2026-11-11, stage3_notes.md §7-8): PPSSPP PspProf (env PSPPROF_FLAG=<g_emuprof addr>, cfg "prof A B"), psp/prof_ms.py (FF8 fit since 2026-11-11 10:40), psp/fit_model.py (refit from b1's log), x86 count build psxrcp_cnt + psp/cnt2funcs.py (PS1 cycles per function; decompile names from /home/claude/ff8/decomp_syms/symbols.main.txt, main 2026-11-11 02:18, sha256 582f701c).
+- Finding: the PS1 idles in VSync's wait loop (0x800427ac) 47% title, 48% movie, 56-59% field. Four exact speedups, x86-checked 2026-11-11, in b2: rt_idle_vwait (gen.py IDLE table, --noidle), bulk GP0 image uploads (NOXFERBULK=1 = old), 32-bit IDCT (MDEC_CHECK=1 compares), MDEC timing prediction reuse (MT_NOCACHE=1 = old). Emulator [I] b1 -> all four: title 167->130, movie 173->119, field 142->115 / 107->90 ms (stage3_notes §9). Simulated cache misses move ~5% between builds (layout).

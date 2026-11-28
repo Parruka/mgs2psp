@@ -11,6 +11,17 @@
 #include "gelist.h"
 #include "fxthin.h"   /* task #114 */
 #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+#include "natsplit.h"   /* gl34: NS_MARK */
+#include "nge.h"           /* native step 1 (MGS2_NGE) */
+#ifndef __psp__
+#include "natsnap.h"
+#include "reuse_probe.h"   /* gl36: the twin's probe (x86 only) */
+#endif
+/* native step 1: a transform batch's vertices and strips (after its GerXform, or a native batch's in the cooked arena: ge/nge.h) */
+static inline const VcVert *nge_xv(const GerXform *x)
+{ return x->pad == NGE_MAGIC ? (const VcVert *)nge_p(((const NgeTail *)(const void *)(x + 1))->vb) : (const VcVert *)(x + 1); }
+static inline const uint16_t *nge_xr(const GerXform *x)
+{ return x->pad == NGE_MAGIC ? (const uint16_t *)nge_p(((const NgeTail *)(const void *)(x + 1))->runs) : (const uint16_t *)((const VcVert *)(x + 1) + x->nv); }
 
 static long gen_of(const GuMap *m)   /* moves whenever a texture source can have changed: transfers, local copies, drawn areas, CLUT loads */
 {
@@ -52,7 +63,23 @@ static int gl_tex(GlFrame *f, const uint64_t *gr, int ctxt, uint32_t fbp, XcTex 
     f->n.tex_memo++;
     if (!f->memo_check) { *xt = f->memo.xt; return f->memo.ti; }
   }
-  TkTex k; int kind = tk_get_um(f->tk, gr, ctxt, cl, &k);   /* sb9: through the memo by uploads (OPT2_TX_UMEMO; off: tk_get_cl, as gl12) */
+  /* gl35, the texture kept by material (texcache.h tk_keep_ok; attic/gl35/keep_design.txt K3): a look-up with a record's TEX0, CLAMP and
+     TEXA that would take the cache's pure path to the record's entries again is replayed; the rest of this function is the same */
+  TkTex k; int kind = 0, kept = 0, kchk = 0; GlKeep *kr = 0;
+  if (((xl_keep_bits & 8) || ((xl_keep_bits & 4) && xl_keep_nf)) && !f->memo_check) {
+    kr = &f->kr[(uint32_t)(t0 ^ t0 >> 37 ^ cl * 0x9e3779b1u) & (GL_KEEP_N - 1)];
+    if (kr->k.ok && kr->t0 == t0 && kr->cl == cl && kr->texa == texa && tk_keep_ok(f->tk, &kr->k, t0)) {
+      if (xl_keep_chk) kchk = 1; else { tk_keep_again(f->tk, &kr->k, t0, &k); kind = TK_TEX; kept = 1; xl_nk_n[3]++; }
+    }
+  }
+  if (!kept) kind = tk_get_um(f->tk, gr, ctxt, cl, &k);
+  if (kr && !kept) {   /* the record of this look-up (none unless it took the pure path); the check mode: the kept one against it */
+    const TkKeep *L = tk_keep_last(f->tk);
+    if (kchk) { const TkKeep *K = &kr->k; xl_nk_n[4]++;
+      if (kind != TK_TEX || !L->ok || L->g != K->g || L->t != K->t || L->pid_in != K->pid_in || L->pid != K->pid || L->ufgen != K->ufgen || L->kgen != K->kgen
+          || L->fs != K->fs || L->i != K->i || L->j != K->j || L->w != K->w) xl_nk_n[5]++; }
+    if (kind == TK_TEX && L->ok) { if (!kchk) xl_nk_n[6]++; kr->k = *L; kr->t0 = t0; kr->cl = cl; kr->texa = texa; } else kr->k.ok = 0;
+  }   /* sb9: through the memo by uploads (OPT2_TX_UMEMO; off: tk_get_cl, as gl12) */
   if (kind != TK_TEX) {
     if (kind == TK_RT) f->n.tex_rt++; else if (kind == TK_LOST) f->n.tex_lost++; else f->n.tex_unsup++;
     if (f->memo_check && f->memo.valid && f->memo.t0 == t0 && f->memo.cl == cl && f->memo.texa == texa && f->memo.gen == gen) f->memo_bad++;
@@ -98,13 +125,54 @@ int gl_init(GlFrame *f, TkCache *tk, GuMap *map, double zk, int max_tex)
   gl_begin(f);
   return 0;
 }
+static int bd_sheet_i, bd_sheet_last = 4;   /* gl38 (gl_bd_near_call): this frame's sheet calls so far in a frame of BD_RAIN; the last such frame's */
 void gl_begin(GlFrame *f)
 {
+#ifndef __psp__
+  rp_begin();   /* gl36 probe */
+#endif
+  xl_nr_pic();   /* gl37: the reuse's rule, by picture (ge/xlate.c) */
+  xl_keep_bits = 0;   /* gl36: the keep bits start again with each picture (gl35's left the last fast group's standing: a turn with no fast group
+                         kept the texture keeps of the turn before) */
   gb_reset(&f->o); memset(f->hash, 0xff, sizeof f->hash); memset(&f->n, 0, sizeof f->n); f->memo.valid = 0; f->lit_ok = 0;
   f->o.dropped = 0; xc_zr_begin(&f->zr); f->tlo = 3.0e38f; f->thi = -1; f->tz0 = f->tztop = 0;
   f->nheld = 0; f->held_cur = -1; f->held_gone = 0; f->pend = 0; xc_hold7_reset();   /* sb4 (sb10 T2: and the P07 calls' copies) */
   f->ft_done = 0; f->h.nthin = 0;   /* task #114 */
   f->ft_n = 0; f->ft_nd = 0;       /* task #149, #180 */
+  f->bd_n = 0;                     /* gl38 */
+  if (bd_sheet_i) { bd_sheet_last = bd_sheet_i; bd_sheet_i = 0; }   /* gl38 (gl_bd_near_call) */
+}
+/* ---- gl38, the bound turns (ge/bound.h): the calls a frame's mask leaves out ---- */
+int gl_bd_chi = -1, gl_bd_near; long gl_bd_n[GL_BD_N];
+void gl_bd_ranges(GlFrame *f, const FxBd *r, int n)
+{
+  if (n > FX_RANGES) n = FX_RANGES;
+  for (int i = 0; i < n; i++) f->bd_r[i] = r[i];
+  f->bd_n = n < 0 ? 0 : n;
+}
+/* MGS2_GL_RAIN_NEAR (gl_bd_near): which of the drop sheets' calls a frame of BD_RAIN keeps.  The sheets (d_splash_camera.c: 4 calls a
+   picture, 64 vertices each) are in the sorted chain, which sends them far to near: the twin's probe (MGS2_BD_PROBE, attic/gl38) found
+   the calls' mean distance from the camera falling in call order in 24 of 25 sampled pictures, the last call the nearest in 24.  A call's
+   place in the sheets' block is not a distance (a place is far in one picture and near in another).  So the near calls are the last n
+   of the frame's sheet calls: call i (from 0) is kept when i >= the sheet calls of the last frame that had any (4 on the route) - n.
+   0: every sheet call kept */
+static int gl_bd_near_call(void)
+{
+  const int i = bd_sheet_i++;
+  return gl_bd_near <= 0 || i >= bd_sheet_last - gl_bd_near;
+}
+/* 1: the call is left out (BD_RAIN: a rain owner's effect call but the near sheets; BD_SORT: chain 6's other calls) */
+static __attribute__((noinline)) int gl_bd_out(GlFrame *f, const XlCall *c)
+{
+  if (c->entry == XL_FX || c->entry == XL_FX2)
+    for (int i = 0; i < f->bd_n; i++) { const FxBd *r = &f->bd_r[i];
+      if (c->src - r->lo >= r->hi - r->lo) continue;
+      gl_bd_n[GL_BD_RAIN]++; if (!r->kind) gl_bd_n[GL_BD_SHEET]++;
+      if (!(f->bd & BD_RAIN)) return 0;
+      if (!r->kind && gl_bd_near_call()) { gl_bd_n[GL_BD_NEAR_KEPT]++; return 0; }
+      gl_bd_n[GL_BD_RAIN_OUT]++; return 1; }
+  if ((f->bd & BD_SORT) && gl_bd_chi == BD_CHI_SORT) { gl_bd_n[GL_BD_SORT_OUT]++; return 1; }
+  return 0;
 }
 void gl_thin(GlFrame *f, const XcThin *r, int n, int keep3, const void *d, int nd)   /* task #149, #180 */
 {
@@ -139,7 +207,7 @@ static void gl_zchk(GlFrame *f)
   for (int i = 0; i < f->o.nb; i++) {
     const GerBatch *b = &f->o.b[i]; const GerXform *x = (const GerXform *)(f->o.d + b->first);
     if (b->kind == GERK_XFORM) {
-      const VcVert *v = (const VcVert *)(x + 1); const uint16_t *runs = (const uint16_t *)(v + x->nv);
+      const VcVert *v = nge_xv(x); const uint16_t *runs = nge_xr(x);   /* (native step 1: the accessors) */
       int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2;
       for (uint32_t s = 0; s < x->nst; s++)
         for (uint32_t k = runs[2 * s] + 2u; k < (uint32_t)runs[2 * s] + runs[2 * s + 1]; k++) {
@@ -179,7 +247,7 @@ static void gl_zchk(GlFrame *f)
       if (p->pass & GERL_C2) {   /* sb12 C2: 16-bit positions; skinned, blended by the two 16-bit weights over bone 0 (32768 I) and the
                                     call's bone 1, as the GE does (a float sum: the check's) */
         static const float B0[12] = { 32768.0f, 0, 0, 0, 32768.0f, 0, 0, 0, 32768.0f, 0, 0, 0 };
-        const GerC2 *g = (const GerC2 *)((const uint8_t *)p + p->vtx); const uint8_t *v = (const uint8_t *)g + g->voff[0];
+        const GerC2 *g = (const GerC2 *)((const uint8_t *)p + p->vtx); const uint8_t *v = nge_c2v(p->pass, g, GERC2_SIZE(g->skin), g->voff[0]);   /* (native step 2: N-ref) */
         const uint16_t *runs = (const uint16_t *)((const uint8_t *)p + p->run); const int sk = g->skin != 0;
         const float *bm[2] = { B0, g->bone1 };
         int wr = (b->flags & GERF_ZWRITE) && b->ztst >= 2;
@@ -299,6 +367,7 @@ void gl_prim(GlFrame *f, const GfGs *g, const GfDraw *d, const GfVtx *const *v, 
 {
   if (g->path != 2 && g->path != 3) { f->n.path1++; return; }
   if (g->unk_used) { f->n.uncertain++; return; }
+  if (__builtin_expect(f->bd & BD_SORT, 0) && gl_bd_chi == BD_CHI_SORT) { gl_bd_n[GL_BD_PRIM_OUT]++; return; }   /* gl38: chain 6's GS primitives */
   int ti = -1;
   if (d->tme) { XcTex xt; uint64_t cl; ti = gl_tex(f, g->gr, d->ctxt, d->fbp, &xt, tk_t16_on(f->tk) && prim_clamp(d, v, n, g->gr[0x08 + d->ctxt], &cl) ? &cl : 0); f->n.prims_tex++; }
   GerBatch b; int u = gb_state(d, ti, 0, &b);
@@ -324,12 +393,90 @@ static int gl_line_none(const XcHost *h, uint32_t src)
     if (r->line && src - r->lo < r->hi - r->lo && (!r->keep || (r->kcall > 1 && (src - r->lo) / FX_STREAK_BLOCK % (uint32_t)r->kcall))) return 1; }
   return 0;
 }
+#ifndef __psp__
+/* ---- cull study (x86 census, MGS2_CULL_CEN=<file>): every converter call by 100-vblank window, chain (gl_cen_chi: the transfer's
+   place in the frame's chain list, as psp/xl_psp.c ns_chain finds it; NS_CH_OTHER: not in it), kind and outcome (xconv.c xc_cen_why);
+   the effects' calls also by owner (fxthin.c fx_who_name).  Reads only: nothing here changes what is drawn ---- */
+#include <stdio.h>
+extern int xc_cen_why, xc_cen_n, xc_cen_plane;
+int gl_cen_chi = NS_CH_OTHER; long gl_cen_vb;
+enum { CEN_W = 380, CEN_C = NS_CH_N, CEN_K = 9, CEN_Y = 11, CEN_O = 48, CEN_FK = 5 };
+static int cen_on = -1; static const char *cen_path;
+static int (*cen_t)[CEN_C][CEN_K][CEN_Y]; static long (*cen_v)[CEN_C][CEN_K][CEN_Y];
+static int (*cen_o)[CEN_O][CEN_FK][CEN_Y]; static long (*cen_ov)[CEN_O][CEN_FK][CEN_Y]; static int cen_pl[CEN_W][CEN_O][64];
+static char cen_on_[CEN_O][40]; static int cen_no, cen_over;
+static int cen_kind(uint32_t e)
+{
+  return e == 0x1991d8u ? 0 : e == 0x19a9f0u ? 1 : e == 0x19ac78u ? 2 : e == VC_P07 ? 4 : e == 0x19bb50u ? 5 : e == 0x19be50u ? 6 : e == 0x19af68u ? 7 :
+         gl_conv_entry(e) ? 3 : 8;
+}
+static void cen_print(void)
+{
+  FILE *fp = fopen(cen_path, "w"); if (!fp) return;
+  static const char *K[CEN_K] = { "df0", "fx25f0", "fx2870", "p06", "p07", "spr", "quad", "line", "other" };
+  fprintf(fp, "# cull census: win vb0 chain kind why calls verts (why: 0 drawn 1 fpos-one-point 2 fpos-all-off-one-plane 3 fpos-each-triangle-off 4 df0-cut 5 empty-other 6 bad 7 c4-none 8 left-before 9 held 10 fpos-empty-other)\n");
+  for (int w = 0; w < CEN_W; w++) for (int c = 0; c < CEN_C; c++) for (int k = 0; k < CEN_K; k++) for (int y = 0; y < CEN_Y; y++)
+    if (cen_t[w][c][k][y]) fprintf(fp, "c %d %d %s %d %d %ld\n", w * 100, c, K[k], y, cen_t[w][c][k][y], cen_v[w][c][k][y]);
+  static const char *FK[CEN_FK] = { "fx25f0", "fx2870", "spr", "quad", "line" };
+  for (int w = 0; w < CEN_W; w++) for (int o = 0; o < cen_no; o++) for (int k = 0; k < CEN_FK; k++) for (int y = 0; y < CEN_Y; y++)
+    if (cen_o[w][o][k][y]) fprintf(fp, "o %d %s %s %d %d %ld\n", w * 100, cen_on_[o], FK[k], y, cen_o[w][o][k][y], cen_ov[w][o][k][y]);
+  for (int w = 0; w < CEN_W; w++) for (int o = 0; o < cen_no; o++) for (int b = 1; b < 64; b++)
+    if (cen_pl[w][o][b]) fprintf(fp, "p %d %s %02x %d\n", w * 100, cen_on_[o], b, cen_pl[w][o][b]);
+  fprintf(fp, "# owners %d, over %d\n", cen_no, cen_over);
+  fclose(fp);
+}
+static void gl_cen(GlFrame *f, const XlCall *c, int why, int n)
+{
+  if (cen_on < 0) { cen_path = getenv("MGS2_CULL_CEN"); cen_on = cen_path && *cen_path;
+    if (cen_on) { cen_t = calloc(CEN_W, sizeof *cen_t); cen_v = calloc(CEN_W, sizeof *cen_v); cen_o = calloc(CEN_W, sizeof *cen_o); cen_ov = calloc(CEN_W, sizeof *cen_ov);
+      if (!cen_t || !cen_v || !cen_o || !cen_ov) cen_on = 0; else atexit(cen_print); } }
+  if (!cen_on) return;
+  int w = (int)(gl_cen_vb / 100); if (w < 0 || w >= CEN_W) return;
+  int ch = gl_cen_chi < 0 || gl_cen_chi >= CEN_C ? NS_CH_OTHER : gl_cen_chi, k = cen_kind(c->entry), y = why < 0 || why >= CEN_Y ? 5 : why;
+  cen_t[w][ch][k][y]++; cen_v[w][ch][k][y] += n > 0 ? n : 0;
+  int fk = k == 1 ? 0 : k == 2 ? 1 : k == 5 ? 2 : k == 6 ? 3 : k == 7 ? 4 : -1;
+  if (fk < 0 || !f->ram) return;
+  char nm[40]; int o;
+  if (fx_who_name(f->ram, c->src, nm, sizeof nm)) snprintf(nm, sizeof nm, "(none)");
+  for (o = 0; o < cen_no && strcmp(cen_on_[o], nm); o++) ;
+  if (o == cen_no) { if (cen_no == CEN_O) { cen_over++; return; } snprintf(cen_on_[o], sizeof cen_on_[o], "%s", nm); cen_no++; }
+  for (char *q = cen_on_[o]; *q; q++) if (*q == ' ') *q = '_';
+  cen_o[w][o][fk][y]++; cen_ov[w][o][fk][y] += n > 0 ? n : 0;
+  if (y == 2) cen_pl[w][o][xc_cen_plane & 63]++;
+}
+#define GL_CEN(why, n) gl_cen(f, c, why, n)
+#else
+#define GL_CEN(why, n) ((void)0)
+#endif
+#ifndef __psp__
+/* gl38 probe (x86, MGS2_BD_PROBE=<every>): each rain owner's effect call of the frames at vblanks that are multiples of <every>: its
+   kind, its data's place in its block, its vertices and their distance from the camera (clip w: the smallest, the mean, the largest) */
+static void bd_probe(const GlFrame *f, const XlCall *c, int r, const GerBatch *b, const uint8_t *blob)
+{
+  static long every = -1; extern long gl_cen_vb;
+  if (every < 0) every = getenv("MGS2_BD_PROBE") ? atol(getenv("MGS2_BD_PROBE")) : 0;
+  if (!every || (c->entry != XL_FX && c->entry != XL_FX2) || gl_cen_vb % every > 1) return;
+  for (int i = 0; i < f->bd_n; i++) { const FxBd *q = &f->bd_r[i];
+    if (c->src - q->lo >= q->hi - q->lo) continue;
+    double lo = 1e30, hi = -1e30, sum = 0; uint32_t nv = 0;
+    if (r > 0 && b->kind == GERK_XFORMF) { const GerXform *x = (const GerXform *)(const void *)(blob); const VcVertF *v = (const VcVertF *)(const void *)(x + 1);
+      nv = x->nv;
+      for (uint32_t k = 0; k < nv; k++) { double p[3], w;
+        for (int j = 0; j < 3; j++) p[j] = v[k].x * x->world[j] + v[k].y * x->world[3 + j] + v[k].z * x->world[6 + j] + x->world[9 + j];
+        w = p[0] * x->proj[3] + p[1] * x->proj[7] + p[2] * x->proj[11] + x->proj[15];
+        if (w < lo) lo = w; if (w > hi) hi = w; sum += w; } }
+    fprintf(stderr, "bdprobe: vb %ld kind %u block %08x size %x place %x entry %06x r %d nv %u w %.1f %.1f %.1f chain %d\n", gl_cen_vb, (unsigned)q->kind,
+            (unsigned)q->lo, (unsigned)(q->hi - q->lo), (unsigned)(c->src - q->lo), (unsigned)c->entry, r, (unsigned)nv, nv ? lo : 0, nv ? sum / nv : 0, nv ? hi : 0, gl_bd_chi);
+    return; }
+}
+#endif
 void gl_call(GlFrame *f, const XlCall *c)
 {
   f->lit_ok = 0; f->held_cur = -1; f->held_gone = 0;
   if ((!gl_conv_entry(c->entry) && !(f->h.c4 && gl_c4_entry(c->entry))) || c->cont) { f->n.other++; return; }   /* (sb15: step 4's) */
   f->n.calls++;
 #ifndef __psp__
+  { extern void xc_face_cen(const XlCall *, long, int); if (c->entry == VC_P07) xc_face_cen(c, gl_cen_vb, gl_cen_chi); }   /* gl39: MGS2_FACE_CEN */
   fx_who_note(f->ram, c->entry, c->src);   /* sb15 x86 census (MGS2_FX_WHO=1) */
 #endif
 #ifdef MGS2_ME_SAFE
@@ -342,10 +489,12 @@ void gl_call(GlFrame *f, const XlCall *c)
 #else
   if (f->ft && !f->ft_done && (c->entry == XL_FX || c->entry == XL_FX2 || c->entry == VC_LINE || (c->entry == VC_SPR && !f->ft->keep[3]))) {   /* task #114: the frame's thinned
                                                                      effects, as they are now (task #154: the streaks too, C4 on) */
-    f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram, f->h.c4); f->h.thin = f->ft->r; }
-  if (c->entry == VC_LINE && f->h.nthin && gl_line_none(&f->h, c->src)) { f->n.calls--; f->n.other++; f->ft->line_none++; return; }   /* task #158 */
-  if (c->entry == VC_SPR && f->ft && f->ft->nd && fx_drop_has(f->ft, c->src)) { f->n.calls--; f->n.other++; f->ft->spr_none++; return; }   /* task #161 */
+    f->ft_done = 1; f->h.nthin = fx_thin_scan(f->ft, f->ram, f->h.c4); f->h.thin = f->ft->r;
+    if (f->ft->all) gl_bd_ranges(f, f->ft->b, f->ft->nb); }   /* gl38 */
+  if (c->entry == VC_LINE && f->h.nthin && gl_line_none(&f->h, c->src)) { GL_CEN(8, -1); f->n.calls--; f->n.other++; f->ft->line_none++; return; }   /* task #158 */
+  if (c->entry == VC_SPR && f->ft && f->ft->nd && fx_drop_has(f->ft, c->src)) { GL_CEN(8, -1); f->n.calls--; f->n.other++; f->ft->spr_none++; return; }   /* task #161 */
 #endif
+  if (__builtin_expect(f->bd & (BD_SORT | BD_RAIN), 0) && gl_bd_out(f, c)) { f->n.calls--; f->n.other++; return; }   /* gl38 */
   /* sb4, step c (renderer_notes 11.29): a call xc_hold_test takes is held when the frame has a record, its batch slots and data room
      beyond what the held calls may take (pend); the rest run here, after the held calls when the room they need is not certain */
   uint32_t bound; int npd;
@@ -361,6 +510,8 @@ void gl_call(GlFrame *f, const XlCall *c)
       r->slot = gb_slot(&f->o);
       f->pend += need; f->held_cur = f->nheld++; f->held_n++; f->held7_n += c->rec->lane == 4;
       f->n.conv++; f->n.lit_calls++;   /* (xc_hold_test: the call converts and has a strip) */
+      if (g_ns.tbo) { g_ns.ph_i = f->held_cur; NS_MARK(NS_P_HOLD); }   /* gl38: the people split (the held call timed again at its flush) */
+      GL_CEN(9, -1);
       return;
     }
   }
@@ -379,17 +530,23 @@ void gl_call(GlFrame *f, const XlCall *c)
     if (r1 != r2 || s1 != s2 || memcmp(&b1, &b2, sizeof b1) || (r1 > 0 && memcmp(d1, d2, s1))) gl_need_diff++;
   } else
 #endif
-  if (gl_need) xl_vm_need(c);
+  if (gl_need) { if (!(c->rec && c->rec->nf)) xl_vm_need(c); }   /* gl34: a fast native group's converter reads only what its call decoded (xlate.h XlRec nf) */
   else if (!c->rec) xl_vm_sync();
   uint8_t *blob = gb_room(&f->o, cap);
   if (!blob) { f->n.conv_full++; return; }
   GerBatch b; uint32_t size = 0;
   int r = xc_call(c, &f->h, &b, blob, cap, &size);
+#ifndef __psp__
+  rp_call(f, c, r, &b, blob, size);   /* gl36 probe */
+  bd_probe(f, c, r, &b, blob);       /* gl38 probe */
+  GL_CEN(gl_conv_entry(c->entry) || gl_c4_entry(c->entry) ? xc_cen_why : 5, xc_cen_n);
+#endif
   if (r == -5) { f->n.conv_full++; return; }
   if (r < 0) { f->n.conv_bad++; return; }
   if (!r) { f->n.conv_empty++; return; }
   if (gb_xform_in(&f->o, &b, size)) { f->n.conv_full++; return; }
   f->n.conv++;
+  NS_MARK(NS_LIST);
   if (b.kind == GERK_LIT) { f->lit_ok = 1; f->lit_base = f->o.room; f->n.lit_calls++; }
 }
 void gl_pass(GlFrame *f, const XlCall *c, int pass)
@@ -413,15 +570,23 @@ void gl_flush(GlFrame *f)
 {
   if (!f->nheld) return;
   xc_held_begin();
+  uint32_t (*const ns_c)(void) = g_ns.tbo ? g_ns.clk : 0;   /* gl38: a flush inside a timed people group is not that group's time */
+  if (ns_c) { g_ns.clk = 0; g_ns.tbo = 0; }
   for (int i = 0; i < f->nheld; i++) {
     const XcHeld *r = &f->held[i];
+    const int ps = i == g_ns.ph_i && g_ns.pclk != 0;   /* gl38 (ge/natsplit.h): the picked people call's conversion timed by stage */
+    if (ps) { g_ns.clk = g_ns.pclk; g_ns.tbo = NS_PN; g_ns.last = NS_CLK(); }
     uint32_t left = gb_left(&f->o), cap = left < GL_XCAP ? left : GL_XCAP, size = 0;
     uint8_t *blob = gb_room(&f->o, cap);
     GerBatch b;
-    if (!blob || xc_held_run(r, &f->h, &b, blob, cap, &size) != 1 || gb_fill_in(&f->o, r->slot, &b, size)) { f->held_bad++; continue; }
+    if (!blob || xc_held_run(r, &f->h, &b, blob, cap, &size) != 1 || gb_fill_in(&f->o, r->slot, &b, size)) { f->held_bad++; if (ps) { g_ns.clk = 0; g_ns.tbo = 0; } continue; }
+    NS_PMARK(NS_P_FILL);
     uint32_t base = f->o.room;
     for (int k = 0; k < r->np; k++) { GerBatch pb; xc_held_pass(r, k, &pb, f->o.d + base); if (gb_fill_at(&f->o, r->pslot[k], &pb, base)) f->held_bad++; }
+    if (ps) { NS_MARK(NS_P_PFILL); g_ns.phn++; g_ns.clk = 0; g_ns.tbo = 0; }
   }
+  g_ns.ph_i = -1;
+  if (ns_c) { g_ns.clk = ns_c; g_ns.tbo = NS_PN; g_ns.last = NS_CLK(); }
   xc_held_end();
   f->nheld = 0; f->pend = 0;
   if (f->held_cur >= 0) { f->held_cur = -1; f->held_gone = 1; }
@@ -466,7 +631,7 @@ static uint64_t hw(uint64_t h, const void *p, uint32_t n)   /* n bytes as 32-bit
   for (; i < n; i++) { h ^= b[i]; h *= 0x100000001b3ull; }
   return h;
 }
-#ifndef __psp__
+/* gl41: on the PSP too (psp/xl_psp.c prints it with each digest picture); x86 code unchanged */
 uint64_t gl_digest_c(const GlFrame *f)
 {
   const GbOut *o = &f->o; uint64_t h = 0xcbf29ce484222325ull;
@@ -478,15 +643,26 @@ uint64_t gl_digest_c(const GlFrame *f)
     const uint8_t *p = o->d + b.first; b.first = 0; h = hw(h, &b, sizeof b);
     if (b.kind == GERK_LIT) {
       const GerLit *l = (const GerLit *)p;
-      h = hw(h, l, sizeof *l); h = hw(h, p + l->xf, sizeof(GerXform));
+      if (l->pass & GERL_NGE) {   /* native step 2, N-ref: hashed as today's batch (its GerLit's pass and offsets today's: NgeC2Tail) */
+        const GerC2 *g = (const GerC2 *)(p + l->vtx); const NgeC2Tail *tl = (const NgeC2Tail *)(const void *)((const uint8_t *)g + GERC2_SIZE(g->skin));
+        GerLit e = *l; const int32_t at = -l->xf; e.pass &= ~GERL_NGE; e.vtx = (int32_t)tl->og - at; e.run = (int32_t)tl->orun - at;
+        h = hw(h, &e, sizeof e);
+      } else h = hw(h, l, sizeof *l);
+      h = hw(h, p + l->xf, sizeof(GerXform));
       if (l->pass & GERL_C1) {   /* sb11 C1: its GerC1, then the pass's vertices */
         const GerC1 *g = (const GerC1 *)(p + l->vtx);
         h = hw(h, g, GERC1_SIZE(g->nw)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
       } else if (l->pass & GERL_C2) {   /* sb12 C2: its GerC2, then the pass's vertices */
         const GerC2 *g = (const GerC2 *)(p + l->vtx);
-        h = hw(h, g, GERC2_SIZE(g->skin)); h = hw(h, (const uint8_t *)g + g->voff[(l->pass & 15) - 1], l->nv * l->stride);
+        h = hw(h, g, GERC2_SIZE(g->skin));
+        h = hw(h, nge_c2v(l->pass, g, GERC2_SIZE(g->skin), g->voff[(l->pass & 15) - 1]), l->nv * l->stride);   /* (native step 2: N-ref, the arena's) */
       } else h = hw(h, p + l->vtx, l->nv * l->stride);
       h = hw(h, p + l->run, l->nst * 4);
+    } else if (b.kind == GERK_XFORM && ((const GerXform *)p)->pad == NGE_MAGIC) {   /* native step 1: as today's batch would be (pad 0,
+                                                                                      its vertices and strips after it, no indices: noidx) */
+      GerXform x = *(const GerXform *)p; x.pad = 0;
+      h = hw(h, &x, sizeof x); h = hw(h, nge_xv((const GerXform *)p), x.nv * (uint32_t)sizeof(VcVert));
+      h = hw(h, nge_xr((const GerXform *)p), x.nst * 4);
     } else {
       const GerXform *x = (const GerXform *)p;
       uint32_t sz = b.kind == GERK_XFORM ? (uint32_t)sizeof *x + x->nv * (uint32_t)sizeof(VcVert) + x->nst * 4 + x->nidx * 2 :
@@ -504,7 +680,6 @@ uint64_t gl_digest_c(const GlFrame *f)
   float z[4] = { f->zlo, f->zhi, f->map_lo, f->map_hi }; h = hw(h, z, sizeof z);
   return h;
 }
-#endif
 uint64_t gl_digest(const GlFrame *f, const GxList *l)
 {
   const GbOut *o = &f->o; uint64_t h = 0xcbf29ce484222325ull;
@@ -517,6 +692,11 @@ uint64_t gl_digest(const GlFrame *f, const GxList *l)
     if (o->t[i].kind != 1) continue;
     if (f->tdata[i]) h = hw(h, f->tdata[i], f->tsize[i]);
     if (f->tpal[i]) h = hw(h, f->tpal[i], o->t[i].npal * 4);
+  }
+  for (int i = 0; i < o->nb; i++) {   /* native step 1: the cooked vertices and strips a native batch draws */
+    const GerXform *x = (const GerXform *)(o->d + o->b[i].first);
+    if (o->b[i].kind != GERK_XFORM || x->pad != NGE_MAGIC) continue;
+    h = hw(h, nge_xv(x), x->nv * (uint32_t)sizeof(VcVert)); h = hw(h, nge_xr(x), x->nst * 4);
   }
   return h;
 }

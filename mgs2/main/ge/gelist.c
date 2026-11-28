@@ -10,9 +10,10 @@
 #include "gelist.h"
 #include "vu1conv.h"
 #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+#include "nge.h"     /* native step 1 (MGS2_NGE) */
 
 enum {   /* GE commands (pspsdk guInternal.h) */
-  C_VADDR = 0x01, C_IADDR = 0x02, C_PRIM = 0x04, C_RET = 0x0b, C_END = 0x0c, C_FINISH = 0x0f, C_BASE = 0x10, C_VTYPE = 0x12, C_REGION1 = 0x15,
+  C_VADDR = 0x01, C_IADDR = 0x02, C_PRIM = 0x04, C_CALL = 0x0a, C_RET = 0x0b, C_END = 0x0c, C_FINISH = 0x0f, C_BASE = 0x10, C_VTYPE = 0x12, C_REGION1 = 0x15,
   C_REGION2 = 0x16, C_LIGHTING = 0x17, C_CLIP = 0x1c, C_CULL = 0x1d, C_TEXTURE = 0x1e, C_FOG = 0x1f, C_BLEND = 0x21, C_ATEST = 0x22,
   C_ZTEST = 0x23, C_WORLDN = 0x3a, C_WORLDD = 0x3b, C_VIEWN = 0x3c, C_VIEWD = 0x3d, C_PROJN = 0x3e, C_PROJD = 0x3f, C_VPXS = 0x42,
   C_TSU = 0x48, C_TSV = 0x49, C_TOU = 0x4a, C_TOV = 0x4b, C_OFFX = 0x4c, C_OFFY = 0x4d, C_SHADE = 0x50, C_FBP = 0x9c, C_FBW = 0x9d,
@@ -46,7 +47,7 @@ static const uint8_t ZTMAP[4] = { G_NEVER, G_ALWAYS, G_GEQUAL, G_GREATER };     
 
 /* ---- words; the digest hashes an address word as what it names (region, offset) and leaves BASE out, so it does not depend on
    where the memory lies ---- */
-enum { R_NONE, R_VERT, R_DATA, R_AUX, R_TEX, R_PAL, R_VRAM };
+enum { R_NONE, R_VERT, R_DATA, R_AUX, R_TEX, R_PAL, R_VRAM, R_NGE };   /* R_NGE: native step 1's arena (ge/nge.h NGE_RO) */
 static GxList *L; static const GxHost *H; static GxFrame *F;
 static void hash(uint32_t x) { for (int k = 0; k < 4; k++) { L->dig ^= x >> 8 * k & 0xff; L->dig *= 0x100000001b3ull; } }
 static void put(uint32_t c, uint32_t a) { uint32_t w = c << 24 | (a & 0xffffff); L->w[L->n++] = w; if (L->dig_on) hash(w); }
@@ -74,6 +75,8 @@ static void sym(const void *p, int *region, uint32_t *off)
   const uint8_t *q = (const uint8_t *)p;
   if (F->v && q >= (const uint8_t *)F->v && q <= (const uint8_t *)(F->v + F->nv)) { *region = R_VERT; *off = (uint32_t)(q - (const uint8_t *)F->v); }
   else if (L->aux && q >= L->aux + L->alow && q <= L->aux + L->cap_aux) { *region = R_AUX; *off = (uint32_t)(q - L->aux); }
+  else if (xc_nge_mem[0] && q >= xc_nge_mem[0] && q < xc_nge_mem[0] + xc_nge_cap) { *region = R_NGE; *off = NGE_RO(0, (uint32_t)(q - xc_nge_mem[0])); }   /* native step 2: */
+  else if (xc_nge_mem[1] && q >= xc_nge_mem[1] && q < xc_nge_mem[1] + xc_nge_cap) { *region = R_NGE; *off = NGE_RO(1, (uint32_t)(q - xc_nge_mem[1])); }   /* N-ref vertices */
   else if (F->d && q >= F->d) { *region = R_DATA; *off = (uint32_t)(q - F->d); }
   else { *region = R_NONE; *off = 0; }
 }
@@ -85,6 +88,12 @@ static void addr_cmd(uint32_t c, const void *p)
   if (L->dig_on) { int r; uint32_t o; sym(p, &r, &o); put_sym(c, a, r, o); } else L->w[L->n++] = c << 24 | (a & 0xffffff);
   if (c == C_VADDR) L->c.vaddr++;
 }
+/* native step 1 (ge/nge.h): a transform batch's vertices and strips, in the frame's data after its GerXform, or (a native batch) in the
+   cooked arena */
+static inline const VcVert *xvert(const GerXform *x)
+{ return x->pad == NGE_MAGIC ? (const VcVert *)nge_p(((const NgeTail *)(const void *)(x + 1))->vb) : (const VcVert *)(x + 1); }
+static inline const uint16_t *xruns(const GerXform *x)
+{ return x->pad == NGE_MAGIC ? (const uint16_t *)nge_p(((const NgeTail *)(const void *)(x + 1))->runs) : (const uint16_t *)((const VcVert *)(x + 1) + x->nv); }
 static void vtype(uint32_t t) { if ((uint32_t)L->s_vtype != t) { put(C_VTYPE, t); L->s_vtype = (int)t; } }
 static void en(uint32_t c, int on, int *cache) { if (*cache != on) { put(c, (uint32_t)on); *cache = on; } }
 static int get_exp(int v) { int i; for (i = 9; i > 0 && !((v >> i) & 1); --i) ; return i; }   /* libgu's getExp */
@@ -140,6 +149,15 @@ static void texture(int ti)
 /* a transform batch's matrices, viewport, fog and (ts: 0 for none) texture scale and offset; the world matrix only when the last batch
    set another GerXform's (a P06 call's passes share theirs; a two-pass batch's second pass) */
 static void xf_rest(const GerXform *x, int fog, const float *ts);
+/* gl29 (MGS2_GL_DZ B<n>): the viewport's z offset n steps of the GE's 24-bit word nearer (larger: the depth range is 65535..0 and the test
+   GEQUAL): the word as putf sends it (the float's top 24 bits) + n, or - n for a negative float; the float kept as the word it sends
+   (s_vp: the next batch's viewport differs, so its six words are sent again) */
+static void dz_bias_z(float *f, int n)
+{
+  uint32_t u; memcpy(&u, f, 4); u >>= 8;
+  u = (u & 0x800000u) ? u - (uint32_t)n : u + (uint32_t)n;
+  u = (u & 0xffffffu) << 8; memcpy(f, &u, 4);
+}
 static void xf_setup(const GerXform *x, int fog, const float *ts)
 {
   if (L->s_xf != x) { put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, x->world[k]); L->s_xf = x; }
@@ -152,6 +170,7 @@ static void xf_rest(const GerXform *x, int fog, const float *ts)   /* (xf_setup'
     memcpy(L->s_proj, x->proj, sizeof L->s_proj); L->s_have_proj = 1;
   }
   float vp[6] = { x->vs[0], x->vs[1], x->vs[2] * F->zs, x->vo[0], x->vo[1], x->vo[2] * F->zs + F->zo };   /* VIEWPORT X1 Y1 Z1 X2 Y2 Z2 */
+  if (L->dz_bias) dz_bias_z(&vp[5], L->dz_bias);   /* gl29: B<n> (xf_draw sets it for the batch it draws) */
   if (!L->s_have_vp || memcmp(L->s_vp, vp, sizeof vp)) { for (int k = 0; k < 6; k++) putf(C_VPXS + (uint32_t)k, vp[k]); memcpy(L->s_vp, vp, sizeof vp); L->s_have_vp = 1; }
   en(C_FOG, fog, &L->s_fog);
   if (fog) {
@@ -162,17 +181,43 @@ static void xf_rest(const GerXform *x, int fog, const float *ts)   /* (xf_setup'
     putf(C_TSU, ts[0]); putf(C_TSV, ts[1]); putf(C_TOU, ts[2]); putf(C_TOV, ts[3]); memcpy(L->s_ts, ts, sizeof L->s_ts); L->s_have_ts = 1;
   }
 }
-/* a df0 call: its strips one PRIM each; the vertex address again only where a strip does not follow the one before */
-static int xf_draw(const GerBatch *b, int tex)
+/* a df0 call: its strips one PRIM each; the vertex address again only where a strip does not follow the one before.  gl29 (dz: the
+   batch's arm, gelist.h): X and Y draw the vertices and strips dz_pair put in L->dz_v / dz_runs instead, B sends its viewport biased */
+/* native step 1 (ge/nge.h): a native batch: WORLD when it differs from the last native batch's and no other WORLD came between (L->s_xf
+   &NWX), the rest as xf_setup, then BASE (when its bits change) and CALL into the cooked group's list (VTYPE, BASE, VADDR, PRIM .., RET).
+   The list leaves VTYPE and BASE set: their memos are cleared after the CALL, so the next batch sends its own */
+static const uint8_t NWX = 0; static float s_nw[12];
+static int xf_nge(const GerBatch *b, const GerXform *x, int tex, int dz)
+{
+  const NgeTail *t = (const NgeTail *)(const void *)(x + 1);
+  if (room() < BATCH_WORDS + 4 + RESERVE) return -1;
+  float ts[4] = { x->su, x->sv, x->tu, x->tv };
+  L->dz_bias = dz == GX_DZ_B ? L->dzn : 0;
+  if (L->s_xf != &NWX || memcmp(s_nw, x->world, sizeof s_nw)) {
+    put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, x->world[k]); memcpy(s_nw, x->world, sizeof s_nw); L->s_xf = &NWX; }
+  xf_rest(x, (b->flags & GERF_FOG) != 0, tex ? ts : 0);
+  L->dz_bias = 0;
+  const uint32_t a = t->list_ge, base = (a >> 8) & 0xf0000;
+  if (L->s_base != base) { L->w[L->n++] = (uint32_t)C_BASE << 24 | base; L->s_base = base; }
+  if (L->dig_on) put_sym(C_CALL, a, R_NGE, t->g); else L->w[L->n++] = (uint32_t)C_CALL << 24 | (a & 0xffffff);
+  L->s_vtype = -1; L->s_base = 0xffffffffu;
+  L->c.prims += x->nst; L->c.xf_strips += x->nst;
+  return 0;
+}
+static int xf_draw(const GerBatch *b, int tex, int dz)
 {
   const GerXform *x = (const GerXform *)(F->d + b->first);
-  const VcVert *v = (const VcVert *)(x + 1); const uint16_t *runs = (const uint16_t *)(v + x->nv);
-  if (room() < BATCH_WORDS + 3 * x->nst + RESERVE) return -1;
+  if (x->pad == NGE_MAGIC && dz != GX_DZ_X && dz != GX_DZ_Y) return xf_nge(b, x, tex, dz);   /* native step 1 */
+  const VcVert *v = xvert(x); const uint16_t *runs = xruns(x); uint32_t nst = x->nst;
+  if (dz == GX_DZ_X || dz == GX_DZ_Y) { v = (const VcVert *)L->dz_v; runs = L->dz_runs; nst = L->dz_nst; }
+  if (room() < BATCH_WORDS + 3 * nst + RESERVE) return -1;
   float ts[4] = { x->su, x->sv, x->tu, x->tv };
+  L->dz_bias = dz == GX_DZ_B ? L->dzn : 0;
   xf_setup(x, (b->flags & GERF_FOG) != 0, tex ? ts : 0);
+  L->dz_bias = 0;
   vtype(VT_DF0);
   uint32_t at = 0xffffffffu;
-  for (uint32_t k = 0; k < x->nst; k++) {
+  for (uint32_t k = 0; k < nst; k++) {
     if (runs[2 * k] != at) addr_cmd(C_VADDR, v + runs[2 * k]);
     put(C_PRIM, (uint32_t)G_TRIANGLE_STRIP << 16 | runs[2 * k + 1]); at = (uint32_t)runs[2 * k] + runs[2 * k + 1];
     L->c.prims++; L->c.xf_strips++;
@@ -370,7 +415,8 @@ static int c2_draw(const GerBatch *b, int tex)
   const uint8_t *p0 = F->d + b->first; const GerLit *p = (const GerLit *)p0;
   const GerXform *x = (const GerXform *)(p0 + p->xf); const GerC2 *g = (const GerC2 *)(p0 + p->vtx);
   const int pass = (int)(p->pass & 15);
-  const uint8_t *v = (const uint8_t *)g + g->voff[pass - 1]; const uint16_t *runs = (const uint16_t *)(p0 + p->run);
+  const uint8_t *v = nge_c2v(p->pass, g, GERC2_SIZE(g->skin), g->voff[pass - 1]);   /* native step 2: N-ref, the arena's */
+  const uint16_t *runs = (const uint16_t *)(p0 + p->run);
   if (room() < BATCH_WORDS + C1_WORDS + 3 * p->nst + RESERVE) return -1;
   const uint32_t n0 = L->n;
   if (L->s_xf != &IDW) { put(C_WORLDN, 0); for (int k = 0; k < 12; k++) putf(C_WORLDD, ID12[k]); L->s_xf = &IDW; }
@@ -473,12 +519,277 @@ static int cut_draw(const GerBatch *b, int asc, int cw, int ch)
   return 0;
 }
 
+/* ---- gl29 (MGS2_GL_DZ; gelist.h): the depth arms for the 0x42 decals.  The pairing's keys and triangles live in aux below its lowest
+   byte, not taken (nothing is put while they are in use; the next aux_get may take the same bytes); X and Y's vertex copy is taken
+   (aux_get), so both passes draw it.  gl30: the cheap reject, XS (subset bases) and the linear uv / colour work (dz_pair) ---- */
+typedef uint64_t DzK;   /* a position as one ordered key: x, y, z (each s16 ^ 0x8000) from the top */
+static int is42(const GerBatch *b) { return (b->flags & GERF_BLEND) && ((b->ba | b->bb << 2 | b->bc << 4 | b->bd << 6) & 0xff) == 0x42; }
+static DzK dz_key(const VcVert *v)
+{
+  return (uint64_t)(uint16_t)(v->x ^ 0x8000) << 32 | (uint32_t)(uint16_t)(v->y ^ 0x8000) << 16 | (uint16_t)(v->z ^ 0x8000);
+}
+static int dz_c(DzK k, int s) { return (int)((k >> s) & 0xffff) - 0x8000; }   /* a key's component (s 32 x, 16 y, 0 z) */
+static int dz_eq(DzK d, DzK b, const int *o) { return dz_c(d, 32) - dz_c(b, 32) == o[0] && dz_c(d, 16) - dz_c(b, 16) == o[1] && dz_c(d, 0) - dz_c(b, 0) == o[2]; }
+static void *dz_tmp(uint32_t top, uint32_t bytes)   /* scratch below aux byte top (16-byte aligned; never below the list's words) */
+{
+  if (bytes > top) return 0;
+  uint32_t at = (top - bytes) & ~15u;
+  return at < (L->shared ? 4 * (L->n + RESERVE) : 0) ? 0 : L->aux + at;
+}
+static void dz_sortk(DzK *a, uint32_t n)   /* ascending (shell sort: no libc) */
+{
+  for (uint32_t g = n / 2; g; g /= 2)
+    for (uint32_t i = g; i < n; i++) { DzK t = a[i]; uint32_t j = i; while (j >= g && a[j - g] > t) { a[j] = a[j - g]; j -= g; } a[j] = t; }
+}
+static uint32_t dz_uniq(DzK *a, uint32_t n) { uint32_t m = 0; for (uint32_t i = 0; i < n; i++) if (!m || a[m - 1] != a[i]) a[m++] = a[i]; return m; }
+static int dz_tlt(const DzK *a, const DzK *b) { return a[0] != b[0] ? a[0] < b[0] : a[1] != b[1] ? a[1] < b[1] : a[2] < b[2]; }
+static void dz_sortt(DzK *a, uint32_t n)   /* n triangles of 3 keys, ascending */
+{
+  for (uint32_t g = n / 2; g; g /= 2)
+    for (uint32_t i = g; i < n; i++) {
+      DzK t[3] = { a[3 * i], a[3 * i + 1], a[3 * i + 2] }; uint32_t j = i;
+      while (j >= g && dz_tlt(t, a + 3 * (j - g))) { a[3 * j] = a[3 * (j - g)]; a[3 * j + 1] = a[3 * (j - g) + 1]; a[3 * j + 2] = a[3 * (j - g) + 2]; j -= g; }
+      a[3 * j] = t[0]; a[3 * j + 1] = t[1]; a[3 * j + 2] = t[2];
+    }
+}
+static uint32_t dz_tuniq(DzK *a, uint32_t n)
+{
+  uint32_t m = 0;
+  for (uint32_t i = 0; i < n; i++)
+    if (!m || a[3 * m - 3] != a[3 * i] || a[3 * m - 2] != a[3 * i + 1] || a[3 * m - 1] != a[3 * i + 2]) {
+      a[3 * m] = a[3 * i]; a[3 * m + 1] = a[3 * i + 1]; a[3 * m + 2] = a[3 * i + 2]; m++; }
+  return m;
+}
+static uint32_t dz_ntri(const uint16_t *r, uint32_t nst)   /* the strips' triangles, at most */
+{
+  uint32_t n = 0;
+  for (uint32_t s = 0; s < nst; s++) if (r[2 * s + 1] > 2) n += r[2 * s + 1] - 2u;
+  return n;
+}
+static uint32_t dz_tris(const VcVert *v, const uint16_t *r, uint32_t nst, DzK *o)   /* the strips' triangles with three distinct positions,
+                                                                                       each's keys ascending: how many */
+{
+  uint32_t n = 0;
+  for (uint32_t s = 0; s < nst; s++)
+    for (uint32_t k = r[2 * s] + 2u; k < (uint32_t)r[2 * s] + r[2 * s + 1]; k++) {
+      DzK a = dz_key(v + k - 2), b = dz_key(v + k - 1), c = dz_key(v + k), t;
+      if (a == b || b == c || a == c) continue;
+      if (a > b) { t = a; a = b; b = t; }
+      if (b > c) { t = b; b = c; c = t; }
+      if (a > b) { t = a; a = b; b = t; }
+      o[3 * n] = a; o[3 * n + 1] = b; o[3 * n + 2] = c; n++;
+    }
+  return n;
+}
+/* gl30 (gl30_plan.md 1): the cheap reject: one of the n vertices at cv within the offset limit (64 on each axis) of p.  Every base, exact
+   or subset, has one (p minus the offset), so a candidate without one is neither */
+static int dz_near(const VcVert *cv, uint32_t n, const VcVert *p)
+{
+  const int x = p->x, y = p->y, z = p->z;
+  for (uint32_t k = 0; k < n; k++)
+    if ((uint32_t)(cv[k].x - x + 64) <= 128u && (uint32_t)(cv[k].y - y + 64) <= 128u && (uint32_t)(cv[k].z - z + 64) <= 128u) return 1;
+  return 0;
+}
+static int dz_s16(int a) { return a >= -32768 && a <= 32767; }
+static DzK dz_mk(int x, int y, int z) { return (uint64_t)(uint16_t)(x ^ 0x8000) << 32 | (uint32_t)(uint16_t)(y ^ 0x8000) << 16 | (uint16_t)(z ^ 0x8000); }
+/* gl30: key k moved by s times the offset o (s -1: minus, 1: plus), component by component, in *r: 0 when a component leaves s16 (then no
+   position of the other side lies there).  Moving every key by one offset keeps their order and each triangle's */
+static int dz_mv(DzK k, const int *o, int s, DzK *r)
+{
+  const int x = dz_c(k, 32) + s * o[0], y = dz_c(k, 16) + s * o[1], z = dz_c(k, 0) + s * o[2];
+  if (!dz_s16(x) || !dz_s16(y) || !dz_s16(z)) return 0;
+  *r = dz_mk(x, y, z); return 1;
+}
+/* gl30 XS: the nd keys d (ascending, distinct) minus o all among the nb keys b (ascending, distinct): a merge join */
+static int dz_vin(const DzK *d, uint32_t nd, const DzK *b, uint32_t nb, const int *o)
+{
+  uint32_t j = 0; DzK s;
+  for (uint32_t k = 0; k < nd; k++) {
+    if (!dz_mv(d[k], o, -1, &s)) return 0;
+    while (j < nb && b[j] < s) j++;
+    if (j == nb || b[j] != s) return 0;
+    j++;
+  }
+  return 1;
+}
+/* gl30 XS: the nd triangles d (3 keys each, ascending, distinct) minus o all among the nb triangles b: a merge join */
+static int dz_tin(const DzK *d, uint32_t nd, const DzK *b, uint32_t nb, const int *o)
+{
+  uint32_t j = 0; DzK s[3];
+  for (uint32_t k = 0; k < nd; k++) {
+    if (!dz_mv(d[3 * k], o, -1, &s[0]) || !dz_mv(d[3 * k + 1], o, -1, &s[1]) || !dz_mv(d[3 * k + 2], o, -1, &s[2])) return 0;
+    while (j < nb && dz_tlt(b + 3 * j, s)) j++;
+    if (j == nb || b[3 * j] != s[0] || b[3 * j + 1] != s[1] || b[3 * j + 2] != s[2]) return 0;
+    j++;
+  }
+  return 1;
+}
+/* X / Y for decal batch i (pass 0): its base found and its vertex copy made in aux (L->dz_v, dz_runs, dz_nst): 0, -1 (gl30 XS, arm X
+   only: no exact base, a subset base drawn the Y way), or 1 + GX_DZF_*.
+   gl30 (gl30_plan.md 1-3): the same nearest-first walk, exact bases and fallback reasons as gl29's, with (1) the cheap reject (dz_near)
+   before a candidate's keys are made: a rejected one counts as gl29 counted it (matrix words differ: MAT, else VSET), its 34 words compared
+   only while that can still raise the reason; (2) XS: when no candidate is an exact base, the nearest same-matrix one whose distinct
+   positions contain the decal's after one offset (|o| <= 64 each; of those that fit, the smallest largest component, the first in key
+   order on a tie), and whose triangle set contains the decal's after it: the decal's own vertices and strips, each position the base's
+   (the decal's minus the offset), as Y; (3) the uv / colour check and copy by sorted (key, index) arrays and a merge join, in scratch
+   below the bytes aux_get gives the copy next */
+static int dz_pair(uint32_t i, const GerXform *x, int arm)
+{
+  const VcVert *dv = xvert(x); const uint16_t *dr = xruns(x);   /* (native step 1: the accessors) */
+  uint32_t nd = x->nv, ndt = dz_ntri(dr, x->nst), lo = i > 64 ? i - 64 : 0, j, k, m;
+  int why = GX_DZF_BASE, off[3] = { 0, 0, 0 }, soff[3] = { 0, 0, 0 }, sn = 65;
+  const GerXform *bx = 0, *sx = 0;
+  if (nd < 3) return 1 + GX_DZF_BASE;
+  DzK *dk = (DzK *)dz_tmp(L->alow, 8 * (nd + 3 * ndt)), *dt;
+  if (!dk) return 1 + GX_DZF_ROOM;
+  dt = dk + nd;
+  for (k = 0; k < nd; k++) dk[k] = dz_key(dv + k);
+  dz_sortk(dk, nd); nd = dz_uniq(dk, nd);
+  ndt = dz_tris(dv, dr, x->nst, dt); dz_sortt(dt, ndt); ndt = dz_tuniq(dt, ndt);
+  const uint32_t top = (uint32_t)((uint8_t *)dk - L->aux);
+  for (j = i; j-- > lo; ) {   /* the nearest earlier batch that is its base */
+    const GerBatch *c = &F->b[j];
+    if (c->kind != GERK_XFORM || !(c->flags & GERF_ZWRITE) || is42(c)) continue;
+    const GerXform *cx = (const GerXform *)(F->d + c->first);
+    if (!same_w(cx->world + 9, x->world + 9, 3)) continue;   /* (the translation first) */
+    const VcVert *cv = xvert(cx); const uint16_t *cr = xruns(cx);
+    if (!dz_near(cv, cx->nv, dv)) {   /* gl30: the cheap reject */
+      if (why < GX_DZF_VSET) { const int r = same_w(cx->world, x->world, 34) ? GX_DZF_VSET : GX_DZF_MAT; if (why < r) why = r; }
+      continue;
+    }
+    if (!same_w(cx->world, x->world, 34)) { if (why < GX_DZF_MAT) why = GX_DZF_MAT; continue; }   /* world, proj, vs, vo */
+    uint32_t nb = cx->nv, nbt = dz_ntri(cr, cx->nst);
+    DzK *bk = (DzK *)dz_tmp(top, 8 * (nb + 3 * nbt)), *bt;
+    if (!bk) { why = GX_DZF_ROOM; break; }
+    bt = bk + nb;
+    for (k = 0; k < nb; k++) bk[k] = dz_key(cv + k);
+    dz_sortk(bk, nb); nb = dz_uniq(bk, nb);
+    int ok = nb == nd, tris = 0;
+    if (ok) {   /* one offset: the smallest keys' (the order of the keys is the order of the offset ones) */
+      off[0] = dz_c(dk[0], 32) - dz_c(bk[0], 32); off[1] = dz_c(dk[0], 16) - dz_c(bk[0], 16); off[2] = dz_c(dk[0], 0) - dz_c(bk[0], 0);
+      ok = off[0] >= -64 && off[0] <= 64 && off[1] >= -64 && off[1] <= 64 && off[2] >= -64 && off[2] <= 64;
+      for (k = 1; ok && k < nd; k++) ok = dz_eq(dk[k], bk[k], off);
+    }
+    if (ok) {
+      nbt = dz_tris(cv, cr, cx->nst, bt); dz_sortt(bt, nbt); nbt = dz_tuniq(bt, nbt); tris = 1;
+      ok = nbt == ndt;
+      for (k = 0; ok && k < 3 * ndt; k++) ok = dz_eq(dt[k], bt[k], off);
+      if (ok) { bx = cx; break; }
+      if (why < GX_DZF_TRI) why = GX_DZF_TRI;
+    } else if (why < GX_DZF_VSET) why = GX_DZF_VSET;
+    if (arm == GX_DZ_X && !sx && nb >= nd)   /* gl30 XS: is it a subset base?  Each offset that puts the decal's smallest key on a base key */
+      for (k = 0; k < nb; k++) {
+        int o[3] = { dz_c(dk[0], 32) - dz_c(bk[k], 32), dz_c(dk[0], 16) - dz_c(bk[k], 16), dz_c(dk[0], 0) - dz_c(bk[k], 0) }, a = 0;
+        for (m = 0; m < 3; m++) { const int e = o[m] < 0 ? -o[m] : o[m]; if (e > a) a = e; }
+        if (a > 64 || a >= sn || !dz_vin(dk, nd, bk, nb, o)) continue;
+        if (!tris) { nbt = dz_tris(cv, cr, cx->nst, bt); dz_sortt(bt, nbt); nbt = dz_tuniq(bt, nbt); tris = 1; }
+        if (!dz_tin(dt, ndt, bt, nbt, o)) continue;
+        soff[0] = o[0]; soff[1] = o[1]; soff[2] = o[2]; sn = a;
+      }
+    if (sn <= 64 && !sx) sx = cx;
+  }
+  if (!bx && !sx) return 1 + why;
+  if (!bx) {   /* gl30 XS (the Y way): the decal's vertex on its base position */
+    VcVert *o = (VcVert *)aux_get(x->nv * (uint32_t)sizeof(VcVert), BATCH_WORDS + 3 * x->nst + 16);
+    if (!o) return 1 + GX_DZF_ROOM;
+    for (k = 0; k < x->nv; k++) {
+      o[k] = dv[k]; o[k].x = (int16_t)(dv[k].x - soff[0]); o[k].y = (int16_t)(dv[k].y - soff[1]); o[k].z = (int16_t)(dv[k].z - soff[2]); }
+    L->dz_v = o; L->dz_runs = dr; L->dz_nst = x->nst; L->dc.aux += x->nv * (uint32_t)sizeof(VcVert);
+    return -1;
+  }
+  const VcVert *bv = xvert(bx); const uint16_t *br = xruns(bx);
+  const uint32_t n = arm == GX_DZ_X ? bx->nv : x->nv, nst = arm == GX_DZ_X ? bx->nst : x->nst, cb = n * (uint32_t)sizeof(VcVert);
+  /* gl30: (key, index) of the decal's vertices (and X: of the base's moved by the offset), sorted, in scratch below the copy's bytes
+     (aux_get's own rule puts it at aux + at) */
+  if (x->nv > 0xffffu || n > 0xffffu || cb > L->alow) return 1 + GX_DZF_ROOM;
+  const uint32_t at = (L->alow - cb) & ~15u;
+  DzK *da = (DzK *)dz_tmp(at, 8 * (x->nv + (arm == GX_DZ_X ? n : 0))), *ba;
+  if (!da) return 1 + GX_DZF_ROOM;
+  ba = da + x->nv;
+  for (k = 0; k < x->nv; k++) da[k] = dz_key(dv + k) << 16 | k;
+  dz_sortk(da, x->nv);
+  for (k = 1; k < x->nv; k++)   /* the decal's vertices on one position: one uv and colour (neighbours in key order) */
+    if (da[k] >> 16 == da[k - 1] >> 16) {
+      const VcVert *p = dv + (uint32_t)(da[k] & 0xffffu), *q = dv + (uint32_t)(da[k - 1] & 0xffffu);
+      if (p->u != q->u || p->v != q->v || p->c != q->c) return 1 + GX_DZF_ATTR;
+    }
+  VcVert *o = (VcVert *)aux_get(cb, BATCH_WORDS + 3 * nst + 16);
+  if (!o) return 1 + GX_DZF_ROOM;
+  if (arm == GX_DZ_X) {   /* the base's vertex (position and pad) with the uv and colour of the decal's vertex on its position: the first in
+                             the decal's order, as gl29's scan took it (equal keys sort by index) */
+    uint32_t nba = 0; DzK s;
+    for (k = 0; k < n; k++) { o[k] = bv[k]; if (dz_mv(dz_key(bv + k), off, 1, &s)) ba[nba++] = s << 16 | k; }
+    dz_sortk(ba, nba);
+    for (k = 0, m = 0; k < nba; k++) {
+      while (m < x->nv && da[m] >> 16 < ba[k] >> 16) m++;
+      if (m < x->nv && da[m] >> 16 == ba[k] >> 16) {
+        const VcVert *p = dv + (uint32_t)(da[m] & 0xffffu); VcVert *t = o + (uint32_t)(ba[k] & 0xffffu);
+        t->u = p->u; t->v = p->v; t->c = p->c; }
+    }
+  } else   /* Y: the decal's vertex on the base's position */
+    for (k = 0; k < n; k++) {
+      o[k] = dv[k]; o[k].x = (int16_t)(dv[k].x - off[0]); o[k].y = (int16_t)(dv[k].y - off[1]); o[k].z = (int16_t)(dv[k].z - off[2]); }
+  L->dz_v = o; L->dz_runs = arm == GX_DZ_X ? br : dr; L->dz_nst = nst; L->dc.aux += cb;
+  return 0;
+}
+/* the arm batch i gets: pass 0 chooses (and counts), pass 1 takes pass 0's; O for every batch that is not a target */
+static int dz_batch(uint32_t i, const GerBatch *b, int pass)
+{
+  if (!(b->flags & GERF_ZTEST) || !is42(b)) return GX_DZ_O;
+  if (b->kind != GERK_XFORM) { if (!pass) L->dc.noth++; return GX_DZ_O; }
+  if (pass) return L->dz_i == i ? L->dz_got : GX_DZ_O;
+  L->dc.n42++; L->dz_i = i; L->dz_got = GX_DZ_O;
+  const int a = L->dz;
+  if (a == GX_DZ_X || a == GX_DZ_Y) {
+    const int r = dz_pair(i, (const GerXform *)(F->d + b->first), a);
+    if (r > 0) { L->dc.fb[r - 1]++; return GX_DZ_O; }
+    if (r < 0) L->dc.nsub++; else L->dc.npair++;   /* gl30: XS counted on its own */
+  } else if (a == GX_DZ_B && L->dzn > 0) L->dc.nbias++;
+  else if (a == GX_DZ_W) L->dc.nw++;
+  else return GX_DZ_O;
+  return L->dz_got = a;
+}
+static const char *dz_num(const char *s, long *v)   /* gx_dz_parse: a decimal number of 1-9 digits: the text after it, or 0 */
+{
+  long a = 0; int k = 0;
+  while (*s >= '0' && *s <= '9' && k < 9) { a = a * 10 + (*s++ - '0'); k++; }
+  if (!k || (*s >= '0' && *s <= '9')) return 0;
+  *v = a; return s;
+}
+int gx_dz_parse(const char *s, GxDzSched *t)
+{
+  t->n = 0;
+  if (!s) return -1;
+  for (;;) {
+    long a = 0, b = 0, n = 0; int arm; char c;
+    if (t->n >= GX_DZ_MAX || !(s = dz_num(s, &a)) || *s++ != ':' || !(s = dz_num(s, &b)) || *s++ != ':' || b < a) break;
+    c = *s++;
+    if (c == 'O') arm = GX_DZ_O; else if (c == 'X') arm = GX_DZ_X; else if (c == 'Y') arm = GX_DZ_Y; else if (c == 'W') arm = GX_DZ_W;
+    else if (c == 'B' && (s = dz_num(s, &n)) && n >= 1 && n <= 255) arm = GX_DZ_B;
+    else break;
+    t->e[t->n].vb0 = (int32_t)a; t->e[t->n].vb1 = (int32_t)b; t->e[t->n].arm = (int16_t)arm; t->e[t->n].n = (int16_t)n; t->n++;
+    if (*s == ',') { s++; continue; }
+    if (!*s || *s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') return t->n;
+    break;
+  }
+  t->n = 0; return -1;
+}
+int gx_dz_arm(const GxDzSched *t, long fvb, int *n, int *k)
+{
+  for (int j = 0; j < t->n; j++)
+    if (fvb >= t->e[j].vb0 && fvb <= t->e[j].vb1) { if (n) *n = t->e[j].n; if (k) *k = j; return t->e[j].arm; }
+  if (n) *n = 0;
+  if (k) *k = -1;
+  return GX_DZ_O;
+}
+
 /* one batch; pass 1 is the second pass of an AFAIL FB_ONLY draw: the pixels that fail the alpha test, colour only */
 static int gx_batch(uint32_t i, int pass)
 {
   const GerBatch *b = &F->b[i];
   if (b->kind == GERK_THROUGH && (b->entry == DF0_ENTRY || b->entry == FX_ENTRY)) return 0;
   if (room() < BATCH_WORDS + RESERVE) return -1;
+  const int dz = L->dz ? dz_batch(i, b, pass) : GX_DZ_O;   /* gl29: MGS2_GL_DZ's arm (L->dz 0: gl28's words) */
   const uint32_t lpass = b->kind == GERK_LIT ? ((const GerLit *)(F->d + b->first))->pass : 0;
   const int c1 = (lpass & (GERL_C1 | GERL_C2)) != 0;   /* sb11 C1, sb12 C2 */
   if (!c1 && (L->s_light == 1 || L->s_tmap || (!L->s_vid && b->kind != GERK_THROUGH))) {
@@ -509,15 +820,15 @@ static int gx_batch(uint32_t i, int pass)
     int ref = b->aref >= 0x80 ? 0xff : b->aref * 2, fn = pass ? ATINV[b->atst & 7] : ATMAP[b->atst & 7], sig = fn << 8 | ref;
     if (L->s_afunc != sig) { put(C_AFUNC, (uint32_t)(fn | ref << 8 | 0xff << 16)); L->s_afunc = sig; }
   }
-  int zt = (b->flags & GERF_ZTEST) != 0;
+  int zt = (b->flags & GERF_ZTEST) != 0, zf = dz == GX_DZ_W ? G_ALWAYS : ZTMAP[b->ztst & 3];   /* gl29: W's test ALWAYS */
   en(C_ZTEST, zt, &L->s_zt);
-  if (zt && L->s_zfunc != ZTMAP[b->ztst & 3]) { put(C_ZFUNC, ZTMAP[b->ztst & 3]); L->s_zfunc = ZTMAP[b->ztst & 3]; }
-  int zw = (b->flags & GERF_ZWRITE) && !pass;
+  if (zt && L->s_zfunc != zf) { put(C_ZFUNC, (uint32_t)zf); L->s_zfunc = zf; }
+  int zw = ((b->flags & GERF_ZWRITE) && !pass) || dz == GX_DZ_W;   /* gl29: W writes its depth in both passes */
   if (L->s_zmask != zw) { put(C_ZMASK, zw ? 0u : 1u); L->s_zmask = zw; }
   if (b->kind == GERK_XFORMF || L->s_clip == 1) en(C_CLIP, b->kind == GERK_XFORMF, &L->s_clip);   /* the GE's depth clamp for the effects */
   L->c.batches++;
   if (b->kind == GERK_XFORMF) return fx_draw(b, tex);
-  if (b->kind == GERK_XFORM) return xf_draw(b, tex);
+  if (b->kind == GERK_XFORM) return xf_draw(b, tex, dz);
   if (b->kind == GERK_LIT) return c1 ? ((lpass & GERL_C2) ? c2_draw(b, tex) : c1_draw(b, tex)) : lit_draw(b, tex);
   en(C_FOG, 0, &L->s_fog);
   if (cut == 1) return cut_draw(b, 1, 0, 16);   /* top-left first, 16-row tiles (v3's fastest exact cut) */
@@ -553,10 +864,17 @@ int gx_frame(GxList *l, const GxHost *h, GxFrame *f, int draw)
   for (int j = 0; j < 3; j++) { l->s_len[j] = -1; l->s_have_l[j] = 0; }
   l->s_c1g = l->s_vx = 0;
   l->s_matupd = -1; l->s_emis = 0; l->s_have_emis = 0;   /* sb12 C2 */
+  memset(&l->dc, 0, sizeof l->dc); l->dz_i = 0xffffffffu; l->dz_got = 0; l->dz_v = 0; l->dz_runs = 0; l->dz_nst = 0; l->dz_bias = 0;   /* gl29 */
+  for (int k = 0; k < GX_T_N; k++) l->t_k[k] = 0;   /* gl38: the build's split */
+  for (int k = 0; k < 4; k++) l->n_k[k] = 0;
+  l->n_chg = 0;
+  uint32_t tc = l->clk ? ME_CALLP(l->clk)() : 0; int tkind = -1;
+#define GX_T(k) do { if (l->clk) { const uint32_t t_ = ME_CALLP(l->clk)(); l->t_k[k] += t_ - tc; tc = t_; } } while (0)
   if (l->cap < 128 || l->cap_aux < 64) return -1;
   /* the frame's depth: the through vertices in place */
   if (f->zs != 1 || f->zo != 0)
     for (uint32_t i = 0; i < f->nv; i++) { float z = f->v[i].z * f->zs + f->zo; f->v[i].z = z < 0 ? 0 : z > 65535 ? 65535 : z; }
+  GX_T(GX_T_DEPTH);
   /* the set-up (the player's init and frame start): 8888 buffers 512 a row, the 480 x 272 screen at 2048, 2048, depth range 65535..0
      (sceGuDepthRange(65535, 0)), the scissor, no lighting, culling, depth clamp or fog, linear filtering, the view matrix identity */
   uint32_t fbr = h->fb[draw];
@@ -579,15 +897,20 @@ int gx_frame(GxList *l, const GxHost *h, GxFrame *f, int draw)
     put(C_CLEAR, (1 | 4) << 8 | 1); vtype(VT_CLEAR); addr_cmd(C_VADDR, q); put(C_PRIM, (uint32_t)G_SPRITES << 16 | 2); put(C_CLEAR, 0);
   }
   int r = 0;
+  GX_T(GX_T_SETUP);
   for (uint32_t i = 0; i < f->nb; i++) {
+    { const int k = f->b[i].kind & 3; if (k != tkind) { if (tkind >= 0) GX_T(GX_T_KIND + tkind); tkind = k; l->n_chg++; } l->n_k[k]++; }
     if (gx_batch(i, 0)) { l->c.dropped++; r = -1; continue; }
     if (f->b[i].twopass && (f->b[i].flags & GERF_ATEST)) { if (gx_batch(i, 1)) { l->c.dropped++; r = -1; } else l->c.passes2++; }
   }
+  if (tkind >= 0) GX_T(GX_T_KIND + tkind);
   if (l->s_fog == 1) put(C_FOG, 0);
   if (l->s_clip == 1) put(C_CLIP, 0);
   if (l->s_tmap) put(C_TMAP, 0);   /* sb11 C1: sceGuInit's mode again, and no lighting (sb12: C1's mode or C2's) */
   if (l->s_light == 1) put(C_LIGHTING, 0);
   if (l->ret) put(C_RET, 0); else { put(C_FINISH, 0); put(C_END, 0); }
   l->c.words = l->n; l->c.aux = l->naux;
+  GX_T(GX_T_TAIL);
+#undef GX_T
   return r;
 }

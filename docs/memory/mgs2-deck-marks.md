@@ -1,0 +1,20 @@
+---
+name: mgs2-deck-marks
+description: MGS2 PSP-only flickering deck shadow marks during Snake's walk: CAUSE FOUND 2026-11-20 (real-GE depth test drops the 0x42 shadow decal), what was ruled out, gl29 test/fix direction
+metadata:
+  type: project
+  modified: 2026-11-20T23:25:00.000Z
+---
+
+- Symptom (Ffm 2026-11-19 19:52, 2026-11-20): black "strips and bands, like flickering" on the deck floor ONLY while Snake walks deck -> deck door (vb ~30,500-31,400); "its the shadows 100%". Emulator never shows it.
+- CAUSE [C data, mechanism partly I] (workflow wf_f915f6ac-dc6, 2026-11-20 15:00; files scratchpad g28m/, verify_h1.json): on the real GE the deck SHADOW DECALS (blend sig 0x42 = REVSUB Cd-Cs*As, tex 79 CLUT4 etc.; all texel alpha <0x80 so every shadow pixel is pass 1: ATINV LESS 0x80, Z write off, ZTEST GEQUAL vs the base deck) are REJECTED BY THE DEPTH TEST in patches. Decal = its base's triangles +5 s16 model y, same world matrix (pairs 792:808 .. 796:812); lead only 14-36 GE units at 30500 (0.31 at 31046). The PSP picture LACKS ~34k px of shadow while Snake waits (stable, no flicker: shot_29500/30500 bit-identical in gl18me/gl26/gl28, masks IoU 0.89); during the walk the missing patches move every frame, so the shadow pops in/out = Ffm's black flicker (black = shadow coming back). Present since gl18me at least.
+- RULED OUT [C]: ME, GE2, TWO, turn type, flip race (gl27 fixed a real one, not this), dcache/memory lifetime (main turns serialized, digests 201/201 = twin), texture/CLUT sampling (30518 clean with same map/texture), depth-map jumps H2, depth-blur ordering, stencil.
+- Open [I]: why the GE's z differs. Not per-vertex rounding (holes static under sub-pixel sway); likely z-gradient/setup or interpolation quantisation on big triangles.
+- FIX DIRECTION: exact fix = draw each 0x42 decal from its BASE's vertex positions and strip order (z bit-identical, GEQUAL passes exactly where the base shows, no bleeding; b808/b811 order differs from base). Fallback: bias in PS2 depth units for 0x42 pass 1 only, vp[5]=(vo2+kappa)*zs+zo (gelist.c:154); a constant GE-unit bias is WRONG (GE units/PS2 unit vary 87x fine vs coarse map). Test in ONE PSP run during the static wait (29006-30500): kappa 0/64/128/256/512, ZFUNC ALWAYS, + Z-buffer dump at the drained shots (MGS2_GL_ZDUMP, uncached 0x44000000+GL_ZB) vs PPSSPP Z. Metric: T=6 luma inside tex-79 coverage (T=12 misses most: fogged darkening ~12.6).
+- gl28 diagnostics + reader attic/gl28/rd28.py (R windows there).
+- gl29 spec + build: mgs2/main/attic/gl29/ (gl29_plan.md, report.md, rd29.py); MGS2_GL_DZ per-frame arms O/X/Y/W/B<n>.
+- History: attic/gl28/marks_crit.md, marks_plan.md.
+- gl29 RUN 1 READ (17:06, power stop vb ~30,760): wait pairs PSP vs emulator: O ~34.6k lighter px; X/W/Y/B2+ 13.5-16.9k, all of it the previous O frame at 0.50 via the motion trail -> X restores ALL shadow in its own frame; B1 30.2k. X list time: walk ME 56.9 vs O 48.1 ms [C gl29]. Scripts scratchpad r29/.
+- gl29x RUN 1 READ (2026-11-20 18:19-18:52, stopped vb ~31,040 = power stop): no R; 20/20 walk captures to 30987 = emulator (no clusters); live_31012 (frame 31006) lost a 3.9k px patch inside 0x42 = the VERTEX-SET FALLBACK decals X can't pair, drawn O (2 a frame, 3-6 in 131 frames, more from 30,984). Ffm: 'looked good, not 100% sure'. Next: fix those fallbacks + cheap pairing, then X default. Notes psp_harness.md 'Build gl29x'.
+- gl30 RUN 1 READ (2026-11-20 21:16-21:55, plugin ON, ran to the end): EXACT (62 hashes, 916 digests = twin), subset pairing 1,941 + paired 10,306, fallbacks 0; NO hole patch in 36 walk captures (live_31012 fixed); ME hooks ~4 ms a frame cheaper than gl29x [C]. Ffm: shadows came late after the codec = O before vb 29,490 -> gl31 X for the whole run (deviation: shadows shift under 1 px). Notes psp_harness.md 'Build gl30'.
+- FFM 2026-11-20 23:20: shadows 'can be a bit lighter and softer' 23:26 Ffm: note it, don't go off track now -> later (a switch, ~3/4 strength + softer edges, calibrated on r29cap/).

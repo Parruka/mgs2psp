@@ -163,6 +163,9 @@ struct GuMap {
 
   int dt_hit[2]; uint32_t dt_clock;   /* the two drawn areas found last; a clock for the least recently drawn */
   DlE dl[2];                   /* gu_drawn's last two calls with an area, as given, and the area (-1: none) */
+  /* gl35 (gsup.h gu_keep_mark): dgen moves whenever anything gu_drawn's kept return reads may change (dl[], an area's dirty flag,
+     settle's condition); dcn / dkn: gu_drawn's calls and kept returns since the mark, dkl: the kept returns' areas */
+  uint32_t dgen; int dcn, dkn; int16_t dkl[2];
   int keys, zero_empty;
   struct GuSrc *srct; uint32_t nsrc, capsrc;
   int ldid; uint32_t itclk; ItE it[IT_N];   /* sb9 0b: gu_ld_ident's mode, a clock for the table's uses and the loads kept by identity */
@@ -488,7 +491,7 @@ static void told(GuMap *m, uint32_t bn, uint32_t ln)
 #ifdef GU_DEVCNT
     if (e->dirty) DC.dtm_already++; else DC.dtm_set++;
 #endif
-    e->dirty = 1; m->dtm[bn] &= (uint16_t)~(1u << k);
+    e->dirty = 1; m->dgen++; m->dtm[bn] &= (uint16_t)~(1u << k);
     if (e->ntl < TL_N) e->tl[e->ntl++] = (uint16_t)bn; else e->over = 1;
   }
 }
@@ -576,6 +579,7 @@ static void commit(GuMap *m, int xi)
 {
   Rec *x = &m->r[xi];
   if (x->in) return;
+  m->dgen++;   /* gl35 */
   if (x->got < x->need && !x->bad) m->st.early++;
   x->in = 1; m->seq++; DC_(commits);
   cover(m, xi);
@@ -926,6 +930,7 @@ static uint8_t *local_copy(GuMap *m, const Rec *x, uint64_t b, uint64_t p)
 }
 void gu_trxdir(GuMap *m, const uint64_t *gr)
 {
+  m->dgen++;   /* gl35 */
   uint64_t b = gr[0x50], p = gr[0x51], r = gr[0x52]; int dir = (int)(gr[0x53] & 3), w = (int)(r & 0xfff), h = (int)(r >> 32 & 0xfff);
   if (m->cur >= 0) {   /* the transfer before ends; one whose data did not all come goes into the blocks as gsup.c holds it */
     commit(m, m->cur);
@@ -979,6 +984,7 @@ void gu_trxdir(GuMap *m, const uint64_t *gr)
 }
 void gu_image(GuMap *m, uint32_t ee, uint32_t n)
 {
+  m->dgen++;   /* gl35 */
   if (m->cur < 0) { m->st.image_orphan++; return; }
   Rec *x = &m->r[m->cur];
   if (x->got >= x->need) { m->st.image_orphan++; return; }
@@ -997,6 +1003,7 @@ void gu_image(GuMap *m, uint32_t ee, uint32_t n)
 }
 void gu_image_run(GuMap *m, uint32_t ee, uint32_t n)
 {
+  m->dgen++;   /* gl35 */
   while (n) {
     if (m->cur < 0 || m->r[m->cur].got >= m->r[m->cur].need) { m->st.image_orphan += n / 16; return; }
     const Rec *x = &m->r[m->cur]; uint32_t k = (x->need - x->got + 15) & ~15u;
@@ -1044,15 +1051,18 @@ static void dl_put(GuMap *m, const DlE *d)
 void gu_drawn(GuMap *m, int psm, uint32_t bp, uint32_t bw, uint32_t bits, int x0, int y0, int x1, int y1)
 {
   uint32_t lanes; int ax0 = x0, ay0 = y0, ax1 = x1, ay1 = y1;
-  DC_(drawn_calls);
+  DC_(drawn_calls); m->dcn++;
   for (int j = 0; j < 2; j++) {   /* one of the last two calls again (a frame and a depth buffer): its area, unless a write went into it since */
     const DlE *d = &m->dl[j];
     if (d->k < 0 || d->bp != bp || d->psm != psm || d->x0 != x0 || d->y0 != y0 || d->x1 != x1 || d->y1 != y1 || d->bw != bw || d->bits != bits) continue;
     settle(m);
     DtE *e = &m->dt[d->k];
-    if (!e->dirty) { m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); e->last = ++m->dt_clock; return; }
+    if (!e->dirty) { m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); e->last = ++m->dt_clock;
+      if (m->dkn < 2) m->dkl[m->dkn] = (int16_t)d->k;   /* gl35 */
+      m->dkn++; return; }
     break;
   }
+  m->dgen++;   /* gl35: past the kept return */
   switch (psm) {
     case GS_CT32: case GS_Z32: lanes = (bits & 0xffffffu ? 1 : 0) | (bits & 0x0f000000u ? 2 : 0) | (bits & 0xf0000000u ? 4 : 0); break;
     case GS_CT24: case GS_Z24: lanes = bits & 0xffffffu ? 1 : 0; break;
@@ -1128,6 +1138,18 @@ static void rows(GuMap *m, int li, int csa, int n, int c32)
 }
 static int clut_new(GuMap *m, const uint64_t *gr, uint64_t t0, int *rs, uint32_t rk, uint32_t rt, int n, int c32);
 /* ---- sb9 step 0b (stagec_notes.md 0.4): CLUT loads kept by identity ---- */
+/* gl35, the drawn areas kept for native groups (gsup.h) */
+uint32_t gu_keep_mark(GuMap *m) { m->dcn = m->dkn = 0; return m->dgen; }
+uint32_t gu_dgen(const GuMap *m) { return m->dgen; }
+int gu_keep_got(const GuMap *m, uint32_t gen, int16_t k[2])
+{
+  if (m->dgen != gen || m->dcn != m->dkn || m->dcn < 1 || m->dcn > 2) return 0;
+  k[0] = m->dkl[0]; k[1] = m->dkl[1]; return m->dcn;
+}
+void gu_drawn_again(GuMap *m, int n, const int16_t *k)
+{
+  for (int i = 0; i < n; i++) { DC_(drawn_calls); m->dcn++; m->st.drawn_kept++; DC_(drawn_kept); DC_(drawn_memo); m->dt[k[i]].last = ++m->dt_clock; m->dkn++; }
+}
 void gu_ld_ident(GuMap *m, int mode) { if (mode != m->ldid) { m->ldid = mode; for (int k = 0; k < IT_N; k++) { m->it[k].li = -1; m->it[k].use = 0; } } }
 /* the identity of the records the blocks of load L hold now (L's blocks are those of any load with its parameters): 0, with *sig and each
    block's and lane group's record identity in v (0: empty), when each state is empty or one plain final record (as gu_pages_sig); else 1 */

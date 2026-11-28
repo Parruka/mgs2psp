@@ -1,0 +1,15 @@
+twin.sh: in rc 0, 221 s; split lines: 1
+out_in.log: 685 hash lines, 311 vuh lines; reference /home/claude/main/build_gl42/cfg/hashref_gl42.txt: 685 lines
+compared 685 reference lines (307 with vuh): 26 differ; 0 reference lines not in the log
+  vb 32000: ee 16606467f3cf1e93 (ref a1cac2c12398001c)
+  vb 32200: ee 36df06743c290bc0 (ref d18426ca7c71cde5)
+  vb 32300: ee f12d65456255eeeb (ref 19629646f93b1a02)
+  vb 32600: ee d6f43ebad0982ab0 (ref 78ccef953c025dd1)
+  vb 32700: ee c13ee5c3265c4cc0 (ref 57fa3742a191796d)
+  vb 32800: ee 1540656bc177d1f4 (ref f6e2007ef5abf305)
+  vb 33000: ee ef99d4ae4637f5bb (ref bcdfef788796888c)
+  vb 33200: ee 0cc928bed385fea4 (ref bdc2fe4a2c8e6592)
+  vb 33600: ee 70562801238bfa8e (ref 7b752c5f83c26028)
+  vb 34000: ee 29e15f0ffd69ccb0 (ref a4680830365e9f1a)
+wrote hashref_in.txt
+twin in done rc 1

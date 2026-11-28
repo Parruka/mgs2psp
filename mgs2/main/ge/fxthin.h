@@ -36,12 +36,13 @@
 #include <stdint.h>
 #include "xconv.h"
 
-#define FX_KINDS 4      /* 0: the sheets of drops close to the camera (d_splash_camera.c), 1: the splash at the feet (ft_splsh.c), 2: the
+#define FX_KINDS 9      /* (gl38: 4..8 the rain owners the bound turns tell apart, never thinned: see FxThin.all) 0: the sheets of drops close to the camera (d_splash_camera.c), 1: the splash at the feet (ft_splsh.c), 2: the
                            rain's streaks (rain.c, rain_slow.c; task #154), 3: the rain's sprites (task #161: drawn or left out whole) */
 #define FX_DROPS 512    /* task #161: the rain's sprite blocks a frame (more are drawn: counted in spr_over) */
 #define FX_RANGES 16    /* blocks a frame (more instances are not thinned: counted in over) */
 #define FX_STREAK_BLOCK 0x1290u   /* task #158: a streak block's place: its data (4,736 bytes) and the next block's header, in a row */
 #define FX_CACHE 512    /* (act function, name pointer) pairs (a power of two; the deck has about 140) */
+typedef struct { uint32_t lo, hi, kind; } FxBd;   /* gl38: a rain owner's block and its kind */
 typedef struct FxThin {
   int keep[FX_KINDS];                 /* 1 strip in keep[k] of kind k's calls drawn (1: all; the streaks' 0: none, task #158) */
   int keep_calls;                     /* task #158: 1 in keep_calls of the rain's streak calls drawn, by block (1: all) */
@@ -58,6 +59,11 @@ typedef struct FxThin {
   long tab_blocks, tab_empty, tab_bad, tab_ranges;   /* task #154: the streak actors' tables: blocks taken, entries 0, entries whose
                                          block's header did not look right (not thinned), ranges made of the blocks taken */
   struct { uint32_t lo, hi; } d[FX_DROPS]; int nd;   /* task #161: this frame's rain sprite blocks, sorted and joined (keep[3] 0) */
+  /* gl38 (ge/bound.h): all 1 (the host sets it before a frame's scan): the scan also lists the blocks of the rain's effect owners, each
+     with its kind: 0 the drop sheets, 1 the foot splash, 4 d_splash_fall.c (falling splashes), 5 d_splash_floor.c (floor splashes),
+     6 ripple.c, 7 d_splash_parts_slow.c, 8 d_thunder_parts.c (owners and offsets: rain_options_2026-11-21.md, the rain study's census).
+     Nothing else of the scan changes with it */
+  int all, nb; FxBd b[FX_RANGES]; long b_over, b_bad;
   long spr_none, spr_blocks, spr_bad, spr_over, spr_ranges;   /* task #161: sprite calls left out whole; blocks taken; pointers whose
                                          block's header did not look right (drawn); blocks over FX_DROPS (drawn); ranges after joining */
 } FxThin;

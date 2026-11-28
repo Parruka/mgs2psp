@@ -128,6 +128,21 @@ static void ee_poke(void)               /* dev: MGS2_POKE=<vb>:<addr>:<word>[,..
    stage images' (w00a, d01t: route i's EE dumps at vb 23,850 and 29,850-30,850); the same address in another image is another function,
    so the actor's file name (+0x28) must match too. */
 uint32_t g_half, g_half_step;
+/* gl43 B (boot/native_b43.c): its shadows' counters (the w00a overlay counts here) and the per-turn line */
+long g_b43_n[4][4];   /* per shadow (floor spawn, floor update, fall update, fall dead): shadowed; translated with B on: a poll due, a guard;
+                         calls with B off */
+static void b43_turn(long vb, int i)
+{
+  static int last = -1; static long vb0, n0[4][4]; static int on0;
+  if (i == last) return;
+  if (last >= 0) {
+    long d[4][4]; for (int a = 0; a < 4; a++) for (int b = 0; b < 4; b++) d[a][b] = g_b43_n[a][b] - n0[a][b];
+    if (d[0][0] + d[0][1] + d[0][2] + d[0][3] + d[1][0] + d[1][1] + d[1][2] + d[1][3] + d[2][0] + d[2][1] + d[2][2] + d[2][3] + d[3][0] + d[3][1] + d[3][2] + d[3][3])
+      fprintf(stderr, "b43 turn vb %ld-%ld: B %s; shadowed / a poll due / a guard / B off: floor spawn %ld %ld %ld %ld, floor update %ld %ld %ld %ld, "
+              "fall update %ld %ld %ld %ld, fall dead %ld %ld %ld %ld\n", vb0, vb - 1, on0 ? "on" : "off", d[0][0], d[0][1], d[0][2], d[0][3],
+              d[1][0], d[1][1], d[1][2], d[1][3], d[2][0], d[2][1], d[2][2], d[2][3], d[3][0], d[3][1], d[3][2], d[3][3]); }
+  memcpy(n0, g_b43_n, sizeof n0); vb0 = vb; last = i; on0 = (g_opt2 & OPT2_B43) != 0;
+}
 static const struct { uint32_t act; uint32_t bit; const char *name; } half_tab[] = {
   { 0x25e2e0, 4, "wave.c" },        { 0x260238, 2, "fade_lgt.c" },    { 0x267b58, 1, "ropemain.c" },   { 0x268b70, 1, "ropemain2.c" },  /* d01t */
   { 0x290808, 8, "afterimage.c" },  { 0x292380, 2, "bonbori_yw.c" },  { 0x292b00, 2, "bonbori_red.c" }, { 0x2a7e68, 2, "c_light.c" },
@@ -149,28 +164,29 @@ int rt_half_skip(uint32_t a)            /* 1 = skip this act (the scheduler's ca
    n vblanks each (without a list: all on, then each speedup off alone, then all off), so one run times each speedup against the same scenes.
    sb9: MGS2_OPT2=<hex>: g_opt2 for the whole run; MGS2_OPT2_CYCLE=<hex>,<hex>...: g_opt2 in each of those configurations, in order;
    gl19: MGS2_HALF / MGS2_HALF_CYCLE the same way for g_half (rt_half_skip above) */
+#define OPT_NCFG 128   /* gl41: up to 128 configurations (a word a turn for 74 turns); gl40 and before: 16 */
 static void opt_window(long vb)
 {
-  static uint32_t cfg[16] = { ~0u, ~OPT_GS_BLOCK, ~OPT_POLL_DUE, ~OPT_VIF0_FAST, ~OPT_SPR_BULK, ~OPT_NATIVE, 0 }; static int ncfg = 7;
-  static uint32_t cfg2[16];   /* sb9: g_opt2 in each configuration (MGS2_OPT2_CYCLE; else the run's g_opt2) */
-  static uint32_t cfgh[16];   /* gl19: g_half in each configuration (MGS2_HALF_CYCLE; else MGS2_HALF) */
+  static uint32_t cfg[OPT_NCFG] = { ~0u, ~OPT_GS_BLOCK, ~OPT_POLL_DUE, ~OPT_VIF0_FAST, ~OPT_SPR_BULK, ~OPT_NATIVE, 0 }; static int ncfg = 7;
+  static uint32_t cfg2[OPT_NCFG];   /* sb9: g_opt2 in each configuration (MGS2_OPT2_CYCLE; else the run's g_opt2) */
+  static uint32_t cfgh[OPT_NCFG];   /* gl19: g_half in each configuration (MGS2_HALF_CYCLE; else MGS2_HALF) */
   static long from = -2, n; const char *e;
   if (from == -2) { from = -1; if ((e = getenv("MGS2_OPT"))) g_opt = (uint32_t)strtoul(e, 0, 16);
     if ((e = getenv("MGS2_OPT2"))) g_opt2 = (uint32_t)strtoul(e, 0, 16);
-    for (int i = 0; i < 16; i++) cfg2[i] = g_opt2;
+    for (int i = 0; i < OPT_NCFG; i++) cfg2[i] = g_opt2;
     if ((e = getenv("MGS2_OPT_CYCLE"))) { int k = 0; char *p;
       if (sscanf(e, "%ld:%ld%n", &from, &n, &k) != 2 || n <= 0) from = -1;
-      else if (e[k] == ':') for (p = (char *)e + k, ncfg = 0; (*p == ':' || *p == ',') && ncfg < 16; ) cfg[ncfg++] = (uint32_t)strtoul(p + 1, &p, 16);
+      else if (e[k] == ':') for (p = (char *)e + k, ncfg = 0; (*p == ':' || *p == ',') && ncfg < OPT_NCFG; ) cfg[ncfg++] = (uint32_t)strtoul(p + 1, &p, 16);
       if (!ncfg) from = -1; }
     if ((e = getenv("MGS2_OPT2_CYCLE"))) { char *p = (char *)e;
-      for (int i = 0; i < 16 && *p; i++) { cfg2[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
+      for (int i = 0; i < OPT_NCFG && *p; i++) { cfg2[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
     if ((e = getenv("MGS2_HALF"))) g_half = (uint32_t)strtoul(e, 0, 16);
-    for (int i = 0; i < 16; i++) cfgh[i] = g_half;
+    for (int i = 0; i < OPT_NCFG; i++) cfgh[i] = g_half;
     if ((e = getenv("MGS2_HALF_CYCLE"))) { char *p = (char *)e;
-      for (int i = 0; i < 16 && *p; i++) { cfgh[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
+      for (int i = 0; i < OPT_NCFG && *p; i++) { cfgh[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
     if (g_half || getenv("MGS2_HALF_CYCLE")) fprintf(stderr, "half: MGS2_HALF %x, turns %s (1 ropes, 2 lamps, 4 sea: every other step; 8 trail: off)\n",
                                                       (unsigned)g_half, getenv("MGS2_HALF_CYCLE") ? getenv("MGS2_HALF_CYCLE") : "none"); }
-  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; }
+  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; b43_turn(vb, i); }   /* gl43: b43_turn */
   K_POLL_KICK();                                 /* (OPT_POLL_DUE may have changed) */
 }
 static void k_vblank_hook(int start)
@@ -1119,6 +1135,7 @@ uint64_t g_zt_t1;                               /* dev (dg_exp_call): the time a
    second one, and the shown frame with it). */
 int g_dg_lite; static long dg_shown_vb = -1000000;
 uint32_t g_dg_calls[2];                         /* calls, full / reduced (the PSP harness counts them per step and clears them) */
+#include "nat_stub.h"                           /* native step 1: the 0x1214a0 stub and its records (MGS2_NAT, MGS2_NAT_CYCLE) */
 int rt_dg_call(uint32_t a)
 {
   uint64_t t0; int ok;
@@ -1126,6 +1143,7 @@ int rt_dg_call(uint32_t a)
   t0 = K_NOW(); g_zt_t0 = t0; g_zt = 1; k_poll_arm();
   if ((g_opt & OPT_LITE) && k_vblanks != dg_shown_vb && k_vblanks - dg_shown_vb < 2) g_dg_lite = 1; else dg_shown_vb = k_vblanks;
   g_dg_calls[g_dg_lite]++;
+  g_dg_seq++; g_nat_bseq[NAT_WPB(*(const uint32_t *)(g_mem + 0x1e50a0))] = g_dg_seq;   /* native step 1 (nat_stub.h): no branch added */
 #ifndef __psp__
   if (g_pkt_on) fprintf(stderr, "dgc: vb %ld %d\n", k_vblanks, g_dg_lite | DGC_DEV);   /* dev (MGS2_PKT_HASH window): each call, 1 = reduced (tools/dev/lite_cmp.py) */
 #endif

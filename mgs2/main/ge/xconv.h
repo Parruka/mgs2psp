@@ -82,7 +82,15 @@ typedef struct {
                               GU_LINE_STRIP); 0 (older hosts): not drawn */
   int c4x;                 /* sb15 4x (g_opt2 OPT2_C4X; stagec_notes.md 4.7): 1: P04+25f0 / +2870's strips and polygons from their clip positions
                               (the GerXform's world the identity), an untextured call's UV q not checked; 0 (older hosts): world positions, q checked */
+  int cull;                /* cull study v3 (attic/cull/cull_v3.md; boot/nat_stub.h, psp/xl_psp.c MGS2_NAT_CULL, _CYCLE, MGS2_NAT_CULLCHK):
+                              bit 1 (XC_CULL_FX): a 25f0 / 2870 call is first tested (xconv.c xc_fpos_off): when a bound proves that one
+                              clip plane's flag bit is set on every vertex as the conversion computes it (so every triangle it classes is
+                              trivially rejected and it draws nothing), the conversion is not run and its counters are added as it would
+                              add them.  XC_CULL_CHK: the check mode (the conversion runs anyway; its result, counters and every vertex's
+                              flags are compared with the claim).  0 (older hosts): every call converted */
 } XcHost;
+#define XC_CULL_FX 1
+#define XC_CULL_CHK 0x80
 /* counters since the start, for a report */
 typedef struct {
   long calls[5], bad[5], batches[5], empty[5];   /* by entry: df0, 25f0, 2870, P06 (its four entries), P07; bad input; batches (P06,
@@ -129,6 +137,14 @@ typedef struct {
   long c4_drawn[3], c4_poly, c4_poly_v, c4_poly_empty, c4_lines, c4_line_drop, c4_full;   /* drawn whole (sprites, quads, strip
                                                 segments); the quads' clipped polygons kept, their vertices, empty; the streaks'
                                                 clipped lines kept, dropped by the clipper; left out for want of room */
+  long cull_n[16];          /* cull study v3 (XcHost.cull), kept last (the check mode compares the stats before them), by index: 0 25f0 /
+                              2870 calls tested; 1 left out, 2 their vertices; kept: 3 vertex 0 inside every plane, 4 no plane proven by
+                              the bound, 5 a bad attribute (the conversion's -4), 6 the count out of 2..1024, 7 the matrix or a position
+                              out of vc_clip_in's range; check mode: 8 left-out calls converted anyway, 9 those whose result, counters or
+                              a vertex's flags DIFFER from the claim (PROBLEM if not 0), 10 kept calls whose conversion drew nothing; 11
+                              kept: a thinned call; 12 vertices the test read (vertex 0, then the whole call's in pass 1), 13 of them in
+                              calls then kept; 14 left-out (or checked) calls' vertices whose conversion takes the clamped path
+                              (XcHost.clipfast 0); 15 check mode: the left-out calls' vertices the conversion took through the clamps */
 } XcStats;
 const XcStats *xc_stats(void);
 /* sb1, Stage B lane 1: xc_rec_chk 1 (dev) checks each P04+df0 call that came with its streams (XlCall.rec) against vc_df0 on the VU
@@ -179,6 +195,7 @@ uint32_t xc_c2_hold_bound(const XlCall *c, uint32_t bound);
 typedef struct {
   uint32_t entry, top, hy, fogcol;   /* the call; header y (its pass flags; P07: T + 0 w); FOGCOL (xc_xform) */
   int np, slot, pslot[2], pk[2];     /* drawn passes so far, the batch slots of the call and of those passes, their numbers */
+  uint32_t ng6;                      /* native step 2 (ge/nge.h): the call's people reference at the call (xc_nge_cur6), 0 none */
   union {
     uint32_t img[XC_HI][4] __attribute__((aligned(64)));   /* P06 (addresses 0, 1 of that memory are the record's 32 bytes before img,
                                                             pk and padding: P06 never reads them) */

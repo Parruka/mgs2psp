@@ -381,7 +381,7 @@ static void vu_run(int pc)
 #endif
 }
 #ifdef GUEST_SPLIT_RT
-void vu_run_shared(int pc) { vu_run(pc); }   /* the generated units call the micro programs through this one copy */
+void vu_run_shared(int pc);   /* the generated units call the micro programs through this one copy (gl41: defined at the end, P1) */
 #endif
 #endif   /* !GUEST_SPLIT_GEN */
 /* ---- COP2 macro mode (EE side) ---- */
@@ -558,6 +558,16 @@ VU_RNOP(vu_rnsub, -)
 VU_RNOP(vu_rnmul, *)
 #define vu_vfpu(A, C) C
 #endif
+#if defined(MGS2_GEN_VU) && !defined(GUEST_SPLIT_GEN) && defined(OPT2_P3)
+/* gl41 lever P3 (attic/gl41s; MGS2_OPT2 bit 20, OPT2_P3): a gen_vu.h made by tools/gl41_genvu.py starts the box cull's three VFPU
+   forms (vupv_96936c0f_0, vupv_8baafbc3_0, vupv_660a267e_0: one program, one function in gl39's ELF) with this hook: P3's form (the 8
+   per-corner NaN / Inf checks left out; the same results, see the tool) when the switch is on; probe (c) (runtime/vu_l41.h) at the
+   MGS2_PROBE41_CULL-th call.  Without the hook (another gen_vu.h, or this macro undefined) the forms are gl39's. */
+static int l41_cull_n;   /* 0: never (the default) */
+static int l41_cull_probe(int (*f3)(void));
+#define VU_L41_P3_HOOK(f3) do { if (__builtin_expect(l41_cull_n != 0, 0) && --l41_cull_n == 0) return l41_cull_probe(f3); \
+                                if (g_opt2 & OPT2_P3) return f3(); } while (0)
+#endif
 #ifdef MGS2_GEN_VU
 #include MGS2_GEN_VU   /* the AOT VU0 micro programs (vurecomp.py); MGS2: not generated yet */
 #else   /* no AOT programs: every micro call runs on the interpreter (vu_aot returns 0); the helpers the macro ops use, as vurecomp.py emits them */
@@ -698,4 +708,7 @@ static void vu_rn_chk(int op, float a, float b, float r)
 }
 #endif
 
+#if !defined(GUEST_SPLIT_GEN)
+#include "vu_l41.h"   /* gl41 (attic/gl41s): lever P1 (vu_run_shared), the probes, the gl41 counter line */
+#endif
 #endif

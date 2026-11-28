@@ -16,10 +16,14 @@
 #include "xlate.h"
 #include "xconv.h"
 #include "gelist.h"
+#include "fxthin.h"   /* gl38: FxBd */
+#include "bound.h"
 
 #define GL_XCAP 226560u   /* the most data one converter call writes (ge/xconv.c: P04+25f0 with 1,024 vertices and 8,192 polygon vertices) */
 #define GL_HASH 1024      /* the frame's texture table: slots of its hash (a power of two) */
 
+#define GL_KEEP_N 128
+typedef struct { uint64_t t0, cl, texa; TkKeep k; } GlKeep;   /* gl35 */
 typedef struct {
   long frames;
   long prims, prims_tex, uncertain, path1;    /* front-end primitives: taken (of those textured); left out: an input written by code
@@ -51,6 +55,7 @@ typedef struct GlFrame {
   int16_t hash[GL_HASH];            /* tkey -> texture index in this frame, -1: none */
   TkCache *tk; GuMap *map;
   XcHost h;
+  GlKeep kr[GL_KEEP_N];             /* gl35: the textures kept by material (gl_tex; texcache.h tk_keep_ok) */
   int memo_on, memo_check;          /* 1: a lookup with the last one's TEX0, CLAMP and TEXA and no texture source changed since takes its
                                        answer; memo_check: the texture path asked as well and the answers compared (memo_bad) */
   struct { uint64_t t0, cl, texa; long gen; uint32_t fbp; int ti, valid; XcTex xt; } memo;
@@ -89,10 +94,18 @@ typedef struct GlFrame {
      where the host's FxThin counts them without -DMGS2_ME_SAFE (the ME writes nothing the main CPU writes) */
   int ft_on, ft_n; XcThin ft_r[16];
   int ft_keep3, ft_nd; struct { uint32_t lo, hi; } ft_d[512]; long line_none, spr_none;
+  /* gl38 (ge/bound.h): bd the frame's mask (the host sets it before gl_begin; 0: everything drawn); with BD_SORT or BD_RAIN the blocks
+     of the rain's effect owners (fxthin.h FxThin.b, handed in by gl_bd_ranges after the frame's scan) */
+  int bd, bd_n; FxBd bd_r[FX_RANGES];
 } GlFrame;
 /* task #149 / #180: this frame's thinned ranges (the host's fx_thin_scan: FX_RANGES at most), the rain's sprite blocks (FX_DROPS at
    most, as FxThin.d: sorted, joined) and FxThin.keep[3] */
 void gl_thin(GlFrame *f, const XcThin *r, int n, int keep3, const void *d, int nd);
+/* gl38 (ge/bound.h): the frame's rain owners' blocks; gl_bd_chi: the chain of the transfer being walked (the host's walk sets it:
+   -1 none); gl_bd_near: MGS2_GL_RAIN_NEAR (see gelive.c gl_bd_near_call); gl_bd_n: counts (GL_BD_*) */
+void gl_bd_ranges(GlFrame *f, const FxBd *r, int n);
+enum { GL_BD_RAIN = 0, GL_BD_RAIN_OUT, GL_BD_NEAR_KEPT, GL_BD_SORT_OUT, GL_BD_PRIM_OUT, GL_BD_SHEET, GL_BD_N };
+extern int gl_bd_chi, gl_bd_near; extern long gl_bd_n[GL_BD_N];
 int gl_tex_cb(void *ctx, const uint64_t *gr, int ctxt, XcTex *t);   /* task #149: XcHost.tex as gl_init installs it (global, so that the
                                                                         ME unit's check can keep it as an entry: the ME calls it) */
 #define GL_HOLD 256

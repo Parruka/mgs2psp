@@ -1,0 +1,18 @@
+---
+name: ff8-direct-translation
+description: FF8 direct translation (PS1 MIPS to PSP assembly back end, exact): written and exact in PPSSPP 2026-11-11 23:51, but only ~1 ms by itself (the -11 ms estimate was wrong); tightening steps a2-a4 (2026-11-12) bring the model to ~38 / 55 ms from s2's 42.8 / 59.4
+metadata:
+  type: project
+---
+
+Part of [[ff8-port]], speed track after [[ff8-stage5]]. Notes: /mnt/project-files/ff8/stage5_notes.md §1.11.
+
+- Ffm 2026-11-11 22:50: "if the psp is more powerfull that the ps1 why all this ?", 22:56 "measure".
+- MEASURED: the PS1 runs 109,000 instructions a frame in a quiet field; s10d spent 2.48 M PSP instructions on them (23 each). PLAN told to Ffm 23:00 (quiet / busy ms [I]): now 43 / 59; step 1 direct translation 32 / 49; step 2 + Media Engine pixels 27 / 37 (card open); step 3 non-exact "fast mode" 22 / 29 (not recommended); full speed 16.7. Announced: STAY EXACT.
+- Design and log: /mnt/project-files/ff8/direct_notes.md (§2 design, §4 log, §5 Step B decisions, §6 first build, §7 where the time goes and the tightening steps).
+- STEP A DONE 2026-11-11 23:25 (s11, psp/s11d): 32-bit pending cycles in the C back end (HostHot fast_rel + cpend, cyc_flush() at every slow path); exact; model 41.93 / 58.37 (s10d = PSP build s2: 42.80 / 59.38).
+- STEP B DONE 2026-11-11 23:51: the assembly back end recomp/genasm.py (gen.py --asm, `sh recomp/build_asm.sh` -> recomp/gena, PSP build with G=gena; 1,536 of 1,700 functions in assembly, the rest C). a1 EXACT in PPSSPP on its first full run (73/73 hashes, 36,600 per-frame lines vs recomp/fb/ref_perframe_d1_start.txt, cfg `blk 1`). BUT model a1 only 41.77 / 58.27: THE -11 ms ESTIMATE WAS WRONG (game code is 0.7 M of 5.9 M PSP instructions a frame; told to Ffm 2026-11-12).
+- TIGHTENING (2026-11-12, all exact, each checked the same way; details direct_notes.md §7): a2 I-cache line check in assembly (rt_asm_icb; wrap test cfg `icep 0xFFFFF000`) 39.23 / 55.56; a3 = + s12 pure device reads (I_STAT, I_MASK, timers, controller status keep the block-end deadline: 853 of 886 device reads a frame are controller/timer-2 polling and BIOS I_STAT) 37.40 / 53.40; a4 = + s13 lazy SPU ticks (no block-end stop for a tick while the SPU interrupt is off; psx.h be_time/HH->bs, spu.c spu_catchup; x86 80 hashes and psxref still reference) 38.41 / 55.15 (instructions fell, I-misses of unchanged code rose: LAYOUT NOISE IS +-1 ms, judge steps by instruction counts; a1 -> a4 = -423 k instructions a frame quiet).
+- Tools: recomp/asm/annot.py (executed instructions by purpose from "#@" tags), scratchpad pcat.py / ptop.py / pcalls.py (lost with the session; easy to rewrite), x86 count build `gcc -DASMSTAT -c rt.c -o rt_st.o` -> psxrcc_st ("[ashist]" device address histogram). Emulator profile run ~400 s: game folders /home/claude/msf/PSP/GAME/FF8Q4 (profile) and FF8Q5 (short tests), each needs a link in /root/.ppsspp/PSP/GAME; emu_run.sh needs ABSOLUTE output paths.
+- NEXT candidates (direct_notes.md §7 end): emitter tightening (masks and compare value in registers, loads 9 -> 5-6 instructions, pending cycles into stubs, static hidden-load steps, GTE moves inline, more registers; the all-ones mask lets address 0 through today: fix with a compare value), controller polling loops as exact idle skips, device accesses as light calls, link order against I-cache conflicts, and LAZY EXACT DRAWING: [[ff8-lazy-drawing]].
+- Backups in /home/claude/ff8: recomp/*.a1 (first assembly build), *.a3 (before s13), *.s11, *.s10 (= s2). Shared /mnt/project-files/ff8 sources must be refreshed after each step (md5 + read-back).

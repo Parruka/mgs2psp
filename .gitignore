@@ -18,6 +18,9 @@ iopgen/
 gen_s_*
 gen_elf*
 native_w00a.*
+native_b43.*
+native45.h
+gen_vu*.h
 native_elf.*
 
 # Reverse-engineering notes (kept in the project folder)

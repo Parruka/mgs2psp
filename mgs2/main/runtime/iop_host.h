@@ -75,9 +75,18 @@ static void disc_file_read(const DiscFile *df, uint32_t pos, uint8_t *dst, uint3
 {
   FILE *f;
   if (!n) return;
-  if (disc_pak) { uint32_t s0 = pos / 2048, ns = (pos + n + 2047) / 2048 - s0; uint8_t *t = calloc(ns, 2048);
-    if (!t) { fprintf(stderr, "disc: no memory for %u sectors (%u bytes of %s)\n", ns, n, df->path); exit(7); }
-    disc_pak_read(df->lsn + s0, ns, t); memcpy(dst, t + pos % 2048, n); free(t); return; }
+  if (disc_pak) {   /* gl36: the whole sectors straight into dst (zeroed first, as disc_pak_read wants), the partial first and last
+                       sectors through one sector of memory: the same bytes as the whole-read buffer before, without it */
+    uint32_t s = df->lsn + pos / 2048, o = pos % 2048; uint8_t *t = 0;
+    while (n) {
+      uint32_t k;
+      if (o || n < 2048) {
+        if (!t && !(t = malloc(2048))) { fprintf(stderr, "disc: no memory for a sector (%u bytes of %s)\n", n, df->path); exit(7); }
+        memset(t, 0, 2048); disc_pak_read(s, 1, t); k = 2048 - o; if (k > n) k = n; memcpy(dst, t + o, k); o = 0; s++;
+      } else { uint32_t ns = n / 2048; k = ns * 2048; memset(dst, 0, k); disc_pak_read(s, ns, dst); s += ns; }
+      dst += k; n -= k;
+    }
+    free(t); return; }
   if ((f = fopen(df->host, "rb"))) { fseek(f, pos, SEEK_SET); if (fread(dst, 1, n, f)) {} fclose(f); }
 }
 static void disc_open(const char *root)
@@ -245,8 +254,8 @@ static int fio_server(uint32_t fno, uint32_t buf, uint32_t ssize, uint32_t *rep)
       tmp = malloc(n + 1);
       if (!tmp) { fprintf(stderr, "fileio: no memory for a read of %u bytes\n", n); exit(7); }
       disc_file_read(d->f, d->pos, tmp, n); (void)f;
-      if (n) sif_push(0, w[4], tmp, n);
-      free(tmp); d->pos += n; r = (int32_t)n;
+      if (n) sif_push_own(0, w[4], tmp, n); else free(tmp);   /* gl36: the sif keeps tmp (no second copy of the read) */
+      d->pos += n; r = (int32_t)n;
     } else r = -9;
     if (sif_log > 1) fprintf(stderr, "fileio: read fd %u %u bytes -> EE %08x (%d)\n", w[3], w[5], w[4], r);
     fio_rep[7] = w[4]; break; }

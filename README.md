@@ -8,7 +8,9 @@ game's code plus a new renderer for the PSP's graphics chip. Personal use only.
 - `mgs2/`: a copy of the project folder's `mgs2/` (recompiler, runtime, renderer, PSP harness, tools, scripts, notes, plans, build
   reports and PSP run logs). `mgs2/main/` is the current build tree; the top-level `boot/`, `ge/`, `psp/` and `runtime/` folders are
   older versions kept for history. Start with `mgs2/NOTES.md`, `mgs2/roadmap.md` and `mgs2/psp_harness.md`.
-- `sync_from_project.py`: copies the project folder into `mgs2/` again, with the rules below.
+- `docs/`: notes that live outside the project folder's `mgs2/`: the method we work by, a filtered backup of the project's memory
+  notes, the upstream check and the earlier port's hand-over notes. See `docs/README.md`.
+- `sync_from_project.py`: copies the project folder into `mgs2/` and the notes into `docs/` again, with the rules below.
 
 ## Map of `mgs2/`
 The folder mirrors the project folder one to one, so paths in the notes stay valid; it is kept organized by these groups.
@@ -27,7 +29,8 @@ The folder mirrors the project folder one to one, so paths in the notes stay val
 
 **Measurements**
 - `prof/`: PSP run logs (`hw_<build>/`), emulator runs (`emu_<build>/`), state hashes and profiles.
-- `deck_costs.md`, `speed_notes.md`, `outlook_25fps.md`, `codec_speed.md`.
+- `deck_costs.md`, `speed_notes.md`, `outlook_25fps.md`, `codec_speed.md`, `pipeline_anatomy_2026-11-27.md` (the game's own draw
+  preparation on the main CPU, sized for the next cuts).
 
 **Renderer and Media Engine**
 - `renderer_notes.md`, `native_renderer_design.md`, `native_draw_study.md`, `native_step0_report.md`, `native_step1_report.md`,
@@ -39,13 +42,16 @@ The folder mirrors the project folder one to one, so paths in the notes stay val
 
 **Studies, reviews and audits**
 - Other ports and tools: `android_port_study.md`, `peacewalker_notes.md`, `psp_ports_survey.md`, `sandstone_review.md`,
-  `vme2_study.md`, `ark4_options.md`, `ark5_study.md`.
+  `vme2_study.md`, `vita_port_study.md`, `ark4_options.md`, `ark5_study.md`.
 - Research: `feasibility.md`, `research_review.md`, `research2_port_plan.md`, `web_research.md`, `web_research_2.md`.
-- Audits and logs: `audit_2026-10-23.md`, `audit_v30.md`, `overnight_2026-11-22.md`, `memory_status_archive_2026-11-22.md`.
+- Audits and logs: `audit_2026-10-23.md`, `audit_v30.md`, `overnight_2026-11-22.md`, `memory_status_archive_2026-11-22.md`,
+  `freeze_study.md` (the random freeze-then-off stops: evidence, ranked causes, tests).
 
 ## Latest builds
 | Build | What it was | PSP result |
 |---|---|---|
+| gl43 | measurement: the rain's game-logic cut in turns (only the rain lines nearest the camera kept; the guards' dice kept exactly) | exact (62 state checks, 61 picture checks; first run on the AC adapter, no stop); the cut saves 4.8 to 6.0 ms a rain step; rain wait 69.7 ms a step (7.2 fps) with the cut and the native ship and people; of the main CPU's 69.3 ms, 38.4 is logic and 24.7 the game's own draw preparation, the next target; `prof/hw_gl43/gl43_psp_read.md` |
+| gl42in | measurement: gl42's turns moved indoors (the crew deck after the door) | exact (run 2; run 1 froze after the deck door and its log was lost); indoors 52.4 ms a step (9.6 fps), 47.9 with the native ship and people (10.4 fps), 36.6 for the main CPU alone (13.7 fps); `prof/hw_gl42in/gl42in_psp_read.md` |
 | gl42 | measurement: the people drawn by the new native renderer too, the renderer checkpoint turns (ship and people only, nothing drawn) | exact (run 2; run 1 lost power at 27 min); rain wait 75.9 ms a step (6.6 fps); native ship and people save the Media Engine ~6 ms but the main CPU ~1: the rain is main-CPU (game logic) bound, so the renderer is not the route through the rain (checkpoint P ~67 >= 62); `prof/hw_gl42/gl42_psp_read.md` |
 | gl41 | measurement: the ship drawn by the new native renderer in turns, two small main-CPU levers, memory fix | exact; rain wait 74.8 ms a step (6.7 fps); the native ship takes 2.7 ms off the Media Engine but the rain is main-CPU limited; `prof/hw_gl41/gl41_psp_read.md` |
 | gl40 | measurement: three ways of making the copy plan in turns, the kernel walk lever, plan timers | exact (run 2; run 1 lost power at 26 min); rain wait 76.4 ms a step (6.5 fps) with the new plan, 2.0 faster than gl39's; the rain is now main-CPU limited; gl39's unexplained ~8 ms was mostly the copy plan; `prof/hw_gl40/gl40_psp_read.md` |
@@ -66,6 +72,6 @@ The builds also use parts of other projects, kept in the project folder under th
 
 ## Updating
 ```
-python3 -I sync_from_project.py            # copies /mnt/project-files/mgs2/ into mgs2/, skipping the files listed above
+python3 -I sync_from_project.py            # copies /mnt/project-files/mgs2/ into mgs2/ and the notes into docs/, skipping the files listed above
 git add -A && git status                    # look before committing
 ```

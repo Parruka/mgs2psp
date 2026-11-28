@@ -55,6 +55,16 @@ void tk_guard(TkCache *c, long g);
    order, the lowest alpha).  Fills out->tp and out->size on TK_TEX.  Mode (tk_umemo): 1 (the default) on; 2 every answer the memo
    would give is made by tk_get_cl and compared (TkStats um_chk, um_bad); 0 tk_get_cl alone, as before */
 int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t clamp, TkTex *out);
+/* gl35, the texture kept by material (attic/gl35/keep_design.txt K3).  A tk_get_um look-up that the front answered, with an indexed
+   texture whose palette was in the cache (the "pure" path), changes only stamps, counters and the LRU order; tk_keep_last gives its
+   record (ok = 0 after any other look-up).  tk_keep_ok(K, TEX0): a look-up now with the TEX0, CLAMP and TEXA K was recorded for would
+   take that path again to the same entries: the cache's generation (it moves at every look-up off that path and at every other change
+   of the cache) and the front's are K's, and the palette identity, asked from the GS model as the look-up asks it, is K's.
+   tk_keep_again: that look-up's effects and answer, exactly, without the look-up (only after tk_keep_ok said 1, nothing between) */
+typedef struct { void *g, *t; uint64_t pid_in, pid, ufgen; uint32_t kgen; uint16_t fs; int16_t i, j; uint8_t w, ok; } TkKeep;
+const TkKeep *tk_keep_last(const TkCache *c);
+int tk_keep_ok(TkCache *c, const TkKeep *K, uint64_t t0);
+void tk_keep_again(TkCache *c, const TkKeep *K, uint64_t t0, TkTex *out);
 void tk_umemo(TkCache *c, int mode);
 /* sb10, Stage C step 1 T1 (stagec_notes.md 1.3): tk_get_um's front, 32 entries keyed by TEX0 & 0x3ffffffff, CLAMP and TEXA, valid while no
    block of the map has changed: a look-up the memo answered before goes straight to its entries, skipping G's hash look-up, the pages'
@@ -76,10 +86,14 @@ typedef struct {
                                   pages (gu_pages_sig's reasons 1-6), no slot for it, its entry gone; slots filled; mode 2 answers
                                   compared, differing; G slots made */
   long uf_hits, uf_fill, uf_chk, uf_bad;   /* sb10 T1 tk_ufront: look-ups the front answered; entries put; mode 2 answers compared, differing */
+  long tab_fail;                       /* gl41: growths of the entry table refused (no memory): each one a texture refused */
   long tab_grows, tab_cap, tab_trims;   /* task #159: the entry table's growths, its entries now; on the PSP, growths after which newlib's
                                   free top went back (malloc_trim) */
 } TkStats;
 const TkStats *tk_stats(const TkCache *c);
+#ifdef __psp__
+const void *tk_table(const TkCache *c);   /* gl41: the entry table (the PSP log finds the heap event that gave it) */
+#endif
 /* how textures are converted: 0 texel by texel through gu_texel (as before 2026-10-27); 1 (the default) a GS block at a time
    (texconv.c tc_texture_blk through gu_block), the same bytes; 2 (dev) both, compared (TkStats blk_diff) */
 void tk_blk(TkCache *c, int mode);

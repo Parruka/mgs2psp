@@ -100,9 +100,20 @@
 #include "../ge/gelive.h"
 #include "../ge/vu1conv.h"   /* sb4: vc_p06_exact for MGS2_SB_P6EXACT */
 #include "../ge/fxthin.h"    /* task #114 */
+#include "../ge/natsplit.h"  /* cull study census: NS_CH */
 #include "../ge/c1model.h"   /* sb11: C1 census and GE model */
 #include "../ge/c2model.h"   /* sb12: C2 census and GE model */
 #include "../ge/c3model.h"   /* sb13: C3 census of the rooms' meshes */
+#include "../ge/nge.h"       /* native step 1 (MGS2_NGE) */
+uint32_t nge_cfg_bytes(void);   /* (boot/nge_stub.h) */
+int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, uint32_t cap0, uint32_t *const p6r[2],
+                   volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
+uint32_t nge_cfg_bytes2(void); uint32_t nge_np6_bytes(void); long nge_grow_vb(void); void nge_grow(uint8_t *const p6[2], long vb);
+static uint32_t nge_x86_k1, nge_x86_kg;   /* step 2: the carve before and after the opening (the PSP's: each frame memory's arena tail) */
+static void *nge_x86_alloc(uint32_t n, const char *name) { void *p = 0; (void)name; return posix_memalign(&p, 64, n) ? 0 : p; }
+#define NGE_X86_GE0 0x09400000u   /* the cooked regions' GE addresses on the twin (the PSP's are their RAM addresses) */
+#define NGE_X86_GE1 0x09800000u
+static uint8_t *nge_x86_m[2]; static uint32_t nge_x86_n;
 #include "../runtime/host_time.h"   /* sb3: g_opt's OPT_CLIP_FAST (boot.c MGS2_OPT, MGS2_OPT_CYCLE), as psp/xl_psp.c reads it */
 #if defined(__has_include)
 #if __has_include(<valgrind/callgrind.h>)
@@ -150,7 +161,7 @@ static TkCache *tkc; static int tk_on, shown_tk;
 static int um_chk, li_chk;   /* sb9: MGS2_TX_UMEMO_CHK=1, MGS2_GU_LDID_CHK=1: the step 0 bits' "on" is their check mode */
 static int uf_chk;           /* sb10 T1: MGS2_TX_FRONT_CHK=1: OPT2_TX_FRONT's "on" is its check mode */
 /* MGS2_XLIVE_GB: the live renderer's frame */
-static GlFrame glf; static int gb_on, gb_now; static char ger_pre[200]; static long ger_vb[64]; static int ger_n;
+static GlFrame glf; static int gb_on, gb_now; static char ger_pre[200]; static long ger_vb[512]; static int ger_n;   /* gl29: 512 (64) */
 /* MGS2_XLIVE_GX: the PSP harness's frames and GE lists */
 static int gx_on, gx_seen; static long gx_from = -1, gx_to = -1, gx_count, gx_n, gx_fail, gx_first = -1, gx_wmax, gx_amax, gx_bmax, gx_drop;
 static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
@@ -166,6 +177,8 @@ static uint32_t gx_addr(void *ctx, const void *p)   /* a GE address space like t
   if (q >= gx_arena && q <= gx_arena + GL_PSP_ARENA) return 0x08600000u + (uint32_t)(q - gx_arena);
   if (q >= gx_lb && q <= gx_lb + gx_listn) return 0x08600000u + GL_PSP_ARENA + (uint32_t)(q - gx_lb);
   if (q >= gx_pool && q <= gx_pool + gx_pool_n) return 0x09000000u + (uint32_t)(q - gx_pool);
+  if (nge_x86_m[0] && q >= nge_x86_m[0] && q < nge_x86_m[0] + nge_x86_n) return NGE_X86_GE0 + (uint32_t)(q - nge_x86_m[0]);   /* native step 2: */
+  if (nge_x86_m[1] && q >= nge_x86_m[1] && q < nge_x86_m[1] + nge_x86_n) return NGE_X86_GE1 + (uint32_t)(q - nge_x86_m[1]);   /* N-ref vertices */
   fprintf(stderr, "xlive gx: an address outside the frame memory, the aux and the pool\n"); exit(2);
 }
 /* sb15 (task #152): MGS2_GX_SEM=1, the GE list as the GE draws it, independent of where its data lies and of how its primitives are
@@ -178,6 +191,8 @@ static const uint8_t *gx_ptr(uint32_t a, uint32_t len)   /* gx_addr's inverse; 0
   if (a >= 0x08600000u && a + len <= 0x08600000u + GL_PSP_ARENA) return gx_arena + (a - 0x08600000u);
   if (a >= 0x08600000u + GL_PSP_ARENA && a + len <= 0x08600000u + GL_PSP_ARENA + gx_listn) return gx_lb + (a - 0x08600000u - GL_PSP_ARENA);
   if (a >= 0x09000000u && a + len <= 0x09000000u + gx_pool_n) return gx_pool + (a - 0x09000000u);
+  if (nge_x86_m[0] && a >= NGE_X86_GE0 && a + len <= NGE_X86_GE0 + nge_x86_n) return nge_x86_m[0] + (a - NGE_X86_GE0);   /* native step 1 */
+  if (nge_x86_m[1] && a >= NGE_X86_GE1 && a + len <= NGE_X86_GE1 + nge_x86_n) return nge_x86_m[1] + (a - NGE_X86_GE1);
   return 0;
 }
 static uint32_t gx_vsize(uint32_t vt)   /* a vertex's bytes (GE VTYPE: weights, texture, colour, normal, position, each aligned) */
@@ -225,12 +240,151 @@ static uint64_t gx_sem(const GxList *l)
 #undef SH
   return h;
 }
+/* native step 1 (MGS2_GX_SEM=2, "drawn2"): the picture as the GE draws it, independent of which words set the state: at each primitive,
+   the state every register then holds (each command's last argument, the matrices WORLD, VIEW, PROJ, TGEN and the bones as loaded) and
+   the primitive's vertices' bytes as the GE reads them (as gx_sem); the commands that act (CLUT loads, flushes, finishes, signals) in
+   order with their words.  CALL and RET followed (into the cooked lists: gx_ptr), JUMP too; the address words VADDR, IADDR, BASE only
+   followed.  So a list that writes WORLD once for two batches and one that writes it for each, or that sets VTYPE inside a called list,
+   have the same digest when every primitive draws the same vertices with the same state */
+static long gx_sem2_n, gx_sem2_bad, gx_sem2_calls; static uint64_t gx_sem2_all = 0xcbf29ce484222325ull;
+static uint64_t gx_sem2(const GxList *l)
+{
+  uint64_t h = 0xcbf29ce484222325ull, st = 0; uint32_t reg[256], mw[12], mv[12], mp[16], mt[12], mb[96], iw = 0, iv = 0, ip = 0, it = 0, ib = 0;
+  uint32_t base = 0, va = 0, ia = 0, ga = 0, rs[4]; int dirty = 1, depth = 0; uint32_t n = 0, steps = 0; const uint32_t *top = l->w;
+  memset(reg, 0, sizeof reg); memset(mw, 0, sizeof mw); memset(mv, 0, sizeof mv); memset(mp, 0, sizeof mp); memset(mt, 0, sizeof mt); memset(mb, 0, sizeof mb);
+#define SH2(x) do { uint32_t x_ = (x); for (int k_ = 0; k_ < 4; k_++) { h ^= x_ >> 8 * k_ & 0xff; h *= 0x100000001b3ull; } } while (0)
+  for (;;) {
+    uint32_t w;
+    if (!depth) { if (n >= l->n) break; w = top[n++]; }
+    else { const uint8_t *p = gx_ptr(ga, 4); if (!p || ++steps > (1u << 20)) { gx_sem2_bad++; SH2(0xdead0003u); break; } memcpy(&w, p, 4); ga += 4; }
+    const uint32_t c = w >> 24, a = w & 0xffffff;
+    switch (c) {
+    case 0x00: case 0x13: case 0x14: continue;                                       /* NOP, OFFSETADDR, ORIGIN */
+    case 0x10: base = (w & 0x0f0000) << 8; continue;                                 /* BASE */
+    case 0x01: va = base | a; continue;                                              /* VADDR */
+    case 0x02: ia = base | a; continue;                                              /* IADDR */
+    case 0x08: if (!depth) { gx_sem2_bad++; SH2(0xdead0004u); continue; } ga = base | (a & ~3u); continue;   /* JUMP (in a called list) */
+    case 0x0a: if (depth >= 3) { gx_sem2_bad++; SH2(0xdead0005u); continue; }       /* CALL */
+      rs[depth] = depth ? ga : n; depth++; ga = base | (a & ~3u); gx_sem2_calls++; continue;
+    case 0x0b: if (!depth) goto out; depth--; if (depth) ga = rs[depth]; else n = rs[0]; continue;   /* RET */
+    case 0x0c: goto out;                                                             /* END */
+    case 0x3a: iw = a; continue; case 0x3b: if (iw < 12) mw[iw++] = a; dirty = 1; continue;   /* WORLD */
+    case 0x3c: iv = a; continue; case 0x3d: if (iv < 12) mv[iv++] = a; dirty = 1; continue;   /* VIEW */
+    case 0x3e: ip = a; continue; case 0x3f: if (ip < 16) mp[ip++] = a; dirty = 1; continue;   /* PROJ */
+    case 0x40: it = a; continue; case 0x41: if (it < 12) mt[it++] = a; dirty = 1; continue;   /* TGEN */
+    case 0x2a: ib = a; continue; case 0x2b: if (ib < 96) mb[ib++] = a; dirty = 1; continue;   /* bones */
+    case 0xc4: case 0xcb: case 0xcc: case 0xea: case 0x0e: case 0x0f: SH2(w); SH2(reg[0xb0]); SH2(reg[0xb1]); continue;   /* acts */
+    case 0x04: break;                                                                /* PRIM */
+    default: if (reg[c] != a || !(reg[c] >> 31)) { reg[c] = a | 1u << 31; dirty = 1; } continue;   /* a state register */
+    }
+    if (dirty) {
+      st = 0xcbf29ce484222325ull;
+      for (int k = 0; k < 256; k++) { st ^= reg[k]; st *= 0x100000001b3ull; }
+      for (int k = 0; k < 12; k++) { st ^= mw[k]; st *= 0x100000001b3ull; st ^= mv[k]; st *= 0x100000001b3ull; st ^= mt[k]; st *= 0x100000001b3ull; }
+      for (int k = 0; k < 16; k++) { st ^= mp[k]; st *= 0x100000001b3ull; }
+      for (int k = 0; k < 96; k++) { st ^= mb[k]; st *= 0x100000001b3ull; }
+      dirty = 0;
+    }
+    SH2((uint32_t)st); SH2((uint32_t)(st >> 32)); SH2(w);
+    const uint32_t vt = reg[0x12] & 0xffffff, cnt = w & 0xffff, ty = w >> 16 & 7, vs = gx_vsize(vt), ix = vt >> 11 & 3, isz = ix == 1 ? 1 : ix == 2 ? 2 : ix == 3 ? 4 : 0;
+    const uint8_t *vb = 0, *ibp = 0; uint32_t maxi = 0;
+    if (isz) {
+      if (!(ibp = gx_ptr(ia, cnt * isz))) { gx_sem2_bad++; SH2(0xdead0001u); continue; }
+      for (uint32_t i = 0; i < cnt; i++) { uint32_t x = isz == 1 ? ibp[i] : isz == 2 ? (uint32_t)(ibp[2 * i] | ibp[2 * i + 1] << 8) : (uint32_t)(ibp[4 * i] | ibp[4 * i + 1] << 8 | ibp[4 * i + 2] << 16 | (uint32_t)ibp[4 * i + 3] << 24); if (x > maxi) maxi = x; }
+      vb = gx_ptr(va, (maxi + 1) * vs);
+    } else vb = gx_ptr(va, cnt * vs);
+    if (!vb) { gx_sem2_bad++; SH2(0xdead0002u); continue; }
+#define VX2(i) (isz == 1 ? ibp[i] : isz == 2 ? (uint32_t)(ibp[2 * (i)] | ibp[2 * (i) + 1] << 8) : isz == 4 ? (uint32_t)(ibp[4 * (i)] | ibp[4 * (i) + 1] << 8 | ibp[4 * (i) + 2] << 16 | (uint32_t)ibp[4 * (i) + 3] << 24) : (uint32_t)(i))
+#define SV2(i) do { const uint8_t *p_ = vb + (size_t)VX2(i) * vs; for (uint32_t b_ = 0; b_ < vs; b_ += 4) { uint32_t u_; memcpy(&u_, p_ + b_, 4); SH2(u_); } } while (0)
+    if (ty == 0) for (uint32_t i = 0; i < cnt; i++) { SH2(0x50000000u); SV2(i); }
+    else if (ty == 1) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH2(0x50000001u); SV2(i); SV2(i + 1); }
+    else if (ty == 2) for (uint32_t i = 0; i + 1 < cnt; i++) { SH2(0x50000001u); SV2(i); SV2(i + 1); }
+    else if (ty == 3) for (uint32_t i = 0; i + 2 < cnt; i += 3) { SH2(0x50000003u); SV2(i); SV2(i + 1); SV2(i + 2); }
+    else if (ty == 4) for (uint32_t i = 0; i + 2 < cnt; i++) { SH2(0x50000004u); SV2(i); SV2(i + 1); SV2(i + 2); }
+    else if (ty == 5) for (uint32_t i = 1; i + 1 < cnt; i++) { SH2(0x50000005u); SV2(0); SV2(i); SV2(i + 1); }
+    else if (ty == 6) for (uint32_t i = 0; i + 1 < cnt; i += 2) { SH2(0x50000006u); SV2(i); SV2(i + 1); }
+    else { SH2(w); gx_sem2_bad++; }
+    if (isz) ia += cnt * isz; else va += cnt * vs;
+#undef SV2
+#undef VX2
+  }
+out:
+#undef SH2
+  return h;
+}
+static GxDzSched gx_dz; static int gx_dz_on;   /* gl29: MGS2_GL_DZ (ge/gelist.h), as psp/xl_psp.c reads it from mgs2.cfg */
+#ifdef NAT_HOOK
+/* n0 step 0: the frame's P04+df0 transform batches (GERK_XFORM, entry XL_DF0) folded field by field, in order: the batch state (first
+   0), the matrices, the rest of GerXform, the vertices, the strips and indices.  "natb:" a picture, for a run against a run */
+static uint32_t nb_h(uint32_t h, const void *p, uint32_t n) { const uint8_t *b = p; for (uint32_t i = 0; i < n; i++) { h ^= b[i]; h *= 16777619u; } return h; }
+static void nat_bline(long vb)
+{
+  const GbOut *o = &glf.o; uint32_t h[5] = { 2166136261u, 2166136261u, 2166136261u, 2166136261u, 2166136261u }, k = 0, nall = 0, hall = 2166136261u;
+  for (int i = 0; i < o->nb; i++) {
+    GerBatch b = o->b[i];
+    if (b.kind != GERK_XFORM || b.entry != XL_DF0) { hall = nb_h(hall, &b, sizeof b); nall++; continue; }
+    const GerXform *x = (const GerXform *)(o->d + b.first); b.first = 0; k++;
+    h[0] = nb_h(h[0], &b, sizeof b); h[1] = nb_h(h[1], x->world, sizeof x->world + sizeof x->proj);
+    if (x->pad == NGE_MAGIC) {   /* native step 1: as today's batch (pad 0; the cooked vertices and strips, no indices) */
+      GerXform y = *x; y.pad = 0; h[2] = nb_h(h[2], y.vs, sizeof y - offsetof(GerXform, vs));
+      const NgeTail *t = (const NgeTail *)(const void *)(x + 1);
+      h[3] = nb_h(h[3], nge_p(t->vb), x->nv * (uint32_t)sizeof(VcVert)); h[4] = nb_h(h[4], nge_p(t->runs), x->nst * 4);
+    } else {
+    h[2] = nb_h(h[2], x->vs, sizeof *x - offsetof(GerXform, vs));
+    h[3] = nb_h(h[3], x + 1, x->nv * (uint32_t)sizeof(VcVert));
+    h[4] = nb_h(h[4], (const uint8_t *)(x + 1) + x->nv * sizeof(VcVert), x->nst * 4 + x->nidx * 2); }
+  }
+  { static long dv = -2; if (dv == -2) { const char *e = getenv("MGS2_NAT_BDUMP"); dv = e ? atol(e) : -1; }
+    if (vb == dv) for (int i = 0; i < o->nb; i++) { const GerBatch *q = &o->b[i]; uint32_t hx = 0, nv = 0, nst = 0;
+      if (q->kind == GERK_XFORM) { const GerXform *x = (const GerXform *)(o->d + q->first); nv = x->nv; nst = x->nst; hx = nb_h(2166136261u, x, sizeof *x + x->nv * (uint32_t)sizeof(VcVert)); }
+      fprintf(stderr, "natd: %d kind %u entry %06x tex %u prim %u flags %02x z %u a %u %u %u blend %u %u %u %u %u tfx %u tp %u sc %d %d %d %d count %u first %u nv %u nst %u h %08x\n",
+              i, q->kind, q->entry, q->tex, q->prim, q->flags, q->ztst, q->atst, q->aref, q->afail, q->ba, q->bb, q->bc, q->bd, q->fix, q->tfx, q->twopass, q->sx0, q->sy0, q->sx1, q->sy1,
+              q->count, q->first, nv, nst, hx); } }
+  { static long dx = -2; if (dx == -2) { const char *e = getenv("MGS2_NAT_XDUMP"); dx = e ? atol(e) : -1; }   /* every batch's content (as gl_digest_c), every texture */
+    if (vb == dx) { for (int i = 0; i < o->nb; i++) { const GerBatch *q = &o->b[i]; const uint8_t *p = o->d + q->first; uint32_t hc = 2166136261u;
+        if (q->kind == GERK_THROUGH) hc = nb_h(hc, o->v + q->first, q->count * (uint32_t)sizeof *o->v);
+        else if (q->kind == GERK_LIT) { const GerLit *l = (const GerLit *)p; hc = nb_h(hc, l, sizeof *l); hc = nb_h(hc, p + l->xf, sizeof(GerXform));
+          if (l->pass & (GERL_C1 | GERL_C2)) hc ^= 0x80000000u; else hc = nb_h(hc, p + l->vtx, l->nv * l->stride);
+          hc = nb_h(hc, p + l->run, l->nst * 4); }
+        else { const GerXform *x = (const GerXform *)p;
+          uint32_t sz = q->kind == GERK_XFORM ? (uint32_t)sizeof *x + x->nv * (uint32_t)sizeof(VcVert) + x->nst * 4 + x->nidx * 2 :
+                        (uint32_t)sizeof *x + (x->nv + x->nfv) * (uint32_t)sizeof(VcVertF) + ((x->nv + 3) & ~3u) + x->nfan * 4;
+          hc = nb_h(hc, p, sz); }
+        fprintf(stderr, "natx: %d kind %u entry %06x tex %u count %u h %08x\n", i, q->kind, q->entry, q->tex, q->count, hc);
+        if (q->kind == GERK_THROUGH && i + 3 >= o->nb) for (uint32_t j = 0; j < q->count; j++) { const GerVert *v = o->v + q->first + j;
+          fprintf(stderr, "natv: %d %u uv %g %g c %08x xyz %g %g %g\n", i, j, v->u, v->v, v->c, v->x, v->y, v->z); } }
+      for (int i = 0; i < o->nt; i++) { uint32_t ht = nb_h(2166136261u, &o->t[i], sizeof o->t[i]), hd = 0, hp = 0;
+        if (o->t[i].kind == 1) { if (glf.tdata[i]) hd = nb_h(2166136261u, glf.tdata[i], glf.tsize[i]); if (glf.tpal[i]) hp = nb_h(2166136261u, glf.tpal[i], o->t[i].npal * 4); }
+        fprintf(stderr, "natt: %d kind %u t %08x data %08x pal %08x\n", i, o->t[i].kind, ht, hd, hp); } } }
+  fprintf(stderr, "natb: vb %ld df0 %u state %08x mat %08x xf %08x vert %08x strip %08x other %u %08x\n", vb, k, h[0], h[1], h[2], h[3], h[4], nall, hall);
+  { uint32_t sd[5]; xl_state_dig(sd);   /* gl34: the translator's state at the picture's end */
+    fprintf(stderr, "nats: vb %ld vm %08x gs %08x front %08x vif %08x counts %08x\n", vb, sd[0], sd[1], sd[2], sd[3], sd[4]); }
+  { /* "natz:" the content digest (gl_digest_c) with the Z of each sprite's first vertex set to 0 (the GS and the GE draw a sprite at its
+       second vertex's Z: the first's is not drawn) */
+    static GlFrame fz; static GerVert *zv; static int zcap;
+    if (o->nv > zcap) { zcap = o->nv + 4096; zv = realloc(zv, (size_t)zcap * sizeof *zv); }
+    if (zv) { long nz = 0; memcpy(zv, o->v, (size_t)o->nv * sizeof *zv);
+      for (int i = 0; i < o->nb; i++) { const GerBatch *q = &o->b[i];
+        if (q->kind == GERK_THROUGH && q->prim == 6) for (uint32_t j = 0; j + 1 < q->count; j += 2) if (q->first + j < (uint32_t)o->nv) { zv[q->first + j].z = 0; nz++; } }
+      fz = glf; fz.o.v = zv;
+      fprintf(stderr, "natz: vb %ld content %016llx sprites %ld\n", vb, (unsigned long long)gl_digest_c(&fz), nz);
+      /* "natq:" as natz, and also the Z of every vertex of a through batch whose depth test is ALWAYS (ztst 1) and after which no batch
+         tests depth (ztst 2 or 3 with the test on): such a Z is written but never read in the picture */
+      { int last = -1; long nq = 0;
+        for (int i = 0; i < o->nb; i++) if ((o->b[i].flags & GERF_ZTEST) && o->b[i].ztst >= 2) last = i;
+        for (int i = last + 1; i < o->nb; i++) { const GerBatch *q = &o->b[i];
+          if (q->kind == GERK_THROUGH && q->ztst <= 1) for (uint32_t j = 0; j < q->count; j++) if (q->first + j < (uint32_t)o->nv) { zv[q->first + j].z = 0; nq++; } }
+        fprintf(stderr, "natq: vb %ld content %016llx tail %d vertices %ld\n", vb, (unsigned long long)gl_digest_c(&fz), o->nb - 1 - last, nq); } } }
+}
+#endif
 static void gx_list(long vb)   /* psp/xl_psp.c gl_list's work on the frame that ended (its last vblank vb) */
 {
-  int d = (int)(gx_count++ & 1), dg = vb >= gx_from && vb <= gx_to;
+  extern int rt_dig_off_at(long);   /* gl39: MGS2_DIG_CYCLE (boot/nat_stub.h), as psp/xl_psp.c */
+  int d = (int)(gx_count++ & 1), dg = vb >= gx_from && vb <= gx_to && !rt_dig_off_at(vb);
   GxFrame F = { glf.o.b, (uint32_t)glf.o.nb, glf.o.v, (uint32_t)glf.o.nv, glf.o.d, glf.o.t, (uint32_t)glf.o.nt, glf.tdata, glf.tpal, 1, 0 };
   gx_depth_map(glf.map_lo, glf.map_hi, 1.0f, &F.zs, &F.zo);
   gxl.dig_on = dg;
+  if (gx_dz_on) { int n = 0; gxl.dz = gx_dz_arm(&gx_dz, vb, &n, 0); gxl.dzn = n; }   /* gl29: the frame's arm (xl_psp.c's mq_frame and gl_list) */
   if (gx_frame(&gxl, &gxh, &F, d) && ++gx_fail <= 50)
     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", vb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
   gx_drop += gxl.c.dropped; if (gxl.c.words > gx_wmax) gx_wmax = gxl.c.words; if (gxl.c.aux > gx_amax) gx_amax = gxl.c.aux;
@@ -240,13 +394,24 @@ static void gx_list(long vb)   /* psp/xl_psp.c gl_list's work on the frame that 
   if (4 * gxl.c.words + gxl.c.aux > gx_bmax) gx_bmax = 4 * gxl.c.words + gxl.c.aux;
   if (dg) {
     uint64_t g = gl_digest(&glf, &gxl); gx_all = (gx_all ^ g) * 0x100000001b3ull; gx_n++;
+    char zt[224] = "";   /* gl29: the arm and its counts, as psp/xl_psp.c dz_txt prints them */
+    if (gx_dz_on) { const GxDzCount *c = &gxl.dc; const int a = gxl.dz; char an[8];
+      if (a == GX_DZ_B) snprintf(an, sizeof an, "B%d", gxl.dzn); else { an[0] = a >= 0 && a < GX_DZ_B ? "OXYW"[a] : '?'; an[1] = 0; }
+      snprintf(zt, sizeof zt, "; dz %s 42:%ld oth:%ld pair:%ld sub:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", an, (long)c->n42,
+               (long)c->noth, (long)c->npair, (long)c->nsub, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4],
+               (long)c->fb[5], (long)c->nbias, (long)c->nw, (unsigned long)c->aux); }   /* gl30: sub (X's subset pairs, XS) */
     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
-            "%ld dropped\n", vb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
-            glf.o.nt, gxl.c.dropped);
+            "%ld dropped%s\n", vb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
+            glf.o.nt, gxl.c.dropped, zt);
     uint64_t gc = gl_digest_c(&glf); gx_call = (gx_call ^ gc) * 0x100000001b3ull;   /* sb4: the content, for step c on against off */
     fprintf(stderr, "picture: vb %ld content %016llx\n", vb, (unsigned long long)gc);
+#ifdef NAT_HOOK
+    nat_bline(vb);
+#endif
     if (gx_sem_on) { uint64_t s = gx_sem(&gxl); gx_sem_all = (gx_sem_all ^ s) * 0x100000001b3ull; gx_sem_n++;
       fprintf(stderr, "picture: vb %ld drawn %016llx\n", vb, (unsigned long long)s); }
+    if (gx_sem_on >= 2) { uint64_t s = gx_sem2(&gxl); gx_sem2_all = (gx_sem2_all ^ s) * 0x100000001b3ull; gx_sem2_n++;   /* native step 1 */
+      fprintf(stderr, "picture: vb %ld drawn2 %016llx\n", vb, (unsigned long long)s); }
   }
 }
 static void gb_line(const GlCount *n, int64_t db, int64_t tb, const char *what)   /* db, tb: n's data and texture bytes (psp/xl_psp.c gl_line) */
@@ -939,7 +1104,135 @@ static void on_prim(void *ctx, const GfGs *g, const GfDraw *d, const GfVtx *cons
   if (gb_now) gl_prim(&glf, g, d, v, n);
 }
 
+#ifdef NAT_HOOK
+/* native step 1 (container only): MGS2_NAT_LW=1 / 2: a VIF1 transfer the one walk would feed to the translator goes through the PSP's
+   late walk instead (ge/xlme.c xm_walk: lw_walk with the lanes and the native merge), at the transfer's start: 1 from RAM (a record
+   with no copy: the walk binds the buffer and takes the groups its tags reach, psp/xl_psp.c's nx -1 path), 2 through the plan
+   (xm_plan with the groups' data as extents), the groups' copy in the arena (xm_nat_room), the fill and a view (the ME's path).
+   The runtime's walk then feeds nothing (g_xl_one stays 0). */
+#include "../ge/xlme.h"
+extern NatBuf g_nat[2]; extern uint32_t g_nat_bseq[2];
+static int nlw_mode = -1; static XmPic nlw_p; static XmCopy nlw_c; static XmView nlw_v;
+static long nlw_tr, nlw_plan_fail, nlw_room_fail, nlw_planned, nlw_direct; static uint32_t nlw_used_max, nlw_ext_max;
+extern NatP6Buf g_np6[2]; static long nlw_planned6, nlw_direct6, nlw_room6;   /* native step 2: the people's records */
+static long nlw_chig[NS_CH + 1][2];   /* step 2: the groups taken by chain (ship, people) */
+static int nlw_pend6(int b, const NatP6 **g)
+{
+  const NatP6Buf *q = &g_np6[b];
+  if (!q->g || !q->draw || q->seq != g_nat_bseq[b] || q->cur >= q->n) return 0;
+  *g = q->g + q->cur; return (int)(q->n - q->cur);
+}
+static int nlw_pend(int b, const NatGrp **g)
+{
+  const NatBuf *s = &g_nat[b];
+  if (!s->g || !s->draw || s->seq != g_nat_bseq[b] || s->cur >= s->n) return 0;
+  *g = s->g + s->cur; return (int)(s->n - s->cur);
+}
+static void nlw_report(void)
+{
+  fprintf(stderr, "nat lw: MGS2_NAT_LW %d: transfers %ld; plans failed %ld (the groups' room %ld); groups planned and copied %ld, taken by walks "
+          "from RAM %ld; late walk: merge runs %ld, groups to the core %ld, fed word by word %ld, dropped %ld; planned groups the walk's tags "
+          "did not reach (drawn at its end) %ld; run lanes stopped at a key %ld; the groups' data pieces in the copy %ld, outside it %ld, "
+          "partly %ld; groups the plans counted %ld; lane groups 1-4 %ld %ld %ld %ld, walks that missed a group's end %ld; most arena bytes "
+          "in a transfer %u, extents %u\n", nlw_mode, nlw_tr, nlw_plan_fail, nlw_room_fail, nlw_planned, nlw_direct, nlw_p.nat_runs,
+          nlw_p.nat_core, nlw_p.nat_fed, nlw_p.nat_bad, nlw_p.nat_late, nlw_p.nat_stop, nlw_p.nat_in, nlw_p.nat_out, nlw_p.nat_part,
+          nlw_c.nat_grp, nlw_p.lw_grp[1], nlw_p.lw_grp[2], nlw_p.lw_grp[3], nlw_p.lw_grp[4], nlw_p.lw_bad, (unsigned)nlw_used_max,
+          (unsigned)nlw_ext_max);
+  fprintf(stderr, "nat lw people: groups planned and copied %ld (no room %ld), taken by walks from RAM %ld; merge runs %ld, groups to the core %ld, "
+          "fed word by word %ld, dropped %ld, drawn at a planned walk's end %ld; groups the plans counted %ld\n", nlw_planned6, nlw_room6, nlw_direct6,
+          nlw_p.np6_runs, nlw_p.np6_core, nlw_p.np6_fed, nlw_p.np6_bad, nlw_p.np6_late, nlw_c.np6_grp);   /* step 2 */
+  fprintf(stderr, "nat lw chains (step 2, ge/bound.h BD_CHI_NAT0..1): the native records' groups by the chain of the transfer that took them "
+          "(chain: ship people; -1 not in the list):");
+  for (int i = 0; i <= NS_CH; i++) if (nlw_chig[i][0] | nlw_chig[i][1]) fprintf(stderr, " %d: %ld %ld", i == NS_CH ? -1 : i, nlw_chig[i][0], nlw_chig[i][1]);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "nat lw: gl40 XP totals: plans %ld (failed: ranges %ld, extents %ld, arena %ld, chain %ld), xc_add calls %ld, ranges into the merges ra %ld "
+          "rb %ld mk %ld, sort moves %ld, copied back %ld, extents %ld; XP check: plans compared %ld, DIFFERING %ld (first at vb %ld: results %x, extents "
+          "%u / %u), by result only %ld\n", nlw_c.xp_plans, nlw_c.fails[1], nlw_c.fails[2], nlw_c.fails[3], nlw_c.fails[4], nlw_c.xp_adds, nlw_c.xp_ra,
+          nlw_c.xp_rb, nlw_c.xp_mk, nlw_c.xp_moves, nlw_c.xp_cpy, nlw_c.exts, nlw_c.xp_chk, nlw_c.xp_dif, (long)(nlw_c.xp_dif ? nlw_c.xp_dif_vb : -1),
+          (unsigned)nlw_c.xp_dif_w[0], (unsigned)nlw_c.xp_dif_w[1], (unsigned)nlw_c.xp_dif_w[2], nlw_c.xp_room);
+}
+static void nlw_dma(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)
+{
+  const NatGrp *g[2] = { 0, 0 }; int n[2], r = 1, x0 = 0, nx = 0;
+  const NatP6 *g6[2] = { 0, 0 }; int n6[2];   /* step 2 */
+  n[0] = nlw_pend(0, &g[0]); n[1] = nlw_pend(1, &g[1]); nlw_tr++;
+  n6[0] = nlw_pend6(0, &g6[0]); n6[1] = nlw_pend6(1, &g6[1]);
+  for (int b = 0; b < 2; b++) { nlw_p.nat_i0[b] = (int)g_nat[b].cur; nlw_p.nat_ru[b] = (int)g_nat[b].ru; nlw_p.np6_i0[b] = (int)g_np6[b].cur; }   /* gl36 (ge/xlme.h) */
+  nlw_p.m = &M; nlw_p.lw_on = 1; nlw_p.lanes = 15;
+  nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0; nlw_p.nat_b = -1; nlw_p.nat_used = 0; nlw_p.nat_rf[0] = nlw_p.nat_rf[1] = 0;   /* gl41: nat_rf */
+  nlw_p.np6_n[0] = nlw_p.np6_n[1] = 0; nlw_p.np6_b = -1; nlw_p.np6_used = 0;
+  if (nlw_mode == 2) {
+    XmCopy *c = &nlw_c;
+    if (!c->arena) { c->cap = 16384; c->ext_cap = 16384; c->arena_n = 8u << 20;
+      c->ra = malloc((size_t)c->cap * sizeof(XcR)); c->rb = malloc((size_t)c->cap * sizeof(XcR)); c->mk = malloc((size_t)c->cap * sizeof(XcR));
+      c->tmp = malloc((size_t)c->cap * sizeof(XcR)); c->ext = malloc((size_t)c->ext_cap * sizeof(XvExt)); c->arena = malloc(c->arena_n); }
+    c->mem = M.mem; c->spr = M.spr; c->mem_size = GSZ; c->nmk = 0; c->next = 0; c->used = 0;
+    c->nat_g[0] = g[0]; c->nat_g[1] = g[1]; c->nat_n[0] = n[0]; c->nat_n[1] = n[1];
+    c->np6_g[0] = g6[0]; c->np6_g[1] = g6[1]; c->np6_n[0] = n6[0]; c->np6_n[1] = n6[1];
+    { extern int rt_xp_at(long); const long d0 = c->xp_dif;   /* gl40: XP of the turn (boot/nat_stub.h), as psp/xl_psp.c mq_plan */
+      c->xp = rt_xp_at(cur_vb);
+      r = xm_plan(c, chcr, madr, qwc, tadr, &x0, &nx);
+      if (!d0 && c->xp_dif) c->xp_dif_vb = (int32_t)cur_vb; }
+    if (r) nlw_plan_fail++;
+    else { const int b = c->nat_b, gn = c->nat_cur, pn = c->np6_cur; uint32_t off = 0;   /* gl42: one copy as psp/xl_psp.c mq_plan's
+                                                     (ge/xlme.h XME_NATBYTES): gl41's ship copy, then on 16 bytes the people's groups and references */
+      if (b >= 0 && (gn > 0 || pn > 0)) {
+        if (xm_nat_room(c, XME_NATBYTES(b, gn, pn), &off)) { r = 3; nlw_room_fail++; if (pn > 0) nlw_room6++; }
+        else {
+          const uint32_t po = off + XME_R16(NGE_NAT_ROOM(b, gn)), pro = po + XME_R16((uint32_t)pn * sizeof(NatP6));
+          if (gn > 0) { memcpy(c->arena + off, g[b], (size_t)gn * sizeof(NatGrp));
+            if (xc_nge_ref[b]) { memcpy(c->arena + off + (size_t)gn * sizeof(NatGrp), xc_nge_ref[b] + g_nat[b].cur, (size_t)gn * sizeof(NgeRef));   /* gl41: as
+                                                                      ge/xme.c REC: the walk reads its groups' references from the copy */
+              nlw_p.nat_rf[b] = c->arena + off + (size_t)gn * sizeof(NatGrp); }
+            g_nat[b].cur += (uint32_t)gn; nlw_planned += gn;
+            nlw_p.nat_b = b; nlw_p.nat_g[b] = (const NatGrp *)(const void *)(c->arena + off); nlw_p.nat_n[b] = gn; }
+          if (pn > 0) { memcpy(c->arena + po, g6[b], (size_t)pn * sizeof(NatP6));   /* step 2 */
+            if (xc_nge_ref6[b]) memcpy(c->arena + pro, xc_nge_ref6[b] + g_np6[b].cur, 4u * (uint32_t)pn);
+            nlw_p.np6_r[b] = xc_nge_ref6[b] ? (const uint32_t *)(const void *)(c->arena + pro) : 0;
+            g_np6[b].cur += (uint32_t)pn; nlw_planned6 += pn;
+            nlw_p.np6_b = b; nlw_p.np6_g[b] = (const NatP6 *)(const void *)(c->arena + po); nlw_p.np6_n[b] = pn; } } }
+      if (!r) { xm_fill(c, x0, nx, 0, 0, 0);
+        nlw_v.x = c->ext + x0; nlw_v.n = nx; nlw_v.arena = c->arena; nlw_v.mem = M.mem; nlw_v.spr = M.spr; nlw_v.mem_size = GSZ; nlw_v.last = 0;
+        M.view = &nlw_v; if (c->used > nlw_used_max) nlw_used_max = c->used; if ((uint32_t)nx > nlw_ext_max) nlw_ext_max = (uint32_t)nx; } }
+  }
+  if (r) { nlw_p.nat_g[0] = g[0]; nlw_p.nat_g[1] = g[1]; nlw_p.nat_n[0] = n[0]; nlw_p.nat_n[1] = n[1]; nlw_p.nat_b = -1; nlw_p.nat_rf[0] = nlw_p.nat_rf[1] = 0;
+    nlw_p.np6_g[0] = g6[0]; nlw_p.np6_g[1] = g6[1]; nlw_p.np6_n[0] = n6[0]; nlw_p.np6_n[1] = n6[1]; nlw_p.np6_b = -1;   /* (step 2) */
+    for (int b = 0; b < 2; b++) nlw_p.np6_r[b] = xc_nge_ref6[b] ? xc_nge_ref6[b] + g_np6[b].cur : 0; }
+  nlw_p.ch_i = -1;   /* gl34 (no clock here: the chains are not timed) */
+  { static int hc = -1; if (hc < 0) { const char *e = getenv("MGS2_NAT_HCHK"); hc = e ? atoi(e) : 0; } nlw_p.nh_chk = hc; }   /* gl34 (ge/xlme.c lw_nptr_h) */
+  xm_walk(&nlw_p, 1, chcr, madr, qwc, tadr, g_xl_lane, g_opt);
+  M.view = 0;
+  if (r && nlw_p.nat_b >= 0) { g_nat[nlw_p.nat_b].cur += (uint32_t)nlw_p.nat_used; nlw_direct += nlw_p.nat_used; }
+  if (r && nlw_p.np6_b >= 0) { g_np6[nlw_p.np6_b].cur += (uint32_t)nlw_p.np6_used; nlw_direct6 += nlw_p.np6_used; }   /* step 2 */
+  { const int ci = gl_bd_chi >= 0 && gl_bd_chi < NS_CH ? gl_bd_chi : NS_CH;   /* step 2: by chain */
+    nlw_chig[ci][0] += r ? (nlw_p.nat_b >= 0 ? nlw_p.nat_used : 0) : nlw_p.nat_n[0] + nlw_p.nat_n[1];
+    nlw_chig[ci][1] += r ? (nlw_p.np6_b >= 0 ? nlw_p.np6_used : 0) : nlw_p.np6_n[0] + nlw_p.np6_n[1]; }
+  nlw_p.nat_n[0] = nlw_p.nat_n[1] = 0; nlw_p.np6_n[0] = nlw_p.np6_n[1] = 0;
+}
+#endif
 static void setup(void);
+/* gl38 (ge/bound.h): the twin's bound turns.  The frame takes its mask at its start; "bound:" a line each 100-vblank window with a
+   frame of a kind other than 0 (frames by mask; transfers left out by chain; ge/gelive.c's call counts) */
+static long bd_tr[NS_CH + 1], bd_fr[2], bd_w0 = -1; static int bd_wm;
+static void bd_line(long vb)
+{
+  static long t0[NS_CH + 1], n0[GL_BD_N], f0[2];
+  if (bd_w0 >= 0 && bd_fr[1] != f0[1]) {
+    fprintf(stderr, "bound: vb %ld-%ld mask %d: frames %ld (other masks %ld); transfers left out by chain:", bd_w0, vb, bd_wm, bd_fr[1] - f0[1], bd_fr[0] - f0[0]);
+    for (int i = 0; i <= NS_CH; i++) if (bd_tr[i] != t0[i]) fprintf(stderr, " %d:%ld", i, bd_tr[i] - t0[i]);
+    fprintf(stderr, "; calls:");
+    for (int i = 0; i < GL_BD_N; i++) fprintf(stderr, " %ld", gl_bd_n[i] - n0[i]);
+    fprintf(stderr, "\n"); }
+  memcpy(t0, bd_tr, sizeof t0); memcpy(n0, gl_bd_n, sizeof n0); memcpy(f0, bd_fr, sizeof f0);
+}
+static void bd_frame(long vb, int bd)
+{
+  long w = vb - vb % 100;
+  if (w != bd_w0) { bd_line(w); bd_w0 = w; bd_wm = bd; }
+  bd_fr[bd == bd_wm && bd]++; glf.bd = bd;
+  { static int pr = -1; if (pr < 0) { pr = getenv("MGS2_BD_PROBE") && atoi(getenv("MGS2_BD_PROBE")); gl_bd_near = getenv("MGS2_GL_RAIN_NEAR") ? atoi(getenv("MGS2_GL_RAIN_NEAR")) : 0; }
+    if (glf.ft) glf.ft->all = (bd & (BD_SORT | BD_RAIN)) != 0 || pr; }   /* the rain's owners' blocks with the frame's scan (ge/fxthin.h) */
+}
 void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int one)
 {
   if (from == -2) setup();
@@ -955,12 +1248,29 @@ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr
     if (tkc && u != um) { tk_umemo(tkc, u); um = u; }
     { static int uf = -1; int f = (g_opt2 & OPT2_TX_FRONT) ? 1 + uf_chk : 0; if (tkc && f != uf) { tk_ufront(tkc, f); uf = f; } }   /* sb10 T1 */
     if (map && l != li) { gu_ld_ident(map, l); li = l; } }
+  { /* cull study census (ge/gelive.c gl_cen): the transfer's chain as psp/xl_psp.c ns_chain finds it (reads only) */
+    extern int gl_cen_chi; extern long gl_cen_vb; static uint32_t cha[NS_CH]; static int chn;
+    gl_cen_vb = cur_vb; gl_cen_chi = NS_CH_OTHER;
+    if (ch == 1 && !(tadr & 0x80000000u) && mem) {
+      uint32_t a = tadr & (GSZ - 1) & ~15u, lp = *(const uint32_t *)(mem + 0x1b9348) & (GSZ - 1) & ~3u, n; int got = 0;
+      if (lp && lp + 12 + 16 * NS_CH + 16 <= GSZ) {
+        n = *(const uint32_t *)(mem + lp);
+        if (n && n <= NS_CH && (*(const uint32_t *)(mem + lp + 16) & (GSZ - 1) & ~15u) == a) {
+          for (uint32_t i = 0; i < n; i++) cha[i] = *(const uint32_t *)(mem + lp + 16 + 16 * i) & (GSZ - 1) & ~15u;
+          chn = (int)n; gl_cen_chi = 0; got = 1; } }
+      for (int i = 1; !got && i < chn; i++) if (cha[i] == a) { cha[i] = 0xffffffffu; gl_cen_chi = i; break; } }
+    gl_bd_chi = gl_cen_chi == NS_CH_OTHER ? -1 : gl_cen_chi; }   /* gl38 (ge/bound.h): as the PSP's record carries it */
   gx_seen = 1;                            /* MGS2_XLIVE_GX: frames begin from here on (the PSP's translator starts at its first transfer) */
   if (skip_now) { static long last = -1; sk_tr++; if (cur_vb != last) { sk_vb++; last = cur_vb; } return; }
+  if (glf.bd && bd_drop_chain(glf.bd, gl_bd_chi)) { bd_tr[gl_bd_chi < 0 || gl_bd_chi >= NS_CH ? NS_CH_OTHER : gl_bd_chi]++; return; }   /* gl38: the kind's transfers left out */
   M.mem = mem; M.mem_size = GSZ; M.spr = spr; tp_mem = mem;
   glf.ram = mem;   /* sb6: the thinning's scan (gelive.c fx_thin_scan) reads the game's RAM through glf.ram, which a frame's start copies
                       from M.mem; with the translator started late (MGS2_XLIVE <from> > 0) the first frame begins before this first transfer,
                       M.mem still 0: the digest runs from vb 30,800 stopped there at the rain's first +25f0 call.  The same pointer otherwise */
+#ifdef NAT_HOOK
+  if (nlw_mode < 0) { const char *e_ = getenv("MGS2_NAT_LW"); nlw_mode = e_ ? atoi(e_) : 0; if (nlw_mode) atexit(nlw_report); }
+  if (nlw_mode && one_on && one) { one_tr++; nlw_dma(chcr, madr, qwc, tadr); return; }   /* the PSP's late walk makes this transfer's picture */
+#endif
   if (one_on && one) { one_tr++; g_xl_one = 1; clock_gettime(CLOCK_MONOTONIC, &one_t0); return; }   /* the exact walk feeds it */
   struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
   xlv_dma(&M, ch, chcr, madr, qwc, tadr);
@@ -1031,6 +1341,8 @@ static void totals(void)
       fprintf(stderr, "picture: content digests %ld, all %016llx\n", gx_n, (unsigned long long)gx_call);
       if (gx_sem_on) fprintf(stderr, "picture: drawn digests (MGS2_GX_SEM) %ld, all %016llx; addresses outside the frame memory %ld\n", gx_sem_n,
                              (unsigned long long)gx_sem_all, gx_sem_bad);
+      if (gx_sem_on >= 2) fprintf(stderr, "picture: drawn2 digests (MGS2_GX_SEM=2) %ld, all %016llx; addresses not followed %ld; CALLs followed %ld\n",
+                                  gx_sem2_n, (unsigned long long)gx_sem2_all, gx_sem2_bad, gx_sem2_calls);
       fprintf(stderr, "picture: transform sharing census (4t) over %ld frames: step 4 effect batches %ld %ld %ld, equal to the last one's %ld %ld %ld; "
               "all effect batches %ld, equal %ld; transform batches %ld, camera equal %ld; saved A %lld KB, B %lld KB, C %lld KB; the largest "
               "frame's data now %lld KB (vb %ld), after A %lld KB (vb %ld), B %lld KB (vb %ld), C %lld KB (vb %ld)\n", cx_frames, cx_n[0], cx_n[1],
@@ -1045,6 +1357,11 @@ static void totals(void)
       fprintf(stderr, "picture: texture conversions: %ld a block at a time, %ld handed back to the texel path, %ld differing from it; GS blocks "
               "read %ld, %ld of them whole from one upload\n", k->blk, k->blk_back, k->blk_diff, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
       step0_line("picture: step 0:"); }
+    { const XcStats *q = xc_stats(); const long *u = q->cull_n;   /* cull study (ge/xconv.h XcStats.cull_n) */
+      fprintf(stderr, "natcull: totals (v3): effect calls tested %ld, left out %ld (%ld vertices); kept: vertex 0 inside %ld, no plane proven %ld, "
+              "a bad attribute %ld, count %ld, out of the clamps' range %ld, thinned %ld; check mode: left-out calls converted %ld, DIFFERING "
+              "%ld, kept calls that drew nothing %ld; vertices read %ld, %ld of them in calls kept; left-out vertices on the clamped path %ld, "
+              "check mode: converted through the clamps %ld\n", u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], u[11], u[8], u[9], u[10], u[12], u[13], u[14], u[15]); }
     const XcStats *x = xc_stats(); fprintf(stderr, "xlive gb: converters: calls %ld / %ld / %ld, batches %ld / %ld / %ld, empty %ld / %ld / %ld, bad %ld / %ld / %ld; "
               "effect triangles by class %ld %ld %ld %ld %ld (2870 culled %ld); polygons %ld (%ld vertices), empty %ld, culled %ld, no room %ld; "
               "df0 calls left out off the scissor %ld (%ld vertices)\n",
@@ -1169,12 +1486,29 @@ static void setup(void)
         memset(gx_pool, 0, gx_pool_n); memset(gx_arena, 0, GL_PSP_ARENA); memset(gx_lb, 0, gx_listn);
         gu_keys(map, 1); gu_zero_empty(map, 1);
         if (!(tkc = tk_new(map, gx_pool_n / 8 * 7)) || tk_pool(tkc, gx_pool, gx_pool_n)) { fprintf(stderr, "xlive: no texture cache\n"); exit(1); }
-        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA, GL_PSP_NB, GL_PSP_NV)) {
+        nge_x86_k1 = nge_cfg_bytes(); nge_x86_n = nge_cfg_bytes2();   /* native step 1 (boot/nge_stub.h): the PSP's carve, each frame memory's arena's
+                                                    tail; step 2: the regions at their size after the opening, the top k1 of them used until then */
+        nge_x86_kg = nge_x86_n > nge_x86_k1 ? nge_x86_n + nge_np6_bytes() : 0;
+        if (gl_init(&glf, tkc, map, 0, GL_PSP_MAXTEX) || gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_k1, GL_PSP_NB, GL_PSP_NV)) {
           fprintf(stderr, "xlive: no memory for the live frame\n"); exit(1); }
+        if (nge_x86_n) {
+          if (posix_memalign((void **)&nge_x86_m[0], 64, nge_x86_n) || posix_memalign((void **)&nge_x86_m[1], 64, nge_x86_n)) { fprintf(stderr, "xlive: no memory for nge\n"); exit(1); }
+          memset(nge_x86_m[0], 0, nge_x86_n); memset(nge_x86_m[1], 0, nge_x86_n);
+          xc_nge_chk = getenv("MGS2_NGE_CHK") && atoi(getenv("MGS2_NGE_CHK"));
+          if (nge_host_setup(nge_x86_m[0], NGE_X86_GE0, nge_x86_m[1], NGE_X86_GE1, nge_x86_n, nge_x86_k1, 0, 0, nge_x86_alloc)) exit(1);
+          fprintf(stderr, "xlive mode: native step 1: the frame arena %u KB (the PSP's %u KB less the cooked region), check mode (MGS2_NGE_CHK) %d; "
+                  "step 2: %u KB from vb %ld (the carve after the opening%s)\n", (unsigned)((GL_PSP_ARENA - nge_x86_k1) >> 10), (unsigned)(GL_PSP_ARENA >> 10),
+                  xc_nge_chk, (unsigned)((GL_PSP_ARENA - (nge_x86_kg ? nge_x86_kg : nge_x86_k1)) >> 10), nge_x86_kg ? nge_grow_vb() : -1L,
+                  nge_x86_kg ? (nge_np6_bytes() ? ": the region and the people's block" : ": the region") : ": none"); }
         gx_init(&gxl, (uint32_t *)gx_lb, gx_listn / 4, gx_lb, gx_listn); gxl.ret = 1;   /* one block, as the PSP's */
         if (gx_listn != GL_PSP_LIST) fprintf(stderr, "xlive mode: a list block of %u KB (MGS2_XLIVE_GX_LIST: not the PSP's)\n", gx_listn >> 10);
-        gx_sem_on = getenv("MGS2_GX_SEM") && atoi(getenv("MGS2_GX_SEM"));   /* sb15 */
+        gx_sem_on = getenv("MGS2_GX_SEM") ? atoi(getenv("MGS2_GX_SEM")) : 0;   /* sb15; native step 1: 2 also "drawn2" */
         gxh.addr = gx_addr; gxh.ctx = 0; gxh.fb[0] = 0x000000; gxh.fb[1] = 0x088000; gxh.zb = 0x110000; gx_on = 1;
+        if (getenv("MGS2_GL_DZ")) {   /* gl29: the 0x42 decals' depth arms by frame, with the PSP's parser (ge/gelist.c gx_dz_parse) */
+          if (gx_dz_parse(getenv("MGS2_GL_DZ"), &gx_dz) <= 0) { fprintf(stderr, "xlive: MGS2_GL_DZ is not <vb0>:<vb1>:<arm>[,...]\n"); exit(1); }
+          gx_dz_on = 1; fprintf(stderr, "xlive mode: gl29 dz (MGS2_GL_DZ): %d entries:", gx_dz.n);
+          for (int j = 0; j < gx_dz.n; j++) fprintf(stderr, " %ld-%ld %d/%d", (long)gx_dz.e[j].vb0, (long)gx_dz.e[j].vb1, gx_dz.e[j].arm, gx_dz.e[j].n);
+          fputc('\n', stderr); }
         fprintf(stderr, "xlive mode: the PSP harness's frames and GE lists (MGS2_XLIVE_GX), texture pool %ld KB (budget %u KB); digests of the "
                 "frames whose last vblank is in %ld..%ld\n", kb, gx_pool_n / 8 * 7 >> 10, gx_from, gx_to);
       } else {
@@ -1199,7 +1533,7 @@ static void setup(void)
         fprintf(stderr, "xlive mode: every df0 call converted (MGS2_XLIVE_CUT=0)\n"); }
       const char *e2 = getenv("MGS2_XLIVE_GER"), *c2 = e2 ? strrchr(e2, ':') : 0;
       if (c2 && (size_t)(c2 - e2) < sizeof ger_pre) { memcpy(ger_pre, e2, (size_t)(c2 - e2)); ger_pre[c2 - e2] = 0;
-        for (c2++; *c2 && ger_n < 64; ) { ger_vb[ger_n++] = strtol(c2, (char **)&c2, 10); if (*c2 == ',') c2++; else break; } }
+        for (c2++; *c2 && ger_n < 512; ) { ger_vb[ger_n++] = strtol(c2, (char **)&c2, 10); if (*c2 == ',') c2++; else break; } }
       if (zk > 0) fprintf(stderr, "xlive mode: the live renderer's frame on shown vblanks (MGS2_XLIVE_GB=%d), GE depth = Z24 x %g%s\n", m, zk,
                           m >= 2 ? ", memo checked" : "");
       else fprintf(stderr, "xlive mode: the live renderer's frame on shown vblanks (MGS2_XLIVE_GB=%d), the PSP's depth (Z24, each frame's "
@@ -1243,6 +1577,8 @@ static void setup(void)
     c1m_on = getenv("MGS2_C1_MODEL") && atoi(getenv("MGS2_C1_MODEL"));   /* sb11 */
     c2m_on = getenv("MGS2_C2_MODEL") && atoi(getenv("MGS2_C2_MODEL"));   /* sb12 */
     c3m_on = getenv("MGS2_C3_MODEL") && atoi(getenv("MGS2_C3_MODEL"));   /* sb13 */
+    if (xc_rec_chk || xc_c3_chk || c3m_on || gl_need_chk) { xl_nr_ok = 0;   /* gl36 */
+      fprintf(stderr, "xlive mode: gl36's reuse off (a check of the converter's input is on: MGS2_SB_CHK, MGS2_SB_NCHK, MGS2_C3_CHK or MGS2_C3_MODEL)\n"); }
     xc_c7_chk = getenv("MGS2_C7_CHK") && atoi(getenv("MGS2_C7_CHK"));   /* sb10 T2: each held P07 call's placed memory against its own */
     if (xc_held_force || xc_held_poison || vc_p06_exact) fprintf(stderr, "xlive mode: step c checks:%s%s%s\n", xc_held_force ? " every held call through "
       "the rebuilt VU memory (MGS2_SB_FORCE)" : "", xc_held_poison ? " the records' images and the scratch memory poisoned (MGS2_SB_POISON)" : "", vc_p06_exact ? " P06 in "
@@ -1270,7 +1606,23 @@ void xlive_chk_vblank(long vb)
   if (gb_now) { gb_frame_end(vb - 1); gb_now = 0; }
   { int k = (g_dg_calls[0] != sk_c0) | (g_dg_calls[1] != sk_c1) << 1; sk_c0 = g_dg_calls[0]; sk_c1 = g_dg_calls[1];   /* the vblank that ended */
     skip_now = skip_on && k == 2;
-    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.h.c4 = (g_opt2 & OPT2_C4) != 0; glf.h.c4x = (g_opt2 & OPT2_C4X) != 0; glf.ram = M.mem; gl_begin(&glf);
+    if (gb_on && (k & 1) && ((on && vb < to) || (!on && vb == from)) && (!gx_on || gx_seen)) { gb_now = 1; glf.h.clipfast = (g_opt & OPT_CLIP_FAST) != 0; glf.stepc = (g_opt & OPT_XL_STEPC) != 0; glf.stepc7 = (g_opt2 & OPT2_C7) != 0; glf.h.c1 = (g_opt2 & OPT2_C1) != 0; glf.h.c2 = (g_opt2 & OPT2_C2) != 0; glf.h.c3v = (g_opt2 & OPT2_C3V) != 0; glf.h.c3z = (g_opt2 & OPT2_C3Z) != 0; glf.h.c3w = (g_opt2 & OPT2_C3W) != 0; glf.h.c4 = (g_opt2 & OPT2_C4) != 0; glf.h.c4x = (g_opt2 & OPT2_C4X) != 0; glf.ram = M.mem;
+#ifdef NAT_HOOK
+      { extern int rt_nat_cull_at(long); glf.h.cull = rt_nat_cull_at(vb); }   /* cull study */
+      { extern int rt_bound_at(long, long *); bd_frame(vb, rt_bound_at(vb, 0)); }   /* gl38: the frame's kind */
+#endif
+      { static long cw = -2, cnx; if (cw == -2) cw = getenv("MGS2_CULL_WIN") ? atol(getenv("MGS2_CULL_WIN")) : 0;   /* cull study v3: the
+                                                    totals at the first frame start on or after each multiple of MGS2_CULL_WIN vblanks
+                                                    (study only; off by default) */
+        if (cw > 0 && vb >= cnx) { const long *u = xc_stats()->cull_n; fprintf(stderr, "natcull win: vb %ld:", vb); cnx = (vb / cw + 1) * cw;
+          for (int k = 0; k < 16; k++) { fprintf(stderr, " %ld", u[k]); }
+          fprintf(stderr, "\n"); } }
+      { static int gst; static long gn;   /* step 2: the carve after the opening, as psp/xl_psp.c's (its guard: 3 frames here) */
+        if (nge_x86_kg && !gst && vb >= nge_grow_vb()) { gst = 1; gn = 0;
+          if (gb_arena(&glf.o, gx_arena, GL_PSP_ARENA - nge_x86_kg, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "xlive: the carve after the opening failed\n"); exit(1); }
+          fprintf(stderr, "picture: step 2: vb %ld: frames begin with the smaller arena (%u KB)\n", vb, (unsigned)((GL_PSP_ARENA - nge_x86_kg) >> 10)); }
+        else if (gst == 1 && ++gn >= 3) { gst = 2; nge_grow(0, vb); } }
+      gl_begin(&glf);
       if (gx_on && gx_first < 0) { gx_first = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } } }
   if (on && vc_on) vc_cline(vb - 1);
   if (on) for (int k = 0; k < census_n; k++) if (census_at[k] == vb - 1) ec_report(vb - 1);

@@ -1,0 +1,28 @@
+# P14b008, debug object geng.o; probabilities from the twin's counters over the rain wait (vb 29,500-30,700, 31,771 calls)
+150 0.458657   # 14b064 count <= 0: 14,572 of 31,771
+1a8 0.295907   # copy loop ends: 17,199 of 58,123 passes
+258 1.0        # 14b0b0 always to L14b0d0
+294 0.0        # table count <= 0 at entry: assumed never
+2d0 1.0        # 14b308 [sp+12] == 0 always
+31c 0.0123865  # 14b350 id match: 70,772 of 5,713,654
+328 0.0047577  # 14b358 found flag set, leave: 26,847 of 5,642,882
+358 0.99913414 # 14b300 loop goes on: 1 - 4,924 / 5,686,807
+560 1.0        # 14b0e8 always
+590 0.0        # 14b104 never
+5a0 0.203470   # 14b110: 14,400 of 70,772
+5a8 0.271376   # 14b118 equal: 15,298 of 56,372
+5c0 0.916667   # 14b128: 13,200 of 14,400
+5d4 0.0        # 14b138: 6 of 16,498, left out
+5e4 0.0        # 14b140: 6 of 16,492, left out
+5f4 1.0        # 14b150 always
+b98 0.345141   # 14b220 r2 == 0: 5,690 of 16,486
+ba0 0.0        # inlined 14a7d4 count <= 0: never
+bac 0.346292   # inlined search, found: 10,796 of 31,176 tests (first test)
+bd8 0.346292   # same, later tests
+be4 0.0        # table exhausted: never (site i877)
+ec0 0.222305   # 14b268 r2 == r19: 2,400 of 10,796
+ec8 0.732849   # 14b270: 6,153 of 8,396
+dfc 1.0        # site i879 count > 0 always
+e20 0.0        # site i879: never found
+e4c 0.0
+e58 0.166667   # site i879 exhausted after 6 tests: 5,690 of 34,140

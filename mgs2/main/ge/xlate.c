@@ -5,8 +5,18 @@
    something reads it (renderer_notes 11.12 step 1). */
 #include <string.h>
 #include "xlate.h"
+#include "hot39.h"   /* gl39 */
 #include "gsfront.h"
 #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+#include "gsup.h"    /* gl34: gu_clut_load (xl_p04_fast) */
+#include "natsnap.h"   /* gl36: NatGrp (xl_nr_begin) */
+#ifndef __psp__
+#include <stdlib.h>   /* gl36: getenv (the x86 debug line) */
+#endif
+#ifndef __psp__
+#include <stdio.h>
+#endif
+#include "natsplit.h"   /* gl34: NS_MARK */
 
 static XlStats St;
 #ifdef XL_CENSUS
@@ -14,6 +24,7 @@ static XlStats St;
 #else
 #define XC(x)
 #endif
+uint32_t xl_gs_gen; int xl_keep_bits, xl_keep_nf, xl_keep_chk;   /* gl35 (xlate.h) */
 static XlCallFn call_fn; static void *call_ctx;
 static GfGs F; static GfPrimFn prim_fn; static void *prim_ctx; static struct GuMap *up_map; static XlPassFn pass_fn; static void *pass_ctx;   /* the GS front end (ge/gsfront.h): every GIF path's register writes and
                                                                    vertices, as the GS takes them; a VU1 call's own kicks are not seen */
@@ -32,6 +43,7 @@ static Gif G[4];
 static int gif_qw(int path, const uint32_t *q, uint32_t src)
 {
   Gif *g = &G[path];
+  xl_gs_gen++;   /* gl35 */
   uint64_t lo = q[0] | (uint64_t)q[1] << 32, hi = q[2] | (uint64_t)q[3] << 32;
   F.path = path; XC(St.gq[path]++);
   if (!g->nloop) {
@@ -59,6 +71,7 @@ static int gif_qw(int path, const uint32_t *q, uint32_t src)
    IMAGE packet with at least m quadwords left) */
 static void image_run(int path, uint32_t src, uint32_t m)
 {
+  xl_gs_gen++;   /* gl35 */
   F.path = path; XC(St.gq[path] += m); St.gif_image_qw += m; XC(St.img_qw[path] += m);
   gf_image_run(&F, src, 16 * m); G[path].nloop -= (int)m;
 }
@@ -68,6 +81,7 @@ static uint8_t VM[16384] __attribute__((aligned(16)));
 static uint32_t VPsrc[2048];   /* guest address each micro instruction was uploaded from, as gsref names entries */
 static struct { int cl, wl, mode; uint32_t mask, row[4], col[4], base, ofst, tops, itops, dbf; } V;
 static uint32_t vcmd, vsrc0, ub[1024], dq[4], dqsrc; static int vleft, vn, dqn;
+uint32_t xl_vm_wgen;   /* gl34 (xlate.h) */
 static uint32_t usrc; static int uvert;   /* task #114: XlCall.src so far; the command is an UNPACK to T + 0x100 */
 
 /* UNPACKs decoded when read (xl_vif1_span): a descriptor for each UNPACK whose data a span held whole, with where the data lies (guest RAM,
@@ -77,7 +91,7 @@ static uint32_t usrc; static int uvert;   /* task #114: XlCall.src so far; the c
 typedef struct { const uint32_t *p; uint16_t addr, num, nw, rc; uint8_t fmt, md, cl, wl; uint32_t mask; } Ud;
 #define UD_N 4096
 #define RC_N 1024
-static Ud UD[UD_N]; static uint32_t RC[RC_N][8]; static uint16_t own[1024] __attribute__((aligned(16))); static int ud_n, rc_n, rc_dirty = 1;
+static Ud UD[UD_N]; static uint32_t RC[RC_N][8]; static uint16_t own[1024] __attribute__((aligned(16))); static int ud_n H39, rc_n H39, rc_dirty = 1;
 static int lane_on, need_on; static uint32_t ud_vecs;   /* sb1: xl_lane, xl_need; the vectors of the pending descriptors */
 /* vector k of descriptor d into q, as unpack() writes it: any kind, bit by bit where needed (ud_vec takes the usual kinds first) */
 static void ud_any(const Ud *d, uint32_t k, uint32_t *q)
@@ -278,6 +292,7 @@ static void ud_new(uint32_t w, const uint32_t *p, uint32_t nw)
 {
   int c = (w >> 24) & 0x7f, num = (w >> 16) & 0xff; if (!num) num = 256;
   uint32_t imm = w & 0xffff, a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
+  xl_vm_wgen++;   /* gl34 */
   { uint32_t last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl);   /* sb10 T2 */
     if (a < 64 || a + last >= 1024) { lo_touch(a, last); if ((c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + (uint32_t)num <= 1024) lo_src(a, (uint32_t)num, p); } }
   if (ud_n == UD_N) { XC(St.full_ud++); vm_all(); }
@@ -312,6 +327,7 @@ static void ud_eager(uint32_t w, const uint32_t *p, uint32_t nw)
   uint32_t a = ((imm & 0x3ff) + ((imm >> 15 & 1) ? V.tops : 0)) & 0x3ff;
   if (ud_eager_on && (c & 0x1f) == 0x0c && !V.mode && V.cl == V.wl && a + num <= 1024) {
     const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
+    xl_vm_wgen++;   /* gl34 */
     for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
     own_fill_i(a, num, 0);
     if (a < 64) { lo_touch(a, num - 1); lo_src(a, num, p); }   /* sb10 T2 (a + num <= 1024: no wrap) */
@@ -342,6 +358,7 @@ static void unpack(uint32_t w, const uint32_t *d, int nw)
   int bits = 32 >> vl, ne = vn_ + 1; if (vn_ == 3 && vl == 3) { bits = 16; ne = 1; usn = 1; }
   { uint32_t a0 = addr & 0x3ff, last = up_last((uint32_t)num, (uint32_t)V.cl, (uint32_t)V.wl); if (a0 < 64 || a0 + last >= 1024) lo_touch(a0, last); }   /* sb10 T2 */
   uint64_t bitpos = 0; int cyc = 0; uint32_t a = addr; up_census(w);
+  xl_vm_wgen++;   /* gl34 */
   for (int k = 0; k < num; k++) {
     uint32_t e[4];
     for (int j = 0; j < 4; j++) {
@@ -414,7 +431,7 @@ static struct { uint32_t entry; int16_t i, used; const XlRule *r; } EC[256];
 static unsigned ec_slot(uint32_t e) { unsigned h = (e * 2654435761u) >> 24, n = 0; while (EC[h].used && EC[h].entry != e && ++n < 256) h = (h + 1) & 255; return n < 256 ? h : 256; }
 static const XlRule *rule_of(uint32_t e) { unsigned h = ec_slot(e); return h < 256 && EC[h].used ? EC[h].r : xl_rule(e); }
 /* entry e's index in St.ent, added there if new (as the search in call did), and its rule (0 for entry 0) */
-static int ent_index(uint32_t e, const XlRule **r)
+static inline __attribute__((always_inline)) int ent_index(uint32_t e, const XlRule **r)   /* gl35: pinned in line (gl33 had it so) */
 {
   unsigned h = ec_slot(e);
   if (h < 256 && EC[h].used) { *r = EC[h].r; return EC[h].i; }
@@ -450,6 +467,7 @@ static void vm_dec(uint32_t qa, uint32_t n)
 static void call(uint32_t pc, int cont, const XlRec *rec)
 {
   XlCall c; memset(&c, 0, sizeof c);
+  xl_gs_gen++;   /* gl35 */
   c.pc = pc; c.cont = cont; c.top = V.tops; c.itop = V.itops; c.src = usrc; usrc = 0;
   if (V.dbf) { V.dbf = 0; V.tops = V.base; } else { V.dbf = 1; V.tops = V.base + V.ofst; }
   if (cont) { const XlRule *p = rule_of(last_entry); c.entry = p ? p->cont : 0; }
@@ -466,7 +484,8 @@ static void call(uint32_t pc, int cont, const XlRec *rec)
     if (!kick_vm(c.ad_qa)) St.ad_bad++;
     c.ad = 1;
   }
-  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0;
+  NS_MARK(NS_AD);
+  if (r && r->cp_dst[0]) for (int k = 0; k < 2; k++) { uint32_t d = r->cp_dst[k] & 0x3ff; memcpy(VM + (d << 4), vmq(r->cp_src), 16); own[d] = 0; xl_vm_wgen++;
     if (d < 64) lo_touch(d, 0); }   /* sb10 T2 */
   int dctx = 3;   /* the contexts the call may draw in: the template's, else both */
   if (r) {   /* the template's PRIM, as the geometry tag sets it (PRE) */
@@ -500,9 +519,13 @@ static void call(uint32_t pc, int cont, const XlRec *rec)
   }
   if (rec) c.lane = rec->lane;
   c.vm = VM; c.gr = gr;
+  NS_MARK(NS_PRE);
   if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
+  NS_MARK(NS_BACK);
   if (r && r->passes) passes(&c, r->passes);
+  NS_PMARK(NS_P_PASS);
   gf_drew(&F, dctx);   /* after the callbacks: the call reads its texels before it draws */
+  NS_MARK(NS_DREW);
 }
 
 /* the end of a command's data: STMASK, STROW, STCOL, an UNPACK decoded now */
@@ -540,8 +563,8 @@ static void vif_cmd(uint32_t w)
   switch (c) {
     case 0x00: case 0x10: case 0x11: case 0x13: case 0x06: case 0x07: return;   /* NOP FLUSHE FLUSH FLUSHA MSKPATH3 MARK */
     case 0x01: V.cl = imm & 0xff; V.wl = imm >> 8 & 0xff; return;
-    case 0x02: V.ofst = imm & 0x3ff; V.dbf = 0; V.tops = V.base; return;
-    case 0x03: V.base = imm & 0x3ff; return;
+    case 0x02: V.ofst = imm & 0x3ff; V.dbf = 0; V.tops = V.base; xl_vm_wgen++; return;
+    case 0x03: V.base = imm & 0x3ff; xl_vm_wgen++; return;
     case 0x04: V.itops = imm & 0x3ff; return;
     case 0x05: V.mode = imm & 3; return;
     case 0x14: case 0x15: call(imm, 0, 0); return;
@@ -610,7 +633,7 @@ int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const 
   if (vleft || V.mode >= 2) return 0;
   { int cl = V.cl, wl = V.wl, ok; V.cl = 3; V.wl = 1;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones always wait) */
     ok = ud_ok(t[4 * (nr - 3) + 3]) && ud_ok(t[4 * (nr - 2) + 3]) && ud_ok(t[4 * (nr - 1) + 3]); V.cl = cl; V.wl = wl; if (!ok) return 0; }
-  static XlRec R; int ok = 1; uint32_t n = t[4 * nr + 4] & 0xffff;   /* the header's count */
+  static XlRec R H39; int ok = 1; uint32_t n = t[4 * nr + 4] & 0xffff;   /* the header's count */
   for (int j = 0; j < nr; j++) {   /* each REF: its TTE words (STCYCL, the UNPACK), then its data, all waiting */
     const uint32_t *g = t + 4 * j; uint32_t w = g[3], nw = 4 * (g[0] & 0xffff); int c = (int)(w >> 24 & 0x7f), s = j - q0 - 1;
     St.words += 2 + nw; St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff); St.cmds[c]++; XC(St.wd[c] += nw);
@@ -631,6 +654,409 @@ int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const 
   xl_lane_groups[1]++;
   return 1;
 }
+/* native step 1 (native_renderer_design.md 6.1; xlate.h XlP04): lane 1's core with the group's words and pointers as arguments, for a
+   group that comes from a record (ge/natp04.h) and not from a packet.  xl_lane_p04 above is left as it is (its profile and code are
+   gl29's): this is the same body reading g instead of the packet's quadwords */
+int xl_p04_core(const XlP04 *g)
+{
+  int q0 = g->q0, nr = 4 + q0;
+  NS_MARK(NS_PTR);
+  if (vleft || V.mode >= 2) return 0;
+  { int cl = V.cl, wl = V.wl, ok; V.cl = 3; V.wl = 1;
+    ok = ud_ok(g->unp[nr - 3]) && ud_ok(g->unp[nr - 2]) && ud_ok(g->unp[nr - 1]); V.cl = cl; V.wl = wl; if (!ok) return 0; }
+  static XlRec R H39; int ok = 1; uint32_t n = g->hdr[0] & 0xffff;   /* the header's count */
+  for (int j = 0; j < nr; j++) {   /* each REF: its TTE words (STCYCL, the UNPACK), then its data, all waiting */
+    uint32_t w = g->unp[j], nw = 4 * g->qwc[j]; int c = (int)(w >> 24 & 0x7f), s = j - q0 - 1;
+    St.words += 2 + nw; St.cmds[1]++; V.cl = (int)(g->stc[j] & 0xff); V.wl = (int)(g->stc[j] >> 8 & 0xff); St.cmds[c]++; XC(St.wd[c] += nw);
+    up_census(w); if (s < 0) { ud_eager(w, g->dp[j], nw); continue; }
+    ud_new(w, g->dp[j], nw);
+    { const Ud *d = &UD[ud_n - 1]; int k = ud_kind(d);
+      R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)k;
+      if (n > d->num || (s < 2 ? k != 2 && k != 3 : k != 4)) ok = 0; }
+  }
+  St.words += 10; St.cmds[1]++; V.cl = V.wl = 1; St.cmds[0x6c]++; XC(St.wd[0x6c] += 4);
+  up_census(g->hunp); ud_eager(g->hunp, g->hdr, 4);
+  vsrc0 = g->tadr + 16 * (uint32_t)nr + 16; usrc = 0;
+  memcpy(R.row, V.row, 16);
+  R.lane = 1;
+  vcmd = g->mscal; vn = 0; dqn = 0; St.cmds[0x14]++;
+  NS_MARK(NS_REG);
+  call(g->mscal & 0xffff, 0, ok ? &R : 0);
+  St.cmds[0x00] += 3; vcmd = 0;
+  xl_lane_groups[1]++;
+  return 1;
+}
+/* gl34 (xlate.h): xl_p04_core and call() for the one form, each step in their order.  What the general code does and this leaves out
+   changes no state: tests that the form answers, the search for the entry's rule, the descriptor's kind read back, the A+D packet
+   read back from the VU memory model (it was just copied there: the same bytes at g->dp), the GIF's general forms, the GS front end's
+   vertex cases.  A register that needs one of those (PRIM .. XYZ3, FOG, TEX2, TRXDIR, HWREG) goes to gf_reg and gs_write as always */
+long xl_nf_n[8] H39;
+long xl_nk_n[16];
+static const uint32_t *nf_blk[2]; static uint32_t nf_gen[2], nf_top[2];   /* by V.dbf: the block last copied to that buffer by a fast group */
+static inline __attribute__((always_inline)) void nf_put(uint32_t a, const uint32_t *p, uint32_t num)   /* num quadwords to a, VM owns them */
+{
+  const ud_w32 *sp = (const ud_w32 *)p; ud_w32 *q = (ud_w32 *)(VM + (a << 4)), *e = q + 4 * num;
+  for (; q < e; q += 4, sp += 4) { uint32_t x0 = sp[0], x1 = sp[1], x2 = sp[2], x3 = sp[3]; q[0] = x0; q[1] = x1; q[2] = x2; q[3] = x3; }
+  own_fill_i(a, num, 0);
+}
+static inline __attribute__((always_inline)) void nf_copy(uint32_t a, const uint32_t *p, uint32_t num)   /* ud_eager's copy: num quadwords to a, VM owns them */
+{
+  nf_put(a, p, num);
+  XC(St.eg_cmds++); XC(St.eg_vec += num);
+}
+/* gl36 (xlate.h xl_nr_*): the reuse's table and the run being walked.  nr_lw[q]: the group (j + 1) of the run being recorded that wrote
+   VU quadword q last, for the quadwords a replay may skip (cleared at the run's end); nr_tv: the run's T values (its groups' VU buffers) */
+static NrEnt *nr_t; int xl_nr_cap, xl_nr_ok = 1; static int nr_chk; long xl_nr_n[20];
+static int nr_mode, nr_n, nr_i0, nr_j = -1, nr_bad; static long nr_nf0, nr_nfl; static const NatGrp *nr_g; static uint32_t nr_vbg, nr_tv[4]; static int nr_tn;
+static uint16_t *nr_lw;   /* gl36 fix B: XL_NR_LW_N entries after the table's cap entries, in the host's block (not this file's bss) */
+#ifndef __psp__
+long xl_nr_why[16];   /* x86: why a run was not replayed: 0 buffers out of range, 1 length, 2 buffers, 3 entry, 4 head or not fast, 5 + k word k */
+/* gl37 dev (x86): MGS2_NAT_RDUMP=<file>: a line per picture ("P vb") and per run that reaches the table's test ("R i0 n vbg df0 fast hash
+   mode taken bad tn"), for the rule's study (build_gl37/nrsim.py).  Reads only */
+extern long gl_rp_vb;
+static FILE *nr_df; static int nr_dset, nr_dpend; static unsigned long long nr_dh; static uint32_t nr_dvbg; static int nr_ddf, nr_dfa;
+static void nr_dopen(void) { if (!nr_dset) { const char *e = getenv("MGS2_NAT_RDUMP"); nr_dset = 1; if (e && *e) nr_df = fopen(e, "w"); } }
+#endif
+typedef char nr_size_check[sizeof(NrEnt) == 64 ? 1 : -1];
+void xl_nr_table(NrEnt *t, int cap, int chk) { nr_t = t; xl_nr_cap = t ? cap : 0; nr_chk = chk; nr_lw = t ? (uint16_t *)(void *)(t + cap) : 0; }
+static inline void nr_words(const NatGrp *g, uint32_t *w)
+{
+  w[0] = g->mat; w[1] = g->s[0]; w[2] = g->s[1]; w[3] = g->s[2];
+  w[4] = (uint32_t)g->n[0] | (uint32_t)g->n[1] << 8 | (uint32_t)g->n[2] << 16 | (uint32_t)(g->flags & 0xf) << 24;
+  w[5] = g->hdr[0]; w[6] = g->hdr[1]; w[7] = g->hdr[2]; w[8] = g->hdr[3]; w[9] = g->mscal;
+}
+/* gl37, the reuse only where it pays (attic/gl37/report.txt; the rule chosen on the twin's runs, build_gl37/nrsim.py): a run that does not
+   match its kept entries is recorded only while each of the last two pictures had at least half of its tried groups in runs that replayed
+   or were the same as in the picture before (a shadow: the run's length, buffers and a hash of its records' words kept at its head entry,
+   which is then no head: hd 0xffff, rn 0, so no replay can use it).  Otherwise the run is fed plain and its shadow written.  Replays are
+   the same as gl36's: the rule only chooses between recording a run and not.  xl_nr_rule 0: gl36 (every run that does not match is
+   recorded).  xl_nr_r: [0] runs not recorded (shadows written), [1] their groups, [2] runs the same as their shadow, [3] their groups,
+   [4] pictures with recording on, [5] pictures with recording off, [6] groups tried, [7] groups replayed or the same */
+int xl_nr_rule = 1; long xl_nr_r[8] H39;
+static int nr_pa, nr_pg, nr_ok0 = 1, nr_ok1 = 1, nr_rec = 1;
+static void nr_sig(const NatGrp *g, int n, uint32_t *h0, uint32_t *h1)
+{
+  uint32_t a = 0x811c9dc5u, b = 0x9e3779b9u;
+  for (int j = 0; j < n; j++) { uint32_t w[10]; nr_words(&g[j], w);
+    for (int k = 0; k < 10; k++) { a = (a ^ w[k]) * 0x01000193u; b = (b + w[k]) * 0x85ebca6bu; b ^= b >> 13; } }
+  *h0 = a; *h1 = b;
+}
+int xl_nr_begin(const void *grp, int n, int i0)
+{
+  const NatGrp *g = (const NatGrp *)grp;
+  nr_mode = 0; nr_j = -1;
+  if (!nr_t || n <= 0 || !xl_nr_ok) return 0;
+  if (i0 < 0 || i0 + n > xl_nr_cap) { xl_nr_n[14]++; return 0; }
+  NrEnt *e = nr_t + i0;
+  uint32_t vbg = ~0u;
+  if (V.tops < 1024 && V.base < 1024 && V.ofst < 1024) vbg = (uint32_t)V.tops | (uint32_t)V.base << 10 | (uint32_t)V.ofst << 20 | (uint32_t)(V.dbf & 1) << 30;
+#ifndef __psp__
+  nr_dopen();
+  if (nr_df) { unsigned long long h = 1469598103934665603ull; int fa = 1;
+    for (int j = 0; j < n; j++) { uint32_t w[10]; nr_words(&g[j], w); for (int k = 0; k < 10; k++) { h ^= w[k]; h *= 1099511628211ull; }
+      if (!(g[j].flags & NATG_FAST)) fa = 0; }
+    nr_dh = h; nr_dvbg = vbg; nr_ddf = VPsrc[0x1be] == XL_DF0; nr_dfa = fa; nr_dpend = 1; }
+#endif
+  int ok = vbg != ~0u && e->rn == n && e->vbg == vbg && VPsrc[0x1be] == XL_DF0;   /* (the fast path's entry, as when recorded) */
+#ifndef __psp__
+  int why = vbg == ~0u ? 0 : e->rn != n ? 1 : e->vbg != vbg ? 2 : VPsrc[0x1be] != XL_DF0 ? 3 : -1;
+#endif
+  for (int j = 0; j < n && ok; j++) {
+    uint32_t w[10]; const NrEnt *f = e + j; nr_words(&g[j], w);
+    if (f->hd != (uint16_t)i0 || !(g[j].flags & NATG_FAST)) ok = 0;
+    else for (int k = 0; k < 10; k++) if (w[k] != f->w[k]) { ok = 0;
+#ifndef __psp__
+      why = 5 + k;
+#endif
+      break; }
+#ifndef __psp__
+    if (!ok && why < 0) why = 4;
+#endif
+  }
+#ifndef __psp__
+  if (!ok) xl_nr_why[why < 0 ? 15 : why]++;
+#endif
+  nr_n = n; nr_i0 = i0; nr_vbg = vbg; nr_nf0 = xl_nf_n[0]; nr_tn = 0; nr_bad = 0; nr_g = g;
+  nr_pa += n; xl_nr_r[6] += n;
+  if (ok) { nr_pg += n; xl_nr_r[7] += n; }
+  else if (xl_nr_rule) {   /* gl37: the run against its shadow; recorded only while the last two pictures replayed well */
+    const int sh = (e->bits & NR_SH) && e->hd == 0xffffu; uint32_t h0 = 0, h1 = 0;
+    if (sh || !nr_rec) {
+      nr_sig(g, n, &h0, &h1);
+      if (sh && e->w[0] == (uint32_t)n && e->w[1] == vbg && e->w[2] == h0 && e->w[3] == h1) { nr_pg += n; xl_nr_r[2]++; xl_nr_r[3] += n; xl_nr_r[7] += n; }
+    }
+    if (!nr_rec) {   /* not recorded: the shadow at the head (no longer a head: no replay can take it) */
+      e->hd = 0xffffu; e->rn = 0; e->bits = NR_SH; e->w[0] = (uint32_t)n; e->w[1] = vbg; e->w[2] = h0; e->w[3] = h1;
+      xl_nr_r[0]++; xl_nr_r[1] += n; nr_mode = 0; return 0;
+    }
+  }
+  if (ok && !nr_chk) { nr_mode = 1; xl_nr_n[0]++; xl_nr_n[1] += n; return 1; }
+  nr_mode = ok ? 3 : 2;
+  if (ok) { xl_nr_n[6]++; xl_nr_n[7] += n; } else { xl_nr_n[3]++; xl_nr_n[4] += n; }
+  for (int j = 0; j < n; j++) { NrEnt *f = e + j; uint8_t b = f->bits; f->bits = ok ? (uint8_t)((b & NR_S ? NR_OS : 0) | (b & NR_BOX ? NR_OB : 0)) : 0; }
+  return nr_mode;
+}
+int xl_f1_j, xl_f1_chk; long xl_f1_n[12];   /* gl38 F1 (xlate.h xl_f1_*) */
+static int f1_on, f1_n, f1_bad; static uint32_t f1_T[2]; static uint8_t f1_s[(NAT_MAXGRP + 7) / 8];
+static uint8_t f1_d[(NAT_MAXGRP + 7) / 8], f1_s2[(NAT_MAXGRP + 7) / 8]; static const NatGrp *f1_g;   /* (the check mode's) */
+static void f1_plan(const NatGrp *g, int n, const uint8_t *xb, uint8_t *f1_s);
+/* a recorded run's segment ends: each quadword's last writer so far is in S (NR_S2) and the notes are cleared */
+static void nr_seg(void)
+{
+  NrEnt *e = nr_t + nr_i0; const uint32_t n = (uint32_t)nr_n;
+  for (int t = 0; t < nr_tn; t++) {
+    const uint32_t T = nr_tv[t];
+    for (uint32_t q = T + 4; q < T + 0x1e0; q++) { const uint16_t l = nr_lw[q]; if (l) { if (l <= n) e[l - 1].bits |= NR_S2; nr_lw[q] = 0; } }
+  }
+}
+/* the group before (nr_j) in a recorded run did not take the fast path: xl_p04_core (or the word-by-word feed) wrote all it writes,
+   and a converter of another entry may read any quadword: a barrier.  It is in S (never skips), and the segment before it ends there,
+   so every quadword it may read holds its last writer's value, which writes in full */
+static void nr_after(void)
+{
+  if (nr_mode >= 2 && nr_j >= 0 && xl_nf_n[0] == nr_nfl) { nr_t[nr_i0 + nr_j].bits |= NR_S2; nr_seg(); xl_nr_n[19]++;
+    if (f1_on == 2 && nr_j < f1_n) f1_d[nr_j >> 3] |= (uint8_t)(1u << (nr_j & 7)); }   /* gl38 F1's check: the group did not take the fast path */
+}
+void xl_nr_group(int j) { nr_after(); nr_j = j; nr_nfl = xl_nf_n[0]; }
+void xl_nr_pic(void)   /* gl37: a picture starts (ge/gelive.c gl_begin): the rule's state from the picture before, if it tried a run */
+{
+#ifndef __psp__
+  nr_dopen(); if (nr_df) fprintf(nr_df, "P %ld\n", gl_rp_vb);
+#endif
+  if (nr_pa) { nr_ok1 = nr_ok0; nr_ok0 = 2 * nr_pg >= nr_pa; nr_rec = nr_ok0 && nr_ok1; xl_nr_r[nr_rec ? 4 : 5]++; nr_pa = nr_pg = 0; }
+}
+void xl_nr_end(int taken)
+{
+#ifndef __psp__
+  if (nr_dpend) { nr_dpend = 0; fprintf(nr_df, "R %d %d %08x %d %d %016llx %d %d %d %d\n", nr_i0, nr_n, nr_dvbg, nr_ddf, nr_dfa, nr_dh, nr_mode, taken, nr_bad, nr_tn); }
+#endif
+  if (!nr_mode) return;
+  nr_after();
+  NrEnt *e = nr_t + nr_i0; const int n = nr_n;
+  if (nr_mode == 1) {
+    if (taken != n) xl_nr_n[15]++;
+    if (xl_nf_n[0] - nr_nf0 != n) xl_nr_n[17]++;   /* (a group the fast path declined: xl_p04_core wrote all it writes; exact) */
+    nr_mode = 0; nr_j = -1; return;
+  }
+  int kept = taken == n && !nr_bad && nr_vbg != ~0u && nr_tn > 0;
+#ifndef __psp__
+  { static int dn = -1; if (dn < 0) { const char *ev = getenv("MGS2_NAT_RDBG"); dn = ev ? atoi(ev) : 0; }
+    if (!kept && dn > 0) { dn--; fprintf(stderr, "nrdbg: n %d i0 %d taken %d fast %ld bad %d vbg %08x tn %d\n", n, nr_i0, taken, xl_nf_n[0] - nr_nf0, nr_bad, nr_vbg, nr_tn); } }
+#endif
+  nr_seg();   /* the S set from the notes of the last segment, which are cleared */
+  /* gl38 F1's check: the plan's S against the notes'.  A group that the plan took for a fast one and that declined when it ran (the
+     tables full: xl_nf_n[6], [7]) is a barrier in the notes and not in the plan.  The plan stays exact there (the declined group's
+     xl_p04_core writes all the group's quadwords, and its converter reads the header, the matrix and the tag template, which a
+     skipping group writes too: gl36's replays with a decline, xl_nr_n[17]), so the check plans the run again with those groups as
+     barriers and compares that; the groups the first plan skips and the second does not are counted apart ([11]) */
+  const uint8_t *f1p = f1_s;
+  if (f1_on == 2 && f1_n == n) { int any = 0;
+    for (int j = 0; j < (n + 7) >> 3; j++) any |= f1_d[j];
+    if (any) { f1_plan(f1_g, n, f1_d, f1_s2); f1p = f1_s2;
+      for (int j = 0; j < n; j++) if ((f1_s2[j >> 3] >> (j & 7) & 1) && !(f1_s[j >> 3] >> (j & 7) & 1)) xl_f1_n[11]++; } }
+  for (int j = 0; j < n; j++) {
+    NrEnt *f = e + j; const uint8_t b = f->bits; const int s2 = (b & NR_S2) != 0;
+    if (nr_mode == 3) { if (((b & NR_OS) != 0) != s2) xl_nr_n[8]++; if ((b & NR_OB) && !(b & NR_BOX)) xl_nr_n[9]++; }
+    if (f1_on == 2 && f1_n == n) { const int ps = f1p[j >> 3] >> (j & 7) & 1;
+      xl_f1_n[5]++; if (!ps && s2) xl_f1_n[6]++; else if (ps && !s2) xl_f1_n[7]++; }
+    if (s2) xl_nr_n[2]++;
+    f->bits = (uint8_t)((s2 ? NR_S : 0) | (b & NR_BOX));
+    if (kept) { nr_words(&nr_g[j], f->w); f->hd = (uint16_t)nr_i0; } else f->hd = 0xffffu;
+  }
+  if (kept) { e->rn = (uint16_t)n; e->vbg = nr_vbg; xl_nr_n[5]++; } else { e->rn = 0; xl_nr_n[13]++; }
+  nr_mode = 0; nr_j = -1;
+}
+/* gl38 F1 (xlate.h xl_f1_*) */
+int xl_f1_begin(const void *grp, int n)
+{
+  const NatGrp *g = (const NatGrp *)grp;
+  const uint32_t T0 = V.tops, T1 = V.dbf ? V.base : V.base + V.ofst, T2 = V.dbf ? V.base + V.ofst : V.base;
+  f1_on = 0;
+  if (n < 2 || n > NAT_MAXGRP || !xl_nr_ok) return 0;   /* (a run of one group has nothing to skip) */
+  if (vleft || V.mode || (V.mask & 0xff) != 0x10 || !ud_eager_on || !ud_mark_on || VPsrc[0x1be] != XL_DF0 || T0 != T2 || T0 < 64 || T1 < 64 ||
+      T0 > 1024 - 0x1e0 || T1 > 1024 - 0x1e0 || (T0 < T1 ? T1 - T0 : T0 - T1) < 0x1e0) { xl_f1_n[3]++; xl_f1_n[8]++; return 0; }
+  for (int j = 0; j < n; j++) if (g[j].mscal >> 24 != 0x14) { xl_f1_n[3]++; xl_f1_n[9]++; return 0; }   /* every group ends with an MSCAL: the buffers alternate */
+  f1_plan(g, n, 0, f1_s);
+  if (xl_f1_chk) { f1_g = g; for (int j = 0; j < (n + 7) >> 3; j++) f1_d[j] = 0; }
+  f1_T[0] = T0; f1_T[1] = T1; f1_n = n; f1_bad = 0; f1_on = xl_f1_chk ? 2 : 1; xl_f1_n[0]++; xl_f1_n[1] += n;
+  return f1_on;
+}
+/* the plan: S (bits of s) by a backward pass over the run's records; xb (the check mode): more barriers, by group */
+static void f1_plan(const NatGrp *g, int n, const uint8_t *xb, uint8_t *f1_s)
+{
+  int lq0[2] = { 0, 0 }, lany[2] = { 0, 0 }; uint32_t mx[2][3] = { { 0, 0, 0 }, { 0, 0, 0 } };
+  for (int j = 0; j < (n + 7) >> 3; j++) f1_s[j] = 0;
+  for (int j = n - 1; j >= 0; j--) { const NatGrp *q = &g[j]; const int p = j & 1, q0 = (q->flags & NATG_FULL) != 0;
+    const uint32_t nm[3] = { 2u * q->n[0], 2u * q->n[1], 4u * q->n[2] }, h = q->hdr[0] & 0xffff;
+    /* the fast form, by the record.  A group without it takes xl_p04_core, and the converter of another entry may read any quadword:
+       a barrier as the notes' (nr_after): it is in S and the segment before it ends there, so the groups before it are planned
+       against each other only */
+    if ((xb && (xb[j >> 3] >> (j & 7) & 1)) ||
+        q->mscal != 0x140001beu || !(q->flags & NATG_FAST) || !q->s[0] || !q->s[1] || !q->s[2] || !nm[0] || !nm[1] || !nm[2] || h > nm[0] ||
+        h > nm[1] || h > nm[2] || 0x100 + 3 * (nm[0] - 1) >= 0x1e0 || 0x101 + 3 * (nm[1] - 1) >= 0x1e0 || 0x102 + 3 * (nm[2] - 1) >= 0x1e0) {
+      f1_s[j >> 3] |= (uint8_t)(1u << (j & 7)); if (!xb) xl_f1_n[10]++;
+      for (int k = 0; k < 2; k++) { lq0[k] = lany[k] = 0; mx[k][0] = mx[k][1] = mx[k][2] = 0; }
+      continue; }
+    const int s = (q0 && !lq0[p]) || !lany[p] || nm[0] > mx[p][0] || nm[1] > mx[p][1] || nm[2] > mx[p][2];
+    if (s) f1_s[j >> 3] |= (uint8_t)(1u << (j & 7));
+    lany[p] = 1; if (q0) lq0[p] = 1;
+    for (int k = 0; k < 3; k++) if (nm[k] > mx[p][k]) mx[p][k] = nm[k]; }
+}
+void xl_f1_end(int ok)
+{
+  if (!f1_on) return;
+  if (!ok || f1_bad) xl_f1_n[4]++;
+  f1_on = 0;
+}
+int xl_p04_fast(const XlP04 *g)
+{
+  const int q0 = g->q0, nr = 4 + q0; const uint32_t T = V.tops, To = V.dbf ? V.base : V.base + V.ofst, n = g->hdr[0] & 0xffff;
+  const uint32_t *const mat = g->dp[q0]; uint32_t num[3], nl, nreg;
+  NS_MARK(NS_PTR);
+  /* the form */
+  if (vleft || V.mode || (V.mask & 0xff) != 0x10 || !ud_eager_on || !ud_mark_on) { xl_nf_n[1]++; return 0; }
+  if (g->mscal != 0x140001beu || VPsrc[0x1be] != XL_DF0) { xl_nf_n[2]++; return 0; }
+  if (T < 64 || To < 64 || T + 0x1e0 > 1024 || To + 0x1e0 > 1024 || (T < To ? To - T : T - To) < 0x1e0) { xl_nf_n[3]++; return 0; }
+  num[0] = 2 * g->qwc[q0 + 1]; num[1] = 2 * g->qwc[q0 + 2]; num[2] = 4 * g->qwc[q0 + 3];
+  if (n > num[0] || n > num[1] || n > num[2] || !num[0] || !num[1] || !num[2] ||
+      0x100 + 3 * (num[0] - 1) >= 0x1e0 || 0x101 + 3 * (num[1] - 1) >= 0x1e0 || 0x102 + 3 * (num[2] - 1) >= 0x1e0) { xl_nf_n[4]++; return 0; }
+  /* the material's tag: PACKED, EOP, no PRE, 1 .. 7 registers, each A+D (0xe) or a NOP (0xf), NLOOP x NREG <= 7 */
+  nreg = mat[1] >> 28; nl = (mat[0] & 0x7fff) * nreg;
+  if (nl < 1 || nl > 7 || (mat[0] & 0x8000u) == 0 || (mat[1] & 0x0c004000u) != 0) { xl_nf_n[5]++; return 0; }
+  for (uint32_t k = 0; k < nreg; k++) if ((mat[2] >> (4 * k) & 0xe) != 0xe) { xl_nf_n[5]++; return 0; }
+  if (ud_n + 3 > UD_N || (rc_dirty && rc_n == RC_N)) { xl_nf_n[6]++; return 0; }
+  if (G[1].nloop) { xl_nf_n[7]++; return 0; }
+  xl_nf_n[0]++;
+  static XlRec R H39;
+  const int kp = g->keep; xl_keep_bits = kp;   /* gl35 */
+  /* gl36 (xl_nr_*): the group's reuse bits in a replayed run (XR_SKIP outside the S set, XR_BOX with a kept box), or its notes in a
+     recorded or checked one */
+  int ru = 0; NrEnt *ne = 0;
+  if (nr_mode && (unsigned)nr_j < (unsigned)nr_n) {
+    ne = nr_t + nr_i0 + nr_j;
+    if (nr_mode == 1) ru = (ne->bits & NR_S ? 0 : XR_SKIP) | (ne->bits & NR_BOX ? XR_BOX : 0);
+    else {
+      const uint16_t lj = (uint16_t)(nr_j + 1); int t = 0;
+      ru = XR_REC | (nr_mode == 3 ? XR_CHK : 0);
+      while (t < nr_tn && nr_tv[t] != T) t++;
+      if (t == nr_tn) { if (nr_tn < 4) nr_tv[nr_tn++] = T; else nr_bad = 1; }
+      if (q0) { for (uint32_t q = T + 4; q < T + 0x14; q++) nr_lw[q] = lj; nr_lw[T + 0x16] = lj; nr_lw[T + 0x17] = lj; }
+      for (uint32_t q = T + 0xe8; q < T + 0xf0; q++) nr_lw[q] = lj;
+      for (uint32_t s = 0; s < 3; s++) for (uint32_t k = 0, q = T + 0x100 + s; k < num[s]; k++, q += 3) nr_lw[q] = lj;
+    }
+  }
+  int f1s = 0;   /* gl38 F1: a group outside the plan's S skips as a replay's does */
+  if (f1_on) { const unsigned j = (unsigned)xl_f1_j;
+    if (j >= (unsigned)f1_n || T != f1_T[j & 1]) f1_bad = 1;
+    else if (f1_on == 1 && !(ru & XR_SKIP) && !(f1_s[j >> 3] >> (j & 7) & 1)) { ru |= XR_SKIP; f1s = 1; } }
+  R.ru = (uint8_t)ru; R.ne = ne;
+  /* the REFs: STCYCL and the UNPACK (the block and the material copied, the streams' descriptors), as xl_p04_core counts them */
+  St.words += 2u * (uint32_t)nr + 10u + (q0 ? 96u : 0u) + 32u + 4u * (g->qwc[q0 + 1] + g->qwc[q0 + 2] + g->qwc[q0 + 3]);
+  St.cmds[1] += nr + 1; St.cmds[0x6c] += 2 + q0; St.cmds[0x6d] += 2; St.cmds[0x75]++; St.cmds[0x14]++;
+#ifdef XL_CENSUS
+  for (int j = 0; j < nr; j++) { V.cl = (int)(g->stc[j] & 0xff); V.wl = (int)(g->stc[j] >> 8 & 0xff); St.wd[g->unp[j] >> 24 & 0x7f] += 4 * g->qwc[j]; up_census(g->unp[j]); }
+  V.cl = V.wl = 1; St.wd[0x6c] += 4; up_census(g->hunp);
+#endif
+  if (ru & XR_SKIP) {   /* gl36: a replayed run's group outside S: the matrix and the tag template only (the call reads them), the rest
+                           skipped (a later group of the run writes each of those quadwords again); the counts as today */
+    if (q0) { nf_put(T, g->dp[0], 4); nf_put(T + 0x15, g->dp[0] + 4 * 0x15, 1); XC(St.eg_cmds++); XC(St.eg_vec += 24);
+      nf_blk[V.dbf & 1] = g->dp[0]; nf_gen[V.dbf & 1] = xl_vm_wgen; nf_top[V.dbf & 1] = T; }
+    XC(St.eg_cmds++); XC(St.eg_vec += 8);
+    if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
+    for (uint32_t s = 0; s < 3; s++) {
+      XC(St.lz_cmds++); XC(St.lz_vec += num[s]);
+      R.p[s] = g->dp[q0 + 1 + s]; R.num[s] = (uint16_t)num[s]; R.kind[s] = (uint8_t)(s == 2 ? 4 : 2);
+    }
+    if (f1s) xl_f1_n[2]++; else xl_nr_n[18]++;
+  } else {
+  if (q0) { nf_copy(T, g->dp[0], 24); nf_blk[V.dbf & 1] = g->dp[0]; nf_gen[V.dbf & 1] = xl_vm_wgen; nf_top[V.dbf & 1] = T; }
+  nf_copy(T + 0xe8, mat, 8);
+  if (rc_dirty) { memcpy(RC[rc_n], V.row, 16); memcpy(RC[rc_n] + 4, V.col, 16); rc_n++; rc_dirty = 0; }
+  for (uint32_t s = 0; s < 3; s++) {   /* ud_new for CL 3, WL 1, MODE 0, not wrapping, above the constants */
+    Ud *d = &UD[ud_n++]; const uint16_t id = (uint16_t)ud_n; const uint32_t a = T + 0x100 + s; uint16_t *q = own + a; int k = (int)num[s];
+    d->p = g->dp[q0 + 1 + s]; d->addr = (uint16_t)a; d->num = (uint16_t)num[s]; d->nw = (uint16_t)(4 * g->qwc[q0 + 1 + s]); d->rc = (uint16_t)(rc_n - 1);
+    d->fmt = (uint8_t)(s == 2 ? 0x15 : 0x0d); d->md = 0; d->cl = 3; d->wl = 1; d->mask = V.mask;
+    XC(St.lz_cmds++); XC(St.lz_vec += num[s]); ud_vecs += num[s];
+    for (; k >= 4; k -= 4, q += 12) { q[0] = id; q[3] = id; q[6] = id; q[9] = id; }
+    for (; k > 0; k--, q += 3) *q = id;
+    R.p[s] = d->p; R.num[s] = d->num; R.kind[s] = (uint8_t)(s == 2 ? 4 : 2);
+  }
+  }
+  V.cl = V.wl = 1;
+  nf_copy(T + 0x14, g->hdr, 1);   /* the CNT: the header */
+  vsrc0 = g->tadr + 16 * (uint32_t)nr + 16; usrc = 0;
+  memcpy(R.row, V.row, 16); R.lane = 1; R.nf = 1;
+  R.xgen = xl_vm_wgen; R.xsrc = nf_gen[V.dbf & 1] == xl_vm_wgen && nf_top[V.dbf & 1] == T ? nf_blk[V.dbf & 1] : 0;
+  vcmd = g->mscal; vn = 0; dqn = 0;
+  NS_MARK(NS_REG);
+  /* call(0x1be, 0, &R) */
+  XlCall c;
+  c.pc = 0x1be; c.cont = 0; c.top = T; c.itop = V.itops; c.src = 0;
+  V.tops = To; V.dbf = !V.dbf;
+  c.entry = last_entry = XL_DF0;
+  St.calls++; last_cont = 0;
+  { const XlRule *r; int i = ent_index(XL_DF0, &r); if (i < 64) St.ent_n[i]++; XC(if (i < 64) St.ent_uq[i] += St.uq_open; St.uq_open = 0); }
+  c.ad_qa = (0xe8 + T) & 0x3ff; c.ad = 1; St.ad_kicks++;
+  { Gif *gp = &G[1]; uint32_t ri = 0;   /* kick_vm(T + 0xe8): the tag, then nl quadwords (A+D or NOP), to the EOP */
+    F.path = 1; XC(St.gq[1] += 1 + nl);
+    gp->eop = 1; gp->flg = 0; gp->nreg = (int)nreg; gp->regs = mat[2] | (uint64_t)mat[3] << 32; gp->ri = 0; gp->nloop = 0;
+    St.gif_tags[1]++; ME_BEAT();
+    for (uint32_t k = 1; k <= nl; k++) {
+      const uint32_t *q = mat + 4 * k; const uint32_t d = mat[2] >> (4 * ri) & 0xf, r = q[2] & 0xff; const uint64_t v = q[0] | (uint64_t)q[1] << 32;
+      if (++ri == nreg) ri = 0;
+      if (d != 0xe) continue;   /* a NOP */
+      if (!(r < 0x18 ? 0x00f003c1u >> r & 1 : r == 0x42 || r == 0x43 || r == 0x7f)) xl_gs_gen++;   /* gl35: not PRIM, TEX0, CLAMP, TEX1, TEX2, ALPHA */
+      if (!r && (kp & 2)) {   /* gl35 K2: gf_reg's case 0 and gs_write's store */
+        F.gr[0] = v; F.vqn = 0; F.dirty = 1; F.unk &= ~(GF_U_PRIM | GF_U_QUEUE); gr[0] = v; xl_nk_n[8]++;
+      } else if (r > 0x17 ? r != 0x53 && r != 0x54 : r >= 0x06 && r != 0x0a && r != 0x0c && r != 0x0d && r < 0x16) {   /* gf_reg's and gs_write's plain case */
+        F.gr[r] = v; F.dirty = 1;
+        if (r < 0x08 && F.up) {   /* gl35 K2: gu_clut_load returns at once unless the format is indexed and CLD is 1 .. 5 */
+          const uint32_t psm = (uint32_t)(v >> 20 & 63), cld = (uint32_t)(v >> 61 & 7);
+          if (!(kp & 2) || ((psm == 0x13 || psm == 0x14 || psm == 0x1b || psm == 0x24 || psm == 0x2c) && cld >= 1 && cld <= 5)) gu_clut_load(F.up, F.gr, (int)(r & 1));
+          else xl_nk_n[7]++; }
+        gr[r] = v;
+      } else if (r == 0x16 || r == 0x17) {   /* TEX2: TEX0's CLUT fields */
+        const uint64_t M = 0xFFFFFFE003F00000ull;
+        F.gr[r - 0x10] = (F.gr[r - 0x10] & ~M) | (v & M); F.gr[r] = v; F.dirty = 1;
+        if (F.up) gu_clut_load(F.up, F.gr, (int)(r & 1));
+        gr[r - 0x10] = (gr[r - 0x10] & ~M) | (v & M); gr[r] = v;
+      } else { gf_reg(&F, (int)r, v); gs_write((int)r, v); }
+    }
+  }
+  NS_MARK(NS_AD);
+  int dctx = 3;
+  c.tag_qa = (0x15 + T) & 0x3ff;
+  { const uint32_t *t = vmq(c.tag_qa);
+    if (t[1] >> 14 & 1) {
+      if (kp & 2) { const uint64_t v = t[1] >> 15 & 0x7ff; gr[0] = v; F.gr[0] = v; F.vqn = 0; F.dirty = 1; F.unk &= ~(GF_U_PRIM | GF_U_QUEUE); }   /* gl35 K2 */
+      else { gs_write(0x00, t[1] >> 15 & 0x7ff); gf_reg(&F, 0x00, t[1] >> 15 & 0x7ff); }
+      uint64_t at = (F.gr[0x1a] & 1) ? F.gr[0x00] : F.gr[0x1b]; dctx = 1 << (int)(at >> 9 & 1); } }
+  gf_unknown(&F, GF_U_ALL);
+  for (uint32_t k = 0; k < 4; k++) vmq(T + k);
+  vmq(T + 0x14); for (uint32_t k = 2; k < 6; k++) vmq(k);
+  c.rec = &R; c.lane = 1; c.vm = VM; c.gr = gr;
+  NS_MARK(NS_PRE);
+  xl_keep_nf = 1;
+  if (call_fn) ME_CALLP(call_fn)(call_ctx, &c);
+  xl_keep_nf = 0;
+  NS_MARK(NS_BACK);
+  if ((kp & 1) && F.up) {   /* gl35 K1: the drawn areas of the last full step again, while nothing it read has changed */
+    static int kd_n, kd_ctx; static int16_t kd_k[2]; static uint32_t kd_gs, kd_dg;
+    const int ok = kd_n > 0 && kd_gs == xl_gs_gen && kd_ctx == dctx && kd_dg == gu_dgen(F.up);
+    if (ok && !xl_keep_chk) { gu_drawn_again(F.up, kd_n, kd_k); xl_nk_n[0]++; }
+    else {
+      int16_t k2[2]; const uint32_t mk = gu_keep_mark(F.up);
+      gf_drew(&F, dctx);
+      const int n2 = gu_keep_got(F.up, mk, k2);
+      if (ok) { xl_nk_n[1]++; if (n2 != kd_n || k2[0] != kd_k[0] || (n2 > 1 && k2[1] != kd_k[1])) xl_nk_n[2]++; }
+      kd_n = n2; kd_k[0] = k2[0]; kd_k[1] = k2[1]; kd_gs = xl_gs_gen; kd_dg = mk; kd_ctx = dctx;
+    }
+  } else gf_drew(&F, dctx);
+  NS_MARK(NS_DREW);
+  St.cmds[0x00] += 3; vcmd = 0;
+  xl_lane_groups[1]++;
+  return 1;
+}
 /* sb2, Stage B lane 2 (xlate.h) */
 long xl_lane_groups[5];
 int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp)
@@ -640,7 +1066,8 @@ int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const 
   { int cl = V.cl, wl = V.wl, ok = 1; V.cl = 6; V.wl = 1;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones always wait) */
     for (int j = q0 + 3; j < nr; j++) if (dp[j] && !ud_ok(t[4 * j + 3])) ok = 0;
     V.cl = cl; V.wl = wl; if (!ok) return 0; }
-  static XlRec R;
+  static XlRec R H39;
+  NS_PMARK(NS_PTR);   /* gl38: the people split */
   for (int j = 0; j < nr; j++) {   /* each slot: its TTE words (STCYCL, then the UNPACK or a NOP), then a sent slot's data, all waiting */
     const uint32_t *g = t + 4 * j; int s = j - q0 - 3;   /* s: stream slot 0 .. 5 (A .. F); below 0 the constant block and the materials */
     St.cmds[1]++; V.cl = (int)(g[2] & 0xff); V.wl = (int)(g[2] >> 8 & 0xff);
@@ -656,6 +1083,7 @@ int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const 
   vsrc0 = tadr + 16 * (uint32_t)nr + 16; usrc = 0;
   memcpy(R.row, V.row, 16); R.lane = 2;
   vcmd = cn[8]; vn = 0; dqn = 0; St.cmds[0x14]++;
+  NS_PMARK(NS_REG);
   call(cn[8] & 0xffff, 0, &R);
   St.cmds[0x00] += 3; vcmd = 0;   /* the three NOPs */
   xl_lane_groups[2]++;
@@ -669,7 +1097,7 @@ int xl_lane_p07(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp)
   { int cl = V.cl, wl = V.wl, ok = 1; V.cl = 7;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones always wait) */
     for (int j = 0; j < 6; j++) if (dp[j]) { V.wl = j == 5 ? 2 : 1; if (!ud_ok(t[4 * j + 3])) ok = 0; }
     V.cl = cl; V.wl = wl; if (!ok) return 0; }
-  static XlRec R; uint32_t last = 0;
+  static XlRec R H39; uint32_t last = 0;
   for (int k = 0; k < 19; k++) {
     const uint32_t *g = t + 4 * (k < 7 ? k : k + 4); uint32_t w = g[3];
     St.words += 2;
@@ -702,7 +1130,7 @@ int xl_lane_fx(const uint32_t *t, uint32_t tadr, const uint32_t *const *dp)
   { int cl = V.cl, wl = V.wl, ok = 1;   /* the streams' UNPACKs as xl_vif1_span would test them (the V4-32 ones in STCYCL 1 / 1 always wait) */
     for (int k = 0; k < 2; k++) { V.cl = (int)(t[4 * k + 2] & 0xff); V.wl = (int)(t[4 * k + 2] >> 8 & 0xff); if (!ud_ok(t[4 * k + 3])) ok = 0; }
     V.cl = cl; V.wl = wl; if (!ok) return 0; }
-  static XlRec R;
+  static XlRec R H39;
   for (int k = 0; k < 5; k++) {
     const uint32_t *g = t + 4 * (k < 4 ? k : k + 4), *p = k == 3 ? t + 16 : dp[k]; uint32_t w = g[3], nw = 4 * (g[0] & 0xffff);
     int c = (int)(w >> 24 & 0x7f);
@@ -751,7 +1179,7 @@ void xl_vm_need(const XlCall *c)
 void xl_need(int on) { vm_all(); need_on = on; }
 static void (*flush_fn)(void *); static void *flush_ctx;   /* sb4: xl_on_flush */
 void xl_on_flush(void (*fn)(void *ctx), void *ctx) { flush_fn = fn; flush_ctx = ctx; }
-void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); }   /* (sb10 T2: the game's data may change after the transfer) */
+void xl_flush(void) { vm_all(); if (flush_fn) ME_CALLP(flush_fn)(flush_ctx); lo_all(); xl_vm_wgen++; }   /* (sb10 T2: the game's data may change after the transfer) */
 void xl_vm_sync(void) { vm_all(); }
 const uint32_t *xl_vm_q(uint32_t qa) { return vmq(qa); }
 void xl_vm_logical(uint8_t *out)
@@ -759,11 +1187,40 @@ void xl_vm_logical(uint8_t *out)
   memcpy(out, VM, sizeof VM);
   if (ud_n) for (uint32_t qa = 0; qa < 1024; qa++) if (own[qa]) { const Ud *d = &UD[own[qa] - 1]; ud_vec(d, ud_k(d, qa), (uint32_t *)(out + (qa << 4))); }
 }
+#ifndef __psp__
+/* gl34 (x86, the twin's "nats:" line): the translator's state folded, for a run against a run: h[0] the VU memory model as a read
+   sees it (xl_vm_logical), h[1] the GS registers, h[2] the GS front end (its registers, vertex state and flags), h[3] the VIF and GIF
+   state, h[4] the counters.  Not folded: which quadwords wait for their decode (own, the descriptors) */
+static uint32_t sd_h(uint32_t h, const void *p, size_t n) { const uint8_t *b = p; for (size_t i = 0; i < n; i++) { h ^= b[i]; h *= 16777619u; } return h; }
+void xl_state_dig(uint32_t *h)
+{
+  static uint8_t lv[16384];
+  for (int k = 0; k < 5; k++) h[k] = 2166136261u;
+  xl_vm_logical(lv); h[0] = sd_h(h[0], lv, sizeof lv);
+  h[1] = sd_h(h[1], gr, sizeof gr);
+  h[2] = sd_h(h[2], F.gr, sizeof F.gr); h[2] = sd_h(h[2], &F.cur, sizeof F.cur); h[2] = sd_h(h[2], &F.q, sizeof F.q); h[2] = sd_h(h[2], F.vq, sizeof F.vq);
+  h[2] = sd_h(h[2], &F.vqn, sizeof F.vqn); h[2] = sd_h(h[2], F.vqu, sizeof F.vqu); h[2] = sd_h(h[2], &F.curu, sizeof F.curu); h[2] = sd_h(h[2], &F.dirty, sizeof F.dirty);
+  h[2] = sd_h(h[2], &F.path, sizeof F.path); h[2] = sd_h(h[2], &F.unk, sizeof F.unk);
+  for (int k = 0; k < 4; k++) { h[3] = sd_h(h[3], &G[k].nloop, sizeof(int)); h[3] = sd_h(h[3], &G[k].flg, sizeof(int)); h[3] = sd_h(h[3], &G[k].nreg, sizeof(int));
+    h[3] = sd_h(h[3], &G[k].ri, sizeof(int)); h[3] = sd_h(h[3], &G[k].eop, sizeof(int)); h[3] = sd_h(h[3], &G[k].regs, sizeof(uint64_t)); }
+  h[3] = sd_h(h[3], &V.cl, sizeof V.cl); h[3] = sd_h(h[3], &V.wl, sizeof V.wl); h[3] = sd_h(h[3], &V.mode, sizeof V.mode); h[3] = sd_h(h[3], &V.mask, sizeof V.mask);
+  h[3] = sd_h(h[3], V.row, sizeof V.row); h[3] = sd_h(h[3], V.col, sizeof V.col); h[3] = sd_h(h[3], &V.base, sizeof V.base); h[3] = sd_h(h[3], &V.ofst, sizeof V.ofst);
+  h[3] = sd_h(h[3], &V.tops, sizeof V.tops); h[3] = sd_h(h[3], &V.itops, sizeof V.itops); h[3] = sd_h(h[3], &V.dbf, sizeof V.dbf);
+  h[3] = sd_h(h[3], &vcmd, sizeof vcmd); h[3] = sd_h(h[3], &vsrc0, sizeof vsrc0); h[3] = sd_h(h[3], &vleft, sizeof vleft); h[3] = sd_h(h[3], &vn, sizeof vn);
+  h[3] = sd_h(h[3], &dqn, sizeof dqn); h[3] = sd_h(h[3], &usrc, sizeof usrc); h[3] = sd_h(h[3], &last_entry, sizeof last_entry); h[3] = sd_h(h[3], &last_cont, sizeof last_cont);
+  h[3] = sd_h(h[3], xl_vgen, sizeof xl_vgen);
+  h[4] = sd_h(h[4], &St.words, sizeof St.words); h[4] = sd_h(h[4], St.cmds, sizeof St.cmds); h[4] = sd_h(h[4], &St.calls, sizeof St.calls);
+  h[4] = sd_h(h[4], St.gif_tags, sizeof St.gif_tags); h[4] = sd_h(h[4], &St.ad_kicks, sizeof St.ad_kicks); h[4] = sd_h(h[4], &St.ad_bad, sizeof St.ad_bad);
+  h[4] = sd_h(h[4], St.ent, sizeof St.ent); h[4] = sd_h(h[4], St.ent_n, sizeof St.ent_n); h[4] = sd_h(h[4], xl_lane_groups, sizeof xl_lane_groups);
+}
+#endif
 void xl_reset(void)
 {
+  xl_gs_gen++;   /* gl35 */
   memset(&St, 0, sizeof St); memset(gr, 0, sizeof gr); memset(G, 0, sizeof G); memset(VM, 0, sizeof VM); memset(VPsrc, 0, sizeof VPsrc);
   memset(&V, 0, sizeof V); V.cl = V.wl = 1; vleft = vn = dqn = 0; last_entry = 0; last_cont = 0; usrc = 0; uvert = 0;
   lo_all();   /* sb10 T2 */
+  xl_vm_wgen++;   /* gl34 */
   memset(own, 0, sizeof own); ud_n = rc_n = 0; rc_dirty = 1; ud_vecs = 0; memset(EC, 0, sizeof EC);
   gf_reset(&F, prim_fn, prim_ctx); F.up = up_map;
 }

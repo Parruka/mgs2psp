@@ -40,7 +40,15 @@ const XlRule *xl_rule(uint32_t entry);             /* 0: an entry the translator
    3 / 1 for the positions, 3 / 2 for the attributes: P04+25f0's and +2870's), else 0.  Given with every prim; the converter checks what it
    reads (ge/vu1conv.h vc_fpos_rec).  For P04+25f0 and +2870 the translator has decoded the quadwords they read besides (T + 0x10 to 0x15,
    abs 2 to 5) */
-typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4]; } XlRec;
+typedef struct { const void *p[6]; uint16_t num[6]; uint8_t kind[6], lane; uint32_t row[4];
+                 /* gl34 (xl_p04_fast's calls only; 0 from every other front): xsrc: where the constant block now at the call's T was
+                    copied from, with xgen the value xl_vm_wgen had then and has now: until xl_vm_wgen moves, T + 0 .. 3 (the matrix)
+                    hold xsrc's first four quadwords and abs 2 .. 5 are unchanged, so two calls with the same (xsrc, xgen) have the
+                    same transform (ge/vu1conv.c vc_df0_pos keeps the last one).  nf 1: the call came from xl_p04_fast (the quadwords
+                    its converter reads are decoded: ge/gelive.c gl_call asks for no more) */
+                 const void *xsrc; uint32_t xgen; uint8_t nf;
+                 /* gl36 (xl_p04_fast's calls only): ru the reuse bits of the group (XR_*), ne its kept entry (0: none) */
+                 uint8_t ru; struct NrEnt *ne; } XlRec;
 typedef struct {
   uint32_t entry;               /* 0 when the micro code at the start address was never uploaded, or for an MSCNT after an entry
                                    without a known continuation */
@@ -127,6 +135,90 @@ const XlStats *xl_stats(void);
    group this way (an UNPACK that cannot wait, a running ROW, a command with data left); the walk then hands it over word by word.
    xl_lane(1): flushes with many vectors pending scan own[] (the same quadwords decoded) */
 int xl_lane_p04(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);
+/* native step 1 (native_renderer_design.md 6.1): lane 1's core.  A P1214a0 group as arguments: dp the REF tags' data in order (the
+   constant block first when q0), each tag's STCYCL, UNPACK and quadword count, hunp the CNT's UNPACK (0x6c018014), hdr its data (the
+   header quadword: count, 0, fog word, clip), mscal the MSCAL word after it, tadr the group's first tag's guest address (or the key of a
+   group no packet holds).  hdr and dp stay valid until the transfer's end (xl_flush).  Returns as xl_lane_p04 */
+typedef struct { const uint32_t *dp[5]; uint32_t stc[5], unp[5], qwc[5]; uint32_t hunp, mscal; const uint32_t *hdr; uint32_t tadr; int q0; int keep; } XlP04;
+int xl_p04_core(const XlP04 *g);
+/* gl34, the fast front end for native ship groups (NATG_FAST, ge/natp04.h): xl_p04_core + call() for the one form nearly every group
+   has, in one piece of code with the general machinery left out: a group made by nat_p04_group with every slot sent (stc / unp the
+   template's words), MSCAL to P04+df0, STMOD 0, the template's mask, both VU buffers apart and above the constants, each stream
+   inside its buffer, a material packet of one PACKED A+D tag with EOP and 1 to 7 registers, no GIF packet open on path 1.  It leaves
+   the translator as xl_p04_core leaves it (the VU memory model as a read sees it, the descriptors, the GS registers and front end,
+   the GIF state, the counters) and makes the same converter call, with XlRec.xsrc / xgen / nf set.  0: not that form (nothing
+   changed, counted in xl_nf_n): the caller goes on to xl_p04_core.  xl_nf_n: [0] groups taken, [1..7] declined by reason (xlate.c) */
+int xl_p04_fast(const XlP04 *g);
+extern long xl_nf_n[8];
+/* gl35, the keeps (XlP04.keep, the bits of ge/natsnap.h NATG_KEEP; attic/gl35/keep_design.txt): for a fast group, steps whose inputs are
+   those of a recorded full step are replayed (every byte of state the full step would leave), or done in line without calls that can do
+   nothing: 1 the drawn areas (gsup.h gu_drawn_again), 2 the A+D packet (PRIM and the tag's PRIM in line; gu_clut_load only when it can
+   load), 4 the texture of the group's own look-ups, 8 of every look-up (gelive.c gl_tex, texcache.h tk_keep_again).  xl_keep_bits: the
+   last fast group's bits; xl_keep_nf: in a fast group's converter call; xl_keep_chk: the check mode (MGS2_NAT_KCHK=1: the full step runs
+   and is compared with what would have been replayed).  xl_gs_gen: moves at every GS traffic of the translator that could change a
+   register the drawn areas read.  xl_nk_n: [0] drawn areas replayed, [1] checked, [2] differing; [3] textures replayed, [4] checked,
+   [5] differing, [6] records made; [7] gu_clut_load calls not made, [8] PRIM writes in line */
+extern int xl_keep_bits, xl_keep_nf, xl_keep_chk; extern uint32_t xl_gs_gen; extern long xl_nk_n[16];
+/* gl36, the reuse of a run's translation from the last picture (attic/gl36/reuse_design.txt section 4).  A run: the native groups a walk
+   hands the translator in one go (ge/xlme.c lw_nat, boot/nat_x86.c nat_walk).  The host gives a table (xl_nr_table: cap entries of 64 B,
+   one per group index of a picture's array; chk 1: the check mode, MGS2_NAT_RCHK).  The walk calls xl_nr_begin with the run's records
+   (NatGrp, ge/natsnap.h), their count and the first one's index in the picture's array, when the run's picture has the switch on
+   (NatBuf.ru); then xl_nr_group(j) before group j's front end, and xl_nr_end after the run.  A run whose kept entries match (every
+   record's ten words, the run's length and head, the VU buffers' TOPS, BASE, OFFSET, DBF, every group fast) is REPLAYED: in
+   xl_p04_fast a group outside the run's S set (the last writers of the quadwords below) skips the VU memory writes a later group of
+   the run makes again (the constant block's T + 4 .. 0x13 and 0x16, 0x17; the material's 8 at T + 0xe8; the three streams'
+   descriptors and own[] marks), and in the converter (ge/xconv.c xc_call) a group with a kept box takes the transform as today and
+   the box and the first triangle without ADC (i1) from the entry, its positions computed only when they are read.  Any other run is
+   RECORDED (fed in full, the entries made at its end; a run where a group declined the fast path is not kept).  The check mode feeds a
+   would-be replayed run in full, records it again and counts the differences.  Exact by construction: the skipped quadwords are never
+   read between their skipped write and the next one, and the last writer of each writes as today; the box and i1 are functions of the
+   static streams, whose addresses and counts the compared words hold.  xl_nr_n: [0] runs replayed, [1] their groups, [2] of them in S,
+   [3] runs recorded, [4] their groups, [5] runs kept, [6] runs checked, [7] their groups, [8] S bits differing, [9] boxes or i1
+   differing, [10] kept boxes taken, [11] of them cut, [12] of 11 whose positions were still needed (depth range), [13] runs not
+   kept (a decline, a group not fast, the buffers), [14] runs with no table room, [15] replayed runs where a group was not taken by a
+   front end (a problem: 0 expected), [16] boxes recorded, [17] replayed runs with a group the fast path declined (xl_p04_core took
+   it: exact), [18] groups that skipped (outside S), [19] barriers in recorded runs (a group that did not take the fast path) */
+typedef struct NrEnt { uint32_t w[10]; int16_t box[6]; uint16_t i1, hd; uint8_t bits, pad; uint16_t rn; uint32_t vbg; } NrEnt;   /* 64 B */
+enum { NR_S = 1, NR_BOX = 2, NR_S2 = 4, NR_OS = 8, NR_OB = 16, NR_SH = 32 };   /* gl37: NR_SH a shadow at a run's head entry (xlate.c xl_nr_rule) */
+enum { XR_SKIP = 1, XR_REC = 2, XR_BOX = 4, XR_CHK = 8 };
+#define XL_NR_LW_N 1024u   /* gl36 fix B: the table's block holds cap entries, then XL_NR_LW_N uint16_t (the run's last writers, ge/xlate.c
+                              nr_lw), all zero: XL_NR_BYTES(cap) bytes */
+#define XL_NR_BYTES(cap) ((size_t)(cap) * sizeof(NrEnt) + XL_NR_LW_N * sizeof(uint16_t))
+void xl_nr_table(NrEnt *t, int cap, int chk);
+int xl_nr_begin(const void *grp, int n, int i0);   /* grp: n NatGrp records.  Returns 1 replayed, 2 recorded, 3 checked, 0 neither */
+void xl_nr_group(int j);
+void xl_nr_pic(void);                             /* gl37: a picture starts (gl_begin) */
+void xl_nr_end(int taken);                        /* taken: the groups a front end took (NATP_CORE) */
+extern long xl_nr_n[20];
+extern int xl_nr_rule; extern long xl_nr_r[8];   /* gl37: the reuse's rule (xlate.c: 1 the default, 0 gl36's) and its counts */
+extern int xl_nr_cap;
+/* gl38, F1 (attic/gl37/fix_design.md option A): the last-writer skip of the reuse's replays (XR_SKIP above) for a run that is NOT
+   replayed, the S set from a pass over the run's records before it is fed.  The walk calls xl_f1_begin with the run's records when the
+   run's picture has F1 on (NatBuf.ru bit 1) and xl_nr_begin did not answer 1; sets xl_f1_j to each group's index in the run before its
+   front end; and calls xl_f1_end after the run (ok 0: a group was dropped).  The plan is made only when the fast path's state test
+   holds at the run's start, 0x1be is the df0 entry, the run's two VU buffers are in range and apart and its first group's is the third's
+   (T alternates with each group's MSCAL), and every record has the fast form (MSCAL 0x1be, NATG_FAST, three streams, the counts in
+   range): then every group, by whichever front end, writes exactly the block's T + 0 .. 0x17 (a NATG_FULL group), the material's 8 at
+   T + 0xe8, the streams' T + 0x100 + s + 3 k (k < its count) and the header at T + 0x14.  Backwards over the run, by buffer: a group is
+   in S when it writes a quadword no later group of the run writes (the block's rest: no later NATG_FULL group; the material: no later
+   group; a stream: its count above every later one's).  In xl_p04_fast a group outside S takes the XR_SKIP branch (the matrix, T + 0x15,
+   the header and the counts as always).  Exact as the replays are: a skipped quadword is written again by its last writer before the
+   run ends, and nothing reads it in between (the df0 converter reads T + 0 .. 3, 0x14, 0x15 and abs 2 .. 5, the A+D kick its source).
+   xl_f1_chk 1 (MGS2_NAT_F1CHK): the plan is made and NOT applied, and where the run is recorded or checked by the reuse (its notes
+   made: MGS2_NAT_REUSE=1 MGS2_NAT_RRULE=0) the plan's S is compared with the notes' at xl_nr_end.
+   xl_f1_n: [0] runs planned, [1] their groups, [2] groups that skipped, [3] runs not planned ([8] by the state or the buffers, [9] a group without an MSCAL; [10] groups of planned runs without the fast form: barriers; [11] the check mode: groups the plan skips ahead of a group that declined when it ran),
+   [4] planned runs with a problem (a group dropped, a buffer other than planned, an index out of the run: 0 expected), [5] check:
+   groups compared, [6] DIFFERING: the plan skips a group the notes put in S, [7] the plan keeps a group the notes do not */
+int xl_f1_begin(const void *grp, int n);
+void xl_f1_end(int ok);
+extern int xl_f1_j, xl_f1_chk; extern long xl_f1_n[12];
+extern int xl_nr_ok;   /* 1 (the default); the twin sets 0 while a check of the converter's input runs that reads every quadword or
+                          vertex at once (MGS2_SB_CHK, MGS2_SB_NCHK, MGS2_C3_CHK, MGS2_C3_MODEL): then nothing is replayed or recorded */
+#ifndef __psp__
+void xl_state_dig(uint32_t *h);   /* gl34 (x86): the translator's state folded (xlate.c), for the twin's "nats:" line */
+#endif
+extern uint32_t xl_vm_wgen;   /* gl34: moves with every write to the VU memory model other than xl_p04_fast's own (an UNPACK registered,
+                                 copied or done, a rule's copy), with BASE and OFFSET, and at xl_flush and xl_reset */
 /* sb2, Stage B lane 2: a P12e8b8 group (runtime/ee_io.h lane_p06): q0 as above, dp the data of its nine slots after the constant block
    (0: a slot not sent, its tag a CNT of 0 with the slot's STCYCL and a NOP).  As xl_lane_p04, for every P06 entry (XlCall.rec lane 2) */
 int xl_lane_p06(const uint32_t *t, uint32_t tadr, int q0, const uint32_t *const *dp);

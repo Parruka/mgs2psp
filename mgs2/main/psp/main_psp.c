@@ -70,7 +70,10 @@ PSP_HEAP_SIZE_KB(-1024);
 #define POOL_KB 1152                       /* the host stacks of the other guest threads and the IOP threads (host_stack_alloc below) */
 #endif
 #ifndef MAIN_KB
-#define MAIN_KB 256                        /* task #180 step 4d-5: the main thread's own part above the pool (main, then guest thread 1), was 1024:
+#define MAIN_KB 128                        /* gl41 (2026-11-24): 128, was 256: the PGO build's image is 72 KB above the no-PGO build's, and
+                                              newlib's room at the route's worst moment fell under the heap gate's 32 KB; these 128 KB
+                                              go to newlib's heap (the heap's top moves up by them) and leave 125 KB for a use of 2.9 KB.
+                                              task #180 step 4d-5: the main thread's own part above the pool (main, then guest thread 1), was 1024:
                                               it used 2,908 bytes below pool_init's frame on the PSP (gl16, gl16ep2, gl17 run 2) and in every
                                               emulator run since (MGS2_STACK_MARK); the other guest threads' host stacks (the pool) at most 9.5 KB
                                               of their 48; the 768 KB go to newlib's heap (PSP_HEAP_SIZE_KB: all free memory but 1 MB) */
@@ -90,7 +93,7 @@ int mgs2_main(int argc, char **argv);
 
 static char g_dir[192] = "ms0:/PSP/GAME/MGS2T/";
 static volatile int g_quit;              /* 1: HOME was pressed; 2: the program is exiting in order */
-static FILE *g_log; static char g_logpath[256], g_logbuf[1 << 17]; static int g_logn, g_logfail;
+static FILE *g_log; static char g_logpath[256], g_logbuf[1 << 16]; static int g_logn, g_logfail;   /* gl38: 64 KB (was 128): the heap's low point (the buffer is committed every window; a run's largest burst is 22 KB, the boot report 80 KB goes out before the game starts) */
 static uint64_t now(void) { return (uint64_t)sceKernelGetSystemTimeWide(); }
 /* log.txt.  research_review.md M13: FAT records a file's size only when the file is closed, so a crash or a power-off loses what was written
    after the last close, fflush or not.  stderr is a stream into g_logbuf (newlib funopen, unbuffered: each print is copied there at once);
@@ -136,12 +139,12 @@ static void out(const char *fmt, ...)
 }
 
 /* ---- the environment the machine reads (boot.c and the runtime call getenv; built with -Dgetenv=mgs2_getenv) ---- */
-static struct { char k[32]; char *v; } g_env[48]; static int g_nenv;
+static struct { char k[32]; char *v; } g_env[64]; static int g_nenv;
 char *mgs2_getenv(const char *k) { int i; for (i = 0; i < g_nenv; i++) if (!strcmp(g_env[i].k, k)) return g_env[i].v; return 0; }
 static void env_set(const char *k, const char *v)
 {
   int i; for (i = 0; i < g_nenv && strcmp(g_env[i].k, k); i++) {}
-  if (i == g_nenv) { if (g_nenv == 48) return; snprintf(g_env[g_nenv++].k, sizeof g_env[0].k, "%s", k); } else free(g_env[i].v);
+  if (i == g_nenv) { if (g_nenv == 64) return;   /* gl39: 64 keys (was 48) */  snprintf(g_env[g_nenv++].k, sizeof g_env[0].k, "%s", k); } else free(g_env[i].v);
   g_env[i].v = strdup(v);
 }
 static char *read_text(const char *name)
@@ -183,6 +186,7 @@ static void prof_mark(void)
     if (g_prof_xl) { g_emuprof = top == HOST_XL || (g_prof_xl == 2 && top == HOST_GS) ? 1 : 2; return; }
 #endif
     g_emuprof = !g_prof_all && (top == HOST_DG || top == HOST_GS) ? 2 : 1; } }
+int host_top(void) { return reg_sp > 0 && reg_sp <= 16 ? reg_stk[reg_sp - 1] : -1; }   /* gl39: the timed part the main CPU is in (-1: none, the step's remainder) */
 void host_enter(int k) { uint64_t t = now(); if (reg_sp) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp < 16) reg_stk[reg_sp] = k; reg_sp++; reg_since = t; prof_mark(); }
 void host_leave(int k) { uint64_t t = now(); (void)k; if (reg_sp > 0 && reg_sp <= 16) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp > 0) reg_sp--; reg_since = t; prof_mark(); }
 static long g_deck_from = 24000, g_win = 100;
@@ -277,8 +281,52 @@ void xl_psp_frame(long vb); void xl_psp_gl_vblank(long vb); void xl_psp_gl_end(v
 const char *host_dir(void) { return g_dir; }
 #endif
 static uintptr_t g_brk_max; static long g_brk_vb;   /* the program break's highest point and its vblank (host_vb_begin): the heap's peak */
+/* gl41 heap fix (b): newlib's room.  The link wraps _sbrk (psp.sh --wrap=_sbrk): every move of the break is seen, so its highest point
+   and the vblank it fell in are exact (host_vb_begin samples once a vblank and misses a block taken and given back inside one).
+   g_heap_top: the highest break newlib may take (pspsdk's _sbrk takes a new break only below its heap block's end), found once at the
+   start by trying the break up and back down under newlib's malloc lock.  host_heap_room: the room above the break now, newlib's free
+   top chunk and all its free bytes (mallinfo). */
+void *__real__sbrk(ptrdiff_t incr);
+uintptr_t g_heap_top; static uintptr_t g_sbrk_max, g_sbrk_start; static long g_sbrk_vb, g_hvb;
+static volatile int g_sbrk_off;   /* the log's own probes (heap_headroom, mem_report's walk) take the break to the top and back: not counted
+                                    (volatile: without it GCC dropped heap_headroom's ++/-- around malloc, gl41 n41c) */
+static volatile int g_sbrk_ph;    /* gl41: 0 the boot (before vb 1), 1 the route, 2 the end's report (summary) */
+static uintptr_t g_sbrk_maxp[3]; static long g_sbrk_vbp[3];
+/* gl41: where the highest break came from: the moves of 32 KB or more (up to 32), the highest point after the boot (vb 1 on) apart,
+   and at each new highest point of 4 KB or more a copy of 1 KB of the caller's stack (its return addresses printed at the end) */
+static uintptr_t g_sbrk_max1; static long g_sbrk_vb1, g_sbrk_seq, g_pk_seq; static int32_t g_pk_incr; static uint32_t g_pk_stk[256];
+static struct { long seq, vb; int32_t incr; uint32_t brk; } g_bigmv[32]; static int g_nbig, g_nbig_all;
+void *__wrap__sbrk(ptrdiff_t incr)
+{
+  void *r = __real__sbrk(incr);
+  if (r != (void *)-1 && !g_sbrk_off) { uintptr_t b = (uintptr_t)r + (uintptr_t)incr; g_sbrk_seq++;
+    if (incr >= 32768 || incr <= -32768) { g_nbig_all++;
+      if (g_nbig < 32) { g_bigmv[g_nbig].seq = g_sbrk_seq; g_bigmv[g_nbig].vb = g_hvb; g_bigmv[g_nbig].incr = (int32_t)incr; g_bigmv[g_nbig].brk = (uint32_t)b; g_nbig++; } }
+    if (b > g_sbrk_max) { g_sbrk_max = b; g_sbrk_vb = g_hvb;
+      if (incr >= 4096) { const uint32_t *sp = (const uint32_t *)__builtin_frame_address(0); g_pk_seq = g_sbrk_seq; g_pk_incr = (int32_t)incr;
+        for (int i = 0; i < 256; i++) g_pk_stk[i] = sp[i]; } }
+    if (g_hvb >= 1 && b > g_sbrk_max1) { g_sbrk_max1 = b; g_sbrk_vb1 = g_hvb; }
+    { int ph = g_sbrk_ph ? g_sbrk_ph : g_hvb >= 1; if (b > g_sbrk_maxp[ph]) { g_sbrk_maxp[ph] = b; g_sbrk_vbp[ph] = g_hvb; } } }
+  return r;
+}
+void __malloc_lock(struct _reent *); void __malloc_unlock(struct _reent *);
+static void heap_top_find(void)
+{
+  uintptr_t lo = 0, hi = 64u << 20, b;
+  __malloc_lock(_REENT); b = (uintptr_t)__real__sbrk(0); g_sbrk_start = b; if (b > g_sbrk_max) g_sbrk_max = b;
+  while (hi - lo > 1) { uintptr_t mid = lo + (hi - lo) / 2;
+    if (__real__sbrk((ptrdiff_t)mid) != (void *)-1) { __real__sbrk(-(ptrdiff_t)mid); lo = mid; } else hi = mid; }
+  __malloc_unlock(_REENT); g_heap_top = b + lo;
+}
+unsigned host_heap_room(unsigned *top, unsigned *fr)
+{
+  struct mallinfo mi = mallinfo(); uintptr_t b = (uintptr_t)sbrk(0);
+  if (top) *top = (unsigned)mi.keepcost; if (fr) *fr = (unsigned)mi.fordblks;
+  return g_heap_top > b ? (unsigned)(g_heap_top - b) : 0;
+}
 void host_vb_begin(long vb)
 {
+  g_hvb = vb;
   uint64_t t = now(), st = t - t_mark;
   { uintptr_t b = (uintptr_t)sbrk(0); if (b > g_brk_max) { g_brk_max = b; g_brk_vb = vb; } }
   if (reg_sp > 0 && reg_sp <= 16) { reg_t[reg_stk[reg_sp - 1]] += t - reg_since; reg_since = t; }   /* a vblank can fall inside a region */
@@ -358,7 +406,7 @@ void host_vb_end(void)
 /* the largest block malloc can still give (binary search, 16 KB steps): the heap's real headroom. The pointer goes through a
    volatile: GCC removes a malloc / free pair whose result is unused and takes it as a success (v7 printed the 64 MB limit). */
 static void *volatile g_probe;
-static unsigned heap_headroom(void) { unsigned lo = 0, hi = 64u << 20; while (hi - lo > 16384) { unsigned mid = lo + (hi - lo) / 2; g_probe = malloc(mid); if (g_probe) { free(g_probe); lo = mid; } else hi = mid; } g_probe = 0; return lo; }
+static unsigned heap_headroom(void) { unsigned lo = 0, hi = 64u << 20; g_sbrk_off++; while (hi - lo > 16384) { unsigned mid = lo + (hi - lo) / 2; g_probe = malloc(mid); if (g_probe) { free(g_probe); lo = mid; } else hi = mid; } g_probe = 0; g_sbrk_off--; return lo; }
 /* v24 (audit M2): the largest block alone cannot tell free space from fragmentation or a leak.  newlib's own accounting (mallinfo: the
    arena taken from the heap block with sbrk, in use, free inside it in how many chunks, the releasable top), the heap block's start and the
    program break; with walk, every block malloc can still give, largest first (each kept until the next is found, then all freed) */
@@ -371,9 +419,11 @@ static void mem_report(const char *when, int walk)
       (unsigned)mi.uordblks >> 10, (unsigned)mi.fordblks >> 10, mi.ordblks, (unsigned)mi.keepcost >> 10);
   if (walk) {
     static void *b[48]; unsigned n = 0, tot = 0, s; char l[400]; int k = snprintf(l, sizeof l, "memory %s: blocks malloc can still give (KB):", when);
+    g_sbrk_off++;
     while (n < 48 && (s = heap_headroom()) >= 16384 && (b[n] = malloc(s))) { tot += s; n++; if (k < (int)sizeof l - 12) k += snprintf(l + k, sizeof l - k, " %u", s >> 10); }
     out("%s = %u KB in %u blocks\n", l, tot >> 10, n);
     while (n) free(b[--n]);
+    g_sbrk_off--;
   }
 }
 static uint8_t *g_main_lo, *g_main_hi;   /* MGS2_STACK_MARK: the main thread's stack above the host stack pool (guest thread 1 runs there),
@@ -381,6 +431,7 @@ static uint8_t *g_main_lo, *g_main_hi;   /* MGS2_STACK_MARK: the main thread's s
 static void summary(void)
 {
   char p[256]; FILE *f; long i;
+  g_sbrk_ph = 2;   /* gl41: the route is over: the break's moves from here are the end's report's */
   pspDebugScreenSetXY(0, g_st_y + 4);
   if (w_deck.n) {
     double n = (double)w_deck.n;
@@ -438,6 +489,24 @@ static void summary(void)
     out("free memory now: heap headroom %u KB; outside the heap: largest block %u KB, total %u KB\n", h / 1024, (unsigned)(sceKernelMaxFreeMemSize() / 1024), (unsigned)(sceKernelTotalFreeMemSize() / 1024));
     out("memory: the break's highest point %08x at vb %ld, %u KB above the break now: the headroom was about %d KB at its lowest\n",
         (unsigned)g_brk_max, g_brk_vb, (unsigned)(up >> 10), (int)(h / 1024) - (int)(up >> 10)); }
+  { unsigned top, fr, room = host_heap_room(&top, &fr);   /* gl41 heap fix (b) */
+    out("memory (gl41): the break's highest point %08x at vb %ld (every move of the break, --wrap=_sbrk; the log's own headroom probes left out): %u KB of room above it then (the route's worst moment for a block newlib takes at its top: the room above the break plus its free top, and the top was at least 0); now: room above the break %u KB, free top %u KB, free in all %u KB\n", (unsigned)g_sbrk_max, g_sbrk_vb, g_heap_top > g_sbrk_max ? (unsigned)((g_heap_top - g_sbrk_max) >> 10) : 0u, room >> 10, top >> 10, fr >> 10); }
+  {   /* gl41: the highest break's story (see __wrap__sbrk) */
+    char l[1200]; int k = 0;
+    out("memory (gl41): after the boot (vb 1 on) the break's highest point %08x at vb %ld: %u KB of room above it then\n", (unsigned)g_sbrk_max1,
+        g_sbrk_vb1, g_heap_top > g_sbrk_max1 ? (unsigned)((g_heap_top - g_sbrk_max1) >> 10) : 0u);
+    { static const char *const pn[3] = { "the boot (before vb 1)", "THE ROUTE (vb 1 to the end of the run)", "the end's report" };
+      for (int ph = 0; ph < 3; ph++) out("memory (gl41): the break's highest point in %s: %08x at vb %ld, %u KB of room above it then\n", pn[ph],
+        (unsigned)g_sbrk_maxp[ph], g_sbrk_vbp[ph], g_sbrk_maxp[ph] && g_heap_top > g_sbrk_maxp[ph] ? (unsigned)((g_heap_top - g_sbrk_maxp[ph]) >> 10) : 0u); }
+    for (int i = 0; i < g_nbig && k < (int)sizeof l - 48; i++)
+      k += snprintf(l + k, sizeof l - k, "%s #%ld vb %ld %+d KB -> %08x", i ? ";" : "", g_bigmv[i].seq, g_bigmv[i].vb, (int)(g_bigmv[i].incr / 1024), (unsigned)g_bigmv[i].brk);
+    out("memory (gl41): the break's moves of 32 KB or more (%d, the first %d; #: the move's number of %ld):%s\n", g_nbig_all, g_nbig, g_sbrk_seq, k ? l : " none");
+    k = 0;
+    for (int i = 0; i < 256 && k < (int)sizeof l - 12; i++) { uint32_t w = g_pk_stk[i];
+      if (w >= 0x08804000u && w < 0x0a000000u && !(w & 3)) { uint32_t ins = *(const uint32_t *)(uintptr_t)(w - 8);
+        if ((ins >> 26) == 3 || (ins & 0xfc00003fu) == 9u) k += snprintf(l + k, sizeof l - k, " %08x", (unsigned)w); } }
+    out("memory (gl41): the highest point's move #%ld (%+d KB): return addresses on its stack, innermost first:%s\n", g_pk_seq, (int)(g_pk_incr / 1024), k ? l : " none");
+  }
   if (g_main_hi > g_main_lo) { const uint8_t *q = g_main_lo; while (q < g_main_hi && *q == 0xa5) q++;
     out("stack: the main thread above the pool (guest thread 1) uses %u of %u bytes below pool_init's frame\n", (unsigned)(g_main_hi - q), (unsigned)(g_main_hi - g_main_lo)); }
   mem_report("at the end", 1);
@@ -727,6 +796,7 @@ int main(int argc, char **argv)
   vol_init(); pool_init(); out("host stack pool: %u KB at %08x\n", (unsigned)((g_pool_end - g_pool) >> 10), (unsigned)(uintptr_t)g_pool);
   out("free memory: heap headroom %u KB; outside the heap: largest block %u KB, total %u KB\n", heap_headroom() / 1024, (unsigned)(sceKernelMaxFreeMemSize() / 1024), (unsigned)(sceKernelTotalFreeMemSize() / 1024));
   mem_report("at the start", 0);
+  heap_top_find(); out("memory (gl41): newlib's heap ends at %08x (the highest break it may take); the break %08x: %u KB of room above it at the start\n", (unsigned)g_heap_top, (unsigned)g_sbrk_start, (unsigned)((g_heap_top - g_sbrk_start) >> 10));
   g_disc_clock = now;
   out("run: %ld vblanks, deck timing from vb %ld, hash every %s\n", vblanks, g_deck_from, mgs2_getenv("MGS2_HASH_EVERY"));
   g_cap_steps = vblanks > g_deck_from ? vblanks - g_deck_from : 0;
