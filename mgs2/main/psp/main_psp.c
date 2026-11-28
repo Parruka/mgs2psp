@@ -59,6 +59,7 @@
 #include <malloc.h>
 #include <unistd.h>
 #include "host_time.h"
+#include "bbox.h"                       /* gl44 H1 / H2 (psp/bbox.c): the kept files, the black box's phase words */
 #if defined(MGS2_GL) && !defined(MGS2_XL)
 #error "an MGS2_GL build needs MGS2_XL: the translator makes the picture's frames (psp/xl_psp.c)"
 #endif
@@ -119,7 +120,7 @@ static int log_write(void *cookie, const char *b, int n)
   }
   return n;
 }
-static void log_commit(void) { if (g_log) { fflush(g_log); log_put(); } }
+static void log_commit(void) { if (g_log) { uint32_t o = bb_set(BB_LC); fflush(g_log); log_put(); bb_set(o); } }   /* gl44: LC */
 /* psp/exc3.c's writer thread after a crash (crash catcher 3): the run's unwritten lines when the stopped thread is the main thread (their
    only writer, so g_logbuf holds still), then the record; raw sceIo only: the stopped thread may hold libc's locks */
 void mgs2_log_crash(const char *b, int n, int pending)
@@ -187,8 +188,13 @@ static void prof_mark(void)
 #endif
     g_emuprof = !g_prof_all && (top == HOST_DG || top == HOST_GS) ? 2 : 1; } }
 int host_top(void) { return reg_sp > 0 && reg_sp <= 16 ? reg_stk[reg_sp - 1] : -1; }   /* gl39: the timed part the main CPU is in (-1: none, the step's remainder) */
-void host_enter(int k) { uint64_t t = now(); if (reg_sp) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp < 16) reg_stk[reg_sp] = k; reg_sp++; reg_since = t; prof_mark(); }
-void host_leave(int k) { uint64_t t = now(); (void)k; if (reg_sp > 0 && reg_sp <= 16) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp > 0) reg_sp--; reg_since = t; prof_mark(); }
+/* gl44: the black box's phase tag follows the timed parts: the part entered, or after a leave the part open below it, else g_bb_base
+   (the game's logic; the hook's own tags while main_psp.c's hook runs) */
+static uint32_t g_bb_base = BB_ST;
+static const uint32_t g_bb_reg[8] = { BB_REG(0), BB_REG(1), BB_REG(2), BB_REG(3), BB_REG(4), BB_REG(5), BB_REG(6), BB_REG(7) };
+void host_enter(int k) { uint64_t t = now(); if (reg_sp) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp < 16) reg_stk[reg_sp] = k; reg_sp++; reg_since = t; prof_mark(); bb_set(g_bb_reg[k & 7]); }
+void host_leave(int k) { uint64_t t = now(); (void)k; if (reg_sp > 0 && reg_sp <= 16) reg_t[reg_stk[reg_sp - 1]] += t - reg_since; if (reg_sp > 0) reg_sp--; reg_since = t; prof_mark();
+  bb_set(reg_sp > 0 && reg_sp <= 16 ? g_bb_reg[reg_stk[reg_sp - 1] & 7] : g_bb_base); }
 static long g_deck_from = 24000, g_win = 100;
 #if defined(MGS2_GL)
 typedef struct { long n, over20, over40; uint64_t sum, max, iop, gs, dg, xl, gl, gw; } Win;
@@ -327,6 +333,7 @@ unsigned host_heap_room(unsigned *top, unsigned *fr)
 void host_vb_begin(long vb)
 {
   g_hvb = vb;
+  g_bb_base = BB_HK; bb_set(BB_HK);   /* gl44 */
   uint64_t t = now(), st = t - t_mark;
   { uintptr_t b = (uintptr_t)sbrk(0); if (b > g_brk_max) { g_brk_max = b; g_brk_vb = vb; } }
   if (reg_sp > 0 && reg_sp <= 16) { reg_t[reg_stk[reg_sp - 1]] += t - reg_since; reg_since = t; }   /* a vblank can fall inside a region */
@@ -359,7 +366,8 @@ void host_vb_begin(long vb)
     if (w_deck.n) pspDebugScreenPrintf("deck (vb %ld+): mean %6.2f ms over %ld steps   \n", g_deck_from, w_deck.sum / (double)w_deck.n / 1000, w_deck.n);
     memset(&w_cur, 0, sizeof w_cur);
     log_commit();
-    scePowerTick(PSP_POWER_TICK_ALL);   /* research_review.md M18: no auto sleep or screen off in a long run (no input reaches the system) */
+    { uint32_t o = bb_set(BB_PT); scePowerTick(PSP_POWER_TICK_ALL); bb_set(o); }   /* research_review.md M18: no auto sleep or screen off in a long run (no input reaches the system); gl44: PT */
+    bb_go();                            /* gl44 H2: the black box's thread from the first window (MGS2_BBOX=1; once) */
   }
   { int i; for (i = 0; i < g_nprof; i++)
       if (vb == g_prof_a[i]) { g_emuprof = 1; prof_mark(); fprintf(stderr, "emulator profile on at vb %ld\n", vb); }
@@ -368,9 +376,11 @@ void host_vb_begin(long vb)
   pgo_vb(vb);
 #endif
   if (g_quit) finish("HOME");
+  g_bb_base = BB_HS; bb_set(BB_HS);   /* gl44: the hook's hash part (boot.c state_hash) until host_vb_end */
 }
 void host_vb_end(void)
 {
+  g_bb_base = BB_HE; bb_set(BB_HE);   /* gl44 */
   if (g_hash_vb >= 0) {                 /* a hash was taken in this vblank's hook */
     pspDebugScreenSetXY(0, g_st_y + 2); pspDebugScreenPrintf("hash vb %6ld ee %016llx\n", g_hash_vb, (unsigned long long)g_hash_ee);
     g_hash_vb = -1; if (g_log) fflush(g_log);
@@ -400,6 +410,7 @@ void host_vb_end(void)
 #ifdef MGS2_GL
   xl_psp_frame(g_vb_now);               /* the picture's work at this hook: in the step that starts now (HOST_GL, HOST_GW) */
 #endif
+  g_bb_base = BB_LG; bb_set(reg_sp > 0 && reg_sp <= 16 ? g_bb_reg[reg_stk[reg_sp - 1] & 7] : BB_LG);   /* gl44: the step's logic (or the part open) */
 }
 
 /* ---- the end: summary, then wait for X (an automatic exit is the step after which other ports saw the console switch off) ---- */
@@ -511,6 +522,7 @@ static void summary(void)
     out("stack: the main thread above the pool (guest thread 1) uses %u of %u bytes below pool_init's frame\n", (unsigned)(g_main_hi - q), (unsigned)(g_main_hi - g_main_lo)); }
   mem_report("at the end", 1);
   out("disc pack: %u reads, %u KB, %.2f s of host time in the run\n", g_disc_reads, g_disc_sectors * 2, g_disc_us / 1e6);
+  bb_report(out);                       /* gl44 H2 */
   if (g_logfail) out("log.txt: %d writes to the memory stick failed, so lines may be missing\n", g_logfail);
 }
 static int g_vol_locked;
@@ -518,6 +530,7 @@ static void psp_exit(void) { log_commit(); g_log = 0; g_quit = 2; if (g_vol_lock
 static void finish(const char *why)
 {
   static int once; if (once++) psp_exit();
+  g_bb_base = BB_EN; bb_set(BB_EN);   /* gl44 */
 #ifdef MGS2_GL
   xl_psp_gl_end();                      /* the GE idle and the text on the screen again */
 #endif
@@ -635,10 +648,10 @@ int stage_ovl_call(const char *name, uint32_t a)
 {
   struct OvlHdr *h = (struct OvlHdr *)ovl_arena;
   if ((name != ovl_cur_p || !(g_opt & OPT_STAGE_TAB)) && strcmp(ovl_cur, name)) {
-    char p[256]; FILE *f; size_t n; uint64_t t0 = now();
+    char p[256]; FILE *f; size_t n; uint64_t t0 = now(); uint32_t bo;
     ovl_cur[0] = 0; ovl_cur_p = 0; snprintf(p, sizeof p, "%sovl_%s.bin", g_dir, name);
     if (!(f = fopen(p, "rb"))) { out("stage overlay %s missing\n", p); return 0; }
-    n = fread(ovl_arena, 1, OVL_SIZE, f); fclose(f);
+    bo = bb_set(BB_OV); n = fread(ovl_arena, 1, OVL_SIZE, f); fclose(f); bb_set(bo);   /* gl44: OV */
     if (n < sizeof *h || h->magic != 0x314c564fu || strcmp(h->name, name) || h->end > ovl_arena + OVL_SIZE || h->bss > h->end) {
       out("stage overlay %s: bad file (%u bytes)\n", p, (unsigned)n); return 0; }
     if (h->chk[0] != (const void *)g_mem || h->chk[1] != (const void *)rt_poll || h->chk[2] != (const void *)P100010) {
@@ -713,11 +726,14 @@ int main(int argc, char **argv)
   if (argc > 0 && argv[0] && strrchr(argv[0], '/')) { size_t l = strrchr(argv[0], '/') - argv[0] + 1; if (l < sizeof g_dir) { memcpy(g_dir, argv[0], l); g_dir[l] = 0; } }
   /* everything the machine prints on stderr goes to log.txt (a 128 KB buffer, appended to the file every g_win vblanks in the hook, outside
      the timed steps: log_commit) */
+  bb_rotate(g_dir);                     /* gl44 H1: the runs before's log, battery, crash, steps and black box files kept (_prev1, _prev2),
+                                           before any file is written */
   snprintf(g_logpath, sizeof g_logpath, "%slog.txt", g_dir);
   { SceUID f = sceIoOpen(g_logpath, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
     if (f >= 0) { sceIoClose(f); if ((g_log = funopen(0, 0, log_write, 0, 0))) { setvbuf(g_log, 0, _IONBF, 0); stderr = g_log; } } }
   out("%s\nfolder %s\n", HARNESS_TITLE, g_dir);
   if (!g_log) out("log.txt could not be opened: results on screen only\n");
+  bb_rotate_report(out);                /* gl44 H1 */
   { char p[256];
     snprintf(p, sizeof p, "%smgs2disc.pak", g_dir); env_set("MGS2_DISC", p);
     snprintf(p, sizeof p, "%smemcard0", g_dir); env_set("MGS2_MC0", p);
@@ -752,6 +768,7 @@ int main(int argc, char **argv)
     }
     free(cfg);
   }
+  bb_start(g_dir);                      /* gl44 H2 (MGS2_BBOX=1): bbox.txt at its full size and record 0; the thread from the first window */
   /* without MGS2_OPT the run uses boot.c's default g_opt (from v21 all on, the reduced renderer included); "MGS2_OPT_CYCLE=24000:100"
      in mgs2.cfg brings the rotation back */
   if (mgs2_getenv("MGS2_OPT")) out("speedups: MGS2_OPT=%s\n", mgs2_getenv("MGS2_OPT"));
@@ -797,7 +814,7 @@ int main(int argc, char **argv)
   out("free memory: heap headroom %u KB; outside the heap: largest block %u KB, total %u KB\n", heap_headroom() / 1024, (unsigned)(sceKernelMaxFreeMemSize() / 1024), (unsigned)(sceKernelTotalFreeMemSize() / 1024));
   mem_report("at the start", 0);
   heap_top_find(); out("memory (gl41): newlib's heap ends at %08x (the highest break it may take); the break %08x: %u KB of room above it at the start\n", (unsigned)g_heap_top, (unsigned)g_sbrk_start, (unsigned)((g_heap_top - g_sbrk_start) >> 10));
-  g_disc_clock = now;
+  g_disc_clock = bb_disc_clock;         /* gl44: main_psp.c now() with the black box's DR tag (psp/bbox.c) */
   out("run: %ld vblanks, deck timing from vb %ld, hash every %s\n", vblanks, g_deck_from, mgs2_getenv("MGS2_HASH_EVERY"));
   g_cap_steps = vblanks > g_deck_from ? vblanks - g_deck_from : 0;
   if (g_cap_steps && !(g_steps = malloc(g_cap_steps * sizeof *g_steps))) g_cap_steps = 0;
@@ -810,6 +827,7 @@ int main(int argc, char **argv)
     memset((void *)0x00010000, 0, 0x4000);   /* the state starts at zero, as it would in .bss (after the probes, which use the scratchpad) */
     out("machine state in the scratchpad: layout %s (%d), VFPU loads / stores there %u wrong words\n", l ? "WRONG" : "ok", l, (unsigned)v); }
 #endif
+  g_bb_base = BB_LG; bb_set(BB_LG);   /* gl44: the game from here */
   mgs2_main(3, margv);
   finish("the game's entry returned");
   return 0;

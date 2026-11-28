@@ -147,6 +147,20 @@ static void b43_turn(long vb, int i)
               d[1][0], d[1][1], d[1][2], d[1][3], d[2][0], d[2][1], d[2][2], d[2][3], d[3][0], d[3][1], d[3][2], d[3][3]); }
   memcpy(n0, g_b43_n, sizeof n0); vb0 = vb; last = i; on0 = (g_opt2 & OPT2_B43) != 0;
 }
+/* gl44 V44 (boot/native_w00a.c, attic/gl44): its counters (the w00a overlay counts here) and the per-turn line: line_sph prims stubbed,
+   G0 + G0H prims done by G0 (V44 off), rain.c entries skipped, in-place entries run, last units shorter than the tail, stubs that placed
+   earlier prims first */
+long g_v44_n[6];
+static void v44_turn(long vb, int i)
+{
+  static int last = -1; static long vb0, n0[6]; static int on0;
+  if (i == last) return;
+  if (last >= 0) {
+    long d[6], s = 0; for (int a = 0; a < 6; a++) s += d[a] = g_v44_n[a] - n0[a];
+    if (s) fprintf(stderr, "v44 turn vb %ld-%ld: V44 %s; line_sph stubbed %ld, by G0 %ld; rain.c entries skipped %ld, in place and run %ld; "
+                   "short tails %ld, placed first %ld\n", vb0, vb - 1, on0 ? "on" : "off", d[0], d[1], d[2], d[3], d[4], d[5]); }
+  memcpy(n0, g_v44_n, sizeof n0); vb0 = vb; last = i; on0 = (g_opt2 & OPT2_V44) != 0;
+}
 #if !defined(__psp__)
 /* gl43 dev (x86): MGS2_B43_SEEDLOG=<from vb>:<to vb>:<file>: at every act (the scheduler's call at 0x13f1ac, while g_half) the stage seed
    words (w00a 0x1fc954, w01a 0x1fbd74, d01t 0x1ff554) and the time.  Per vblank "sv <vb> <hash> <acts>" over every act's (address, actor,
@@ -185,9 +199,43 @@ static const struct { uint32_t act; uint32_t bit; const char *name; } half_tab[]
   { 0x2dfeb8, 4, "wave.c" },        { 0x2e1e10, 2, "fade_lgt.c" },    { 0x2e8410, 1, "ropemain.c" },   { 0x2e9428, 1, "ropemain2.c" },  /* w00a */
   { 0x3105f0, 8, "afterimage.c" },  { 0x312328, 2, "bonbori_yw.c" },  { 0x312aa8, 2, "bonbori_red.c" }, { 0x322d38, 2, "c_light.c" },
   { 0x323a28, 4, "wave2.c" },       { 0x3af278, 4, "wave2.c" } };                                                                   /* d01t, w00a */
+/* gl44 study (x86 only): MGS2_ACTLOG=<file>:<from vb>:<to vb>[:<full from>:<full to>] with MGS2_HALF=10 (hex: 0x10, a bit of no table entry, so
+   every act call comes through rt_half_skip): one line per scheduler pass in [from, to): the pass, the vblank, the acts called, a hash
+   of every (act, shared seed 0x1fc954 at its entry) and one of every (act, seed, virtual time); in the full range one line per act
+   call too; at the end per act address its calls and host ticks (the time from its call to the next act's call) in [from, to) */
+static FILE *al_f; static long al_from = -1, al_to, al_ff = -1, al_ft, al_n, al_pass = -1, al_vb; static uint64_t al_h1, al_h2;
+static struct { uint32_t a; long n; uint64_t t; char nm[20]; } al_t[1024]; static int al_last = -1; static uint64_t al_tsc;
+static inline uint64_t al_mix(uint64_t h, uint64_t v) { h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2); return h * 0xff51afd7ed558ccdull; }
+static void al_line(void) { if (al_n) fprintf(al_f, "P %ld %ld %ld %016llx %016llx\n", al_pass, al_vb, al_n, (unsigned long long)al_h1, (unsigned long long)al_h2); }
+static void al_end(void)
+{
+  if (!al_f) return;
+  al_line();
+  for (int i = 0; i < 1024; i++) if (al_t[i].n) fprintf(al_f, "T %06x %-18s %8ld %12llu\n", al_t[i].a, al_t[i].nm, al_t[i].n, (unsigned long long)al_t[i].t);
+  fclose(al_f); al_f = 0;
+}
+static void al_call(uint32_t a)
+{
+  uint64_t now = __builtin_ia32_rdtsc(); uint32_t seed; int i;
+  if (al_from < 0) {
+    const char *e = getenv("MGS2_ACTLOG"); char fn[256]; al_from = 0x7fffffff;
+    if (e && sscanf(e, "%255[^:]:%ld:%ld:%ld:%ld", fn, &al_from, &al_to, &al_ff, &al_ft) >= 3) { al_f = fopen(fn, "w"); atexit(al_end); }
+    if (!al_f) al_from = 0x7fffffff;
+  }
+  if (al_last >= 0) { al_t[al_last].t += now - al_tsc; al_last = -1; }
+  if (!al_f || k_vblanks < al_from || k_vblanks >= al_to) return;
+  if ((long)g_half_step != al_pass) { al_line(); al_pass = (long)g_half_step; al_vb = k_vblanks; al_n = 0; al_h1 = al_h2 = 0; }
+  seed = RD32(0x1fc954u);
+  al_n++; al_h1 = al_mix(al_mix(al_mix(al_mix(al_h1, a), seed), RD32(0x1fbd74u)), RD32(0x1ff554u)); al_h2 = al_mix(al_mix(al_mix(al_h2, a), seed), (uint64_t)k_time);
+  if (k_vblanks >= al_ff && k_vblanks < al_ft) fprintf(al_f, "A %ld %ld %06x %08x %llu\n", al_pass, (long)k_vblanks, a, seed, (unsigned long long)k_time);
+  for (i = (int)((a >> 3) & 1023); al_t[i].n && al_t[i].a != a; i = (i + 1) & 1023) ;
+  if (!al_t[i].n) { uint32_t p = RD32((uint32_t)R[4] + 0x28); int k; al_t[i].a = a; for (k = 0; k < 18; k++) { uint8_t c = (p >= 0x100000u && p < 0x2000000u) ? RD8(p + k) : 0; if (c < 32 || c > 126) break; al_t[i].nm[k] = (char)c; } al_t[i].nm[k] = 0; if (!k) strcpy(al_t[i].nm, "-"); }
+  al_t[i].n++; al_last = i; al_tsc = __builtin_ia32_rdtsc();
+}
 int rt_half_skip(uint32_t a)            /* 1 = skip this act (the scheduler's call at 0x13f1ac, the actor in R[4]); only called while g_half */
 {
   int lo = 0, hi = (int)(sizeof half_tab / sizeof *half_tab) - 1, m = -1, k; uint32_t p, b; const char *s;
+  al_call(a);       /* gl44 study: MGS2_ACTLOG */
   b43_seedlog(a);   /* gl43 dev: MGS2_B43_SEEDLOG */
   if (a < 0x25e2e0u || a > 0x3af278u) return 0;
   while (lo <= hi) { int c = (lo + hi) >> 1; if (half_tab[c].act == a) { m = c; break; } if (half_tab[c].act < a) lo = c + 1; else hi = c - 1; }
@@ -223,7 +271,7 @@ static void opt_window(long vb)
       for (int i = 0; i < OPT_NCFG && *p; i++) { cfgh[i] = (uint32_t)strtoul(p, &p, 16); if (*p != ',') break; p++; } }
     if (g_half || getenv("MGS2_HALF_CYCLE")) fprintf(stderr, "half: MGS2_HALF %x, turns %s (1 ropes, 2 lamps, 4 sea: every other step; 8 trail: off)\n",
                                                       (unsigned)g_half, getenv("MGS2_HALF_CYCLE") ? getenv("MGS2_HALF_CYCLE") : "none"); }
-  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; b43_turn(vb, i); }   /* gl43: b43_turn */
+  if (from >= 0 && vb > from) { int i = (int)(((vb - from - 1) / n) % ncfg); g_opt = cfg[i]; g_opt2 = cfg2[i]; g_half = cfgh[i]; b43_turn(vb, i); v44_turn(vb, i); }   /* gl43: b43_turn; gl44: v44_turn */
   K_POLL_KICK();                                 /* (OPT_POLL_DUE may have changed) */
 }
 static void st_tick(long vb);   /* gl33 (nat_x86.c): the static streams' check */

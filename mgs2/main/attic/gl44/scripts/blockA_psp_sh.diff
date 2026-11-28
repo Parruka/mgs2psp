@@ -1,0 +1,17 @@
+30c30
+< TITLE=${TITLE:-MGS2 harness gl43}
+---
+> TITLE=${TITLE:-MGS2 harness gl44}
+129c129,130
+<   cc ps2rc_kcall.o "psp-gcc -I$SDK/include -c $HP/ps2rc_kcall.S -o ps2rc_kcall.o" || { echo "psp.sh: the catcher's units failed"; exit 1; } ) &
+---
+>   cc ps2rc_kcall.o "psp-gcc -I$SDK/include -c $HP/ps2rc_kcall.S -o ps2rc_kcall.o" &&
+>   cc bbox.o "psp-gcc $BASEF -Os -fno-merge-constants -I$SDK/include -c $M/psp/bbox.c -o bbox.o" || { echo "psp.sh: the catcher's units failed"; exit 1; } ) &   # gl44: bbox.o (H1, H2)
+131c132
+< for o in gen.o gen_s_w00a.o gen_s_w01a.o gen_s_d00t.o gen_s_d01t.o boot_rt.o main_psp.o ge_me_rt.o xl_psp.o ps2rc_kcall.o; do [ -f $o ] || { echo "psp.sh: $o missing"; exit 1; }; done
+---
+> for o in gen.o gen_s_w00a.o gen_s_w01a.o gen_s_d00t.o gen_s_d01t.o boot_rt.o main_psp.o ge_me_rt.o xl_psp.o ps2rc_kcall.o bbox.o; do [ -f $o ] || { echo "psp.sh: $o missing"; exit 1; }; done
+166c167
+< XOBJS="xl_psp.o ge_xlive.o ge_xlate.o ge_gsfront.o ge_gsup2.o ge_texconv.o ge_texcache.o ge_gelive.o ge_gebatch.o ge_xconv.o ge_vu1conv.o ge_gelist.o ge_xlme.o ge_xme.o ge_xme_me.o ge_fxthin.o ge_me_rt.o gl1_glue.o v26me_bat.o exc3b.o exc3b_s.o ps2rc_kcall.o hle_me.o"
+---
+> XOBJS="xl_psp.o ge_xlive.o ge_xlate.o ge_gsfront.o ge_gsup2.o ge_texconv.o ge_texcache.o ge_gelive.o ge_gebatch.o ge_xconv.o ge_vu1conv.o ge_gelist.o ge_xlme.o ge_xme.o ge_xme_me.o ge_fxthin.o ge_me_rt.o gl1_glue.o v26me_bat.o exc3b.o exc3b_s.o ps2rc_kcall.o hle_me.o bbox.o"   # gl44: bbox.o

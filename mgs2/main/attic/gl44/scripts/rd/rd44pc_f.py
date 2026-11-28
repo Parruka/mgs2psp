@@ -1,0 +1,296 @@
+# rd44pc.py: read an MGS2 harness gl44 PSP run on the PC.   python -I rd44pc.py <LOGS\gl44 folder>
+# gl44 = gl43 + V44 (OPT2 bit 22: line_sph's hidden prims as a stub, rain.c's hidden streak loops skipped; README.txt) in alternate
+# turns of the rain, and option B on from t50 in every turn but the two anchors (t50 K-A, t56 K-N2).  New kinds: K-BV = K-B + V44,
+# K-N2BV = K-N2B + V44, K7BV = K7B + V44, each read against its kind without V.  This reader is rd43pc.py with the V kinds in the table,
+# the means and the pairs (K-BV minus K-B, K-N2BV minus K-N2B, K7BV minus K7B), the V44 turns' counters ('v44 turn' lines: prims
+# stubbed, by G0, rain.c entries skipped, run in place, short tails, placed first) and the OPT2 word of each turn ('gl41 levers') in
+# its SCHEDULE CHECK.  The black box (bbox.txt) has its own reader, rdbbox.py.  Files of the two starts before: *_prev1, *_prev2.
+# gl43's notes:
+# rd43pc.py: read an MGS2 harness gl43 PSP run on the PC.
+# gl43 = gl42 + Ffm's rain option B in its own turns (K-B = K-A + B, K-N2B = K-N2 + B, K7B = K7 + B; README.txt): this reader is rd42pc.py
+# with the B kinds in the table, the means and the pairs (K-B minus K-A, K-N2B minus K-N2, K7B minus K7), the B turns' counters
+# ("b43 turn" lines: calls shadowed, calls run as translated because a poll was due or a guard held, calls with B off) and their check.
+# gl42's notes: Standard library only, one file.  gl42 is the renderer checkpoint, a measurement build like gl39-gl41: from vb 24,000 each turn of 100
+# vblanks has a KIND (README.txt has the table): K-A everything drawn, today's path; K-N1 the ship native (native step 1); K-N2 the ship
+# and the people native (native step 2); K-N2R K-N2 with only chains 2-4 drawn (bound kind 9); K7 nothing drawn (the main CPU alone, the
+# ME resting).  C2 on everywhere (DEVIATIONS.md B7); P1, P3, M5, F1 on; XP 3 (7 with the check in the digest turns t55, t73).
+# Prints: the end and crash lines; the hash, digest and content fingerprints against the emulator run of the same package; HEAP; the
+# carve after the opening (the growth); the turn table with a SCHEDULE CHECK; by stretch (deck, rain wait, walk) each kind's means and
+# K-N1 / K-N2 / K-N2R minus K-A and K-A minus K7 with main, ME and P = max(main, ME); each lever turn against its K-A neighbours; the
+# people by turn with the reuse content hash's time a step (MGS2_NGE_HPROBE); native step 1 by turn; the problem counters.
+# main = the step minus the GE wait (the main CPU's own time a step, its waits for the ME included in the GE wait); ME = the ME's busy
+# time a step (all but idle and GE waits); P = max(main, ME).  Every figure is ms a PSP step (a vblank) unless it says otherwise.
+import sys, os, re, hashlib
+A = sys.argv[1]
+EH, NH = '4dea1824afdf', 62          # hash lines 'vb ee iop' of the emulator run
+ED, EDZ, ND = '6bf2bb9bfd5c', '5bb8f80b7648', 61   # digest lines 'vb list frame' / with the dz text
+EC, NC = '6b657c5fbaf2', 61          # content lines 'vb content'
+SCHED = [(0, 24000, 'A', 0, 0, 1, 3, 'deck, change of scene', 'deck'), (1, 24100, '2', 2, 0, 1, 3, 'first deck scene', 'deck'), (2, 24200, 'A', 0, 0, 1, 3, 'first deck scene', 'deck'), (3, 24300, 'R', 2, 9, 1, 3, 'first deck scene', 'deck'), (4, 24400, 'A', 0, 0, 1, 3, 'first deck scene', 'deck'), (5, 24500, 'N', 1, 0, 1, 3, 'first deck scene', 'deck'), (6, 24600, 'A', 0, 0, 1, 3, 'first deck scene', 'deck'), (7, 24700, '2', 2, 0, 1, 3, 'first deck scene', 'deck'), (8, 24800, 'A', 0, 0, 1, 3, 'first deck scene', 'deck'), (9, 24900, 'R', 2, 9, 1, 3, 'first deck scene', 'deck'), (10, 25000, 'A', 0, 0, 1, 3, 'deck, change of scene', 'deck'), (11, 25100, '2', 2, 0, 1, 3, 'deck (first play)', 'deck'), (12, 25200, 'A', 0, 0, 1, 3, 'deck (first play)', 'deck'), (13, 25300, 'R', 2, 9, 1, 3, 'deck (first play)', 'deck'), (14, 25400, 'A', 0, 0, 1, 3, 'deck (first play)', 'deck'), (15, 25500, 'N', 1, 0, 1, 3, 'deck (first play)', 'deck'), (16, 25600, 'A', 0, 0, 1, 3, 'deck (first play)', 'deck'), (17, 25700, '2', 2, 0, 1, 3, 'deck (first play)', 'deck'), (18, 25800, 'A', 0, 0, 1, 3, 'deck (first play)', 'deck'), (19, 25900, '7', 0, 7, 1, 3, 'deck (first play)', 'deck'), (20, 26000, 'A', 0, 0, 1, 3, 'deck, change of scene', 'deck'), (21, 26100, '2', 2, 0, 1, 3, 'deck, change of scene', 'deck'), (22, 26200, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (23, 26300, 'R', 2, 9, 1, 3, 'steady deck', 'deck'), (24, 26400, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (25, 26500, 'N', 1, 0, 1, 3, 'steady deck', 'deck'), (26, 26600, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (27, 26700, '2', 2, 0, 1, 3, 'steady deck', 'deck'), (28, 26800, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (29, 26900, 'R', 2, 9, 1, 3, 'steady deck', 'deck'), (30, 27000, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (31, 27100, '2', 2, 0, 1, 3, 'steady deck', 'deck'), (32, 27200, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (33, 27300, 'R', 2, 9, 1, 3, 'steady deck', 'deck'), (34, 27400, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (35, 27500, 'N', 1, 0, 1, 3, 'steady deck', 'deck'), (36, 27600, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (37, 27700, '2', 2, 0, 1, 3, 'steady deck', 'deck'), (38, 27800, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (39, 27900, '7', 0, 7, 1, 3, 'steady deck', 'deck'), (40, 28000, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (41, 28100, '2', 2, 0, 1, 3, 'steady deck', 'deck'), (42, 28200, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (43, 28300, 'R', 2, 9, 1, 3, 'steady deck', 'deck'), (44, 28400, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (45, 28500, 'N', 1, 0, 1, 3, 'steady deck', 'deck'), (46, 28600, 'A', 0, 0, 1, 3, 'steady deck', 'deck'), (47, 28700, '2', 2, 0, 1, 3, 'change of scene', 'deck'), (48, 28800, 'A', 0, 0, 1, 3, 'change of scene', 'deck'), (49, 28900, '7', 0, 7, 1, 3, 'change of scene', 'deck'), (50, 29000, 'A', 0, 0, 1, 3, 'rain begins', 'rain wait'), (51, 29100, 'B', 0, 4, 1, 3, 'rain wait, first turns', 'rain wait'), (52, 29200, 'b', 0, 4, 1, 3, 'rain wait, first turns', 'rain wait'), (53, 29300, 'b', 0, 4, 1, 3, 'rain wait, first turns', 'rain wait'), (54, 29400, 'B', 0, 4, 1, 3, 'rain wait, first turns', 'rain wait'), (55, 29500, 'c', 2, 4, 0, 7, 'rain wait', 'rain wait'), (56, 29600, '2', 2, 0, 1, 3, 'rain wait', 'rain wait'), (57, 29700, 'C', 2, 4, 1, 3, 'rain wait', 'rain wait'), (58, 29800, 'c', 2, 4, 1, 3, 'rain wait', 'rain wait'), (59, 29900, 'C', 2, 4, 1, 3, 'rain wait', 'rain wait'), (60, 30000, 'c', 2, 4, 1, 3, 'rain wait', 'rain wait'), (61, 30100, 'C', 2, 4, 1, 3, 'rain wait', 'rain wait'), (62, 30200, 'c', 2, 4, 1, 3, 'rain wait', 'rain wait'), (63, 30300, 'C', 2, 4, 1, 3, 'rain wait', 'rain wait'), (64, 30400, 'D', 0, 7, 1, 3, 'rain wait', 'rain wait'), (65, 30500, 'd', 0, 7, 1, 3, 'rain wait', 'rain wait'), (66, 30600, 'd', 0, 7, 1, 3, 'rain wait (heavier)', 'rain wait'), (67, 30700, 'D', 0, 7, 1, 3, 'rain wait (heavier)', 'rain wait'), (68, 30800, 'C', 2, 4, 1, 3, 'rain walk', 'walk'), (69, 30900, 'c', 2, 4, 1, 3, 'rain walk', 'walk'), (70, 31000, 'C', 2, 4, 1, 3, 'rain walk', 'walk'), (71, 31100, 'c', 2, 4, 1, 3, 'rain walk', 'walk'), (72, 31200, 'C', 2, 4, 1, 3, 'rain walk', 'walk'), (73, 31300, 'c', 2, 4, 0, 7, 'the walk ends', 'walk')]   # (turn, vb, kind, NGE digit, bound kind, digest off, XP, scene, stretch)
+EXPNOP = [25100, 25300, 25700]   # K-N2 / K-N2R turns with no people records in the emulator run of this package (no people in the scene)
+KN = {'A': 'K-A all drawn', 'N': 'K-N1 ship native', '2': 'K-N2 ship+people', 'R': 'K-N2R bound 9', '7': 'K7 nothing drawn',
+      'B': 'K-B K-A + B', 'C': 'K-N2B K-N2 + B', 'D': 'K7B K7 + B', 'b': 'K-BV K-B + V44', 'c': 'K-N2BV K-N2B + V44', 'd': 'K7BV K7B + V44'}
+BK = {'A': 0, 'N': 0, '2': 0, 'R': 9, '7': 7, 'B': 4, 'C': 4, 'D': 7, 'b': 4, 'c': 4, 'd': 7}
+BASE = {'B': 'A', 'C': '2', 'D': '7', 'b': 'B', 'c': 'C', 'd': 'D'}   # gl44: a V kind against its B kind; gl43: the kind each B kind is read against
+def OPT2W(k): return 'fffff9ff' if k in 'bcd' else 'ffbff9ff' if k in 'BCD' else 'ff9ff9ff'   # gl44's words (bit 21 B, bit 22 V44)
+V44 = ('stubbed', 'by G0', 'skipped', 'in place and run', 'short tails', 'placed first')
+B43 = ('floor spawn', 'floor update', 'fall update', 'fall dead')
+def rd(d, f):
+    p = os.path.join(d, f)
+    return open(p, encoding='latin-1').read().splitlines() if os.path.exists(p) else []
+def md(x): return hashlib.md5('\n'.join(x).encode()).hexdigest()[:12]
+def num(pat, s, d=None):
+    m = re.search(pat, s); return float(m.group(1)) if m else d
+la = rd(A, 'log.txt')
+print('== END:', repr(la[-1]) if la else 'NO LOG', '| lines', len(la))
+for s in la[-14:]:
+    if s.startswith(('memory at the end', 'disc pack', 'stack', 'memory (gl41)')): print('  ', s[:400])
+for s in la:
+    if s.startswith(('bound: ', 'gl40 XP totals', 'F1 totals', 'bound totals', 'natcull: totals', 'nge totals', 'nge converter', 'nge: ', 'nge people totals', 'np6: ', 'xc nge6')): print('  ', s[:900])
+print('== CRASH:'); [print('  ', s[:200]) for s in rd(A, 'crash.txt')[:12]]
+H, D, C = [], [], []
+for s in la:
+    m = re.match(r'hash: vb (\d+) ee ([0-9a-f]+) iop ([0-9a-f]+)', s)
+    if m: H.append('%s %s %s' % m.groups()); continue
+    m = re.match(r'picture: vb (\d+) buffer \d+ list ([0-9a-f]+) frame ([0-9a-f]+):.*?; dz (.*)$', s)
+    if m: D.append(('%s %s %s' % m.groups()[:3], m.group(4).strip())); continue
+    m = re.match(r'picture: vb (\d+) content ([0-9a-f]+)$', s)
+    if m: C.append('%s %s' % m.groups())
+print('== HASHES (the game\'s state; gl44\'s own hashref: the people native change it from vb 24,100, option B\'s turns from vb 29,100, V44\'s from vb 29,300): %d lines, %s (expected %d, %s): %s' % (
+      len(H), md(H), NH, EH, 'EQUAL' if md(H) == EH and len(H) == NH else 'DIFFERENT'))
+if md(H) != EH: [print('  H', h) for h in H]
+for s in la:
+    if s.startswith('split:'): print('  ', s[:200])
+dd, ddz = md([a for a, _ in D]), md([a + ' ' + z for a, z in D])
+print('== DIGESTS (the pictures\' lists in the digest-on turns t55 and t73, both K-N2BV: V44\'s picture against the twin\'s): %d lines, %s / with dz %s (expected %d, %s / %s): %s' % (len(D), dd, ddz, ND, ED, EDZ,
+      'EQUAL' if (dd, ddz) == (ED, EDZ) else 'DIFFERENT'))
+print('== CONTENT (the pictures\' content, a native batch hashed as today\'s; the twin\'s lines): %d lines, %s (expected %d, %s): %s' % (len(C), md(C), NC, EC,
+      'EQUAL' if (md(C), len(C)) == (EC, NC) else 'DIFFERENT'))
+print('== HEAP (the gate on the emulator: >= 32 KB at the worst moment, 0 textures refused for want of memory):')
+for s in la:
+    if s.startswith(('memory (gl41)', 'picture heap (gl41)', 'me picture loop (gl41)', 'free memory:', 'memory at the start', 'picture: native step 1 ')) or 'textures refused for want of memory' in s or 'malloc can still' in s or 'headroom' in s:
+        print('  ', s[:700])
+print('== THE CARVE AFTER THE OPENING (step 2: each region 256 KB until vb 24,000, then 384 KB with the people\'s block; the people from vb 24,100):')
+GROWN = None
+for s in la:
+    if s.startswith('picture: step 2') or s.startswith('nge: step 2'):
+        print('  ', s[:400]); m = re.match(r'picture: step 2: vb (\d+): grown', s)
+        if m: GROWN = int(m.group(1))
+print('   grown at vb %s (%s)' % (GROWN, 'NOT GROWN' if GROWN is None else 'in time: the people start at vb 24,100' if GROWN < 24100 else 'LATE: after the people\'s start'))
+T = {}; LV = []
+def tk(a): return T.setdefault(a, {})
+last_nge = None
+for s in la:
+    m = re.match(r'window vb (\d+): (\d+) steps, mean ([\d.]+) ms \(logic ([\d.]+), draw pipeline ([\d.]+), IOP\+sound ([\d.]+), GS walk ([\d.]+), translator ([\d.]+), picture ([\d.]+), GE wait ([\d.]+)\), max ([\d.]+)', s)
+    if m:
+        g = [float(x) for x in m.groups()[2:]]
+        if int(m.group(2)) == 100: tk(int(m.group(1)) - 100).update(mean=g[0], logic=g[1], pipe=g[2], iop=g[3], gsw=g[4], xl=g[5], pic=g[6], gew=g[7], mx=g[8], main=g[0] - g[7])
+        continue
+    m = re.match(r'me turn vb (\d+)-(\d+) \(([\d.]+) ms\): the ME.s own time \(ms\): records ([\d.]+), thinning ([\d.]+), fills ([\d.]+), walks ([\d.]+), hooks ([\d.]+) '
+                 r'\(frame ends and lists ([\d.]+), GE waits ([\d.]+), the rest ([\d.]+)\), hand-over ([\d.]+), idle ([\d.]+), all ([\d.]+)', s)
+    if m:
+        g = [float(x) for x in m.groups()[2:]]; a = int(m.group(1)); n = max(1, int(m.group(2)) - a)
+        tk(a).update(me_ms=g[0], me_rec=g[1] / n, me_walks=g[4] / n, me_lists=g[6] / n, me_gew=g[7] / n, me_idle=g[10] / n, me_busy=(g[11] - g[10] - g[7]) / n,
+                     wfill=num(r'the main CPU waited \(ms\): copies as they ended [\d.]+, fills ([\d.]+)', s, 0) / n); continue
+    m = re.match(r'(me|main) turn vb (\d+)-(\d+) gl38 bound: turn (-?\d+) kind (\d) \(mask (\d+)\), F1 (\d)', s)
+    if m:
+        g = m.groups(); a = int(g[1]); tk(a).update(who=g[0], full=int(g[2]) - a == 100, turn=int(g[3]), kind=int(g[4]), f1=int(g[6])); continue
+    m = re.match(r'(me|main) turn vb (\d+)-(\d+) gl39 probe: turn (-?\d+) kind (\d) digest (on|off)', s)
+    if m: tk(int(m.group(2))).update(pwho=m.group(1), pdig=m.group(6)); continue
+    m = re.match(r'(me|main) turn vb (\d+)-(\d+) gl40 plan: turn (-?\d+) XP (\d+) M5 walks (\d+); plans (\d+), us total (\d+) .*?XP check: plans (\d+), differing (\d+)', s)
+    if m:
+        g = m.groups(); a = int(g[1]); n = max(1, int(g[2]) - a)
+        tk(a).update(xp=int(g[4]), m5w=int(g[5]) / n, plans=int(g[6]) / n, pl_ms=int(g[7]) / 1000.0 / n, chk=int(g[8]), dif=int(g[9])); continue
+    m = re.match(r'nat turn vb (\d+)-(\d+) (me|main) turn arm (\d+)(.*)', s)
+    if m:
+        r = m.group(5); a = int(m.group(1))
+        prob = {k: num(p, r, 0) for k, p in (('builder', r'builder run instead \(dropped records\) (\d+)'), ('noarr', r'recorded with no array (\d+)'),
+                ('early', r'early fills for an array.s reuse (\d+)'), ('drop', r'fed word by word \d+, dropped (\d+)'), ('partly', r'partly \(dropped\) (\d+)'))}
+        tk(a).update(groups=num(r'calls recorded \d+, groups (\d+)', r), left=num(r'groups left untaken (\d+)', r, 0), prob={k: v for k, v in prob.items() if v}); continue
+    m = re.match(r'np6 turn vb (\d+)-(\d+) (me|main) turn arm (\d+): calls recorded (\d+), groups (\d+) \(most in a picture (\d+)\), pictures (\d+)(.*)', s)
+    if m:
+        g = m.groups(); a = int(g[0]); r = g[8]
+        p6 = {k: num(p, r, 0) for k, p in (('full', r'array full (\d+)'), ('order', r'key order (\d+)'), ('end', r'near the buffer.s end (\d+)'), ('other', r'other (\d+) \('),
+              ('noarr', r'recorded with no array (\d+)'), ('left', r'groups left untaken (\d+)'), ('dropped', r'fed word by word \d+, dropped (\d+)'))}
+        tk(a).update(p6arm=int(g[3]), p6calls=int(g[4]), p6grp=int(g[5]), p6pics=int(g[7]), p6core=num(r'groups to the core (\d+)', r), p6late=num(r'drawn at a walk.s end (\d+)', r, 0),
+                     p6bld=num(r'calls in arm 3 that ran the builder (\d+)', r, 0), p6glate=num(r'\(the growth late (\d+)\)', r, 0), p6prob={k: v for k, v in p6.items() if v}); continue
+    m = re.match(r'nat f1 vb (\d+)-\d+ \w+ turn arm \d+ F1 (\d) \([^)]*\): runs planned (\d+) \(groups (\d+), of them not written (\d+), without the fast form (\d+)\), runs not planned (\d+) '
+                 r'\(state (\d+), a group without an MSCAL (\d+)\), planned runs with a problem (\d+); check mode: groups compared (\d+), DIFFERING (\d+)', s)
+    if m:
+        g = [int(x) for x in m.groups()]; tk(g[0]).update(f1prob=g[9], f1diff=g[11]); continue
+    m = re.match(r'nge turn vb (\d+)-(\d+):(.*?); arena used (\d+) KB, most (\d+) KB, of (\d+) KB', s)
+    if m:
+        a = int(m.group(1)); c = {}; last_nge = a
+        for q in m.group(3).split(';'):
+            q = q.strip(); w = q.rsplit(' ', 1)
+            if len(w) == 2 and w[1].isdigit(): c[w[0]] = int(w[1])
+        tk(a).update(nge=c, nge_most=int(m.group(5)), nge_cap=int(m.group(6))); continue
+    m = re.match(r'nge people turn:(.*)', s)
+    if m and last_nge is not None:
+        c = {}
+        for q in m.group(1).split(';'):
+            q = q.strip(); w = q.rsplit(' ', 1)
+            if len(w) == 2 and w[1].lstrip('-').isdigit(): c[w[0]] = int(w[1])
+        tk(last_nge).update(ppl=c); continue
+    m = re.match(r'b43 turn vb (\d+)-(\d+): B (on|off); shadowed / a poll due / a guard / B off: (.*)$', s)
+    if m:
+        a = int(m.group(1)); a -= a % 100; c = {}
+        for q in m.group(4).split(','):
+            w = q.split()
+            if len(w) >= 6: c[' '.join(w[:-4])] = [int(v) for v in w[-4:]]
+        tk(a).update(b43on=m.group(3) == 'on', b43=c); continue
+    m = re.match(r'v44 turn vb (\d+)-(\d+): V44 (on|off); line_sph stubbed (\d+), by G0 (\d+); rain.c entries skipped (\d+), in place and run (\d+); short tails (\d+), placed first (\d+)', s)
+    if m:
+        a = int(m.group(1)); a -= a % 100; tk(a).update(v44on=m.group(3) == 'on', v44=[int(v) for v in m.groups()[3:]]); continue
+    m = re.match(r'gl41 levers vb (\d+): opt2 ([0-9a-f]+)', s)
+    if m: LV.append((int(m.group(1)), m.group(2))); continue
+def f(x, w='%.2f'): return '-' if x is None else (w % x if isinstance(x, float) else str(x))
+def av(rows, k):
+    v = [r[k] for r in rows if r.get(k) is not None]; return sum(v) / len(v) if v else None
+for x in T.values():
+    if x.get('main') is not None and x.get('me_busy') is not None: x['P'] = max(x['main'], x['me_busy'])
+    elif x.get('main') is not None and x.get('kind') == 7: x['P'] = x['main']
+    p = x.get('ppl') or {}
+    if p.get('reuse hash checks') is not None:
+        x['h_n'] = p['reuse hash checks'] / 100.0; x['h_ms'] = p.get('reuse hash us', 0) / 1000.0 / 100.0; x['h_kb'] = p.get('stream bytes hashed at use', 0) / 1024.0 / 100.0
+print('== MAIN-DRAWING STEPS before vb 24,000 (every other 100 vblanks the main CPU makes the picture itself: "main"; in the others the ME does: "me").  C2 is on here too (gl41: off)')
+pre = [vb for vb in sorted(T) if vb < 24000 and T[vb].get('mean') is not None]
+for lo, hi, nm in ((15700, 16100, 'tanker bow (15,700-16,100)'), (20000, 24000, '20,000-24,000'), (0, 24000, 'all windows before 24,000')):
+    for w in ('main', 'me'):
+        rs = [T[vb] for vb in pre if lo <= vb < hi and (T[vb].get('who') or T[vb].get('pwho') or ('main' if (vb // 100) & 1 else 'me')) == w]
+        if rs: print('  mean of %-28s %-4s n %3d | step %s logic %s pipe %s gsw %s xl %s pic %s gew %s' % ((nm, w, len(rs)) + tuple(f(av(rs, c)) for c in ('mean', 'logic', 'pipe', 'gsw', 'xl', 'pic', 'gew'))))
+S = {vb: (t, k, ng, bk, d, xp, sc, st) for (t, vb, k, ng, bk, d, xp, sc, st) in SCHED}
+LVD = dict(LV)   # 'gl41 levers vb N': the word in force in the turn that ends at N
+def dg(vb): return 'none' if vb + 99 < 29490 else 'off' if S[vb][4] else 'on'
+def ngn(x, k): return (x.get('nge') or {}).get(k)
+def pp(x, k): return (x.get('ppl') or {}).get(k)
+print('== TURNS  vb | t scene | kind XP dig | who | step main ME P | logic pipe gew | people: arm, pictures, groups native/all, cooked, no room, hash checks a step, hash ms a step | ship: calls native/all, no room')
+bad = []; nop = []
+for vb in sorted(S):
+    t, k, ng, bk, d, xp, sc, st = S[vb]; x = T.get(vb, {}); nxt = S.get(vb + 100, (0, ''))[1]
+    if x.get('kind') is not None and (x['kind'] != BK[k] or x.get('f1') != 1): bad.append((vb, 'kind/F1'))
+    if x.get('pdig') is not None and (x['pdig'] == 'off') != bool(d): bad.append((vb, 'digest'))
+    if x.get('xp') is not None and x['xp'] != xp: bad.append((vb, 'XP'))
+    cn, ca = ngn(x, 'calls native'), ngn(x, 'calls')
+    if k in 'N2RCc' and cn == 0 and (ca or 0) > 0: bad.append((vb, 'a native turn without a native ship call'))
+    if k not in 'N2RCc' and cn and not (ngn(x, 'pictures') == 1 and nxt in 'N2RCc'): bad.append((vb, 'native ship calls in a turn of today\'s path'))
+    b4 = x.get('b43')
+    if b4 is not None:
+        sh = sum(v[0] for v in b4.values()); off = sum(v[3] for v in b4.values())
+        if k in 'BCDbcd' and (not x.get('b43on') or sh == 0 or off): bad.append((vb, 'a B turn without B (or with calls with B off)'))
+        if k not in 'BCDbcd' and (x.get('b43on') or sh): bad.append((vb, 'B on in a turn without B'))
+    elif k in 'BCDbcd' and vb + 100 in S and T.get(vb, {}).get('mean') is not None: bad.append((vb, 'a B turn with no b43 line'))   # (the last turn's line would come at the next turn)
+    pr = pp(x, 'people groups referenced')
+    if k in '2RCc' and vb >= 24100 and x.get('p6pics') == 0: (nop if vb in EXPNOP else bad).append((vb, 'K-N2 / K-N2R without people records'))
+    if k in '2RCc' and vb >= 24100 and pr == 0: bad.append((vb, 'K-N2 / K-N2R without a native people group'))
+    if k not in '2RCc' and x.get('p6pics') and not (x['p6pics'] == 1 and nxt in '2RCc'): bad.append((vb, 'people records in a turn of today\'s path'))
+    if x.get('m5w') is not None and x['m5w'] == 0 and k not in '7Dd': bad.append((vb, 'M5 no walks'))
+    v4 = x.get('v44')
+    if v4 is not None:
+        if k in 'bcd' and (not x.get('v44on') or v4[0] == 0 or v4[1] or v4[2] == 0 or v4[3]): bad.append((vb, 'a V turn without V44 (prims stubbed, rain.c skipped)'))
+        if k not in 'bcd' and (x.get('v44on') or v4[0] or v4[2]): bad.append((vb, 'V44 on in a turn without V'))
+        if v4[4]: bad.append((vb, 'V44 short tails %d' % v4[4]))
+    elif k in 'bcd' and vb + 100 in S and T.get(vb, {}).get('mean') is not None: bad.append((vb, 'a V turn with no v44 line'))
+    w = LVD.get(vb + 100)
+    if w is not None and w != OPT2W(k): bad.append((vb, 'OPT2 word %s, the table\'s %s' % (w, OPT2W(k))))
+    print('%d | t%-2d %-22s | %-17s XP%d %-4s | %-4s | %s %s %s %s | %s %s %s | %s, %s, %s/%s, %s, %s, %s, %s | %s/%s, %s' % (vb, t, sc[:22], KN[k], xp, dg(vb), x.get('who', '?'),
+          f(x.get('mean')), f(x.get('main')), f(x.get('me_busy')), f(x.get('P')), f(x.get('logic')), f(x.get('pipe')), f(x.get('gew')),
+          f(x.get('p6arm')), f(x.get('p6pics')), f(pr), f(pp(x, 'people groups')), f(pp(x, 'people meshes cooked')), f(pp(x, 'people meshes not cooked: no room')),
+          f(x.get('h_n'), '%.1f'), f(x.get('h_ms'), '%.3f'), f(cn), f(ca), f(ngn(x, 'no room'))))
+print('== SCHEDULE CHECK: turns whose logged kind, F1, digest, XP, M5 or native calls are not the schedule\'s (a turn line counts the next turn\'s first picture: one picture early is accepted): %s' % (bad or 'none'))
+print('   as the emulator\'s run of this package (no people in the scene, so no people records; not a fault): %s' % ([v for v, _ in nop] or 'none'))
+COLS = ['mean', 'main', 'me_busy', 'P', 'logic', 'pipe', 'gew', 'me_walks', 'me_lists', 'h_ms']
+HDR = 'step main ME P | logic pipe gew | ME walks lists | hash'
+def rows(stretch, k, d=None):
+    return [T[vb] for vb in sorted(S) if S[vb][7] == stretch and S[vb][1] == k and T.get(vb, {}).get('mean') is not None and (d is None or dg(vb) == d)]
+def line(tag, rs):
+    a = [av(rs, c) for c in COLS]
+    print('  %-46s n %2d | ' % (tag, len(rs)) + ' '.join(f(v) for v in a[:4]) + ' | ' + ' '.join(f(v) for v in a[4:7]) + ' | ' + ' '.join(f(v) for v in a[7:9]) + ' | ' + f(a[9], '%.3f'))
+def delta(tag, rs, ref, note=''):
+    if not rs or not ref: return
+    a = [av(rs, c) for c in COLS]; b = [av(ref, c) for c in COLS]
+    d = ['-' if x is None or y is None else '%+.2f' % (x - y) for x, y in zip(a, b)]
+    print('  %-46s n %d - %d | %s | %s | %s | %s  %s' % (tag, len(rs), len(ref), ' '.join(d[:4]), ' '.join(d[4:7]), ' '.join(d[7:9]), d[9], note))
+for stretch in ('deck', 'rain wait', 'walk'):
+    print('== %s.  Means, ms a PSP step: %s' % (stretch.upper(), HDR))
+    for d in ('none', 'off', 'on'):
+        for k in 'AN2R7BCDbcd':
+            rs = rows(stretch, k, d)
+            if rs: line('%s, digests %s' % (KN[k], d), rs)
+    print('   differences (the first minus the second; digest turns left out): %s' % HDR)
+    for d in ('none', 'off'):
+        ka = rows(stretch, 'A', d)
+        delta('K-N1 minus K-A (the ship native), dig %s' % d, rows(stretch, 'N', d), ka)
+        delta('K-N2 minus K-A (ship + people native), dig %s' % d, rows(stretch, '2', d), ka)
+        delta('K-N2R minus K-A (native, bound 9), dig %s' % d, rows(stretch, 'R', d), ka)
+        delta('K-N2 minus K-N1 (the people\'s share), dig %s' % d, rows(stretch, '2', d), rows(stretch, 'N', d))
+        delta('K-A minus K7 (drawing\'s cost on the main CPU), dig %s' % d, ka, rows(stretch, '7', d))
+        delta('K-B minus K-A (option B, today\'s path), dig %s' % d, rows(stretch, 'B', d), ka)
+        delta('K-N2B minus K-N2 (option B, native), dig %s' % d, rows(stretch, 'C', d), rows(stretch, '2', d))
+        delta('K7B minus K7 (option B\'s logic alone), dig %s' % d, rows(stretch, 'D', d), rows(stretch, '7', d))
+        delta('K-BV minus K-B (V44, today\'s path), dig %s' % d, rows(stretch, 'b', d), rows(stretch, 'B', d))
+        delta('K-N2BV minus K-N2B (V44, native), dig %s' % d, rows(stretch, 'c', d), rows(stretch, 'C', d))
+        delta('K7BV minus K7B (V44\'s logic alone), dig %s' % d, rows(stretch, 'd', d), rows(stretch, 'D', d))
+print('== PAIRS: each lever turn minus the mean of its neighbours of the base kind (K-A; for K-B K-A, K-N2B K-N2, K7B K7; digest turns left out).  %s' % HDR)
+for vb in sorted(S):
+    t, k, ng, bk, d, xp, sc, st = S[vb]
+    if k not in 'N2R7BCDbcd' or dg(vb) == 'on' or T.get(vb, {}).get('mean') is None: continue
+    nb = [u for u in (vb - 100, vb + 100) if u in S and S[u][1] == BASE.get(k, 'A') and dg(u) != 'on' and T.get(u, {}).get('mean') is not None]
+    delta('t%d %s (%s) vs %s' % (t, KN[k], st, ' '.join('t%d' % S[u][0] for u in nb) or '-'), [T[vb]], [T[u] for u in nb])
+print('== THE PEOPLE (step 2) by turn, K-N2 / K-N2R turns: vb t | calls, groups native / all, meshes reused, cooked, re-cooked (changed), no room, not cookable | reuse content hash: checks a step, KB a step, ms a step (the main CPU) | records: pictures, groups, to the core, drawn at a walk\'s end, the builder run in arm 3 (growth late)')
+for vb in sorted(S):
+    x = T.get(vb, {}); c = x.get('ppl') or {}
+    if S[vb][1] not in '2RCc': continue
+    print('  %d t%-2d %-17s | %s, %s / %s, %s, %s, %s, %s, %s | %s, %s, %s | %s, %s, %s, %s, %s (%s)' % (vb, S[vb][0], KN[S[vb][1]], f(c.get('people calls')), f(c.get('people groups referenced')),
+          f(c.get('people groups')), f(c.get('people meshes reused')), f(c.get('people meshes cooked')), f(c.get('people meshes re-cooked (changed)')),
+          f(c.get('people meshes not cooked: no room')), f(c.get('people meshes not cookable')), f(x.get('h_n'), '%.1f'), f(x.get('h_kb'), '%.1f'), f(x.get('h_ms'), '%.3f'),
+          f(x.get('p6pics')), f(x.get('p6grp')), f(x.get('p6core')), f(x.get('p6late')), f(x.get('p6bld')), f(x.get('p6glate'))))
+hs = [T[vb] for vb in S if S[vb][1] in '2R' and T.get(vb, {}).get('h_ms') is not None]
+for stretch in ('deck', 'rain wait', 'walk'):
+    rs = [T[vb] for vb in S if S[vb][1] in '2R' and S[vb][7] == stretch and T.get(vb, {}).get('h_ms') is not None]
+    if rs: print('   the reuse content hash on the main CPU, %s (K-N2 and K-N2R turns, n %d): %s checks, %s KB, %s ms a step' % (stretch, len(rs), f(av(rs, 'h_n'), '%.1f'), f(av(rs, 'h_kb'), '%.1f'), f(av(rs, 'h_ms'), '%.3f')))
+print('== NATIVE STEP 1 by turn (the ship; K-N1, K-N2, K-N2R turns): vb t | pictures, calls native / calls, reused, cooked, re-cooked after eviction, evicted, no room, groups native / groups | arena most KB of')
+for vb in sorted(S):
+    x = T.get(vb, {}); c = x.get('nge')
+    if not c or S[vb][1] not in 'N2RCc': continue
+    print('  %d t%-2d %-17s | %s, %s / %s, %s, %s, %s, %s, %s, %s / %s | %s of %s' % (vb, S[vb][0], KN[S[vb][1]], c.get('pictures'), c.get('calls native'), c.get('calls'), c.get('reused'),
+          c.get('cooked'), c.get('re-cooked (evicted before)'), c.get('evicted'), c.get('no room'), c.get('groups native'), c.get('groups'), x.get('nge_most'), x.get('nge_cap')))
+print('== OPTION B by turn (the b43 lines; per function: calls shadowed / run as translated, a poll due / run as translated, a guard / B off): vb t kind | ' + ' | '.join(B43))
+for vb in sorted(S):
+    x = T.get(vb, {}); c = x.get('b43')
+    if c is None: continue
+    print('  %d t%-2d %-17s B %-3s | %s' % (vb, S[vb][0], KN[S[vb][1]], 'on' if x.get('b43on') else 'off', ' | '.join('/'.join(str(v) for v in c.get(n, ['-'] * 4)) for n in B43)))
+for st in ('rain wait', 'walk'):
+    tot = [[0] * 4 for _ in B43]
+    for vb in S:
+        c = T.get(vb, {}).get('b43')
+        if c and S[vb][7] == st and T[vb].get('b43on'):
+            for i, n in enumerate(B43):
+                for j in range(4): tot[i][j] += c.get(n, [0] * 4)[j]
+    print('   %s, B turns: %s' % (st, '; '.join('%s shadowed %d, a poll due %d, a guard %d' % (n, t_[0], t_[1], t_[2]) for n, t_ in zip(B43, tot))))
+print('== V44 by turn (the v44 lines: line_sph prims stubbed, by G0, rain.c entries skipped, in place and run, short tails, placed first): vb t kind | ' + ' '.join(V44))
+for vb in sorted(S):
+    x = T.get(vb, {}); c = x.get('v44')
+    if c is None: continue
+    print('  %d t%-2d %-17s V44 %-3s | %s' % (vb, S[vb][0], KN[S[vb][1]], 'on' if x.get('v44on') else 'off', ' '.join(str(v) for v in c)))
+for st in ('rain wait', 'walk'):
+    tot = [0] * 6
+    for vb in S:
+        c = T.get(vb, {}).get('v44')
+        if c and S[vb][7] == st: tot = [a + b for a, b in zip(tot, c)]
+    print('   %s, all turns: %s' % (st, ', '.join('%s %d' % (n, v) for n, v in zip(V44, tot))))
+print('== PROBLEM COUNTERS (all should be none / 0):')
+pr = [(vb, T[vb]['prob']) for vb in sorted(T) if T[vb].get('prob')]
+print('  nat (the ship\'s records: builder, no array, early fills, dropped, partly):', pr or 'none')
+print('  np6 (the people\'s records: array full, key order, buffer end, other, no array, left, dropped):', [(vb, T[vb]['p6prob']) for vb in sorted(T) if T[vb].get('p6prob')] or 'none')
+print('  the people\'s growth late (the builder ran in arm 3 from the start on):', [(vb, int(T[vb]['p6glate'])) for vb in sorted(T) if T[vb].get('p6glate')] or 'none')
+print('  F1: planned runs with a problem %d, check DIFFERING %d' % (sum(T[vb].get('f1prob', 0) for vb in T), sum(T[vb].get('f1diff', 0) for vb in T)))
+print('  XP check by turn (plans / DIFFERING):', [(vb, T[vb]['chk'], T[vb]['dif']) for vb in sorted(T) if T[vb].get('chk')] or 'none')
+for s in la:
+    if s.startswith('gl40 XP totals'): print('  XP check over the run (DIFFERING must be 0):', s[:400])
+    if s.startswith('nge converter'):
+        for q in ('declined: count', 'native batches whose stub-time WORLD'):
+            m = re.search(re.escape(q) + r'[^;]* (\d+)(;|$)', s)
+            if m: print('  native step 1, converter: %s ... %s' % (q, m.group(1)))
+    if 'NAT PROBLEMS' in s or s.startswith('nat: PROBLEMS') or 'STOPPED' in s or 'TAKEN BACK' in s or 'take-back' in s and 'none' not in s or 'NOT ON' in s: print('  ', s[:300])
+b = rd(A, 'battery.txt')
+if b: print('== BATTERY: first', b[0][:120], '| last', b[-1][:120])
