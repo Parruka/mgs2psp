@@ -1,0 +1,17 @@
+---
+name: ff8-s8
+description: FF8 s8 candidate (2026-11-13 15:20): READY in psp/rel_s8 (EBOOT 0938c606), = s7 + step 13 (boot delay loop no longer interpreted) + [pic]/[gq] timers; exact in the emulator, model 20.59 quiet / 24.85 busy; DELIVERED 2026-11-13 15:36 to FF8\Builds\FF8T_s8 (THE ONE BUILD OUT, logs to FF8\LOGS\s8)
+metadata:
+  type: project
+---
+
+Part of [[ff8-port]] / [[ff8-stage5]]; follows [[ff8-s7]] (ran on the PSP 2026-11-13: 59.98 ms a frame, quiet 20.30). Notes: /mnt/project-files/ff8/stage5_notes.md "Why s3's start-up and title got slower" and "s8 CANDIDATE READY". Sources: shared src_s8.
+
+- WHY: s3..s7 sent a boot delay loop (0x80061cd0, branch back with a load in its delay slot) to the interpreter 1.23 M times (start-up window 0-500: PSP s2 74.4, s3 123.7, s7 104.6 ms a frame).
+- STEP 13 (recomp/genasm.py, saved .s7a; game code folder recomp/geng): a jump with a load in flight to a compiled block whose first instruction does not read that register (rs/rt) goes to a landing stub (write the value, clear LDR, hot block). 93 stubs. Interpreted blocks over the run 1,379,310 -> 336. Start-up model 96.6 -> 50.6 ms.
+- TIMERS: main_ff8.c "[pic]" line per window (show: GE present incl. the picture check, wait for the GE, other); ge_ff8.c "[gq]" line (system time in q_flush; [ge] lines unchanged).
+- LESSON (my error, corrected to Ffm): the PSP's busy windows run gecheck 4, the profile windows gecheck 0, so "busy PSP - model" (s7 +7.0, s3 +2.75) contains the picture check (~3.3 ms a frame in the quiet field). s8's cfg switches the check off in window 29,000 to measure the real gap; gestall 16 in window 30,000 measures the stall-update calls (133 batches a frame busy).
+- CANDIDATE: psp/rel_s8 = EBOOT.PBP 0938c60680e18aca777f52b93fe2136c (9,163,840 bytes, "FF8 speed s8"), ff8.cfg 5084f577 (16 "at" lines = the harness's limit), README.txt fff4ab98. Build folders tjg (PGO=gen, run_tjg) -> vb (PGO=use + FSEC, trace_vb, lopt 2,123 k -> 1,138 k, span 0x7c000) -> vc (dbss.py 21 125 39 0). Checks: prof_vc 73/73, 8d5816bd, line sets = q7's; full run emu_vcr2 80/80, aae53db0, shots/gedumps = emu_var's.
+- DELIVERY: remote-devices (PC folder tools) failed to connect from 13:46 on 2026-11-13 (also Claude_Docs, github: session side). Ffm attached s7's files in the thread instead; uploads also land in /mnt/project-files/uploads/hearth/<id> (I deleted the game pictures/dumps there). Attaching an EBOOT in the thread needs Ffm's word (card of 15:21 withdrawn: the link came back 15:35 and s8 went out the usual way, 5 md5s checked).
+- TOOL NOTES: FF8Q6's ten-scene trace cfg = ff8.cfg.trace10 (frames 38300, prof windows of 8 frames at 3000, 8000, 20000, 26700, 27800, 28900, 31500, 33500, 35900, 38200); PGO recording cfg = FF8Q4/ff8.cfg (pgo 1 39990); a wait loop moved to the background is killed after 30 min (lopt itself runs on under nohup).
+- s8 RAN ON THE PSP, read 2026-11-13 18:15 (psp/psp_s8; notes "s8 RAN"): exact (80/80, files = s7's); 58.85 ms a frame (16.99 fps); start-up 58.4 (s7 104.6); quiet 20.20 (model 20.59); busy 29,000 check off 26.65 (model 24.85: real gap +1.8; the check cost 5.3); [gq] renderer CPU work 1.94 quiet / 3.34 busy ms (no uncached penalty), GE waits < 0.1 ms; gestall 16 = -0.7 busy (make it default). Fields without the check 19-29 ms; MOVIES 75-80 and TITLE 78-86 ms a frame are now the far parts: profile them next. No build out.

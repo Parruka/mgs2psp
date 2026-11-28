@@ -12,7 +12,9 @@ static const struct { const char *s; int k; uint32_t obj, n, stride; } NAME[] = 
                                          DG object (task #161: the first of n pointers, stride bytes apart) */
   { "d_splash_camera.c", 0, 0x40, 1, 0 }, { "ft_splsh.c", 1, 0x860, 1, 0 }, { "rain.c", 2, 0, 0, 0 }, { "rain_slow.c", 2, 0, 0, 0 },
   { "body_sph.c", 3, 0x78, 1, 0 }, { "charaspread.c", 3, 0xa8, 1, 0 }, { "rain_gas_pers.c", 3, 0x184, 1, 0 },
-  { "line_sph.c", 3, 0xa0, 35, 0x50 } };   /* (task #161) */
+  { "line_sph.c", 3, 0xa0, 35, 0x50 },   /* (task #161) */
+  { "d_splash_fall.c", 4, 0x4c, 1, 0 }, { "d_splash_floor.c", 5, 0x50, 1, 0 }, { "ripple.c", 6, 0x40, 3, 4 },
+  { "d_splash_parts_slow.c", 7, 0x44, 1, 0 }, { "d_thunder_parts.c", 8, 0x4b0, 3, 4 } };   /* gl38 (FxThin.all only) */
 #define NAME_N (int)(sizeof NAME / sizeof NAME[0])
 #define LV_HEAD 0x1b9d94u   /* the first level's head actor; level k's at + 0x64 k, its tail at head + 0x30 */
 #define LV_N 11
@@ -28,6 +30,7 @@ void fx_thin_init(FxThin *t, int keep_sheets, int keep_splash, int keep_streaks)
   memset(t, 0, sizeof *t);
   t->keep[0] = clamp_share(keep_sheets); t->keep[1] = clamp_share(keep_splash); t->keep[2] = keep_streaks == 0 ? 0 : clamp_share(keep_streaks);   /* task #158: 0 none */
   t->keep_calls = 1; t->keep[3] = 1;
+  for (int k = 4; k < FX_KINDS; k++) t->keep[k] = 1;   /* gl38: never thinned */
 }
 void fx_thin_calls(FxThin *t, int keep_calls) { t->keep_calls = clamp_share(keep_calls); }   /* task #158 */
 void fx_thin_rainspr(FxThin *t, int keep) { t->keep[3] = keep ? 1 : 0; }   /* task #161 */
@@ -135,9 +138,20 @@ int fx_drop_has(const FxThin *t, uint32_t src)   /* task #161 */
     if (src < t->d[m].lo) hi = m - 1; else if (src >= t->d[m].hi) lo = m + 1; else return 1; }
   return 0;
 }
+/* gl38: a rain owner's blocks into t->b (FxThin.all) */
+static void fx_bd_blocks(FxThin *t, const uint8_t *ram, uint32_t a, int q)
+{
+  for (uint32_t i = 0; i < NAME[q].n; i++) {
+    const uint32_t obj = RD(a + NAME[q].obj + NAME[q].stride * i);
+    if (!obj) continue;
+    const uint32_t nx = blk_end(ram, obj);
+    if (!nx) { t->b_bad++; continue; }
+    if (t->nb == FX_RANGES) { t->b_over++; continue; }
+    t->b[t->nb].lo = obj; t->b[t->nb].hi = nx; t->b[t->nb].kind = (uint32_t)NAME[q].k; t->nb++; }
+}
 int fx_thin_scan(FxThin *t, const uint8_t *ram, int lines)
 {
-  t->n = 0; t->nd = 0; t->scans++;
+  t->n = 0; t->nd = 0; t->nb = 0; t->scans++;
   if (!fx_thin_on(t)) return 0;
   if (memcmp(t->sig, ram + 0x1f1c00u, sizeof t->sig)) {   /* another stage image: its actors' functions and names are new */
     memcpy(t->sig, ram + 0x1f1c00u, sizeof t->sig); memset(t->c, 0, sizeof t->c); t->nc = 0; t->flushes++; }
@@ -154,6 +168,7 @@ int fx_thin_scan(FxThin *t, const uint8_t *ram, int lines)
         t->c[h].ak = act | (q < 0 ? 1u : 2u); t->ck[h] = (uint8_t)(q < 0 ? 0 : q); t->c[h].np = np; t->nc++; t->named++; }
       if ((t->c[h].ak & 3) == 2) {
         const int q = t->ck[h], k = NAME[q].k;
+        if (t->all && k != 2 && k != 3) fx_bd_blocks(t, ram, a, q);   /* gl38 */
         if (t->keep[k] != 1 || (k == 2 && t->keep_calls > 1)) {   /* (task #158: the streaks' 0, none, and their calls 1 in N take
                                                                        their ranges too) */
           if (k == 3) { if (lines) fx_rainspr(t, ram, a, q); }   /* task #161 (lines: C4 on, the sprites are drawn) */

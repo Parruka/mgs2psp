@@ -43,6 +43,20 @@ int vc_df0_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint
    vc_df0_flag: vertex i's flag word as vc_df0_att writes it */
 int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max);
 void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n);
+/* gl34: vc_df0_pos for a call of the fast native front end (ge/xlate.h XlRec xsrc, xgen): a call whose key (xsrc, xgen) is the last
+   keyed call's takes that call's VcXform as vc_xform left it (the key says the matrix at T + 0 .. 3 and abs 2 .. 5 hold what they held
+   then), any other computes it and keeps it.  The same bytes as vc_df0_pos.  vc_km_n: [0] taken, [1] computed and kept; x86, with
+   vc_km_chk: [2] taken ones computed again, [3] of those differing */
+int vc_df0_pos_k(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen);
+extern long vc_km_n[4];
+/* gl36: vc_df0_pos_k in two parts (ge/xconv.c, a group with a kept box): vc_df0_xf_k the transform (the same memo and counts; returns
+   the header's count or -1 above max), vc_df0_pv the positions as vc_df0_pos writes them (x, y, z, pad of n vertices; the streams'
+   checks are not made: the kept box was recorded from a call that passed them) */
+int vc_df0_xf_k(const uint8_t *vm, uint32_t top, VcXform *x, int max, const void *xsrc, uint32_t xgen);
+void vc_df0_pv(const void *const *p, const uint8_t *kind, const uint32_t *row, VcVert *v, int n);
+#ifndef __psp__
+extern int vc_km_chk;
+#endif
 static inline uint16_t vc_df0_flag(const void *const *p, const uint8_t *kind, const uint32_t *row, int i)
 {
   typedef int16_t __attribute__((may_alias)) h16;
@@ -241,6 +255,11 @@ void vc_p06_c2box(const void *const *p, int n, VcP6C2 *k);
    above 0 the least and largest in zw[0], zw[1] and their count in *zn.  Returns n, or -8 where p06_main would not take the call (a UV1
    above 32767) or the GE cannot draw it (a weight outside 0..4096, a factor's colour other than 4096 (1.0), with uv2 2 a UV2 above 32767) */
 int vc_p06_c2v(const void *const *p, VcLit *L, const VcP6C2 *k, uint8_t *v, uint16_t *flags, const float *zr, float *zw, long *zn);
+/* native step 2 (ge/nge.h NgeP6G; vu1conv.c): on a copy of a cooked group's vertices (vc_p06_c2v's at alpha 255), vc_p06_c2bl the call's
+   alpha (when not 255) and the d of the nb blended vertices bl[] from the call's skin matrix; vc_p06_c2z the depth range's part (zr) of
+   vc_p06_c2v from the cooked vertices.  The same bits as vc_p06_c2v gives the call */
+void vc_p06_c2bl(uint8_t *v, int n, uint32_t a1, int uv2, const uint8_t *bl, int nb, const VcP6C2 *k);
+void vc_p06_c2z(const uint8_t *v, int n, const VcP6C2 *k, const float *zr, float *zw, long *zn);
 
 /* ---- Stage C step 4 (stagec_notes.md step 4): the effects P12d910 sends that the GE did not draw before ---- */
 #define VC_SPR 0x19bb50u    /* P04+0x3740: sprites (the rain's mist and spray) */

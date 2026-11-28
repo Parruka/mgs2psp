@@ -214,3 +214,14 @@ Figures: [C] measured or read, [C model] PspProf's cost model (ms = (1.65 x inst
 The psp/ harness files, scripts/psp.sh, tools/me_call_chk.py, tools/xme_rest_chk.py and cfg/mgs2_gl28*.cfg are now gl28's (2026-11-20).
 Each build's diff, apply script and notes are in `attic/<build>/` (ring_gl21r, gefast_gl22, ge2_gl23, two_gl24, lchk_gl24d, two_gl25, gl27, gl28);
 `attic/gl28/README.md` says what gl28 adds (ME rest, recorder, the black-marks diagnostic) and its checks. Per-run results: ../psp_harness.md.
+
+## 2026-11-28: sources refreshed to gl43's final tree
+
+Until today this folder still held the 2026-11-18 sources; the later builds' trees lived in the container only. Now:
+- `boot/ ge/ nge/ psp/ rt/ runtime/` = gl43's final tree (the container's `/home/claude/t43`, 119 files; the generated
+  `gen41/gen_vu.h` is not copied: `scripts/vu.sh` makes it again). New since 2026-11-18: the Media Engine picture path, the native
+  renderer (`nge/`, `ge/nat*.h`, `boot/nat_stub.h`, `nge_stub.h`, `np6_stub.h`), the rain's logic cut B (`boot/native_b43.*`).
+- `tools/ scripts/ cfg/` = the container's `/home/claude/main` copies.
+- `attic/gl38` to `attic/gl43`: each has a `scripts/` folder with that build's own scripts, patches and cfg files
+  (trainings, order, gates, packaging), as they stood in `/home/claude/main/build_<name>/`.
+After each build from now on: copy the build's tree and scripts here, then sync the repository.

@@ -11,9 +11,19 @@
 #include <string.h>
 #include <math.h>   /* c1opt2: fabsf (xc_c1_zin) */
 #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+#include "natsplit.h"   /* gl34: NS_MARK */
+#include "nge.h"   /* native step 1 (MGS2_NGE) */
 
 static XcStats St;
 const XcStats *xc_stats(void) { return &St; }
+#ifndef __psp__
+/* cull study (x86 census, ge/gelive.c gl_cen): the last call's outcome by reason (xconv.h XC_CEN_*), the vertices its converter saw and,
+   for an empty 25f0 / 2870 call, the clip bits every vertex shares.  Reads only */
+int xc_cen_why = -1, xc_cen_n = -1, xc_cen_plane;
+#define CEN(w) (xc_cen_why = (w))
+#else
+#define CEN(w) ((void)0)
+#endif
 
 /* the GS state of the call's first primitive (xconv.h XcGs), as gsref's setup() reads it from the registers (PRMODECONT picks PRIM or
    PRMODE) */
@@ -143,6 +153,41 @@ static VcVert Dv[1024]; static uint16_t Dfl[1024]; static VcXform Dx; static int
    positions when Dbox_ok (vc_df0_pos's, or xc_df0_off's) */
 static int Datt = 1, Dbox_ok; static int16_t Dbox[6]; static const XlRec *Drec;
 static VcVert *Dvp = Dv;   /* sb14 3w: where the call's vertices are: Dv, or the frame's room after the GerXform (xc_df0's place for them) */
+/* gl36 (xlate.h XR_BOX): Dpos 1 while a call with a kept box has not computed its positions (vc_df0_pv when read); Dne its entry */
+static int Dpos; static const NrEnt *Dne;
+static inline void xc_df0_pos_now(void) { if (Dpos) { vc_df0_pv(Drec->p, Drec->kind, Drec->row, Dvp, Dn); Dpos = 0; } }
+/* ---- native step 1 (ge/nge.h; MGS2_NGE): a group the stub gave a cooked group (xc_nge_cur) is converted from it.  The transform as
+   today (vc_df0_xf_k: the converter's memo by key, its counts); the count, the box, the first drawn vertex and the vertices (read only:
+   the depth range's loop) from the cook; no positions, attributes, strips or indices made.  Declined (today's path) when a stream has
+   ROW (the cooker's form is kind 2's), the count differs or the vertex alpha is not the cook's.  The batch (xc_nge_batch): GerXform with
+   WORLD and the projection from the stub's transform, then NgeTail ---- */
+uint8_t *xc_nge_mem[2]; uint32_t xc_nge_ge[2]; NgeRef *xc_nge_ref[2]; NgeXf *xc_nge_xfa[2]; const NgeRef *xc_nge_cur; int xc_nge_cb;
+long xc_nge_n[NGN_N]; int xc_nge_chk;
+uint32_t *xc_nge_ref6[2]; uint32_t xc_nge_cur6, xc_nge_cap; long xc_nge6_n[NG6_N];   /* native step 2 (ge/nge.h: the people) */
+static const NgeGroup *Dnge; static const NgeXf *Dngx; static uint16_t Dngh;   /* gl41: Dngh the reference's transform digest */
+static uint32_t xc_a2(int a) { return a >= 0x80 ? 0xffu : (uint32_t)(a < 0 ? 0 : a * 2); }   /* ge/vu1conv.c vc_a2 */
+#ifndef __psp__
+static void xc_nge_check(const XlCall *c, const XlRec *r, const NgeGroup *q);
+#endif
+static int xc_nge_try(const XlCall *c, const XlRec *r)
+{
+  const NgeGroup *q = (const NgeGroup *)nge_p(xc_nge_cur->g);
+  xc_nge_n[NGN_TRY]++;
+#ifndef __psp__
+  if (c3m_on || xc_c3_chk || xc_rec_chk) { xc_nge_n[NGN_NO_CHK]++; return 0; }
+#endif
+  if (r->kind[0] != 2 || r->kind[1] != 2 || r->kind[2] != 4) { xc_nge_n[NGN_NO_ROW]++; return 0; }   /* A and B V4-16 with no ROW, C V2-16
+                                                                                                    (ge/xlate.h): the cook's reading */
+  Dn = r->nf ? vc_df0_xf_k(c->vm, c->top, &Dx, 1024, r->xsrc, r->xgen) : vc_df0_xf_k(c->vm, c->top, &Dx, 1024, 0, 0);
+  if (Dn != (int)q->nv) { xc_nge_n[NGN_NO_COUNT]++; return 0; }
+  if (xc_a2(Dx.alpha) != q->alpha) { xc_nge_n[NGN_NO_ALPHA]++; return 0; }
+  memcpy(Dbox, q->box, sizeof Dbox); Dbox_ok = 1; Datt = 1;
+  Dvp = (VcVert *)(uintptr_t)nge_p(NGE_RO(q->reg, q->vb)); Dnge = q; Dngx = &xc_nge_xfa[xc_nge_cb][xc_nge_cur->xf]; Dngh = xc_nge_cur->pad;
+#ifndef __psp__
+  if (xc_nge_chk) xc_nge_check(c, r, q);
+#endif
+  return 1;
+}
 int xc_c3_chk;   /* xconv.h */
 /* the df0 call xc_call read: 1 when XcHost.cut leaves it out */
 static int xc_df0_off(const XcGs *d)
@@ -201,6 +246,7 @@ static void xc_zr_df0d(const XcHost *h, int n)
     z->calls++; z->verts += n; St.c3z_in++; St.c3z_in_v += n;
     return;
   }
+  if (Dpos) { xc_df0_pos_now(); xl_nr_n[12]++; }   /* gl36: the positions of a call with a kept box, read here */
   xc_zr_df0(z, &Dx, Dvp, n);
 }
 /* a call the cut leaves out gives the frame's depth range (XcZr) what xc_df0 would have given it: a depth-testing, depth-writing call
@@ -210,7 +256,9 @@ static void xc_df0_zr(const XcHost *h, const XcGs *d)
 {
   if (!h->zr || !d->zte || d->zmsk || (d->ate && d->atst == 0 && d->afail == 1)) return;   /* xc_state's GERF_ZWRITE */
   int i = 2;
-  if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
+  if (Dnge) i = Dnge->i1;   /* native step 1: the cook's */
+  else if (Datt) while (i < Dn && (Dfl[i] & 0x8000)) i++;
+  else if (Dne) i = Dne->i1;   /* gl36: a kept box's call: the first triangle without ADC as recorded */
   else {   /* sb14 3v: the flags from the stream B, as vc_df0_att would write them */
     const XlRec *r = Drec;
     while (i < Dn && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
@@ -233,6 +281,7 @@ static int xc_df0(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const
     if (k) { idx[ni] = idx[ni - 1]; ni++; idx[ni++] = runs[2 * k]; }
     for (int j = 0; j < runs[2 * k + 1]; j++) idx[ni++] = (uint16_t)(runs[2 * k] + j);
   }
+  NS_MARK(NS_STRIP);
   GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
   gx.nv = n; gx.nst = nst; gx.nidx = ni;
   uint32_t o = 0, need = sizeof gx + n * sizeof *v + nst * 4 + ni * 2;
@@ -243,9 +292,41 @@ static int xc_df0(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const
   memcpy(blob + o, runs, nst * 4); o += nst * 4;
   memcpy(blob + o, idx, ni * 2); o += ni * 2;
   xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = nst;
-  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }   /* GERF_ZWRITE has ZTEST; sb14:
+  NS_MARK(NS_GX);
+  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }
+  NS_MARK(NS_ZR);   /* GERF_ZWRITE has ZTEST; sb14:
                                                                                      x, v, n are Dx, Dv, Dn */
   *size = o; return 1;
+}
+
+/* native step 1: the batch of a group xc_nge_try took: xc_df0's with the cooked group's strips (no vertices, strips or indices in the
+   frame's data: NgeTail names them), WORLD and the projection's terms from the stub's transform (the same bits as Dx's [C twin, step 0;
+   the check mode compares them]) */
+static int xc_nge_batch(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+{
+  const NgeGroup *q = Dnge; const int n = Dn;
+  /* gl41: WORLD and the projection terms are the converter's own (Dx, as today's batch); the stub's (read at its call) is only compared,
+     through its digest in the reference (Dngh, ge/nge.h nge_xf_h16).  With the loop apart from the main CPU the stub's transform as the
+     walk read it from the packet buffer differed in 61,814 of 62,101 native batches on the emulator (gl41 n41a): the main CPU had
+     refilled the buffer for a later picture before the walk */
+  VcXform x = Dx;
+  if (Dngh != nge_xf_h16(Dx.world, Dx.pa, Dx.pb)) xc_nge_n[NGN_W_ALL]++;
+  GerXform gx; xc_xform(&x, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &gx);
+#ifndef __psp__
+  if (xc_nge_chk) { GerXform e; xc_xform(&Dx, d, t, 8, h, (uint32_t)(c->gr[0x3d] & 0xffffff), &e);   /* today's batch's transform words */
+    if (memcmp(&e, &gx, offsetof(GerXform, nv))) xc_nge_n[NGN_D_XFORM]++; }
+#endif
+  gx.nv = (uint32_t)n; gx.nst = q->nst; gx.nidx = 0; gx.pad = NGE_MAGIC;
+  NgeTail tl; tl.g = NGE_RO(q->reg, (uint32_t)((const uint8_t *)q - xc_nge_mem[q->reg])); tl.list_ge = xc_nge_ge[q->reg] + q->list;
+  tl.vb = NGE_RO(q->reg, q->vb); tl.runs = NGE_RO(q->reg, q->runs);
+  if (sizeof gx + sizeof tl > cap) return -5;
+  memcpy(blob, &gx, sizeof gx); memcpy(blob + sizeof gx, &tl, sizeof tl);
+  xc_state(d, ti, c->entry, b); b->kind = GERK_XFORM; b->twopass = (uint8_t)xc_twopass(d, t, x.alpha); b->count = q->nst;
+  NS_MARK(NS_GX);
+  if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_df0d(h, n); else h->zr->always++; }
+  NS_MARK(NS_ZR);
+  xc_nge_n[NGN_MADE]++;
+  *size = (uint32_t)(sizeof gx + sizeof tl); return 1;
 }
 
 /* 2870's main-loop back-face test on triangle i (re/vu1_programs.md 3.7): e_i = c_i.xyz w_(i-1) - c_(i-1).xyz w_i (MULAw, MSUBw),
@@ -305,7 +386,134 @@ static union {
   struct { VcVertF v[4 * 256], pv[2048]; VcCv cv[4 * 256]; uint8_t st[256], cls[4 * 256]; uint16_t pfan[512][2]; } q;
   struct { VcVertF v[1024], sv[1024], pv[2048]; uint16_t fl[1024], run[512][2]; float cc[1024][4]; uint8_t cls[1024]; } l;
 } Fx;
-static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+/* ---- cull study v3 (XcHost.cull XC_CULL_FX; attic/cull/cull_v3.md): a 25f0 / 2870 call that would draw nothing, found before its
+   conversion by a BOUND.  xc_fpos_off says 1 only when one CLIP plane's flag bit is proven set on every vertex as the conversion
+   computes it:
+   1. vertex 0's clip position as the conversion computes it (vc_vu_clip_nc; with the matrix and the position within vc_clip_in's
+      range the clamped vc_vu_clip gives the same bits, vu1conv.h): its flag bits are the candidate planes; none: kept at once;
+   2. pass 1, the positions only: their box (per axis the least and the largest, as int keys that order floats);
+   3. the bound: the matrix and the box's six values within vc_clip_in's range; for a candidate plane both linear forms that
+      vc_cflags's comparison comes to (odd bit b, axis a = b >> 1: c_a + c_w < 0 and c_a - c_w < 0; even: -c_a - c_w < 0 and
+      -c_a + c_w < 0), each maximised over the box, below -(2^-16 S + 2^-60), S = sum over the two matrix columns of |m| times the
+      box's largest |p| (and their constant terms): the margin is at least 28 times every rounding error of the conversion's sums and
+      of this bound's own float steps (the proof: cull_v3.md 3);
+   4. pass 2, only for a call proven: every vertex's position within vc_clip_in's range (the box gives the upper end; the lower end
+      checked per value), so both of the conversion's clip paths give these bits and the clamps' counter adds 0; no attribute that
+      makes vc_fpos refuse the call (-4); the counts the conversion adds (ADC triangles in class 0, every other triangle in class 2).
+   A thinned call (task #114), a count out of 2..1024 and a call with a trace are converted as before.  The test writes nothing but
+   St.cull_n and *D: the counters the conversion would add and the proven plane (the check mode tests each vertex's flags for it) ---- */
+typedef struct { long clip0, t0, t2; int b; } XcCullD;
+static inline float xc_f(uint32_t u) { float f; memcpy(&f, &u, 4); return f; }
+static inline float xc_abs(float f) { return f < 0 ? -f : f; }
+static inline int xc_in(uint32_t u) { return !(u & 0x7fffffffu) || (u >> 23 & 0xffu) - 99u <= 87u; }   /* vc_clip_in on the bits */
+static inline int xc_cflags(const float *c)   /* vu1conv.c vc_cflags (fabs_ is xc_abs), inline: the test's own cost in its own functions */
+{
+  const float w = xc_abs(c[3]);
+  return (c[0] > w) | (c[0] < -w) << 1 | (c[1] > w) << 2 | (c[1] < -w) << 3 | (c[2] > w) << 4 | (c[2] < -w) << 5;
+}
+static inline int32_t xc_key(uint32_t u) { return (int32_t)(u ^ ((uint32_t)((int32_t)u >> 31) & 0x7fffffffu)); }   /* float order as
+                                                       int32 order (-0 just below +0); its own inverse */
+/* 1 when both forms of plane b are below the margin over the box lo..hi (P: the largest |p| per axis) */
+static int xc_bound(const float *m, const float *lo, const float *hi, const float *P, int b)
+{
+  const int a = b >> 1; const float s = b & 1 ? 1.0f : -1.0f;
+  float S = (xc_abs(m[a]) + xc_abs(m[3])) * P[0];
+  S = S + (xc_abs(m[4 + a]) + xc_abs(m[7])) * P[1];
+  S = S + (xc_abs(m[8 + a]) + xc_abs(m[11])) * P[2];
+  S = S + (xc_abs(m[12 + a]) + xc_abs(m[15]));
+  const float M = S * 0x1p-16f + 0x1p-60f;
+  for (int t = 0; t < 2; t++) { const float tw = t ? -1.0f : 1.0f; float G = 0;
+    for (int i = 0; i < 3; i++) { const float g = s * m[4 * i + a] + tw * m[4 * i + 3]; G = G + (g >= 0 ? g * hi[i] : g * lo[i]); }
+    G = G + (s * m[12 + a] + tw * m[15]);
+    if (!(G + M < 0)) return 0; }
+  return 1;
+}
+/* pass 2 on the prim's streams (K: the attributes' kind, vu1conv.c fpos_rec_loop's decode): 0 when every position is within the
+   range and no attribute is out, else the reason (xconv.h XcStats.cull_n: 7, 5); *adc: the vertices with ADC */
+static inline __attribute__((always_inline)) int xc_cull_p2r(const uint32_t *P, const xc_h16 *A, const uint32_t *row, int n, int tme, const int K,
+                                                             long *adc)
+{
+  const uint32_t r0 = K == 3 ? row[0] : 0, r1 = K == 3 ? row[1] : 0, r2 = K == 3 ? row[2] : 0, r3 = K == 3 ? row[3] : 0;
+  uint32_t tiny = 0, col = 0, uvq = 0; long na = 0;
+  for (int i = 0; i < n; i++) {
+    const uint32_t *pp = P + 4 * i; const xc_h16 *x = A + 8 * i;
+    tiny |= ((pp[0] << 1) - 1u < (99u << 24) - 1u) | ((pp[1] << 1) - 1u < (99u << 24) - 1u) | ((pp[2] << 1) - 1u < (99u << 24) - 1u);
+    if (K == 2) { col |= (uint32_t)(uint16_t)x[0] | (uint16_t)x[1] | (uint16_t)x[2] | (uint16_t)x[3]; uvq |= (uint32_t)(uint16_t)x[6] ^ 0x1000u; }
+    else { col |= ((uint32_t)(int32_t)x[0] + r0) | ((uint32_t)(int32_t)x[1] + r1) | ((uint32_t)(int32_t)x[2] + r2) | ((uint32_t)(int32_t)x[3] + r3);
+           uvq |= ((uint32_t)(int32_t)x[6] + r2) ^ 0x1000u; }
+    na += ((uint32_t)(int32_t)x[7] + r3) >> 15 & 1u;
+  }
+  *adc = na;
+  return tiny ? 7 : col > 255 || (tme && uvq) ? 5 : 0;
+}
+static uint32_t xc_flag(const XlCall *c, const XlRec *rr, int i)   /* vertex i's flag word (the UV quadword's w) as xc_fpos takes it */
+{
+  if (!rr) return vq(c->vm, c->top + 0x102 + 3 * (uint32_t)i)[3];
+  return (uint32_t)(int32_t)((const xc_h16 *)rr->p[1])[8 * i + 7] + (rr->kind[1] == 3 ? rr->row[3] : 0);
+}
+/* 4. pass 2 (a call proven): the positions' lower end, the attributes, the ADC count; 0 or the reason to keep it */
+static __attribute__((noinline)) int xc_cull_p2(const XlCall *c, const XlRec *rr, int n, int tme, long *adc)
+{
+  if (rr) return rr->kind[1] == 2 ? xc_cull_p2r((const uint32_t *)rr->p[0], (const xc_h16 *)rr->p[1], rr->row, n, tme, 2, adc) :
+                                    xc_cull_p2r((const uint32_t *)rr->p[0], (const xc_h16 *)rr->p[1], rr->row, n, tme, 3, adc);
+  uint32_t tiny = 0, col = 0, uvq = 0; long na = 0;
+  for (int i = 0; i < n; i++) { const uint32_t *pp = vq(c->vm, c->top + 0x100 + 3 * (uint32_t)i), *cq = vq(c->vm, c->top + 0x101 + 3 * (uint32_t)i),
+                                               *tq = vq(c->vm, c->top + 0x102 + 3 * (uint32_t)i);
+    tiny |= ((pp[0] << 1) - 1u < (99u << 24) - 1u) | ((pp[1] << 1) - 1u < (99u << 24) - 1u) | ((pp[2] << 1) - 1u < (99u << 24) - 1u);
+    col |= cq[0] | cq[1] | cq[2] | cq[3]; uvq |= tq[2] ^ 0x1000u; na += tq[3] >> 15 & 1u; }
+  *adc = na;
+  return tiny ? 7 : col > 255 || (tme && uvq) ? 5 : 0;
+}
+/* 2. and 3. (vertex 0 beyond the planes f0): pass 1, the box of the positions, and the bound; the plane proven, or -1 (*why: 7 the box
+   out of the range, 4 no plane proven) */
+static __attribute__((noinline)) int xc_cull_box(const XlCall *c, const XlRec *rr, const float *m, int n, int f0, int *why)
+{
+  int32_t l0 = INT32_MAX, l1 = INT32_MAX, l2 = INT32_MAX, h0 = INT32_MIN, h1 = INT32_MIN, h2 = INT32_MIN;
+  if (rr) { const uint32_t *P = (const uint32_t *)rr->p[0];
+    for (int i = 0; i < n; i++) { const uint32_t *pp = P + 4 * i;
+      const int32_t k0 = xc_key(pp[0]), k1 = xc_key(pp[1]), k2 = xc_key(pp[2]);
+      l0 = k0 < l0 ? k0 : l0; h0 = k0 > h0 ? k0 : h0; l1 = k1 < l1 ? k1 : l1; h1 = k1 > h1 ? k1 : h1; l2 = k2 < l2 ? k2 : l2; h2 = k2 > h2 ? k2 : h2; } }
+  else for (int i = 0; i < n; i++) { const uint32_t *pp = vq(c->vm, c->top + 0x100 + 3 * (uint32_t)i);
+      const int32_t k0 = xc_key(pp[0]), k1 = xc_key(pp[1]), k2 = xc_key(pp[2]);
+      l0 = k0 < l0 ? k0 : l0; h0 = k0 > h0 ? k0 : h0; l1 = k1 < l1 ? k1 : l1; h1 = k1 > h1 ? k1 : h1; l2 = k2 < l2 ? k2 : l2; h2 = k2 > h2 ? k2 : h2; }
+  const uint32_t bl[3] = { (uint32_t)xc_key((uint32_t)l0), (uint32_t)xc_key((uint32_t)l1), (uint32_t)xc_key((uint32_t)l2) },
+                 bh[3] = { (uint32_t)xc_key((uint32_t)h0), (uint32_t)xc_key((uint32_t)h1), (uint32_t)xc_key((uint32_t)h2) };
+  if (!(xc_in(bl[0]) & xc_in(bl[1]) & xc_in(bl[2]) & xc_in(bh[0]) & xc_in(bh[1]) & xc_in(bh[2]))) { *why = 7; return -1; }
+  float lo[3], hi[3], Pm[3];
+  for (int k = 0; k < 3; k++) { lo[k] = xc_f(bl[k]); hi[k] = xc_f(bh[k]); Pm[k] = xc_abs(lo[k]) > xc_abs(hi[k]) ? xc_abs(lo[k]) : xc_abs(hi[k]); }
+  for (int j = 0; j < 6; j++) if ((f0 >> j & 1) && xc_bound(m, lo, hi, Pm, j)) return j;
+  *why = 4; return -1;
+}
+static __attribute__((noinline)) int xc_fpos_off(const XlCall *c, const XcHost *h, const XlRec *rr, int n, int tme, XcCullD *D)
+{
+  long *const cn = St.cull_n;
+  cn[0]++;
+  if (n < 2 || n > 1024) { cn[6]++; return 0; }
+  for (int k = 0; k < h->nthin; k++) if (!h->thin[k].line && c->src - h->thin[k].lo < h->thin[k].hi - h->thin[k].lo) { if (h->thin[k].keep > 1) { cn[11]++; return 0; } break; }
+  /* the matrix (vc_xform: T + 0x10 .. 0x13, each word as vfl reads it; within the range vfl leaves it as it is) */
+  float m[16]; uint32_t mi = 1;
+  for (int k = 0; k < 4; k++) { const uint32_t *q = vq(c->vm, c->top + 0x10 + (uint32_t)k);
+    for (int j = 0; j < 4; j++) { mi &= (uint32_t)xc_in(q[j]); m[4 * k + j] = xc_f(q[j]); } }
+  /* 1. vertex 0 */
+  const uint32_t *p0 = rr ? (const uint32_t *)rr->p[0] : vq(c->vm, c->top + 0x100);
+  cn[12]++;
+  if (!mi || !xc_in(p0[0]) || !xc_in(p0[1]) || !xc_in(p0[2])) { cn[7]++; return 0; }
+  int f0;
+  { const float p[3] = { xc_f(p0[0]), xc_f(p0[1]), xc_f(p0[2]) }; float cc[4]; vc_vu_clip_nc(m, p, cc); f0 = xc_cflags(cc); }
+  if (!f0) { cn[3]++; return 0; }
+  cn[12] += n - 1;
+  int why = 0; const int b = xc_cull_box(c, rr, m, n, f0, &why);
+  long na = 0;
+  if (b < 0 || (why = xc_cull_p2(c, rr, n, tme, &na))) { cn[why]++; cn[13] += n; return 0; }
+  na -= (xc_flag(c, rr, 0) >> 15 & 1u) + (xc_flag(c, rr, 1) >> 15 & 1u);   /* (the triangles start at vertex 2) */
+  D->clip0 = n; D->t0 = na; D->t2 = n - 2 - na; D->b = b;
+  return 1;
+}
+static void xc_cull_add(XcStats *S, const XcCullD *D) { S->clip[0] += D->clip0; S->tris[0] += D->t0; S->tris[2] += D->t2; }
+static XcStats Cpred; static int Cdue, Cb, Cn;   /* the check mode (XC_CULL_CHK): the counters a left-out call would have, its plane and
+                                                    count; Cdue 1: compare (xc_fpos), 2: a kept call */
+
+static int xc_fpos_full(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
 {
   VcVertF *const v = Fx.f.v, *const pv = Fx.f.pv; uint16_t *const fl = Fx.f.fl, (*const pfan)[2] = Fx.f.pfan; uint8_t *const cls = Fx.f.cls, *const cf = Fx.f.cf;
   float (*const cc)[4] = Fx.f.cc;
@@ -334,9 +542,22 @@ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, cons
   else for (int i = 1; i < n0 && same; i++) same = !memcmp(vq(c->vm, c->top + 0x100 + 3 * i), vq(c->vm, c->top + 0x100), 12);
 #ifndef __psp__
   if (chk && same) xc_rec3_diff += chk == 2;
+  xc_cen_n = n0;
 #endif
-  if (same) return 0;
+  if (same) { CEN(1); return 0; }
   VcXform x; int n; const int tq = h->c4x ? d->tme : 1;   /* sb15 4x: an untextured call's UV q not checked */
+  if ((h->cull & XC_CULL_FX) && !h->trace
+#ifndef __psp__
+      && !chk
+#endif
+     ) {   /* cull study: a call that would draw nothing, its counters added as its conversion adds them */
+    XcCullD D;
+    if (xc_fpos_off(c, h, rr, n0, tq, &D)) {
+      St.cull_n[14] += h->clipfast ? 0 : n0;   /* (its vertices would take the clamped path: every one is within the range) */
+      if (!(h->cull & XC_CULL_CHK)) { xc_cull_add(&St, &D); St.cull_n[1]++; St.cull_n[2] += n0; CEN(2); return 0; }
+      Cpred = St; xc_cull_add(&Cpred, &D); Cdue = 1; Cb = D.b; Cn = n0;   /* check mode: converted anyway, then compared (xc_fpos) */
+    } else if (h->cull & XC_CULL_CHK) Cdue = 2;
+  }
   if (rr) {
     n = vc_fpos_rec(c->vm, c->top, rr->p, rr->num, rr->kind, rr->row, &x, v, fl, 1024, tq);
     if (n == -8) { rr = 0; xc_rec3_calls--; xc_rec3_vm++; xl_vm_sync(); n = vc_fpos(c->vm, c->top, &x, v, fl, 1024, tq); }   /* (not expected:
@@ -369,7 +590,8 @@ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, cons
     if (keep > 1 && drop[i] && !tr) { cf[i] = 0; continue; }   /* (its triangles are not drawn; a trace gets every position) */
     St.clip[0]++;
     if (fm && vc_clip_in(p[0]) && vc_clip_in(p[1]) && vc_clip_in(p[2])) vc_vu_clip_nc(x.m, p, cc[i]);
-    else { vc_vu_clip(x.m, p, cc[i]); St.clip[1] += h->clipfast; }
+    else { vc_vu_clip(x.m, p, cc[i]); St.clip[1] += h->clipfast; St.cull_n[15] += Cdue == 1; }   /* (cull study: the check mode's
+                                                         left-out calls through the clamps) */
     cf[i] = (uint8_t)vc_cflags(cc[i]); }
   if (tr) { tr->n = n;
     for (int i = 0; i < n; i++) { int f = cf[i] | (i >= 1 ? cf[i - 1] : 0) | (i >= 2 ? cf[i - 2] : 0);   /* FCSET 0 before the loop */
@@ -418,6 +640,12 @@ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, cons
     }
   }
   if (tr) memcpy(tr->cls, cls, n);
+#ifndef __psp__
+  if (!drawn) { unsigned a = 0x3f; int any = 0;   /* (census) the clip bits every vertex with a clip position shares */
+    for (int i = 0; i < n; i++) if (!(keep > 1 && drop[i] && !tr)) { a &= cf[i]; any = 1; }
+    int tr3 = 1; for (int i = 2; i < n && tr3; i++) if (!(fl[i] & 0x8000) && !(keep > 1 && drop[i])) tr3 = (cf[i - 2] & cf[i - 1] & cf[i]) != 0;
+    xc_cen_plane = any ? (int)a : 0; CEN(any && a ? 2 : tr3 ? 3 : 10); }   /* (3: every classed triangle trivially rejected, no common plane) */
+#endif
   if (!drawn) return 0;
   if (h->c4x)   /* sb15 4x: each vertex's clip position as the micro program computes it (x, y, with w in z); a thinned strip's vertices,
                    whose triangles are not drawn, keep what they hold */
@@ -432,6 +660,21 @@ static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, cons
   memcpy(blob + o, pfan, npf * 4); o += npf * 4;
   xc_state(d, ti, c->entry, b); b->kind = GERK_XFORMF; b->twopass = (uint8_t)xc_twopass(d, t, amin); b->count = n;
   *size = o; return 1;
+}
+
+/* cull study: xc_fpos_full, and in the check mode the comparison: a call the test left out must convert to 0 with the counters
+   it predicted (every XcStats field before cull_n), and every one of its vertices must have the proven plane's bit in the flags the
+   conversion computed (Fx.f.cf) */
+static int xc_fpos(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, int k2870, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
+{
+  Cdue = 0;
+  int r = xc_fpos_full(c, h, d, ti, t, k2870, b, blob, cap, size);
+  if (Cdue == 1) { int bad = r || memcmp(&St, &Cpred, offsetof(XcStats, cull_n));
+    for (int i = 0; i < Cn && !bad; i++) bad = !(Fx.f.cf[i] >> Cb & 1);
+    St.cull_n[8]++; St.cull_n[9] += bad; }
+  else if (Cdue == 2 && !r) St.cull_n[10]++;
+  Cdue = 0;
+  return r;
 }
 
 /* ---- sb15, Stage C step 4 (stagec_notes.md step 4; XcHost.c4): P04+3740's sprites, +3a38's quads, +2b60's streaks as GERK_XFORMF
@@ -609,8 +852,12 @@ static int xc_c4(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, u
   const int j = c->entry == VC_SPR ? 0 : c->entry == VC_QUAD ? 1 : 2;
   St.c4_calls[j]++;
   XcGs d; xc_gs(c->gr, &d);
+#ifndef __psp__
+  xc_cen_why = -1; xc_cen_n = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff);
+#endif
   int r = j == 0 ? xc_spr(c, h, &d, b, blob, cap, size) : j == 1 ? xc_quad(c, h, &d, b, blob, cap, size) : xc_line(c, h, &d, b, blob, cap, size);
   if (r < 0) St.c4_bad[j]++; else if (!r) St.c4_empty[j]++; else St.c4_batches[j]++;
+  CEN(r < 0 ? 6 : r > 0 ? 0 : 7);
 #ifdef XC_C4_DBG   /* x86 diagnosis only (mk.sh <dir> -DXC_C4_DBG): what a refused call holds */
   if (r < 0 && r != -5) {
     static int nd; const int st = j == 0 ? 6 : j == 1 ? 12 : 3; const int n = (int)(vq(c->vm, c->top + 0x14)[0] & 0xffff);
@@ -848,39 +1095,84 @@ static int xc_c2_zin(const XcZr *z, const VcXform *x, const VcP6C2 *k, const flo
   const float lo = (d0 - r0 < d1 - r1 ? d0 - r0 : d1 - r1) - E, hi = (d0 + r0 > d1 + r1 ? d0 + r0 : d1 + r1) + E;
   return lo > 0 && lo >= z->wmin && hi <= z->wmax;
 }
+#ifndef __psp__
+static void xc_c2n_check(const XlCall *c, const VcLit *L, const VcP6C2 *k, const NgeP6G *q, const uint8_t *v, uint32_t a1, int nst,
+                         const float *zr, const float *zw, long zn);
+#endif
+/* native step 2 (ge/nge.h): the call's cooked people group, or 0 (today's vertex loop): its reference (the held call's, or the walk's), a
+   cook drawn natively whose count, header y and skin are the call's, no factor (TINT) */
+static const NgeP6G *xc_c2n_cook(const VcLit *L, const VcP6C2 *k, int n)
+{
+  const uint32_t ref = Hr ? Hr->ng6 : xc_nge_cur6;
+  if (!ref) return 0;
+  const NgeP6G *q = (const NgeP6G *)nge_p(ref);
+  xc_nge6_n[NG6_TRY]++;
+  if (!q->ok || q->n != (uint32_t)n || q->hy != (L->hy & 0xffffu) || q->skin != (uint32_t)k->skin || k->tint) { xc_nge6_n[NG6_NO_MATCH]++; return 0; }
+  return q;
+}
 /* -8: today's path takes the call (vc_p06_c2 -8 or -9, vc_p06_c2v -8, or less room than its bound: counted in St.c2_fall); 0 nothing
-   drawn; 1 the batch (pass 1's), as xc_lit */
+   drawn; 1 the batch (pass 1's), as xc_lit.  Native step 2: a call with a cooked group (xc_c2n_cook) takes its vertices, strips and
+   uv2 form from the cook; N-ref (no blended vertex, alpha 255) leaves the vertices in the arena (GERL_NGE, the NgeC2Tail after the
+   GerC2), N-copy copies them into the blob and redoes the call's parts (vc_p06_c2bl); the depth range's w from the cook (vc_p06_c2z) */
 static int xc_lit_c2(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap,
                      uint32_t *size, uint32_t fogcol, uint32_t hy, uint16_t *fl, uint16_t *runs)
 {
   const XlRec *rr = c->rec; VcLit L; VcP6C2 k;
   const int n = vc_p06_c2(c->vm, c->top, c->entry, rr->p, rr->kind, rr->num, rr->row, &L, &k);
+  NS_PMARK(NS_P_C2);   /* gl38: the people split */
   if (n < 0) { St.c2_fall[n == -9]++; return -8; }
   const int np = 1 + ((hy & 0x10) != 0) + ((hy & 0x700) != 0);
   if (cap < xc_c2_bound((uint32_t)n, hy)) { St.c2_fall[3]++; return -8; }
   const uint32_t o1 = C1_GXL(np), ov = (o1 + 15u) & ~15u, st = k.skin ? 24u : 20u, a1 = ((uint32_t)n * st + 15u) & ~15u;
+  const NgeP6G *q = xc_c2n_cook(&L, &k, n);   /* native step 2 */
   xc_state(d, ti, c->entry, b);   /* (here, as xc_lit_c1: its flags say whether the depth range takes the call) */
   const int zneed = h->zr && (b->flags & GERF_ZWRITE) && b->ztst >= 2;
   float zr[4] = { 0, 0, 0, 0 }, zw[2] = { 0, 0 }; long zn = 0; int zin = 0;
   if (zneed) {   /* xc_zr_lit's w row: positions as the GE reads them, 16-bit ones / 32768 (unskinned), floats (skinned: the blend) */
     const float ps = k.skin ? 1.0f : 32768.0f;
     zr[0] = L.x.world[2] / ps; zr[1] = L.x.world[5] / ps; zr[2] = L.x.world[8] / ps; zr[3] = L.x.world[11];
-    if (k.skin) { vc_p06_c2box(rr->p, n, &k); zin = xc_c2_zin(h->zr, &L.x, &k, zr); }
+    if (k.skin) {
+      if (q) { for (int j = 0; j < 3; j++) { k.blo[j] = q->blo[j]; k.bhi[j] = q->bhi[j]; } } else vc_p06_c2box(rr->p, n, &k);
+      zin = xc_c2_zin(h->zr, &L.x, &k, zr); }
   }
-  if (vc_p06_c2v(rr->p, &L, &k, blob + ov, fl, zneed && !zin ? zr : 0, zw, &zn) < 0) { St.c2_fall[2]++; return -8; }
+  int nst, nref = 0; const uint8_t *cv = 0;
+  if (q) {   /* native step 2: the cook's (vc_p06_c2v's L parts: uv2, du, dv, cull from the cook; amin the call's a1, no factor) */
+    L.uv2 = q->uv2; L.du = q->uv2 == 1 ? (int)q->du : 0; L.dv = q->uv2 == 1 ? (int)q->dv : 0; L.amin = (int)k.a1; L.cull = q->cull;
+    cv = (const uint8_t *)nge_p(NGE_RO(q->reg, q->vb));
+    nst = k.adc ? 0 : (int)q->nst;   /* (ADC on every vertex: no strip, as vc_strips makes none) */
+    if (nst) {
+      if (zneed && !zin) { vc_p06_c2z(cv, n, &k, zr, zw, &zn); xc_nge6_n[NG6_ZW]++; }
+      nref = !q->nb && k.a2 == 0xffu;
+      if (!nref) {
+        memcpy(blob + ov, cv, q->uv2 == 2 ? 2 * a1 : a1);
+        vc_p06_c2bl(blob + ov, n, a1, q->uv2, q->nb ? (const uint8_t *)nge_p(NGE_RO(q->reg, q->bl)) : 0, q->nb, &k);
+        xc_nge6_n[NG6_BLEND_V] += q->nb; if (k.a2 != 0xffu) xc_nge6_n[NG6_ALPHA]++; }
+      memcpy(runs, nge_p(NGE_RO(q->reg, q->runs)), (size_t)nst * 4);
+    }
+#ifndef __psp__
+    if (xc_nge_chk) xc_c2n_check(c, &L, &k, q, nref ? cv : blob + ov, a1, nst, zneed && !zin ? zr : 0, zw, zn);
+#endif
+  } else if (vc_p06_c2v(rr->p, &L, &k, blob + ov, fl, zneed && !zin ? zr : 0, zw, &zn) < 0) { St.c2_fall[2]++; return -8; }
+  else nst = -1;
+  NS_PMARK(NS_P_VTX);
   St.lit_kind[L.kind]++; St.lit_v += n; St.lit_cull += L.cull;   /* (xc_lit's counts: every C2 call is in the fast form, no ramp) */
   if (L.uv2 == 2) St.lit_own2++;
   if (L.p3 < 0) St.lit_nopass[3]++;
-  const uint32_t og = ov + (L.uv2 == 2 ? 2 * a1 : a1), gsz = GERC2_SIZE(k.skin);
+  if (nst < 0) nst = vc_strips(fl, n, runs, 128);
+  if (!nst) { if (q) xc_nge6_n[NG6_EMPTY]++; return 0; }
+  const uint32_t ogt = ov + (L.uv2 == 2 ? 2 * a1 : a1), gsz = GERC2_SIZE(k.skin), ortt = (ogt + gsz + 15u) & ~15u;   /* today's GerC2 and strips */
+  const uint32_t og = nref ? ov : ogt, ot = og + gsz + (nref ? (uint32_t)sizeof(NgeC2Tail) : 0u), orun = (ot + 15u) & ~15u;
   GerC2 *g = (GerC2 *)(blob + og);
-  g->voff[0] = g->voff[2] = (int32_t)ov - (int32_t)og; g->voff[1] = L.uv2 == 2 ? (int32_t)(ov + a1) - (int32_t)og : g->voff[0];
+  g->voff[0] = g->voff[2] = (int32_t)ov - (int32_t)ogt; g->voff[1] = L.uv2 == 2 ? (int32_t)(ov + a1) - (int32_t)ogt : g->voff[0];
   g->skin = (uint32_t)k.skin; memcpy(g->lcol, k.lcol, sizeof g->lcol); g->emis = k.emis;
   memcpy(g->ldir, k.ldir, sizeof g->ldir); memcpy(g->tgen, k.tgen, sizeof g->tgen);
   if (k.skin) memcpy(g->bone1, k.bone1, sizeof g->bone1);
-  const int nst = vc_strips(fl, n, runs, 128);
-  if (!nst) return 0;
-  const uint32_t orun = (og + gsz + 15u) & ~15u, end = orun + (uint32_t)nst * 4u;
-  memset(blob + og + gsz, 0, orun - og - gsz); memcpy(blob + orun, runs, (size_t)nst * 4);
+  if (nref) {   /* N-ref: where the GE reads the vertices, and today's offsets (the digest's) */
+    NgeC2Tail tl; tl.vb[0] = NGE_RO(q->reg, q->vb); tl.vb[1] = NGE_RO(q->reg, q->vb + (q->uv2 == 2 ? a1 : 0u)); tl.og = ogt; tl.orun = ortt;
+    memcpy(blob + og + gsz, &tl, sizeof tl); xc_nge6_n[NG6_REF]++; }
+  else if (q) xc_nge6_n[NG6_COPY]++;
+  const uint32_t end = orun + (uint32_t)nst * 4u;
+  memset(blob + ot, 0, orun - ot); memcpy(blob + orun, runs, (size_t)nst * 4);
   GerXform gx; xc_xform(&L.x, d, t, 8, h, fogcol, &gx);   /* (xc_lit's: UV1 16-bit) */
   gx.fog1 = (float)L.fog / 255.0f * 1099511627776.0f; gx.fog2 = 1.0f / 1099511627776.0f;   /* (xc_lit's: the constant F) */
   gx.nv = (uint32_t)n; gx.nst = (uint32_t)nst; gx.nidx = 0;
@@ -893,7 +1185,7 @@ static int xc_lit_c2(const XlCall *c, const XcHost *h, const XcGs *d, int ti, co
     const uint32_t at = (uint32_t)(sizeof gx + kk++ * sizeof(GerLit));
     GerLit p; memset(&p, 0, sizeof p);
     p.xf = -(int32_t)at; p.vtx = (int32_t)og - (int32_t)at; p.run = (int32_t)orun - (int32_t)at;
-    p.vtype = VT_C2(k.skin); p.stride = st; p.nv = (uint32_t)n; p.nst = (uint32_t)nst; p.pass = (uint32_t)pass | GERL_C2;
+    p.vtype = VT_C2(k.skin); p.stride = st; p.nv = (uint32_t)n; p.nst = (uint32_t)nst; p.pass = (uint32_t)pass | GERL_C2 | (nref ? GERL_NGE : 0u);
     p.su = gx.su; p.sv = gx.sv; p.tu = gx.tu; p.tv = gx.tv;   /* pass 1's; xc_pass writes the others' */
     memcpy(blob + at, &p, sizeof p);
     if (pass == 1 || (pass == 2 && L.uv2 > 0) || (pass == 3 && L.p3 > 0)) Lp.rec[pass] = at;
@@ -909,6 +1201,7 @@ static int xc_lit_c2(const XlCall *c, const XcHost *h, const XcGs *d, int ti, co
     else xc_zr_c1(h->zr, &L.x, zw[0], zw[1], zn);
   }
   St.c2_calls++; St.c2_v += n; St.c2_skin += k.skin; St.c2_bytes += end;
+  NS_PMARK(NS_P_BLOB);
   *size = end; return 1;
 }
 static int xc_lit(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const XcTex *t, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size,
@@ -987,6 +1280,7 @@ static int xc_lit(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const
     }
   } else n = vc_p06(c->vm, c->top, c->entry, &L, blob + o1, v3, fl, 0, 64);
   if (n < 0) { St.face_unseen += n == -7; return n; }
+  NS_PMARK(NS_P_VTX);   /* gl38: the people split (the CPU's path: the header, the bones, the lights and the vertices in one stage) */
 #ifndef __psp__
   if (p7 && c1m_on) c1m_call(c->vm, c->top, rr ? rr->p : 0, n, &L, blob + o1, L.p3 > 0 ? v3 : 0);   /* sb11: reads only */
   if (!p7 && c2m_on) c2m_call(vm, top, c->entry, rr ? rr->p : 0, n, &L, blob + o1, L.p3 > 0 ? v3 : 0);   /* sb12: reads only */
@@ -1049,6 +1343,7 @@ static int xc_lit(const XlCall *c, const XcHost *h, const XcGs *d, int ti, const
   if (!p7 && c2m_on) c2m_pass(1, d->tme, d->tfx, d->tcc, d->abe, (uint32_t)(d->ba | d->bb << 2 | d->bc << 4 | d->bd << 6 | d->fix << 8), d->fge, ti >= 0);   /* sb12 */
 #endif
   if (h->zr && (b->flags & GERF_ZWRITE)) { if (b->ztst >= 2) xc_zr_lit(h->zr, &L.x, blob + o1, t1, s1, n); else h->zr->always++; }
+  NS_PMARK(NS_P_BLOB);
   *size = end; return 1;
 }
 /* a pass's GS state and texture, with the GS registers after its A+D packet (sb4: xc_pass's look-up, which a held call does at the pass) */
@@ -1083,6 +1378,18 @@ int xc_pass(const XlCall *c, int pass, const XcHost *h, GerBatch *b, uint8_t *bl
 }
 
 
+/* gl36 (xlate.h XR_REC): a recorded or checked group's box and first triangle without ADC kept in its entry (check mode: compared with
+   the entry's first; xl_nr_n[9] the differing) */
+static void xc_nr_rec(const XlRec *r, int n)
+{
+  NrEnt *e = r->ne;
+  if (!e) return;
+  if (n <= 0) { e->bits &= (uint8_t)~NR_BOX; if ((r->ru & XR_CHK) && (e->bits & NR_OB)) xl_nr_n[9]++; return; }
+  int i = 2;
+  while (i < n && (vc_df0_flag(r->p, r->kind, r->row, i) & 0x8000)) i++;
+  if ((r->ru & XR_CHK) && (e->bits & NR_OB) && (memcmp(e->box, Dbox, sizeof Dbox) || e->i1 != (uint16_t)i)) xl_nr_n[9]++;
+  memcpy(e->box, Dbox, sizeof Dbox); e->i1 = (uint16_t)i; e->bits |= NR_BOX; xl_nr_n[16]++;
+}
 int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32_t cap, uint32_t *size)
 {
   Lp.on = 0;
@@ -1091,16 +1398,31 @@ int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32
   if (k < 0 || c->cont) return 0;
   St.calls[k]++;
 #ifndef __psp__
+  xc_cen_why = -1; xc_cen_n = -1;
+#endif
+#ifndef __psp__
   if (c3m_on) c3m_kind(k);   /* sb13 */
 #endif
   XcGs d; xc_gs(c->gr, &d);
+  NS_MARK(NS_GS);
   if (!k) {   /* df0: the input first, so that a call off the scissor never asks for its texture */
-    Datt = 1; Dbox_ok = 0; Dvp = Dv;   /* sb14 */
+    Datt = 1; Dbox_ok = 0; Dvp = Dv; Dpos = 0; Dne = 0; Dnge = 0;   /* sb14; gl36; native step 1 */
     if (c->rec) {   /* sb1 lane: the streams from the game's data */
       const XlRec *r = c->rec; xc_rec_calls++;
-      if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
+      if (xc_nge_cur && h->c3v && xc_nge_try(c, r)) NS_MARK(NS_POS);   /* native step 1: the cook's */
+      else if (h->c3v) {   /* sb14 3v: the positions and their box now, the rest once the cut has kept the call */
         if (h->c3w && cap >= sizeof(GerXform) + sizeof Dv) { Dvp = (VcVert *)(blob + sizeof(GerXform)); St.c3w_calls++; }   /* sb14 3w */
-        Dn = vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024); Dbox_ok = Dn > 0; Datt = 0; Drec = r; St.c3v_calls++;
+        Drec = r;
+        if (r->nf && (r->ru & XR_BOX) && xl_nr_ok) {   /* gl36: a kept box: the transform now, the positions when read */
+          Dn = vc_df0_xf_k(c->vm, c->top, &Dx, 1024, r->xsrc, r->xgen);
+          if (Dn > 0) { memcpy(Dbox, r->ne->box, sizeof Dbox); Dpos = 1; Dne = r->ne; xl_nr_n[10]++; }
+        } else {
+        Dn = r->nf ? vc_df0_pos_k(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024, r->xsrc, r->xgen)   /* gl34: a fast native group */
+                   : vc_df0_pos(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dvp, Dbox, 1024);
+        if (r->nf && (r->ru & XR_REC)) xc_nr_rec(r, Dn);   /* gl36: the box and i1 kept (or compared, check mode) */
+        }
+        Dbox_ok = Dn > 0; Datt = 0; St.c3v_calls++;
+        NS_MARK(NS_POS);
 #ifndef __psp__   /* (x86 only: no check arrays or code in the PSP's hot path) */
         if (xc_c3_chk) {   /* the two passes against vc_df0_rec: every output the same; the flags read from the stream the same as converted */
           static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex; int16_t eb[6];
@@ -1121,7 +1443,7 @@ int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32
 #endif
       } else
       Dn = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Dx, Dv, Dfl, 1024);
-      if (xc_rec_chk) {
+      if (xc_rec_chk && !Dnge) {
         if (!Datt && Dn > 0) vc_df0_att(r->p, r->kind, r->row, &Dx, Dvp, Dfl, Dn);   /* sb14: the whole input for the check */
         Datt = 1;
         static VcVert Ev[1024]; static uint16_t Efl[1024]; VcXform Ex;
@@ -1131,20 +1453,32 @@ int xc_call(const XlCall *c, const XcHost *h, GerBatch *b, uint8_t *blob, uint32
     } else
     Dn = vc_df0(c->vm, c->top, &Dx, Dv, Dfl, 1024);
     int off = Dn > 0 && h->cut && xc_df0_off(&d);
+    if (g_ns.clk) { NS_MARK(NS_CUT); g_ns.nv += Dn > 0 ? Dn : 0; g_ns.ncut += off; }
 #ifndef __psp__
     if (c3m_on) {   /* sb13: reads only, before the depth range takes the call (sb14: with the whole input) */
       if (!Datt && Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn);
       Datt = 1; c3m_call(c, &d, h, Dn, Dvp, Dfl, &Dx, off); }
 #endif
-    if (off) { if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
-      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; return 0; }
+#ifndef __psp__
+    xc_cen_n = Dn;
+#endif
+    if (off) { CEN(4); if (!Datt) { St.c3v_cut++; St.c3v_cut_v += Dn; }
+      if (Dpos) xl_nr_n[11]++;
+      xc_df0_zr(h, &d); St.cut[0]++; St.cut_v[0] += Dn; St.empty[0]++; if (Dnge) xc_nge_n[NGN_CUT]++; return 0; }
+    xc_df0_pos_now();   /* gl36: a kept box's call the cut keeps: its positions now */
     if (!Datt) { if (Dn > 0) vc_df0_att(Drec->p, Drec->kind, Drec->row, &Dx, Dvp, Dfl, Dn); Datt = 1; }   /* sb14 3v: the second pass */
+    NS_MARK(NS_ATT);
   }
   XcTex t; memset(&t, 0, sizeof t); t.index = -1;
   if (d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, d.ctxt, &t)) t.index = -1;
+  NS_MARK(NS_TEX);
   int r = k >= 3 ? xc_lit(c, h, &d, t.index, &t, b, blob, cap, size, (uint32_t)(c->gr[0x3d] & 0xffffff)) :
-          k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);
+          k ? xc_fpos(c, h, &d, t.index, &t, k == 2, b, blob, cap, size) :
+          Dnge ? xc_nge_batch(c, h, &d, t.index, &t, b, blob, cap, size) : xc_df0(c, h, &d, t.index, &t, b, blob, cap, size);   /* native step 1 */
   if (r < 0) St.bad[k]++; else if (!r) St.empty[k]++; else St.batches[k]++;
+#ifndef __psp__
+  if (r < 0) CEN(6); else if (r > 0) CEN(0); else if (xc_cen_why < 0) CEN(5);
+#endif
   return r;
 }
 
@@ -1200,6 +1534,7 @@ static void hold7(const XlCall *c, XcHeld *r);
 void xc_hold(const XlCall *c, const XcHost *h, XcHeld *r)
 {
   Lp.on = 0;   /* xc_call's work before xc_lit, in its order */
+  r->ng6 = c->entry == VC_P07 ? 0u : xc_nge_cur6;   /* native step 2: the people group's reference, as the walk gave it at the call */
   if (c->entry == VC_P07) {   /* sb10 T2 */
     St.calls[4]++;
     xc_gs(c->gr, &r->d);
@@ -1214,6 +1549,7 @@ void xc_hold(const XlCall *c, const XcHost *h, XcHeld *r)
   xc_gs(c->gr, &r->d);
   memset(&r->t, 0, sizeof r->t); r->t.index = -1;
   if (r->d.tme && h->tex && !ME_CALLP(h->tex)(h->ctx, c->gr, r->d.ctxt, &r->t)) r->t.index = -1;
+  NS_PMARK(NS_P_TEX);   /* gl38: the people split */
   r->entry = c->entry; r->top = c->top; r->hy = vq(c->vm, c->top + 0x14)[1] & 0xffff; r->fogcol = (uint32_t)(c->gr[0x3d] & 0xffffff);
   r->rec = *c->rec; r->np = 0; r->slot = r->pslot[0] = r->pslot[1] = -1;
   if (xc_held_poison) memset(r->img, 0xa5, sizeof r->img);
@@ -1347,6 +1683,137 @@ static void hold7(const XlCall *c, XcHeld *r)
   if (xc_c7_chk) for (int i = 0; i < 60; i++) memcpy(r->chk7[i], vq(c->vm, c7_qa(i, c->top)), 16);
 #endif
 }
+#ifndef __psp__
+/* gl39, form B's census (x86, MGS2_FACE_CEN=<file>; reads only): every lane-4 P07 call whose streams hold7_test's first tests accept, by
+   100-vblank window and chain: how often everything the call reads is the same as the same call read in the picture before.  A call is
+   named by its first stream's place and its turn among the picture's calls with that stream; a picture is a vblank with such calls.  The
+   parts: the streams (A, B, C, D with passes 2 and 3, F: the mesh), each of the 14 slots of VU addresses 0 .. 63 (S7S: the matrices, the
+   lights, the camera's constants), T + 0 .. 3 and T + 0xfe, 0xff (the header).  The GS registers are not compared: an upper bound */
+#include <stdio.h>
+#include <stdlib.h>
+/* native step 1's check mode (MGS2_NGE_CHK=1, x86; reads only): a group xc_nge_try took, against today's input to its batch (vc_df0_rec
+   from the same streams and VU memory): the count, WORLD and the projection's terms (the stub's against the converter's Dx, which today's
+   batch holds), every vertex's bytes, the strips (vc_strips) against the cook's runs, the cooked list's words as the GE reads them (VTYPE,
+   BASE, each VADDR and PRIM: the strips they draw), the box and the first drawn vertex; and the converter's transform against a fresh one */
+static void xc_nge_check(const XlCall *c, const XlRec *r, const NgeGroup *q)
+{
+  static VcVert Ev[1024]; static uint16_t Efl[1024], Er[2048], Lr[2 * NGE_MAXST + 2]; VcXform Ex;
+  const int En = vc_df0_rec(c->vm, c->top, r->p, r->kind, r->row, &Ex, Ev, Efl, 1024);
+  xc_nge_n[NGN_CHK]++;
+  if (En != Dn || En <= 0) { xc_nge_n[NGN_D_COUNT]++; return; }
+  if (memcmp(Ex.world, Dx.world, sizeof Ex.world) || memcmp(&Ex.pa, &Dx.pa, 8)) xc_nge_n[NGN_D_FRESH]++;
+  if (memcmp(Dngx->world, Dx.world, sizeof Dx.world) || memcmp(&Dngx->pa, &Dx.pa, 4) || memcmp(&Dngx->pb, &Dx.pb, 4)) xc_nge_n[NGN_D_WORLD]++;
+  if (memcmp(Ev, nge_p(NGE_RO(q->reg, q->vb)), (size_t)En * sizeof *Ev)) {
+    xc_nge_n[NGN_D_VERT]++;
+    if (xc_nge_n[NGN_D_VERT] <= 8) {   /* the first 8 in full: where the walk's input and the cook part */
+      const VcVert *cv = (const VcVert *)nge_p(NGE_RO(q->reg, q->vb)); int i = 0, nd = 0;
+      for (int j = 0; j < En; j++) if (memcmp(&Ev[j], &cv[j], sizeof *Ev)) { if (!nd) i = j; nd++; }
+      fprintf(stderr, "nge check: vertices differ (#%ld): group %08x nv %d, %d differ, the first %d: walk %d %d %d c %08x uv %u %u, cook %d %d %d "
+              "c %08x uv %u %u; streams %p %p %p\n", xc_nge_n[NGN_D_VERT], (unsigned)xc_nge_cur->g, En, nd, i, Ev[i].x, Ev[i].y, Ev[i].z,
+              (unsigned)Ev[i].c, Ev[i].u, Ev[i].v, cv[i].x, cv[i].y, cv[i].z, (unsigned)cv[i].c, cv[i].u, cv[i].v, r->p[0], r->p[1], r->p[2]);
+    }
+  }
+  const int ns = vc_strips(Efl, En, Er, 1024);
+  if (ns != q->nst || memcmp(Er, nge_p(NGE_RO(q->reg, q->runs)), 4u * (uint32_t)ns)) xc_nge_n[NGN_D_STRIP]++;
+  { const uint32_t *w = nge_p(NGE_RO(q->reg, q->list)), vb = xc_nge_ge[q->reg] + q->vb; uint32_t base = 0, va = 0, n = 0, bad = 0, k;
+    if (w[0] != (0x12u << 24 | 0x11eu)) bad = 1;
+    for (k = 1; k < q->nw && !bad; k++) {
+      const uint32_t c8 = w[k] >> 24;
+      if (c8 == 0x10) base = (w[k] & 0x0f0000u) << 8;
+      else if (c8 == 0x01) va = base | (w[k] & 0xffffffu);
+      else if (c8 == 0x04) { const uint32_t cnt = w[k] & 0xffffu;
+        if ((w[k] >> 16 & 7) != 4 || va < vb || (va - vb) % 16 || n >= (uint32_t)NGE_MAXST) { bad = 1; break; }
+        Lr[2 * n] = (uint16_t)((va - vb) / 16); Lr[2 * n + 1] = (uint16_t)cnt; n++; va += 16 * cnt; }
+      else if (c8 == 0x0b) break;
+      else bad = 1;
+    }
+    if (bad || k != (uint32_t)q->nw - 1u || n != (uint32_t)ns || memcmp(Lr, Er, 4 * n)) xc_nge_n[NGN_D_LIST]++; }
+  { int16_t eb[6] = { 32767, 32767, 32767, -32768, -32768, -32768 }; int i1 = 2;
+    for (int i = 0; i < En; i++) {
+      eb[0] = Ev[i].x < eb[0] ? Ev[i].x : eb[0]; eb[1] = Ev[i].y < eb[1] ? Ev[i].y : eb[1]; eb[2] = Ev[i].z < eb[2] ? Ev[i].z : eb[2];
+      eb[3] = Ev[i].x > eb[3] ? Ev[i].x : eb[3]; eb[4] = Ev[i].y > eb[4] ? Ev[i].y : eb[4]; eb[5] = Ev[i].z > eb[5] ? Ev[i].z : eb[5]; }
+    while (i1 < En && (Efl[i1] & 0x8000)) i1++;
+    if (memcmp(eb, q->box, sizeof eb)) xc_nge_n[NGN_D_BOX]++;
+    if (i1 != q->i1) xc_nge_n[NGN_D_I1]++; }
+}
+/* native step 2's check mode (MGS2_NGE_CHK=1, x86; reads only): a people call drawn from its cook, against today's vertex loop on the
+   call's streams (vc_p06_c2v with the call's constants): the vertices as the GE reads them (v: the blob's copy, or N-ref the cook's;
+   VB2 too and the pads), the strips (none with ADC), uv2, du, dv, amin, cull, and the depth range's w when the call computes it */
+static void xc_c2n_check(const XlCall *c, const VcLit *L, const VcP6C2 *k, const NgeP6G *q, const uint8_t *v, uint32_t a1, int nst,
+                         const float *zr, const float *zw, long zn)
+{
+  static uint8_t ev[2 * 64 * 24 + 32]; static uint16_t efl[64], er[2 * 128];
+  VcLit le = *L; float ezw[2] = { 0, 0 }; long ezn = 0;
+  xc_nge6_n[NG6_CHK]++;
+  const int n = L->n;
+  if (vc_p06_c2v(c->rec->p, &le, k, ev, efl, zr, ezw, &ezn) != n) { xc_nge6_n[NG6_D_VERT]++; return; }
+  const int ens = vc_strips(efl, n, er, 128);
+  if (le.uv2 != L->uv2 || le.du != L->du || le.dv != L->dv || le.amin != L->amin || le.cull != L->cull) xc_nge6_n[NG6_D_L]++;
+  if (ens != nst || (nst && memcmp(er, nge_p(NGE_RO(q->reg, q->runs)), 4u * (uint32_t)nst))) xc_nge6_n[NG6_D_RUN]++;
+  if (!nst) return;   /* (nothing drawn: no vertex read) */
+  if (memcmp(ev, v, le.uv2 == 2 ? 2 * a1 : a1)) {
+    xc_nge6_n[NG6_D_VERT]++;
+    if (xc_nge6_n[NG6_D_VERT] <= 8) {
+      const uint32_t st = k->skin ? 24u : 20u; uint32_t i = 0; while (i < a1 && ev[i] == v[i]) i++;
+      fprintf(stderr, "nge6 check: vertices differ (#%ld): n %d skin %d uv2 %d nb %u a2 %02x, first byte %u (vertex %u, byte %u): today %02x cook %02x\n",
+              xc_nge6_n[NG6_D_VERT], n, k->skin, le.uv2, (unsigned)q->nb, (unsigned)k->a2, (unsigned)i, (unsigned)(i / st), (unsigned)(i % st),
+              (unsigned)ev[i < sizeof ev ? i : 0], (unsigned)v[i < sizeof ev ? i : 0]); }
+  }
+  if (zr && (ezn != zn || memcmp(ezw, zw, sizeof ezw))) xc_nge6_n[NG6_D_Z]++;
+}
+enum { FCN_W = 380, FCN_C = 16, FCN_T = 1 << 16 };
+typedef struct { const void *k; int occ; long pic; uint64_t hs, ht, hv[XC_7S]; } FcnE;
+typedef struct { const void *k; long pic; int n; } FcnO;
+static FcnE *fcn_t; static FcnO *fcn_o; static const char *fcn_path; static int fcn_on = -1;
+static long (*fcn_n)[FCN_C][6 + XC_7S]; static long fcn_pic, fcn_vb = -1, fcn_full;
+static uint64_t fcn_h(uint64_t h, const void *p, size_t n) { const uint8_t *q = p; while (n--) h = (h ^ *q++) * 0x100000001b3ull; return h; }
+static void fcn_print(void)
+{
+  FILE *fp = fopen(fcn_path, "w"); if (!fp) return;
+  fprintf(fp, "# face census: f win chain calls seen-in-the-picture-before all-equal streams-equal slots-equal header-equal then each slot equal "
+          "(slots 0 1 2 4 6 7 8 9 10 11 12 13 14 15 of 4 quadwords); not counted (odd streams or table full) %ld\n", fcn_full);
+  for (int w = 0; w < FCN_W; w++) for (int c = 0; c < FCN_C; c++) if (fcn_n[w][c][0]) {
+    fprintf(fp, "f %d %d", w * 100, c); for (int i = 0; i < 6 + XC_7S; i++) fprintf(fp, " %ld", fcn_n[w][c][i]); fprintf(fp, "\n"); }
+  fclose(fp);
+}
+void xc_face_cen(const XlCall *c, long vb, int chi)
+{
+  if (fcn_on < 0) { fcn_path = getenv("MGS2_FACE_CEN"); fcn_on = fcn_path && *fcn_path;
+    if (fcn_on) { fcn_t = calloc(FCN_T, sizeof *fcn_t); fcn_o = calloc(FCN_T, sizeof *fcn_o); fcn_n = calloc(FCN_W, sizeof *fcn_n);
+      if (!fcn_t || !fcn_o || !fcn_n) fcn_on = 0; else atexit(fcn_print); } }
+  if (!fcn_on || !c->rec || c->entry != VC_P07 || c->cont) return;
+  const XlRec *r = c->rec; const uint32_t *h = vq(c->vm, c->top);
+  const uint32_t n = h[0] & 0xffff, p23 = ((h[3] & 0x210) == 0x210);
+  const int w = (int)(vb / 100), ch = chi < 0 || chi >= FCN_C ? FCN_C - 1 : chi;
+  if (w < 0 || w >= FCN_W) return;
+#define HS(s, kd, m) (r->p[s] && r->kind[s] == (kd) && r->num[s] >= (m))
+  if (n < 1 || n > 64 || !HS(0, 2, n) || !HS(1, 2, n) || !HS(2, 2, n) || (p23 && !HS(3, 2, n)) || !HS(5, 5, 2 * n)) { fcn_full++; return; }
+#undef HS
+  if (vb != fcn_vb) { fcn_vb = vb; fcn_pic++; }
+  uint64_t hs = 0xcbf29ce484222325ull, ht = hs, hv[XC_7S]; int occ = 0;
+  hs = fcn_h(hs, &n, 4); hs = fcn_h(hs, r->p[0], 8 * n); hs = fcn_h(hs, r->p[1], 8 * n); hs = fcn_h(hs, r->p[2], 8 * n);
+  if (p23) hs = fcn_h(hs, r->p[3], 8 * n);
+  hs = fcn_h(hs, r->p[5], 8 * n);
+  for (int k = 0; k < XC_7S; k++) { const uint32_t s = S7S[k];
+    const uint8_t *p = xl_vsrc_gen[s] == xl_vgen[s] && xl_vsrc[s] ? (const uint8_t *)xl_vsrc[s] : c->vm + (s << 6);
+    hv[k] = fcn_h(0xcbf29ce484222325ull, p, 64); }
+  for (uint32_t j = 0; j < 4; j++) ht = fcn_h(ht, vq(c->vm, c->top + j), 16);
+  for (uint32_t j = 0; j < 2; j++) ht = fcn_h(ht, vq(c->vm, c->top + 0xfe + j), 16);
+  { uint32_t i = (uint32_t)(((uintptr_t)r->p[0] >> 3) * 2654435761u) & (FCN_T - 1); int tries = 0;   /* the call's turn among the picture's calls with this stream */
+    while (fcn_o[i].k && fcn_o[i].k != r->p[0] && ++tries < FCN_T) i = (i + 1) & (FCN_T - 1);
+    if (tries >= FCN_T) { fcn_full++; return; }
+    if (fcn_o[i].k != r->p[0] || fcn_o[i].pic != fcn_pic) { fcn_o[i].k = r->p[0]; fcn_o[i].pic = fcn_pic; fcn_o[i].n = 0; }
+    occ = fcn_o[i].n++; }
+  { uint32_t i = (uint32_t)((((uintptr_t)r->p[0] >> 3) + (uint32_t)occ * 40503u) * 2654435761u) & (FCN_T - 1); int tries = 0; FcnE *e; long *q = fcn_n[w][ch];
+    while (fcn_t[i].k && (fcn_t[i].k != r->p[0] || fcn_t[i].occ != occ) && ++tries < FCN_T) i = (i + 1) & (FCN_T - 1);
+    if (tries >= FCN_T) { fcn_full++; return; }
+    e = &fcn_t[i]; q[0]++;
+    if (e->k && e->pic == fcn_pic - 1) { int sv = 1; q[1]++;
+      for (int k = 0; k < XC_7S; k++) { const int eq = e->hv[k] == hv[k]; q[6 + k] += eq; sv &= eq; }
+      q[3] += e->hs == hs; q[4] += sv; q[5] += e->ht == ht; q[2] += e->hs == hs && sv && e->ht == ht; }
+    e->k = r->p[0]; e->occ = occ; e->pic = fcn_pic; e->hs = hs; e->ht = ht; memcpy(e->hv, hv, sizeof hv); }
+}
+#endif
 static void place7(const XcHeld *r)
 {
   if (xc_held_poison) { memset(Sv, 0xa5, sizeof Sv); memset(C7Pl, 0, sizeof C7Pl); }

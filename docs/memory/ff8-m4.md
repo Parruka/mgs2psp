@@ -1,0 +1,19 @@
+---
+name: ff8-m4
+description: FF8 trials m4 / m4b (2026-11-16): file movies start at the game's MoviePlay, hand-over with real picture numbers, clock proof; m4 crashed at start-up on the PSP (6 LOAD segments from ff8_v4.x [I]); m4b (ff8_v5.x, 3 segments) is the one build out
+metadata:
+  type: project
+---
+
+**m4 (delivered 21:14, EBOOT 38c61b06) CRASHED AT START-UP on the PSP** (Ffm 21:16 "crashed and turned off after the psp intro", 21:19 "no logs"). Likely cause [I], my mistake: linker script ff8_v4.x set data anchors with address jumps (`. = addr;`); the linker makes a LOAD segment per gap: 6 segments, every build that ran has 3 (firmware module structures hold 4 [I]). PPSSPP accepts 6. Not proven: "no log" also fits a crash in the first second (the log reached the card ~1 s after start); the only other new start-up code is clock_proof. **Do not run m4; never use ff8_v4.x.**
+
+**m4b DELIVERED 2026-11-16 21:32** to `FF8\Builds\FF8T_m4b\FF8T` (EBOOT.PBP dc4f3a7d, ff8.cfg 3fd194f0 = m4's, README e091dfbe), logs to `FF8\LOGS\m4b`. **RAN, log read 21:55** (psp/psp_m4b): starts (so the segments were m4's fault [I]), 684 s, out = emulator's, all [mvst]/[show] lines = emulator's, movies 0 late 0 bad, [clock] 3.036 ns = 329 MHz = the 333 setting is real, windows = m3's. Followed by trial m5 ([[ff8-flip]]). = m4's source + three log flushes in main (after the title, after "CPU .. MHz", after clock_proof; main_ff8.c 0df41aff) + **ff8_v5.x**: the same anchors by padding INSIDE sections (`__s = .; .pad : { BYTE(0) . = TARGET - __s; }`), 3 LOAD segments, header = m3's. Container psp/vo -> psp/rel_m4b (never make there). Emulator: 80/80, 57/57, 73/73, model 63.98 / 41.94 / 24.95 / 20.55 = m4's = m3's, movies and hand-overs line for line as m4. Notes: stage5_notes.md "2026-11-16 21:15" and "21:35"; sources /mnt/project-files/ff8/src_trial_m4.
+
+- **RULE (mine):** after ANY linker-script or layout change, extract DATA.PSP from the EBOOT and compare `psp-readelf -l` and `-h` with a build that ran on the PSP (same number, kinds, order of LOAD segments). The emulator is lenient where the PSP's loader is not.
+- **The game's movie sequence** (names from the public decompile's movie.c, behaviour measured): MovieOpen 0x801E8104 = get ready; MoviePlay 0x801E870C = start; MovieStop when no picture is left (display back to 15-bit). Open -> start: intro 79 frames, second movie 805. Every pure movie ends with four 15-bit pictures that restore both display buffers.
+- **m4's method** (fixes [[ff8-m3]]'s purple hand-over): at the open the file is only checked (once a run a decoder test), the game gets the last 16 pictures; when g_movieState (0x801FA3B4) shows playing (+0x16) == 1 with count (+0) == 16, at a frame boundary: count := N, decoded (+0xC) and read (+0xE) += N-16, then the file plays, then the pad shift. No generator / rt.c change (PGO data still valid). 16 hand-over screens = the game's own (0 px).
+- **Log switches:** cfg `showlog F` + `showlogn N` ([show] per picture drawn, [mvst] per change of the movie counters). `[clock] proof` at start-up: ns an instruction (3.00 = 333 MHz); PPSSPP prints 3.003 too, only the PSP's line proves anything.
+- **Layout:** harness strings/constants move .rodata/.data and that alone moved the model by up to 1.4 ms (title). Anchors: .lib.ent.top 0x08be80d8, .rodata tables 0x08be9a88 (merged constants and strings last), .data 0x08dce340 (= m3's build vk + 0x6000).
+- **Lesson (mine):** before a delivery look at EVERY frame of each hand-over, not at screens before and after.
+- **Ffm 21:50 on the second movie's end:** "looked good, but i can be only 100% sure ,wen the speed is not slow and no tearing". Open: the game stands still while a file plays (play-time clock).
+- **Backups (Ffm 2026-11-16 21:12, 21:17):** copy this thread's work to the PC only when the cloud space is nearly full, before deleting; "forget the backup now" = no copy for now.

@@ -45,6 +45,16 @@ int64_t gu_texel(const GuMap *m, int psm, uint32_t tbp, uint32_t tbw, int x, int
    frame or depth format psm (CT32, CT24, CT16, CT16S, Z32, Z24, Z16, Z16S; the Z formats as the GS lays them out), bits: the bits of
    a pixel it writes (~FBMSK; ~0 for depth).  An area marked before is marked again only when a transfer wrote into it since. */
 void gu_drawn(GuMap *m, int psm, uint32_t bp, uint32_t bw, uint32_t bits, int x0, int y0, int x1, int y1);
+/* gl35 (gsup2.c only), the drawn areas kept for consecutive native groups (attic/gl35/keep_design.txt K1).  gu_drawn's first return
+   ("one of the last two calls again, its area not written since") does only this: the area's stamp and the counter.  The map keeps a
+   generation, gu_dgen, that moves whenever anything that return reads may change (the two last calls, an area's dirty flag, a transfer
+   waiting to go in).  gu_keep_mark: start counting gu_drawn's calls, returns the generation.  gu_keep_got: after the calls: their
+   number (1 or 2) and areas when every one took that return and the generation is still gen, else 0.  gu_drawn_again: those n calls
+   again, exactly (only while gu_dgen is the generation gu_keep_got was given and the calls' arguments are the same) */
+uint32_t gu_keep_mark(GuMap *m);
+uint32_t gu_dgen(const GuMap *m);
+int gu_keep_got(const GuMap *m, uint32_t gen, int16_t k[2]);
+void gu_drawn_again(GuMap *m, int n, const int16_t *k);
 /* the CLUT buffer as the GS reads it for CPSM cpsm: CT32 / CT24 entry k (0..255) as 32 bits; CT16 / CT16S half k (0..511) as 16 bits;
    -1: not known */
 int64_t gu_clut(const GuMap *m, int cpsm, int k);

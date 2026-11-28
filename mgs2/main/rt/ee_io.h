@@ -954,9 +954,10 @@ static void io_flush(void)
 static long io_vb;                                       /* vblank starts seen (= k_vblanks) */
 static void io_vblank(int start)
 {
-  { static int on = -1, last; if (on < 0) on = getenv("MGS2_VU_UNSUP") != 0;    /* dev: unsupported ops seen since the last vblank (EE VCALLMS) */
+  { static int on = -1, last; if (on < 0) { on = getenv("MGS2_VU_UNSUP") != 0; l41_init(); }   /* dev: unsupported ops seen since the last vblank (EE VCALLMS); gl41: l41_init (runtime/vu_l41.h) */
     if (on && g_unsup_vu != last) { vu_unsup_scan(-1, g_unsup_vu - last); last = g_unsup_vu; } }
   if (start) { io_csr |= 8; io_csr ^= 1u << 13; io_istat |= 4; gscap_vblank(++io_vb); } else io_istat |= 8;
+  L41_VBLANK(start, io_vb);   /* gl41: the levers' counters (MGS2_L41_LOG=1) */
   IO32(0x2001000) = io_csr; IO32(0xf000) = io_istat;
 }
 static void io_init(void) { }

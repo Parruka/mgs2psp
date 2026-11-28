@@ -26,6 +26,14 @@
 #include "gelive.h"
 #include "gelist.h"
 #include "xlview.h"   /* task #180 */
+#include "natsnap.h"  /* native step 1 */
+#include "natp06.h"   /* native step 2: the people's records (its data part: ge/xlme.c includes it again for the walk's) */
+#include "nge.h"      /* step 2: NGE_NAT_ROOM (XME_NATBYTES) */
+/* step 2 (gl41's rule; gl42: on gl41's layout): a record's copy of its native groups: gl41's ship copy (its groups, then their references:
+   ge/nge.h NGE_NAT_ROOM), then on 16 bytes the people's groups (ge/xme.h XME_POFF) and their references (XME_P6ROFF); its room */
+#define XME_R16(n) (((uint32_t)(n) + 15u) & ~15u)
+#define XME_NATBYTES(b, ng, pn) (XME_R16(NGE_NAT_ROOM((b), (ng))) + XME_R16((uint32_t)(pn) * (uint32_t)sizeof(NatP6)) + 4u * (uint32_t)(pn))
+#include "natsplit.h" /* gl34 */
 
 #define XM_F_LANES 1u   /* the translator's lanes (OPT_XL_LANE, LANE2, LANE3, LANE4 within XmPic.lanes), OPT_XL_EAGER and OPT_XL_MARK */
 #define XM_F_STEP0 2u   /* OPT2_TX_UMEMO, OPT2_GU_LDID, OPT2_TX_FRONT (with the x86 check modes chk_um, chk_li, chk_uf) */
@@ -48,10 +56,43 @@ typedef struct XmPic {
   int sw[XS_N];               /* each switch as last set; -1: not known (set at the next record) */
   GxFrame gxf;                /* the last list's frame */
   uint64_t dig_frame;         /* the last list's frame digest (gl_digest), when xm_list was asked for it */
+#ifdef __psp__
+  uint64_t dig_c;             /* gl41: its content digest (gl_digest_c), for the PSP's "picture: vb N content" line */
+#endif
   /* counts */
   long calls, prims, lists, list_fail;
   long lw_tr, lw_tags[5], lw_grp[5], lw_bad;   /* the late walk: transfers; tags and groups each lane took; walks that missed a group's end */
+  /* native step 1 (native_renderer_design.md 6.1): ship-mesh groups the transfer's walk draws from records, merged by key: before a
+     top-level tag of the groups' packet buffer, every group whose key is at or below the tag's address.  The host sets nat_g / nat_n
+     before each xm_walk (ge/xme.c xme_walk; 0, 0: none): per packet buffer (NAT_BUF) the groups not yet taken.  nat_b >= 0: the
+     buffer the transfer's plan bound (xc_walk), nat_n[nat_b] the count it took (the walk draws what is left of them at its end,
+     counted in nat_late); nat_b -1: a walk with no plan (from RAM): the walk binds the buffer of the first such tag where groups
+     wait, as the plan does, and takes what its tags reach.  After the walk: nat_b the buffer, nat_used the groups taken */
+  const NatGrp *nat_g[2]; int nat_n[2], nat_b, nat_used;
+  const void *nat_rf[2];       /* gl41: native step 1's references of nat_g[b][0..] when the record copied them (ge/nge.h nge_walk_r), else 0 */
+  uint32_t (*nat_clk)(void);  /* the merge runs' clock (0: not timed) */
+  uint64_t nat_t;             /* their time in its ticks */
+  long nat_runs, nat_core, nat_fed, nat_bad, nat_late, nat_stop;   /* merge runs; groups the core took, fed word by word, dropped (a
+                                                                      count or pointer out of range); drawn at the walk's end; run lanes
+                                                                      stopped at a key */
+  long nat_in, nat_out, nat_part;   /* the groups' data pieces found in the transfer's copy, outside it (RAM as it is), partly (dropped) */
+  /* gl34 (ge/natsplit.h): ns_on 1: the split's timers run in the walks that have a clock (nat_clk).  ch_i: the transfer's place in
+     its frame's chain list, set by the host before xm_walk; -1: none */
+  int ns_on, ch_i;
+  int nh_chk;                       /* gl34: lw_nptr_h's check (ge/xlme.c) */
+  /* gl36 (ge/xlate.h xl_nr_*): per packet buffer, the index in its picture's array of nat_g[b][0], and the picture's reuse switch
+     (boot/nat_stub.h NatBuf.ru), set by the host with nat_g */
+  int nat_i0[2]; int nat_ru[2];
+  /* native step 2 (ge/natp06.h): the people's groups, beside the ship's and by the same rule (np6_g / np6_n / np6_b / np6_used / np6_i0
+     as nat_g / nat_n / nat_b / nat_used / nat_i0; one buffer bound for both: a transfer walks one packet buffer).  At a tag, the people
+     whose key is at or below both the tag and the next ship group's key first, then the ship's, then the people interleaved (as the
+     twin's walk, boot/nat_x86.c) */
+  const NatP6 *np6_g[2]; int np6_n[2], np6_b, np6_used, np6_i0[2];
+  const uint32_t *np6_r[2];   /* step 2: each np6_g's references (ge/nge.h xc_nge_ref6), index for index: copied with the groups (ge/xme.c
+                                 XME_P6ROFF), or the main CPU's for a walk it waits for; 0: none (today's path) */
+  long np6_runs, np6_core, np6_fed, np6_bad, np6_late;
 } XmPic;
+extern long lw_nh_n[3];             /* gl34 (ge/xlme.c lw_nptr_h): hinted look-ups, of them differing from lw_nptr's, checked */
 
 extern long xm_lw7_miss[8], xm_lw3_miss[8];  /* lanes 4 and 3: why a recognizer declined (lw_lanes.h) */
 #ifndef __psp__
@@ -111,7 +152,31 @@ typedef struct XmCopy {
                                                       extents, bytes */
   /* the walk's */
   int na, nb, over;
+  /* native step 1: the host's, before xm_plan (0, 0: none): per packet buffer the groups not yet taken; the plan's walk (xc_walk) takes
+     them by the walk's rule (XmPic above) and keeps their data (the constant block, the material, the streams) as extents.  After
+     xm_plan: nat_b the buffer bound (-1: none), nat_cur the groups taken; the host gives them room in the arena (xm_nat_room) */
+  const NatGrp *nat_g[2]; int nat_n[2], nat_b, nat_cur;
+  long nat_grp;                        /* groups planned */
+  const NatP6 *np6_g[2]; int np6_n[2], np6_b, np6_cur;   /* native step 2: the people's, as nat_* (ge/natp06.h; XmPic) */
+  long np6_grp;
+  uint64_t nat_qw;                     /* gl34: the quadwords their ranges asked for (before the merge with the transfer's own) */
+  /* gl40 lever XP (attic/gl40/gl40_plan.md 1d), the host's, set before each xm_plan (0: gl39's plan): XP_PP the merge sort's passes
+     alternate the array and the scratch (the copy back after every pass dropped; the same merges in the same order), XP_LOOK a range that
+     does not meet the last entry joins the first of the XP_K - 1 entries before it that it meets (xc_add's miss path), XP_CHK the check:
+     after the plan, gl39's ranges made again (xp 0) and compared with the plan's extents.  The extents depend only on the union of the
+     ranges, which both parts keep. */
+  int xp;
+  long xp_plans, xp_adds, xp_moves, xp_cpy, xp_ra, xp_rb, xp_mk;   /* gl40 probe: plans, xc_add calls, the sorts' element moves and the
+                                                                      elements copied back, the ranges into the merges (ra, rb, mk) */
+  long xp_chk, xp_dif, xp_room; int32_t xp_dif_vb; uint32_t xp_dif_w[3];   /* XP_CHK: plans compared, differing, compared by their result
+                                                                      only (the extents' or the arena's room); the first difference */
+  uint32_t (*clk)(void);               /* gl40 probe (MGS2_PROBE10): the main CPU's microseconds, or 0 (the twin): the plan's time by part */
+  uint64_t xp_tw, xp_ts, xp_tr;        /* the walk (xc_walk), the sorts and joins of ra and rb, the rest (marks, extents) */
 } XmCopy;
+#define XP_PP 1
+#define XP_LOOK 2
+#define XP_CHK 4
+#define XP_K 8
 /* 0: the copy made, its extents ext[*x0 .. *x0 + *nx); else nothing kept: 1 the ranges did not fit, 2 the extents, 3 the arena, 4 the
    chain did not end */
 int xm_copy(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx);
@@ -124,6 +189,9 @@ int xm_copy(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr
 typedef struct { uint32_t l; int32_t t; uint8_t old[64]; } XmLogE;   /* a guarded store's entry: RAM line l (bytes 64 l ..), the count of
                                                                          transfers started when it came, the line's 64 bytes before it */
 int xm_plan(XmCopy *c, uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr, int *x0, int *nx);
+/* native step 1: n bytes of the arena after the last plan's extents, for the copy of its groups (*off; 16-byte aligned).  0, or 3: no room
+   (the host then undoes the plan) */
+int xm_nat_room(XmCopy *c, uint32_t n, uint32_t *off);
 void xm_fill(XmCopy *c, int x0, int nx, int t, const XmLogE *log, int nlog);
 /* task #180 step 4c: xm_fill's second part alone, the log entries with t or more laid over a copy made earlier (xm_fill with no log) at
    any time after its transfer ended: a line written since then is in the log (the filter holds the copy's lines until the lay), so

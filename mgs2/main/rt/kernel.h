@@ -181,11 +181,26 @@ static uint32_t k_status = 0x70030c13;           /* COP0 Status of a user thread
 static uint32_t k_dmac_pend, k_intc_pend;
 static void k_dmac_raise(int ch) { k_dmac_pend |= 1u << ch; K_POLL_KICK(); }
 static void k_intc_raise(int cause) { k_intc_pend |= 1u << cause; K_POLL_KICK(); }   /* an INTC interrupt raised by the hardware model (GS FINISH ...) */
+/* gl40 M5 (attic/gl40/gl40_plan.md 4; MGS2_OPT2 bit 18, OPT2_M5): the pending interrupts taken by a walk of the set bits only, as the
+   loops of k_take_interrupts find them (a bit a handler sets above its own channel is still taken in this pass, one at or below it is
+   left, as there).  Not inlined, so the PSP's ELF shows it (gl39's M5 sat in runtime/kernel.h, which only the PC twin compiles);
+   g_k_m5 counts its walks (a turn's count in psp/xl_psp.c's 'gl40 plan' line). */
+long g_k_m5;
+static __attribute__((noinline)) void k_take_m5(void)
+{
+  int ch;
+  g_k_m5++;
+  for (ch = 0; ch < 16; ch++) { const uint32_t m = k_intc_pend & 0xffffu & ~((1u << ch) - 1u); if (!m) break;
+    ch = __builtin_ctz(m); k_intc_pend &= ~(1u << ch); k_intc(ch); }
+  for (ch = 0; ch < 10; ch++) { const uint32_t m = k_dmac_pend & 0x3ffu & ~((1u << ch) - 1u); if (!m) break;
+    ch = __builtin_ctz(m); k_dmac_pend &= ~(1u << ch); k_dmac(ch); }
+}
 /* pending DMAC interrupts, taken at a kernel call or at idle when the thread has interrupts enabled */
 static void k_take_interrupts(void)
 {
   int ch;
   if (k_in_intr || !(k_status & 0x10000u) || !(k_dmac_pend | k_intc_pend)) return;
+  if (g_opt2 & OPT2_M5) { k_take_m5(); return; }   /* gl40 M5 */
   for (ch = 0; ch < 16; ch++) if (k_intc_pend & (1u << ch)) { k_intc_pend &= ~(1u << ch); k_intc(ch); }
   for (ch = 0; ch < 10; ch++) if (k_dmac_pend & (1u << ch)) { k_dmac_pend &= ~(1u << ch); k_dmac(ch); }
 }

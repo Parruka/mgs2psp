@@ -57,10 +57,17 @@ static size_t me_grow = (size_t)ME_HEAP_GROW_KB << 10;   /* MGS2_ME_HEAP_GROW_KB
 static long me_vb;   /* the step the picture is in (xl_psp_frame), for the hooks' events */
 /* the hooks' events for the log (op: + a region given, ! refused, - taken back, = resized in place, > resized and moved, ? resize
    refused), with newlib's break after each */
-static struct { long vb; uint32_t at, from, n, w, brk; char op; } me_ev[48]; static int me_nev, me_nev_all;
+static struct { long vb; uint32_t at, from, n, w, brk, room, top, fr; char op; } me_ev[48]; static int me_nev, me_nev_all;
+/* gl41 heap fix (b): newlib's room after each event (psp/main_psp.c host_heap_room: above the break, the free top chunk, all free bytes);
+   the lowest room above the break plus the free top over every event (a block newlib takes at its top can have no more) */
+unsigned host_heap_room(unsigned *top, unsigned *fr);
+static uint32_t me_room_min = ~0u; static long me_room_vb = -1; static char me_room_op;
 static void me_ev_add(char op, void *at, void *from, size_t n, size_t w)
 {
+  unsigned top, fr, room = host_heap_room(&top, &fr);
+  if (room + top < me_room_min) { me_room_min = room + top; me_room_vb = me_vb; me_room_op = op; }
   me_nev_all++; if (me_nev == 48) return;
+  me_ev[me_nev].room = room; me_ev[me_nev].top = top; me_ev[me_nev].fr = fr;
   me_ev[me_nev].vb = me_vb; me_ev[me_nev].op = op; me_ev[me_nev].at = (uint32_t)(uintptr_t)at; me_ev[me_nev].from = (uint32_t)(uintptr_t)from;
   me_ev[me_nev].n = (uint32_t)n; me_ev[me_nev].w = (uint32_t)w; me_ev[me_nev].brk = (uint32_t)(uintptr_t)sbrk(0); me_nev++;
 }
@@ -109,6 +116,77 @@ static void *me_resize(void *r, size_t want)   /* (step 4d-3: the size rounded u
 #include "../ge/xlme.h"     /* task #180: the split (step 4b) */
 #include <pspfpu.h>         /* task #180 step 4c: the loop's thread takes the main thread's FPU rule */
 #include "../ge/xme.h"      /* task #180 step 4c: the ME's loop and its queue */
+#include "../ge/nge.h"      /* gl41: NGE_NAT_ROOM (a record's group copy with its native references) */
+/* native step 1 (native_renderer_design.md 6.1): boot/nat_stub.h's (boot.c): the stub's arrays, counts and schedule */
+extern NatBuf g_nat[2]; extern uint32_t g_nat_bseq[2]; extern int g_nat_cfg; extern long g_nat_c[NC_N];
+extern void (*g_nat_sync)(int b); int rt_nat_arm_at(long vb, long *turn);
+int rt_nat_inpl_at(long vb); extern long g_nat_stc; static long nat_stc0;   /* gl33: static streams in place (boot/nat_stub.h) */
+int rt_nat_fast_at(long vb); extern long g_nat_fst;   /* gl34: the fast native front end (boot/nat_stub.h) */
+int rt_nat_keep_at(long vb); extern long g_nat_kpt;   /* gl35: the keeps (boot/nat_stub.h) */
+static long nk_kpt0, nk_n0[9];
+/* cull study (ge/xconv.h XcHost.cull; attic/cull/cull_v3.md): XcHost.cull at vblank vb, as the twin's boot/nat_stub.h
+   rt_nat_cull_at: MGS2_NAT_CULL=<bits> for the whole run, MGS2_NAT_CULL_CYCLE=<bits>,... by MGS2_OPT_CYCLE's turns (turn k from vb
+   from + 1 + 100 k with MGS2_OPT_CYCLE=from:100:...), MGS2_NAT_CULLCHK=1 the check mode (0x80) */
+char *mgs2_getenv(const char *k);   /* (main_psp.c; declared again below) */
+static int cull_set, cull_all, cull_ncyc, cull_chk; static long cull_from, cull_turn = 1; static uint8_t cull_cyc[32];
+static int rt_nat_cull_at(long vb)
+{
+  if (!cull_set) {
+    const char *e, *c = mgs2_getenv("MGS2_OPT_CYCLE"); long f = -1, n = 0; cull_set = 1;
+    cull_all = (e = mgs2_getenv("MGS2_NAT_CULL")) ? atoi(e) & 1 : 0;
+    if ((e = mgs2_getenv("MGS2_NAT_CULL_CYCLE")) && c && sscanf(c, "%ld:%ld", &f, &n) == 2 && n > 0 && f >= 0) {
+      char *p = (char *)e;
+      while (cull_ncyc < 32 && *p) { cull_cyc[cull_ncyc++] = (uint8_t)(strtoul(p, &p, 10) & 1); if (*p != ',') break; p++; }
+      if (cull_ncyc) { cull_from = f; cull_turn = n; } }
+    cull_chk = (e = mgs2_getenv("MGS2_NAT_CULLCHK")) ? atoi(e) & 1 : 0;
+    if (cull_all || cull_ncyc || cull_chk) fprintf(stderr, "nat: cull study v3: MGS2_NAT_CULL %d, MGS2_NAT_CULL_CYCLE %s (bit 1: the effect strips that "
+                         "would draw nothing left out before their conversion; by the same turns), MGS2_NAT_CULLCHK %d\n", cull_all,
+                         cull_ncyc ? mgs2_getenv("MGS2_NAT_CULL_CYCLE") : "none", cull_chk);
+  }
+  int k = cull_ncyc && vb > cull_from ? cull_cyc[((vb - cull_from - 1) / cull_turn) % cull_ncyc] : cull_all;
+  return k ? k | (cull_chk ? 0x80 : 0) : 0;
+}
+int rt_nat_reuse_at(long vb); extern int g_nat_rcfg, g_nat_rchk; static long nr_n0[20];   /* gl36: the reuse (boot/nat_stub.h, ge/xlate.h) */
+/* gl38 (ge/bound.h; boot/nat_stub.h rt_bound_at): the bound turns.  bd_cur: the mask of the frame being made (set where the frame
+   begins: mq_frame, xl_psp_frame); the transfers it leaves out never reach the queue (xlive_chk_dma); the turns from the cycle's first
+   vblank are the ME's, one a MGS2_ME_PIC_TURN vblanks, but a turn of kind 7, which is the main CPU's with the ME resting (mq_turn_hook) */
+int rt_bound_at(long vb, long *turn); int rt_nat_f1_at(long vb); extern int g_bd_cfg, g_nat_f1cfg, g_nat_f1chk, g_bd_rain;
+static int bd_cur, bd_chi = -1; static long bd_tix = -1, bd_tr[NS_CH + 1], bd_tr0[NS_CH + 1], bd_n0[GL_BD_N], bd_fr, bd_fr0, bd_grp, bd_grp0, bd_ov0, bd_bad0;
+static long nr_r0[8];   /* gl37: the reuse's rule (ge/xlate.h xl_nr_r) */
+/* gl39: the digest-off turns (MGS2_DIG_CYCLE), the ME's load in turns of kind 8 (MGS2_LOAD_CYCLE, MGS2_LOAD_US) and the coupling probes:
+   counts by turn of what the main CPU does for the queue and the GE, by the timed part it was in (index host_top() + 1: 0 = none, the
+   step's remainder, "logic"); with MGS2_PROBE9=1 one mq_service call in 8 and every whole-cache write-back of a post are timed (two clock
+   reads each).  A line a turn after the bound line (bd_tline).  Nothing here changes what is drawn or the game's state */
+int host_top(void); int rt_dig_off_at(long fvb); int rt_load_at(long vb); extern int g_dig_cfg, g_load_cfg; extern char _ftext[];
+enum { P9_N = 8 };
+static int p9_on = -1, p9_k; static uint32_t p9_load_us = 50000;
+static long p9_sv[P9_N], p9_svt[P9_N], p9_wbn[P9_N], p9_dma[P9_N], p9_poll, p9_done, p9_subm, p9_post, p9_ldp, p9_ldskip;
+static uint64_t p9_svus[P9_N], p9_wbus[P9_N];
+static struct { long sv[P9_N], svt[P9_N], wbn[P9_N], dma[P9_N], poll, done, subm, post, ldp, ldskip, ln, lit[4]; uint64_t svus[P9_N], wbus[P9_N], lt[4]; } p9_0;
+static int p9_top(void) { int t = host_top() + 1; return t < 0 || t >= P9_N ? P9_N - 1 : t; }
+static void p9_setup(void)
+{
+  const char *e; p9_on = (e = mgs2_getenv("MGS2_PROBE9")) && atoi(e) > 0;
+  if ((e = mgs2_getenv("MGS2_LOAD_US")) && atoi(e) > 0 && atoi(e) <= 200000) p9_load_us = (uint32_t)atoi(e);
+  fprintf(stderr, "picture: gl39 probes: service and write-back times %s (MGS2_PROBE9); the ME's load in turns of kind 8: %u us an entry "
+          "(MGS2_LOAD_US), flavours by MGS2_LOAD_CYCLE %s; digest-off turns (MGS2_DIG_CYCLE) %s\n", p9_on ? "on, one service call in 8" : "off",
+          (unsigned)p9_load_us, g_load_cfg ? "set" : "not set (0: no load)", g_dig_cfg ? "set" : "not set");
+}
+/* gl40 (attic/gl40/gl40_plan.md 1d, 6): the copy plan's lever XP a turn (boot/nat_stub.h rt_xp_at: MGS2_XP_CYCLE, MGS2_XP_CHECK; ge/xlme.h
+   c->xp) and the plan probe (MGS2_PROBE10=1: the plan's time by part through xmc.clk, mq_chk_end's whole time, mp_mark's time and the
+   waits inside mq_chk_end by reason, all on the system's microseconds; the counts in every run): a 'gl40 plan' line a turn after the
+   'gl39 probe' line, with M5's walks (rt/kernel.h k_take_m5, g_k_m5).  Nothing here changes the game's state */
+int rt_xp_at(long vb); extern int g_xp_cfg; extern long g_k_m5;
+static int p10_on = -1, p10_in; static long p10_ce, p10_mk, p10_wn[16]; static uint64_t p10_ceus, p10_mkus, p10_wus[16];
+static struct { long plans, adds, moves, cpy, ra, rb, mk, chk, dif, room, ce, mkn, m5, ext, wn[16]; uint64_t tw, ts, tr, ceus, mkus, wus[16]; } p10_0;
+static uint32_t p10_clk(void) { return sceKernelGetSystemTimeLow(); }
+static void p10_setup(void)
+{
+  const char *e; p10_on = (e = mgs2_getenv("MGS2_PROBE10")) && atoi(e) > 0;
+  fprintf(stderr, "picture: gl40 copy plan: lever XP by MGS2_XP_CYCLE / MGS2_XP_CHECK %s; the plan probe (MGS2_PROBE10) %s; M5 by MGS2_OPT2 bit 18 "
+          "(its walks counted a turn)\n", g_xp_cfg ? "set" : "not set (gl39's plan)", p10_on ? "on: the plan's time by part, mq_chk_end's time and waits" : "off (counts only)");
+}
+#include "../ge/vu1conv.h"   /* gl34: vc_km_n */
 #ifdef MGS2_ME_REAL         /* task #180 step 4d-4: the loop on the PSP's Media Engine (psp/xme_me.c), started by hle_me (psp/me/) */
 #include <pspiofilemgr.h>
 #include "hle_me.h"
@@ -150,6 +228,8 @@ static int mq_on;                                   /* task #180 step 4c: MGS2_M
 static void mq_frame(long vb), mq_drain(void), mq_service(void), mq_ge_finish(void), mq_late(int why, int wait), mq_chk_end(void), mq_end(void);
 static void ge_fin_cb(int id);   /* gl22: the GE's finish callback (below, with mq_subm) */
 static int mq_fill(int why);
+static void nat_tline(const char *who, long vb0, long vb, int me), nat_t0set(void), nat_psp_setup(void);   /* native step 1 */
+static int32_t nat_fa[3];   /* native step 1: the frame arena's most in the turn: batches, vertices, data bytes */
 #endif
 static int skip_now; static long sk_vb, sk_tr;      /* shown frames only: this step's transfers are skipped; vblanks, transfers skipped */
 static void cfg(void)
@@ -186,7 +266,7 @@ static int gl_shown_buf = -1; static long gl_shown_vb = -1, gl_first_vb = -1;
 static long gl_built, gl_shown, gl_listfail, gl_shots;   /* frames made (the one drawn into buffer gl_built & 1), shown, saved */
 static long gl_stop_vb = -2; static int gl_stop_r;        /* gl_sync's stop: the last list's frame (-1: the set-up list), the GE's state */
 static long dig_from = -1, dig_to = -1, dig_n; static uint64_t dig_all = 0xcbf29ce484222325ull;
-static long shot_vb[16]; static int shot_n;
+static long shot_vb[48]; static int shot_n;   /* gl29: 48 (SHOT_MAX) */
 /* gl28d (2026-11-20, the black marks on the deck that only the PSP shows): five diagnostics, each its own mgs2.cfg switch, each off
    when its key is absent (then nothing here runs and nothing is printed: gl28 as it was).  They read the pad, the display and VRAM and
    write files next to the EBOOT as the shots do; nothing writes game RAM, nothing changes what is drawn (MGS2_ME_PIC_GE2_AB changes
@@ -217,12 +297,59 @@ static long ge2_ab = -1; static int shot_fw;   /* MGS2_ME_PIC_GE2_AB, MGS2_GL_SH
 static GL28D_COLD void eye_poll(long vb);
 static GL28D_COLD void gl_live(long vb, int r);
 static GL28D_COLD int shot_wait(long vb);
+/* gl29 (2026-11-20, gl29_plan.md G1-G4: the black marks on the deck, a test of the shadow decals' depth): three mgs2.cfg switches, each
+   off when its key is absent (then nothing here runs and nothing is printed: gl28's lists word for word and gl28's lines).
+   MGS2_GL_DZ=<vb0>:<vb1>:<arm>[,...] (ge/gelist.h): the frames whose last vblank lies in vb0..vb1 get that depth arm for the 0x42 shadow
+     decals (O, X, Y, W, B<n>); the digest lines gain the arm and its counts; a 'gl29 dz window' line as each window (each entry, and each
+     stretch of O between two entries, split at MGS2_GL_LIVE's start, and the O after the last) has left the screen: frames by turn, the
+     counts, the lists' build time, the vblank hooks with R down (MGS2_EYE); the eye and live lines gain the arm of the frame on the
+     screen; at the end R held by arm and turn, and by window.
+   MGS2_GL_ZDUMP=<from>:<views>[:<mirror_vb>]: at each MGS2_GL_SHOT shot from vb from on, after the BMP, the depth buffer (512 x 272
+     16-bit words, read through the uncached view, as the shots read colour) to zbuf_<frame vb>.raw; views 2: also through the |0x600000
+     mirror (zbm_<frame vb>.raw) at every one, views 1: at the shot of vb mirror_vb only; the shot line gains the arm, 'last list = shot
+     frame' (the GE idle, every list made given to it, the last one the frame saved), the files and the VRAM read times.
+   MGS2_GL_SHOT_RANGE=<from>:<to>:<step>: a shot (drained as MGS2_GL_SHOT's, no depth) at every step-th vblank hook from..to (the
+     emulator's dense reference; not set on the PSP).
+   Reads only: nothing here writes a register, game RAM or VRAM.
+   gl30 (gl30_plan.md): the dz text gains 'sub:' (X's decals paired with a subset base, XS; ge/gelist.h GxDzCount.nsub) after 'pair:', and
+   the window line 'subset' after 'paired'; nothing else here changes. */
+#define SHOT_MAX 48                      /* MGS2_GL_SHOT's entries (gl28: 16) */
+static GxDzSched dz_t; static int dz_on;   /* MGS2_GL_DZ: the schedule; 1: on */
+static long zd_from = -1, zd_mir = -1; static int zd_views;   /* MGS2_GL_ZDUMP */
+static long sr_from = -1, sr_to = -1, sr_step;   /* MGS2_GL_SHOT_RANGE */
+typedef struct { int16_t arm, n; } DzLab;
+typedef struct { int32_t vb0, vb1, lab, fr[2], n42, noth, npair, fb[GX_DZF_N], nbias, nw, r[2], r10; uint32_t aux, us[2], usmax[2];
+                 int32_t nsub; } DzWin;   /* gl30: nsub, X's subset pairs (XS) */
+#define DZ_NWIN (2 * GX_DZ_MAX + 4)
+static DzLab dz_lab[GX_DZ_MAX + 1]; static int dz_nlab, dz_elab[GX_DZ_MAX];   /* the arms named (0: O) and each entry's */
+static DzWin dz_w[DZ_NWIN]; static int dz_nw, dz_wcur;   /* the windows in vb order; the first whose line is not printed yet */
+static long dz_held[GX_DZ_MAX + 1][2];   /* vblank hooks with R down, by the arm of the frame on the screen and the turn (0 ME, 1 main) */
+static GL28D_COLD void gl29_cfg(void);
+static GL28D_COLD void dz_acc(long fvb, const GxDzCount *c, uint32_t us, int me);
+static GL28D_COLD const char *dz_txt(char *s, int n, int dz, int dzn, const GxDzCount *c);
+static GL28D_COLD const char *dz_fnm(long fvb, char *s);
+static GL28D_COLD void dz_r(long vb);
+static GL28D_COLD void dz_tick(FILE *f, long upto);
+static GL28D_COLD int gl29_same(void), gl29_me(void);
 static uint32_t gl_texkb = GL_PSP_TEXKB, gl_vol_n; static uint8_t *gl_vol, *gl_vol2; static void *gl_pool; static int gl_hold;   /* gl23: gl_vol2 */
 static long gx_words_max, gx_aux_max, gx_both_max, gx_drop; static uint64_t gx_words_sum;
 static long gx_c1p, gx_c1b, gx_c1w;   /* sb11 C1: the lists' GxCount c1_passes, c1_bones, c1_words */
 static long gx_c4s, gx_c4r, gx_c4l;   /* sb15 step 4: the lists' GxCount fx_spr, fx_lruns, fx_lines */
 static long gx_c2p, gx_c2b, gx_c2w;   /* sb12 C2: c2_passes, c2_bones, c2_words */
 static uint32_t gl_addr(void *ctx, const void *p) { (void)ctx; return (uint32_t)(uintptr_t)p; }
+/* native step 1 (MGS2_NGE; boot/nge_stub.h, ge/nge.h): the cooked meshes' arena, the tail of each frame memory's arena (nge_k bytes each,
+   0: off and every size as before); the GE's finishes (ge_fin_n, below) hold an eviction until the lists that may use a mesh are done */
+uint32_t nge_cfg_bytes(void); void nge_turn_line(long vb0, long vb1); void nge_end_line(void);
+int nge_host_setup(uint8_t *m0, uint32_t ge0, uint8_t *m1, uint32_t ge1, uint32_t cap, uint32_t cap0, uint32_t *const p6r[2],
+                   volatile uint32_t *fin, void *(*al)(uint32_t n, const char *name));
+uint32_t nge_cfg_bytes2(void); uint32_t nge_np6_bytes(void); long nge_grow_vb(void); void nge_grow(uint8_t *const p6[2], long vb);
+static uint32_t nge_k; static int nge_done; static volatile uint32_t ge_fin_n;
+/* step 2, the carve after the opening: each frame memory's arena tail nge_kg from the first frame begun at or after nge_grow_vb (the hook's
+   begin bit 24: ge/xme.c gives that frame the smaller arena, mq->fm_arena2); nge_gst 1 from there, 2 once the GE finished 3 lists after it
+   (as the evictions' guard) AND the GE finished a list of a frame begun with the smaller arena (nge_gok, gl_show: lists go to the GE one at
+   a time in order, so every list of a frame begun with the larger arena is done, even one that waited in the ME's results): then the
+   regions whole and the people's arrays there */
+static uint32_t nge_kg, nge_gfin; static int nge_gst, nge_gok; static long nge_gvb0; static uint8_t *nge_p6b[2];
 static void gl_line(FILE *f, const GlCount *n, int64_t db, int64_t tb, const char *what)   /* as boot/xlive_chk.c's gb_line; db, tb: n's data
                                                                                      and texture bytes (64-bit sums for the totals) */
 {
@@ -274,6 +401,41 @@ static GL28D_COLD void gl28d_cfg(void)
     else fprintf(stderr, "gl28 live (MGS2_GL_LIVE %.40s): not from:to:every[:max_r] with every > 0, so off\n", e); }
 }
 /* with the translator's start (its first transfer): the texture pool, the frame memory, the GE */
+static XmeCtx *mq; static int mq_m4; static int np6_on; static void nat_psp_sync(int b);   /* step 2: nge_psp_setup's (defined below) */
+/* native step 1: a block of the system's memory outside newlib's heap for the stub's tables (newlib's heap has about 64 KB to spare) */
+static void *nge_sys_alloc(uint32_t n, const char *name)
+{
+  SceUID id = sceKernelAllocPartitionMemory(2, name, PSP_SMEM_Low, n, 0);
+  return id >= 0 ? sceKernelGetBlockHeadAddr(id) : 0;
+}
+/* native step 1: the stub's regions (each frame memory's arena tail, carved in gl_setup) and tables; mq_setup calls it after the native
+   arrays took their blocks (so they find the memory they found before) and before the ME starts; with no ME, after mp_setup */
+static void nge_psp_setup(void)
+{
+  if (!nge_k || nge_done) return;
+  uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
+  uint32_t k2 = nge_cfg_bytes2(), p6 = nge_np6_bytes(); uint32_t *p6r[2] = { 0, 0 };
+  if (k2 > nge_k && !(mq && mq_m4 && gl_vol2)) {   /* (the smaller arena is given at the ME loop's frame start, two frame memories) */
+    fprintf(stderr, "picture: step 2: the carve after the opening needs mode 4's loop and two frame memories: none (each region %u KB)%s\n",
+            (unsigned)(nge_k >> 10), p6 ? "; the people stay the builder's" : ""); k2 = nge_k; p6 = 0; }
+  uint8_t *m0 = gl_vol + GL_PSP_ARENA - k2, *m1 = gl_vol2 ? gl_vol2 + GL_PSP_ARENA - k2 : 0;
+  if (k2 > nge_k) { nge_kg = k2 + p6; mq->fm_arena2 = GL_PSP_ARENA - nge_kg;
+    if (p6) { nge_p6b[0] = m0 - p6; nge_p6b[1] = m1 - p6; mq->np6_g[0] = (const NatP6 *)(void *)nge_p6b[0]; mq->np6_g[1] = (const NatP6 *)(void *)nge_p6b[1];
+      for (int b = 0; b < 2; b++) p6r[b] = (uint32_t *)(void *)(nge_p6b[b] + (((uint32_t)(NP6_MAXGRP * sizeof(NatP6)) + 63u) & ~63u));
+      np6_on = 1; g_nat_sync = nat_psp_sync; } }
+  int r = nge_host_setup(m0, (uint32_t)(uintptr_t)m0, m1, (uint32_t)(uintptr_t)m1, k2, nge_k, p6r, &ge_fin_n, nge_sys_alloc);
+  nge_done = 1;
+  if (r) { if (nge_kg) mq->fm_arena2 = 0; nge_kg = 0; if (nge_p6b[0]) { np6_on = 0; mq->np6_g[0] = mq->np6_g[1] = 0; nge_p6b[0] = nge_p6b[1] = 0; } }
+  else if (nge_kg) fprintf(stderr, "picture: step 2: the carve after the opening from vb %ld: each frame memory's arena %u KB then (the cooked "
+                           "region %u KB, the people's block %u KB at %08x and %08x)\n", nge_grow_vb(), (unsigned)((GL_PSP_ARENA - nge_kg) >> 10),
+                           (unsigned)(k2 >> 10), (unsigned)(p6 >> 10), (unsigned)(uintptr_t)nge_p6b[0], (unsigned)(uintptr_t)nge_p6b[1]);
+  fprintf(stderr, "picture: native step 1 %s: each frame memory's arena %u KB (%u KB less the cooked meshes' %u KB); the system's memory outside "
+          "newlib's heap before: largest block %u KB, total %u KB; after: %u KB, %u KB\n", r ? "NOT ON (today's path)" : "on",
+          (unsigned)((GL_PSP_ARENA - nge_k) >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nge_k >> 10), (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
+          (unsigned)((uint32_t)sceKernelMaxFreeMemSize() >> 10), (unsigned)((uint32_t)sceKernelTotalFreeMemSize() >> 10));
+  if (r) nge_k = 0;
+  sceKernelDcacheWritebackAll();
+}
 static void gl_setup(void)
 {
   const char *e; struct mallinfo mi;
@@ -286,16 +448,17 @@ static void gl_setup(void)
     fx_thin_init(&gl_ft, rn, sp, sk);
     if ((e = mgs2_getenv("MGS2_GL_STREAK_CALLS"))) fx_thin_calls(&gl_ft, atoi(e));   /* task #158: their calls 1 in N, by block */
     if ((e = mgs2_getenv("MGS2_GL_RAIN_SPRITES"))) fx_thin_rainspr(&gl_ft, atoi(e)); }   /* task #161: 0: the rain's sprites left out */
-  for (e = mgs2_getenv("MGS2_GL_SHOT"); e && *e && shot_n < 16; ) { shot_vb[shot_n++] = strtol(e, (char **)&e, 10); if (*e == ',') e++; else break; }
+  for (e = mgs2_getenv("MGS2_GL_SHOT"); e && *e && shot_n < SHOT_MAX; ) { shot_vb[shot_n++] = strtol(e, (char **)&e, 10); if (*e == ',') e++; else break; }
   gl28d_cfg();   /* gl28d: MGS2_EYE, MGS2_GL_LIVE */
-  gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST;
+  gl29_cfg();    /* gl29: MGS2_GL_DZ, MGS2_GL_ZDUMP, MGS2_GL_SHOT_RANGE (after gl28d_cfg: the windows split at MGS2_GL_LIVE's start) */
+  gl_vol_n = GL_PSP_ARENA + GL_PSP_LIST; nge_k = nge_cfg_bytes();   /* native step 1 */
   gl_vol = host_vol_tail(gl_vol_n); gl_pool = memalign(64, gl_texkb << 10);
   if (!gl_vol || !gl_pool) { fprintf(stderr, "picture: no memory (frame memory %s, texture pool %s): no picture\n", gl_vol ? "ok" : "none",
                                      gl_pool ? "ok" : "none"); free(gl_pool); gl_pool = 0; return; }
   memset(gl_vol, 0, gl_vol_n); memset(gl_pool, 0, gl_texkb << 10);
   gu_zero_empty(map, 1);                 /* the map runs from the boot's first transfer (as the x86 check from vb 0) */
   if (!(tk = tk_new(map, (gl_texkb << 10) / 8 * 7)) || tk_pool(tk, gl_pool, gl_texkb << 10) || gl_init(&glf, tk, map, 0, GL_PSP_MAXTEX)
-      || gb_arena(&glf.o, gl_vol, GL_PSP_ARENA, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "picture: set-up failed: no picture\n"); return; }
+      || gb_arena(&glf.o, gl_vol, GL_PSP_ARENA - nge_k, GL_PSP_NB, GL_PSP_NV)) { fprintf(stderr, "picture: set-up failed: no picture\n"); return; }
   gx_init(&gxl, (uint32_t *)(gl_vol + GL_PSP_ARENA), GL_PSP_LIST / 4, gl_vol + GL_PSP_ARENA, GL_PSP_LIST); gxl.ret = 1;   /* one block */
   if ((e = mgs2_getenv("MGS2_ME_PIC_GE2")) && atoi(e) > 0) {   /* gl23: the second frame memory (the heap: the volatile block is full) */
     if ((gl_vol2 = memalign(64, gl_vol_n))) { memset(gl_vol2, 0, gl_vol_n); sceKernelDcacheWritebackInvalidateRange(gl_vol2, gl_vol_n);
@@ -348,6 +511,7 @@ static void gl_show(void)
 {
   sceDisplaySetFrameBuf((void *)(0x44000000u + (gl_ge_buf ? GL_FB1 : GL_FB0)), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
   gl_show_vc = sceDisplayGetVcount();   /* gl27 */
+  if (nge_gst == 1 && gl_ge_vb >= nge_gvb0) nge_gok = 1;   /* step 2: a frame begun with the smaller arena drawn (the growth's guard) */
   gl_ge = 0; gl_shown++; gl_shown_buf = gl_ge_buf; gl_shown_vb = gl_ge_vb;
   gl_buf_vb[gl_ge_buf & 1] = gl_ge_vb; gl_buf_n[gl_ge_buf & 1] = gl_shown;   /* gl28d: what each buffer holds (MGS2_GL_LIVE, MGS2_EYE) */
 }
@@ -355,15 +519,18 @@ static void gl_wait(void) { int r; HOST_ENTER(HOST_GW); r = gl_sync(); HOST_LEAV
 /* the frame that ended (its last vblank fvb) -> its GE list, drawn into the buffer that is not on the screen */
 static void gl_list(long fvb)
 {
-  int d, dig = fvb >= dig_from && fvb <= dig_to;
+  int d, dig = fvb >= dig_from && fvb <= dig_to && !rt_dig_off_at(fvb);   /* gl39: MGS2_DIG_CYCLE */
   if (gl_ge) { gl_wait(); if (gl_ok != 1) return; }   /* (a frame begins only after the GE has drawn the one before, so not expected) */
   d = (int)(gl_built++ & 1);
   gxf.b = glf.o.b; gxf.nb = (uint32_t)glf.o.nb; gxf.v = glf.o.v; gxf.nv = (uint32_t)glf.o.nv; gxf.d = glf.o.d;
   gxf.t = glf.o.t; gxf.nt = (uint32_t)glf.o.nt; gxf.tdata = glf.tdata; gxf.tpal = glf.tpal;
   gx_depth_map(glf.map_lo, glf.map_hi, 1.0f, &gxf.zs, &gxf.zo);
   gxl.dig_on = dig;
+  uint32_t dzt = 0;
+  if (dz_on) { int n = 0; gxl.dz = gx_dz_arm(&dz_t, fvb, &n, 0); gxl.dzn = n; dzt = sceKernelGetSystemTimeLow(); }   /* gl29: MGS2_GL_DZ */
   if (gx_frame(&gxl, &gxh, &gxf, d) && ++gl_listfail <= 50)
     fprintf(stderr, "picture: vb %ld: the list did not fit: %ld batches left out (%ld words, %ld aux bytes)\n", fvb, gxl.c.dropped, gxl.c.words, gxl.c.aux);
+  if (dz_on) dz_acc(fvb, &gxl.dc, sceKernelGetSystemTimeLow() - dzt, 0);
   gx_words_sum += gxl.c.words; gx_drop += gxl.c.dropped;
   gx_c1p += gxl.c.c1_passes; gx_c1b += gxl.c.c1_bones; gx_c1w += gxl.c.c1_words;
   gx_c4s += gxl.c.fx_spr; gx_c4r += gxl.c.fx_lruns; gx_c4l += gxl.c.fx_lines;
@@ -372,10 +539,13 @@ static void gl_list(long fvb)
   if (gxl.c.aux > gx_aux_max) gx_aux_max = gxl.c.aux;
   if (4 * gxl.c.words + gxl.c.aux > gx_both_max) gx_both_max = 4 * gxl.c.words + gxl.c.aux;
   if (dig) {
-    uint64_t g = gl_digest(&glf, &gxl); dig_all = (dig_all ^ g) * 0x100000001b3ull; dig_n++;
+    uint64_t g = gl_digest(&glf, &gxl); dig_all = (dig_all ^ g) * 0x100000001b3ull; dig_n++; char zt[224];
     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
-            "%ld dropped\n", fvb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
-            glf.o.nt, gxl.c.dropped);
+            "%ld dropped%s\n", fvb, d, (unsigned long long)gxl.dig, (unsigned long long)g, gxl.c.words, gxl.c.aux, gxl.c.batches, gxl.c.prims,
+            glf.o.nt, gxl.c.dropped, dz_on ? dz_txt(zt, sizeof zt, gxl.dz, gxl.dzn, &gxl.dc) : "");
+    /* gl41: the content digest (ge/gelive.c gl_digest_c: a native batch hashed as today's), as the twin prints it: with MGS2_NGE on, the
+       list and frame digests differ by design (the CALLs) and this one equals the switch-off run's */
+    fprintf(stderr, "picture: vb %ld content %016llx\n", fvb, (unsigned long long)gl_digest_c(&glf));
   }
   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
   if (gl_shown && sceDisplayGetVcount() == gl_show_vc) flip_race_dir++;   /* gl27: counted only */
@@ -407,14 +577,46 @@ static __attribute__((noinline)) int gl_bmp(const char *p, int buf, uint32_t *rd
   sceIoClose(fd);
   return ok;
 }
-/* the last frame shown, as a 24-bit BMP next to the EBOOT (gl28d: kept out of line, as before) */
-static __attribute__((noinline)) void gl_shot(void)
+/* gl29: MGS2_GL_ZDUMP: the depth buffer (512 x 272 16-bit words from base, the uncached view or its |0x600000 mirror) as it is, row 0
+   first, to p, 16 rows at a time through gl_rows (no heap): 1 saved, 0 a write failed, -1 not opened; *rd: the microseconds reading VRAM */
+static GL28D_COLD int gl_zdump(const char *p, uint32_t base, uint32_t *rd)
 {
-  char p[256]; int ok;
+  SceUID fd; int ok = 1;
+  *rd = 0;
+  if ((fd = sceIoOpen(p, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777)) < 0) return -1;
+  const volatile uint32_t *src = (const volatile uint32_t *)base;
+  for (int y0 = 0; y0 < 272 && ok; y0 += 16) {   /* 16 rows: 4096 words, 16 KB */
+    uint32_t t0 = sceKernelGetSystemTimeLow();
+    for (int i = 0; i < 16 * 256; i++) { uint32_t w = src[y0 * 256 + i]; uint8_t *o = gl_rows + 4 * i;
+      o[0] = (uint8_t)w; o[1] = (uint8_t)(w >> 8); o[2] = (uint8_t)(w >> 16); o[3] = (uint8_t)(w >> 24); }   /* the words as in VRAM */
+    *rd += sceKernelGetSystemTimeLow() - t0;
+    ok = sceIoWrite(fd, gl_rows, 16 * 1024) == 16 * 1024;
+  }
+  sceIoClose(fd);
+  return ok;
+}
+/* the last frame shown, as a 24-bit BMP next to the EBOOT (gl28d: kept out of line, as before).  gl29: at the hook of vb; z 1: an
+   MGS2_GL_SHOT shot (MGS2_GL_ZDUMP's depth from zd_from on), 0: an MGS2_GL_SHOT_RANGE one; with MGS2_GL_DZ or MGS2_GL_ZDUMP on, the
+   line gains the arm, 'last list = shot frame', the depth files and the VRAM read times */
+static __attribute__((noinline)) void gl_shot(long vb, int z)
+{
+  char p[256]; int ok, g29 = dz_on || zd_from >= 0; uint32_t rc = 0;
   snprintf(p, sizeof p, "%sshot_%ld.bmp", host_dir(), gl_shown_vb);
-  if ((ok = gl_bmp(p, gl_shown_buf, 0)) < 0) { fprintf(stderr, "picture: cannot write %s\n", p); return; }
+  if ((ok = gl_bmp(p, gl_shown_buf, g29 ? &rc : 0)) < 0) { fprintf(stderr, "picture: cannot write %s\n", p); return; }
   gl_shots += ok;
-  fprintf(stderr, "picture: the frame of vb %ld %s %s\n", gl_shown_vb, ok ? "saved as" : "NOT saved:", p);
+  if (!g29) { fprintf(stderr, "picture: the frame of vb %ld %s %s\n", gl_shown_vb, ok ? "saved as" : "NOT saved:", p); return; }
+  char a[8], q[256], m[256], zs[640]; uint32_t rz = 0, rm = 0; int oz = -2, om = -2, same = gl29_same();
+  if (z && zd_from >= 0 && vb >= zd_from) {
+    snprintf(q, sizeof q, "%szbuf_%ld.raw", host_dir(), gl_shown_vb); oz = gl_zdump(q, 0x44000000u + GL_ZB, &rz);
+    if (zd_views == 2 || vb == zd_mir) { snprintf(m, sizeof m, "%szbm_%ld.raw", host_dir(), gl_shown_vb); om = gl_zdump(m, 0x44600000u + GL_ZB, &rm); } }
+#define ZST(o) ((o) == 1 ? "saved as" : (o) ? "NOT saved (not opened):" : "NOT saved (a write failed):")
+  if (oz == -2) snprintf(zs, sizeof zs, "no depth");
+  else { int k = snprintf(zs, sizeof zs, "depth %s %s (VRAM read %.1f ms)", ZST(oz), q, rz / 1000.0);
+    if (om != -2 && k > 0 && k < (int)sizeof zs) snprintf(zs + k, sizeof zs - k, "; the |0x600000 mirror %s %s (VRAM read %.1f ms)", ZST(om), m, rm / 1000.0); }
+#undef ZST
+  fprintf(stderr, "picture: the frame of vb %ld %s %s; gl29 shot vb %ld (%s, %s turn): dz %s; last list = shot frame: %s; colour VRAM read "
+          "%.1f ms; %s\n", gl_shown_vb, ok ? "saved as" : "NOT saved:", p, vb, z ? "MGS2_GL_SHOT" : "MGS2_GL_SHOT_RANGE",
+          gl29_me() ? "me" : "main", dz_on ? dz_fnm(gl_shown_vb, a) : "off", same ? "yes" : "NO", rc / 1000.0, zs);
 }
 /* psp/main_psp.c host_vb_end, after the next step's timer started: the picture's work at the hook that starts step vb counts in step vb */
 void xl_psp_frame(long vb)
@@ -439,6 +641,8 @@ void xl_psp_frame(long vb)
       glf.h.c3w = (g_opt2 & OPT2_C3W) != 0;      /* sb14 3w: two-pass df0 vertices straight into the frame */
       glf.h.c4 = (g_opt2 & OPT2_C4) != 0;        /* sb15 step 4: the sprites, quads and streaks drawn */
       glf.h.c4x = (g_opt2 & OPT2_C4X) != 0;      /* sb15 4x: the effect strips from their clip positions */
+      glf.h.cull = rt_nat_cull_at(vb);           /* cull study */
+      glf.bd = bd_cur = rt_bound_at(vb, 0); gl_ft.all = (bd_cur & (BD_SORT | BD_RAIN)) != 0; bd_fr += bd_cur != 0;   /* gl38 */
       gl_begin(&glf); gl_now = 1; thin_due = 1;   /* task #149 */
       if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); }
     }
@@ -473,14 +677,23 @@ void xl_psp_gl_vblank(long vb)
   int r = 0;
   if (eye_on) { long n = eye_n[1]; eye_poll(vb); r = eye_n[1] != n; }   /* gl28d: MGS2_EYE (r: R went down at this hook) */
   if (gl_ok != 1) return;
+  int sh = 0;   /* gl29: a shot of MGS2_GL_SHOT's at this hook (then none of MGS2_GL_SHOT_RANGE's) */
   for (int k = 0; k < shot_n; k++) if (shot_vb[k] == vb) {
+    sh = 1;
     if (mq_on && shot_fw && flip_on && flip_from >= 0 && vb >= flip_from) { if (shot_wait(vb)) return; }   /* gl28d: MGS2_GL_SHOT_FLIPWAIT */
     else if (mq_on) { flip_force = 1; mq_drain(); mq_service(); mq_ge_finish(); flip_force = 0; if (gl_ok != 1) return; }   /* gl27: no flip
                                                                                                                         wait here */   /* task #180 step 4c: the loop's entries done, its
                                                                                        last list drawn and shown */
     else if (gl_ge) { if (gl_sync()) return; gl_show(); }
-    if (gl_shown_buf >= 0) gl_shot(); else fprintf(stderr, "picture: no frame shown yet at vb %ld\n", vb);
+    if (gl_shown_buf >= 0) gl_shot(vb, 1); else fprintf(stderr, "picture: no frame shown yet at vb %ld\n", vb);
   }
+  if (!sh && sr_from >= 0 && vb >= sr_from && vb <= sr_to && (vb - sr_from) % sr_step == 0) {   /* gl29: MGS2_GL_SHOT_RANGE, drained as above */
+    if (mq_on && shot_fw && flip_on && flip_from >= 0 && vb >= flip_from) { if (shot_wait(vb)) return; }
+    else if (mq_on) { flip_force = 1; mq_drain(); mq_service(); mq_ge_finish(); flip_force = 0; if (gl_ok != 1) return; }
+    else if (gl_ge) { if (gl_sync()) return; gl_show(); }
+    if (gl_shown_buf >= 0) gl_shot(vb, 0); else fprintf(stderr, "picture: no frame shown yet at vb %ld\n", vb);
+  }
+  if (dz_on) dz_tick(stderr, gl_shown_vb);   /* gl29: the lines of the windows the screen has left */
   if (live_from >= 0) gl_live(vb, r);   /* gl28d: MGS2_GL_LIVE */
 }
 /* psp/v26me4_exc.c built with -DMGS2_GL_EXC (psp/gl1.sh), in the exception: the frame buffer on the display, through the uncached view
@@ -545,7 +758,10 @@ static void on_prim(void *ctx, const GfGs *g, const GfDraw *d, const GfVtx *cons
 static int mp_on;
 static XmPic xmp ME_LN; static XmCopy xmc; static XmView mp_view ME_LN;   /* (ME_LN: step 4d-3) */
 #define MP_NREC 64                       /* records a step (19 at most on the x86 routes: me_step1_notes.md 3) */
-typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2; } MpRec;   /* (4b-2: t, filled,
+typedef struct { int ch, lanes, restart, x0, nx, t, filled, h0, nh; uint32_t chcr, madr, qwc, tadr, opt, opt2;
+                 int nb; int16_t ng0[2], ngn[2], p0[2], pn[2]; uint32_t noff;   /* native step 1: as ge/xme.h XmeRec (step 2: p0 / pn the people's) */
+                 uint8_t nru[2];                          /* gl36: as ge/xme.h XmeRec (0 or 1) */
+                 int16_t chi;                             /* gl38: the transfer's chain (ns_chain_at, as it started) */ } MpRec;   /* (4b-2: t, filled,
                                             and the check's line hashes h0 .. h0 + nh - 1) */
 /* ---- task #180 step 4b-2 (me_step4_notes.md): MGS2_ME_PIC=2, the copy at its deadline.  From the hook of vb MGS2_ME_PIC_DL on (default
    60: the boot's writers are not guarded, me_handoff_design.md 4.10) a record's copy is planned as its transfer ends (ge/xlme.c xm_plan:
@@ -992,6 +1208,7 @@ void xlive_chk_end(int ch)
   if (g_mpw_armed) rt_me_watch(2, (uint32_t)ch, (uint32_t)e->t);
 #endif
   if (mq_on) { mq_chk_end(); return; }   /* step 4c */
+  xmc.xp = rt_xp_at(me_vb);   /* gl40 */
   r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, &x0, &nx);
   if ((r == 2 || r == 3) && mp_nrec > 1) {   /* no room: the records before (filled and) walked now, the copy planned again */
     MpRec keep = *e; mp_drain_room++; mp_nrec--; mp_late(3); mp_rec[0] = keep; mp_nrec = 1; e = &mp_rec[0];
@@ -1033,13 +1250,14 @@ extern volatile uint32_t *me_beat_p;   /* ge/me_rt.c (me_rt.h ME_BEAT: declared 
 static XmeCtx *mq;
 static int mq_self = 1, mq_hi, mq_turn, mq_turn_k = -1, mq_c4, mq_ft_on, mq_stop_due, mq_stop_sent;
 static SceUID mq_th = -1, mq_sem = -1;
+#define MQ_THR_STK (16u << 10)   /* gl41: the me_pic thread's stack (below, at its creation) */
 static uint32_t mq_walk_seq, mq_thin_seq; static int mq_walk_due, mq_thin_due;   /* the last WALK's and THIN's places in the queue */
 static uint32_t mq_cons, mq_subm; static uint64_t mq_ge_t0;   /* results taken from the ME, lists given to the GE; the last one's time */
 /* gl22: the GE's finish seen at once.  sceGu's finish callback (the GE's interrupt) stores the time and counts; with MGS2_ME_PIC_GEFAST on
    it also sets ge_done, so the ME may begin its next frame without waiting for the main CPU to notice (the main CPU still shows the frame
    and gives the GE the next list in mq_service).  Timestamps per list: submit -> finish (the GE's drawing; the list is whole when
    submitted) and finish -> the main CPU's notice; by maker: 0 ME turns fast off, 1 ME turns fast on, 2 main CPU turns */
-static volatile uint32_t ge_fin_n, ge_fin_t; static uint32_t ge_sub_t, ge_fin_n0; static int ge_fast_cfg, ge_fast;
+static volatile uint32_t ge_fin_t;   /* (ge_fin_n: above, native step 1) */ static uint32_t ge_sub_t, ge_fin_n0; static int ge_fast_cfg, ge_fast;
 static long ge_n[3], ge_nofin; static uint64_t ge_draw[3], ge_note[3]; static uint32_t ge_draw_max[3];
 static long ge_tn0; static uint64_t ge_td0, ge_tq0;   /* the ME turn's start (mq_tstart) */
 static int ge2_cfg, ge2; static long ge2_tn0;   /* gl23: MGS2_ME_PIC_GE2 (0 off, 1 on, 2 every other ME turn); this turn's; n_ge2 at its start */
@@ -1120,7 +1338,12 @@ static void mq_cache_thr(XmeCtx *x, int op, const void *p, uint32_t n)   /* the 
   (void)x; (void)p;
   if (op == XME_C_ALL) mq_mc_all++; else { mq_mc_inv++; mq_mc_inv_b += n; }
 }
-static void mq_cpu_wb(void) { mq_c_wb++; sceKernelDcacheWritebackAll(); }                /* what the ME reads, in RAM before it reads it */
+static void mq_cpu_wb(void)
+{
+  int tp = p9_top(); mq_c_wb++; p9_wbn[tp]++;   /* gl39: by the part the main CPU is in; timed with MGS2_PROBE9 */
+  if (p9_on > 0) { uint32_t t0 = sceKernelGetSystemTimeLow(); sceKernelDcacheWritebackAll(); p9_wbus[tp] += sceKernelGetSystemTimeLow() - t0; }
+  else sceKernelDcacheWritebackAll();
+}                /* what the ME reads, in RAM before it reads it */
 static void mq_cpu_wbinv(void) { mq_c_wbinv++; sceKernelDcacheWritebackInvalidateAll(); }   /* before the main CPU reads what the ME wrote */
 /* step 4d-2: the ME's heap request (ge/xme.c xme_rq), served at the main CPU's waits, transfers and hooks (mq_service) by the host's
    own hooks; a region given or moved is written back and dropped from the main CPU's cache before the ME has it (no old line of the
@@ -1343,6 +1566,62 @@ static void flip_line(const char *who, long vb0, long vb, int b)   /* gl27: a tu
 }
 static void flip_t0set(int b) { flip_h0[b] = flip_hold[b]; flip_r0[b] = flip_race[b]; flip_u0[b] = flip_us[b];
   fbc_n0[b] = fbc_n[b]; fbc_i0[b] = fbc_imm[b]; fbc_x0[b] = fbc_next[b]; fbc_s0[b] = fbc_same[b]; fbc_dvc_t[b] = 0; }   /* gl28d */
+/* gl38 (ge/bound.h): a turn's bound line, with the bound cycle on: the kind of the frames that began in it (hooks vb0 .. vb - 1), F1's
+   switch for them, and what was left out (the counts are the turn's: transfers by chain as the main CPU left them out, calls as the
+   walks did: ge/gelive.h GL_BD_*) */
+static void bd_tline(const char *who, long vb0, long vb)
+{
+  static const uint16_t mask[BD_KINDS] = BD_MASKS; long tix; int bd, kind = 0;
+  if (!g_bd_cfg && !g_nat_f1cfg && !g_bd_rain) return;
+  bd = rt_bound_at(vb0, &tix); for (int i = 0; i < BD_KINDS; i++) if (mask[i] == bd) kind = i;
+  fprintf(stderr, "%s vb %ld-%ld gl38 bound: turn %ld kind %d (mask %d), F1 %d; frames begun with a mask %ld; transfers left out by chain:", who, vb0, vb, tix, kind, bd,
+          rt_nat_f1_at(vb0), bd_fr - bd_fr0);
+  for (int i = 0; i <= NS_CH; i++) if (bd_tr[i] != bd_tr0[i]) fprintf(stderr, " %d:%ld", i == NS_CH ? -1 : i, bd_tr[i] - bd_tr0[i]);
+  fprintf(stderr, "; native groups recorded and not drawn %ld; rain owners' calls %ld (sheets %ld), left out %ld, near sheet calls kept %ld; chain 6's other "
+          "calls left out %ld, its GS primitives %ld; rain owners' blocks over the table %ld, not right %ld\n", bd_grp - bd_grp0,
+          gl_bd_n[GL_BD_RAIN] - bd_n0[GL_BD_RAIN], gl_bd_n[GL_BD_SHEET] - bd_n0[GL_BD_SHEET], gl_bd_n[GL_BD_RAIN_OUT] - bd_n0[GL_BD_RAIN_OUT],
+          gl_bd_n[GL_BD_NEAR_KEPT] - bd_n0[GL_BD_NEAR_KEPT], gl_bd_n[GL_BD_SORT_OUT] - bd_n0[GL_BD_SORT_OUT], gl_bd_n[GL_BD_PRIM_OUT] - bd_n0[GL_BD_PRIM_OUT],
+          gl_ft.b_over - bd_ov0, gl_ft.b_bad - bd_bad0);
+  memcpy(bd_tr0, bd_tr, sizeof bd_tr0); memcpy(bd_n0, gl_bd_n, sizeof bd_n0); bd_fr0 = bd_fr; bd_grp0 = bd_grp; bd_ov0 = gl_ft.b_over; bd_bad0 = gl_ft.b_bad;
+  {   /* gl39: the probe line (the counts since the line before; the ME's load counts are read after its hand-over) */
+    static const char *const nm[P9_N] = { "logic", "iop", "gs", "pipeline", "translator", "picture", "ge-wait", "other" };
+    long ln = mq ? mq->n_load : 0, lit[4]; uint64_t lt[4]; const int me = who[1] == 'e';
+    const double dv = mq && me ? (double)mq_tdiv : 1000.0;
+    for (int i = 0; i < 4; i++) { lit[i] = mq ? mq->n_load_it[i] : 0; lt[i] = mq ? mq->t_load[i] : 0; }
+    fprintf(stderr, "%s vb %ld-%ld gl39 probe: turn %ld kind %d digest %s load %d; service calls by part (calls/timed/us):", who, vb0, vb, tix, kind,
+            rt_dig_off_at(vb0) ? "off" : "on", rt_load_at(vb0));
+    for (int i = 0; i < P9_N; i++) if (p9_sv[i] != p9_0.sv[i]) fprintf(stderr, " %s %ld/%ld/%llu", nm[i], p9_sv[i] - p9_0.sv[i], p9_svt[i] - p9_0.svt[i],
+                                                                    (unsigned long long)(p9_svus[i] - p9_0.svus[i]));
+    fprintf(stderr, "; of them from transfers:");
+    for (int i = 0; i < P9_N; i++) if (p9_dma[i] != p9_0.dma[i]) fprintf(stderr, " %s %ld", nm[i], p9_dma[i] - p9_0.dma[i]);
+    fprintf(stderr, "; GE polls %ld, found done %ld, lists to the GE %ld; posts %ld; whole-cache write-backs by part (n/us):", p9_poll - p9_0.poll,
+            p9_done - p9_0.done, p9_subm - p9_0.subm, p9_post - p9_0.post);
+    for (int i = 0; i < P9_N; i++) if (p9_wbn[i] != p9_0.wbn[i]) fprintf(stderr, " %s %ld/%llu", nm[i], p9_wbn[i] - p9_0.wbn[i], (unsigned long long)(p9_wbus[i] - p9_0.wbus[i]));
+    fprintf(stderr, "; ME load: posted %ld, not posted (the loop behind) %ld, run %ld, blocks and ms by flavour:", p9_ldp - p9_0.ldp, p9_ldskip - p9_0.ldskip, ln - p9_0.ln);
+    for (int i = 1; i < 4; i++) fprintf(stderr, " %d: %ld %.1f", i, lit[i] - p9_0.lit[i], (double)(lt[i] - p9_0.lt[i]) / dv);
+    fprintf(stderr, "\n");
+    memcpy(p9_0.sv, p9_sv, sizeof p9_sv); memcpy(p9_0.svt, p9_svt, sizeof p9_svt); memcpy(p9_0.wbn, p9_wbn, sizeof p9_wbn); memcpy(p9_0.dma, p9_dma, sizeof p9_dma);
+    memcpy(p9_0.svus, p9_svus, sizeof p9_svus); memcpy(p9_0.wbus, p9_wbus, sizeof p9_wbus); p9_0.poll = p9_poll; p9_0.done = p9_done; p9_0.subm = p9_subm;
+    p9_0.post = p9_post; p9_0.ldp = p9_ldp; p9_0.ldskip = p9_ldskip; p9_0.ln = ln; memcpy(p9_0.lit, lit, sizeof lit); memcpy(p9_0.lt, lt, sizeof lt);
+  }
+  {   /* gl40: the copy plan's line (the counts since the line before; the times in microseconds, 0 without MGS2_PROBE10) */
+    const XmCopy *c = &xmc; long wn = 0; uint64_t wu = 0;
+    fprintf(stderr, "%s vb %ld-%ld gl40 plan: turn %ld XP %d M5 walks %ld; plans %ld, us total %llu / walk %llu / sort+join %llu / rest %llu; "
+            "mq_chk_end %ld us %llu; mp_mark %ld us %llu; xc_add calls %ld; ranges into the merges ra %ld rb %ld mk %ld; sort moves %ld, copied back %ld; "
+            "extents %ld; XP check: plans %ld, differing %ld, by result only %ld; waits in mq_chk_end by reason (n/us):", who, vb0, vb, tix, rt_xp_at(vb0), g_k_m5 - p10_0.m5, c->xp_plans - p10_0.plans,
+            (unsigned long long)((c->xp_tw - p10_0.tw) + (c->xp_ts - p10_0.ts) + (c->xp_tr - p10_0.tr)), (unsigned long long)(c->xp_tw - p10_0.tw),
+            (unsigned long long)(c->xp_ts - p10_0.ts), (unsigned long long)(c->xp_tr - p10_0.tr), p10_ce - p10_0.ce, (unsigned long long)(p10_ceus - p10_0.ceus),
+            p10_mk - p10_0.mkn, (unsigned long long)(p10_mkus - p10_0.mkus), c->xp_adds - p10_0.adds, c->xp_ra - p10_0.ra, c->xp_rb - p10_0.rb, c->xp_mk - p10_0.mk,
+            c->xp_moves - p10_0.moves, c->xp_cpy - p10_0.cpy, c->exts - p10_0.ext, c->xp_chk - p10_0.chk, c->xp_dif - p10_0.dif, c->xp_room - p10_0.room);
+    for (int i = 0; i < MW_N && i < 16; i++) if (p10_wn[i] != p10_0.wn[i]) { fprintf(stderr, " %d %ld/%llu", i, p10_wn[i] - p10_0.wn[i],
+                                                                         (unsigned long long)(p10_wus[i] - p10_0.wus[i])); wn += p10_wn[i] - p10_0.wn[i]; wu += p10_wus[i] - p10_0.wus[i]; }
+    fprintf(stderr, "; in all %ld/%llu\n", wn, (unsigned long long)wu);
+    p10_0.plans = c->xp_plans; p10_0.adds = c->xp_adds; p10_0.moves = c->xp_moves; p10_0.cpy = c->xp_cpy; p10_0.ra = c->xp_ra; p10_0.rb = c->xp_rb; p10_0.mk = c->xp_mk;
+    p10_0.chk = c->xp_chk; p10_0.dif = c->xp_dif; p10_0.room = c->xp_room; p10_0.ext = c->exts; p10_0.tw = c->xp_tw; p10_0.ts = c->xp_ts; p10_0.tr = c->xp_tr;
+    p10_0.ce = p10_ce; p10_0.ceus = p10_ceus; p10_0.mkn = p10_mk; p10_0.mkus = p10_mkus; p10_0.m5 = g_k_m5;
+    memcpy(p10_0.wn, p10_wn, sizeof p10_wn); memcpy(p10_0.wus, p10_wus, sizeof p10_wus);
+  }
+}
 static void mq_tstart(long vb)   /* an ME turn begins (the main CPU's cache holds the counts as they are) */
 {
   if (flip_mvb0 >= 0) flip_line("main turn", flip_mvb0, vb, 1);   /* gl27: the main CPU's turn before */
@@ -1358,6 +1637,8 @@ static void mq_tstart(long vb)   /* an ME turn begins (the main CPU's cache hold
 #ifdef MGS2_ME_REAL
   mq_tdiv = mq_me > 0 ? 331310u : 1000u;
 #endif
+  if (flip_mvb0 >= 0) { nat_tline("main turn", flip_mvb0, vb, 0); bd_tline("main turn", flip_mvb0, vb); }   /* native step 1: the main CPU's turn before (gl38: its bound line) */
+  nat_t0set();
 }
 static uint64_t mq_idle(void)   /* gl24: the loop's idle time (XmeSh t_idle_*: q odd while the loop writes them) */
 {
@@ -1397,6 +1678,9 @@ static void mq_tend(long vb)   /* an ME turn ends, after the hand-over (the ME's
                         "given up after 2 ms" : "the ME was awake at the switch after a rest");
   rs_tnote = 0;
 #endif
+  nat_tline("me turn", mq_tvb0, vb, 1); nat_t0set();   /* native step 1 */
+  if (nge_k) nge_turn_line(mq_tvb0, vb);   /* native step 1 (MGS2_NGE): the fill lines and counts of the turn */
+  bd_tline("me turn", mq_tvb0, vb);   /* gl38 */
   flip_line("me turn", mq_tvb0, vb, 0); flip_t0set(1); flip_mvb0 = vb;   /* gl27 */
   if (mq->ws_on) { double s[XM_TS_N], in = 0; long n[XM_TS_N];   /* gl26: the walk's split (gl27: only with MGS2_ME_SPLIT) */
     for (int k = 0; k < XM_TS_N; k++) { uint64_t d = mq->t_ws[k] - mq_ts0[k]; mq_tsall[k] += d; s[k] = (double)d / mq_tdiv; in += s[k];
@@ -1431,7 +1715,8 @@ static void mq_wait(uint32_t seq, int why)
     { int dr = sceKernelDelayThread(50); if (dr < 0 && !mq_dly_bad++) mq_dly_e = dr; }
     mq_w_rounds++;
   }
-  mq_wus[why] += mq_now() - t0;
+  t1 = mq_now() - t0; mq_wus[why] += t1;
+  if (p10_in) { p10_wn[why & 15]++; p10_wus[why & 15] += t1; }   /* gl40 probe: a wait inside mq_chk_end */
   HOST_LEAVE(HOST_GW);
   XME_BARRIER();
 }
@@ -1480,7 +1765,7 @@ static uint32_t mq_post(const XmeE *e)
   mq->e[XS(mq)->head & (XME_N - 1)] = *e;
   if (mq_m4) mq_cpu_wb();   /* step 4d: the entry and the bytes it has the ME read (the records' RAM, the extents, the log) in RAM
                                before head moves (4d-4: the entry after its write, not before) */
-  XME_BARRIER(); XS(mq)->head++; mq_posted++;
+  XME_BARRIER(); XS(mq)->head++; mq_posted++; p9_post++;
 #ifdef MGS2_ME_REAL
   if (rs_cfg && mq_me > 0) { XME_BARRIER(); rs_kick_check(); }   /* gl28: head in memory before asleep is read (xme_me.c's handshake;
                                                                      the ME rests only in main turns, so expected never asleep here) */
@@ -1536,11 +1821,15 @@ static void mq_submit(const XmeRes *r)
   if (c->words > gx_words_max) gx_words_max = c->words;
   if (c->aux > gx_aux_max) gx_aux_max = c->aux;
   if (4 * c->words + c->aux > gx_both_max) gx_both_max = 4 * c->words + c->aux;
+  if (r->a_nb > nat_fa[0]) nat_fa[0] = r->a_nb; if (r->a_nv > nat_fa[1]) nat_fa[1] = r->a_nv; if (r->a_nd > nat_fa[2]) nat_fa[2] = r->a_nd;   /* native step 1 */
+  if (dz_on) dz_acc(r->fvb, &r->dc, r->t_me ? (uint32_t)((uint64_t)r->t_list * 1000u / 331310u) : r->t_list, r->me_turn);   /* gl29 (the ME's
+                                                                                                    Count: 331,310 a ms, as mq_tdiv) */
   if (r->dig) {
-    uint64_t g = r->dig_frame; dig_all = (dig_all ^ g) * 0x100000001b3ull; dig_n++;
+    uint64_t g = r->dig_frame; dig_all = (dig_all ^ g) * 0x100000001b3ull; dig_n++; char zt[224];
     fprintf(stderr, "picture: vb %ld buffer %d list %016llx frame %016llx: %ld words, %ld aux bytes, %ld batches, %ld PRIMs, %d textures, "
-            "%ld dropped\n", (long)r->fvb, r->d, (unsigned long long)r->dig_list, (unsigned long long)g, c->words, c->aux, c->batches, c->prims,
-            r->nt, c->dropped);
+            "%ld dropped%s\n", (long)r->fvb, r->d, (unsigned long long)r->dig_list, (unsigned long long)g, c->words, c->aux, c->batches, c->prims,
+            r->nt, c->dropped, dz_on ? dz_txt(zt, sizeof zt, r->dz, r->dzn, &r->dc) : "");
+    fprintf(stderr, "picture: vb %ld content %016llx\n", (long)r->fvb, (unsigned long long)r->dig_c);   /* gl41: the loop's content digest */
   }
   sceKernelDcacheWritebackAll();         /* the GE reads the list, the frame and the textures from RAM */
   if (fbc_from >= 0 && me_vb >= fbc_from) fb_chk(r);   /* gl28d: MGS2_GL_FBCHK */
@@ -1550,13 +1839,13 @@ static void mq_submit(const XmeRes *r)
 }
 /* the GE and the display: a list the GE has finished shown (and the ME told), the ME's next list to the GE; a GE that has not finished
    a list in GL_GE_LIMIT stops the picture, as gl_sync */
-static void mq_service(void)
+static void mq_service_do(void)
 {
   if (!mq) return;
   if (mq_m4) mq_heap_serve();   /* step 4d-2 */
   if (gl_ge) {
-    int r = sceGeDrawSync(1);
-    if (!r) { ge_noted(); gl_show(); XS(mq)->ge_done = mq_subm; }
+    int r = sceGeDrawSync(1); p9_poll++;
+    if (!r) { ge_noted(); gl_show(); XS(mq)->ge_done = mq_subm; p9_done++; }
     else if (mq_now() - mq_ge_t0 >= GL_GE_LIMIT) {
       gl_stop_vb = gl_ge_vb; gl_stop_r = r; gl_ok = 3; gl_now = gl_ge = 0;
       sceDisplaySetFrameBuf((void *)(0x44000000u + GL_TXT), 512, PSP_DISPLAY_PIXEL_FORMAT_8888, PSP_DISPLAY_SETBUF_NEXTFRAME);
@@ -1573,7 +1862,13 @@ static void mq_service(void)
       flip_race[fb]++; }
     if (flip_w) { flip_us[flip_w - 1] += sceKernelGetSystemTimeLow() - flip_t0; flip_w = 0; }   /* gl27b: to the hold's own bucket */
     uint32_t k = mq_cons++ % XME_NRES;
-    XME_BARRIER(); sceKernelDcacheWritebackRange(&mq->res[k], sizeof mq->res[k]); XME_BARRIER(); mq_submit(&XR(mq)[k]); }
+    XME_BARRIER(); sceKernelDcacheWritebackRange(&mq->res[k], sizeof mq->res[k]); XME_BARRIER(); mq_submit(&XR(mq)[k]); p9_subm++; }
+}
+static void mq_service(void)   /* gl39: the calls counted by the part the main CPU is in; with MGS2_PROBE9 one in 8 timed */
+{
+  int tp = p9_top(); p9_sv[tp]++;
+  if (p9_on > 0 && !(p9_k++ & 7)) { uint32_t t0 = sceKernelGetSystemTimeLow(); mq_service_do(); p9_svus[tp] += sceKernelGetSystemTimeLow() - t0; p9_svt[tp]++; }
+  else mq_service_do();
 }
 static void mq_ge_finish(void)   /* the main CPU waits for the GE's list (gl_sync, its limit), shows it and tells the ME */
 {
@@ -1604,23 +1899,149 @@ static GL28D_COLD int shot_wait(long vb)
           (double)(mq_now() - t0) / 1000.0, n, late ? "; GAVE UP after 2 s with a list not shown (the shot shows the frame before)" : "");
   return gl_ok == 1 ? 0 : -1;
 }
+/* gl29: the GE idle, every list made given to it, and its last list the frame on the screen (the depth buffer is that frame's) */
+static GL28D_COLD int gl29_same(void) { return !gl_ge && gl_ge_vb == gl_shown_vb && (!mq || mq_cons == XS(mq)->listed); }
+static GL28D_COLD int gl29_me(void) { return mq_on && !mq_self; }   /* an ME turn now */
+static const char *dz_anm(int arm, int n, char *s)   /* an arm's name in s (8 bytes): O, X, Y, W, B<n> */
+{
+  if (arm == GX_DZ_B) snprintf(s, 8, "B%d", n); else { s[0] = arm >= 0 && arm < GX_DZ_B ? "OXYW"[arm] : '?'; s[1] = 0; }
+  return s;
+}
+static GL28D_COLD const char *dz_fnm(long fvb, char *s)   /* the arm of the frame whose last vblank is fvb (-1: none yet) */
+{
+  int n = 0, a;
+  if (fvb < 0) { s[0] = '-'; s[1] = 0; return s; }
+  a = gx_dz_arm(&dz_t, fvb, &n, 0); return dz_anm(a, n, s);
+}
+static GL28D_COLD const char *dz_txt(char *s, int n, int dz, int dzn, const GxDzCount *c)   /* the digest line's part (the twin's alike) */
+{
+  char a[8];
+  snprintf(s, n, "; dz %s 42:%ld oth:%ld pair:%ld sub:%ld fb:%ld,%ld,%ld,%ld,%ld,%ld bias:%ld w:%ld aux:%lu", dz_anm(dz, dzn, a), (long)c->n42,
+           (long)c->noth, (long)c->npair, (long)c->nsub, (long)c->fb[0], (long)c->fb[1], (long)c->fb[2], (long)c->fb[3], (long)c->fb[4],
+           (long)c->fb[5], (long)c->nbias, (long)c->nw, (unsigned long)c->aux);   /* gl30: sub (X's subset pairs) */
+  return s;
+}
+static void dz_wadd(int32_t a, int32_t b, int lab)
+{
+  if (dz_nw >= DZ_NWIN || b < a) return;
+  memset(&dz_w[dz_nw], 0, sizeof dz_w[0]); dz_w[dz_nw].vb0 = a; dz_w[dz_nw].vb1 = b; dz_w[dz_nw].lab = lab; dz_nw++;
+}
+static void dz_gap(int32_t a, int32_t b)   /* a stretch of O: split at MGS2_GL_LIVE's start (the walk) when that lies inside */
+{
+  if (live_from > a && live_from <= b) { dz_wadd(a, (int32_t)live_from - 1, 0); dz_wadd((int32_t)live_from, b, 0); }
+  else dz_wadd(a, b, 0);
+}
+static int dz_win(long fvb)   /* the window of the frame whose last vblank is fvb, or -1 */
+{
+  for (int k = 0; k < dz_nw; k++) if (fvb >= dz_w[k].vb0 && fvb <= dz_w[k].vb1) return k;
+  return -1;
+}
+static GL28D_COLD void gl29_cfg(void)
+{
+  const char *e;
+  if ((e = mgs2_getenv("MGS2_GL_DZ"))) {
+    if (gx_dz_parse(e, &dz_t) <= 0)
+      fprintf(stderr, "gl29 dz (MGS2_GL_DZ %.60s): not <vb0>:<vb1>:<arm>[,...] with arm O, X, Y, W or B1..B255 (at most %d entries), so off\n",
+              e, GX_DZ_MAX);
+    else {
+      int32_t prev = -1; char a[8];
+      dz_on = 1; dz_nlab = 1; dz_lab[0].arm = GX_DZ_O; dz_lab[0].n = 0;
+      for (int j = 0; j < dz_t.n; j++) {
+        const GxDzEnt *x = &dz_t.e[j]; int l, n = x->arm == GX_DZ_B ? x->n : 0;
+        for (l = 0; l < dz_nlab && (dz_lab[l].arm != x->arm || dz_lab[l].n != n); l++) {}
+        if (l == dz_nlab) { dz_lab[l].arm = (int16_t)x->arm; dz_lab[l].n = (int16_t)n; dz_nlab++; }
+        dz_elab[j] = l;
+        if (x->vb0 <= prev) continue;   /* (not after the entry before: no window of its own) */
+        if (prev >= 0 && x->vb0 > prev + 1) dz_gap(prev + 1, x->vb0 - 1);
+        dz_wadd(x->vb0, x->vb1, l); prev = x->vb1;
+      }
+      if (prev >= 0) dz_gap(prev + 1, 0x7fffffff);
+      fprintf(stderr, "gl29 dz (MGS2_GL_DZ): the 0x42 shadow decals' depth arm by frame (its last vblank), O elsewhere: %d entries:", dz_t.n);
+      for (int j = 0; j < dz_t.n; j++) fprintf(stderr, " %ld-%ld %s", (long)dz_t.e[j].vb0, (long)dz_t.e[j].vb1, dz_anm(dz_t.e[j].arm, dz_t.e[j].n, a));
+      fprintf(stderr, "; %d windows (a 'gl29 dz window' line each once the screen has left it)\n", dz_nw);
+    }
+  }
+  if ((e = mgs2_getenv("MGS2_GL_ZDUMP"))) {
+    long a = -1, v = 0, m = -1; int n = sscanf(e, "%ld:%ld:%ld", &a, &v, &m);
+    if (n >= 2 && a >= 0 && (v == 1 || v == 2)) { zd_from = a; zd_views = (int)v; zd_mir = n == 3 ? m : -1;
+      fprintf(stderr, "gl29 zdump (MGS2_GL_ZDUMP %.40s): at each MGS2_GL_SHOT shot from vb %ld on, the depth buffer (512 x 272 16-bit words, "
+              "read only, through the uncached view) to zbuf_<frame vb>.raw next to the EBOOT", e, zd_from);
+      if (zd_views == 2) fprintf(stderr, "; through the |0x600000 mirror too (zbm_<frame vb>.raw) at every one\n");
+      else if (zd_mir >= 0) fprintf(stderr, "; through the |0x600000 mirror too (zbm_<frame vb>.raw) at the shot of vb %ld only\n", zd_mir);
+      else fputc('\n', stderr); }
+    else fprintf(stderr, "gl29 zdump (MGS2_GL_ZDUMP %.40s): not <from>:<views 1 or 2>[:<mirror vb>], so off\n", e); }
+  if ((e = mgs2_getenv("MGS2_GL_SHOT_RANGE"))) {
+    long a = -1, b = -1, st = 0;
+    if (sscanf(e, "%ld:%ld:%ld", &a, &b, &st) == 3 && a >= 0 && b >= a && st > 0) { sr_from = a; sr_to = b; sr_step = st;
+      fprintf(stderr, "gl29 shot range (MGS2_GL_SHOT_RANGE %.40s): a shot (drained as MGS2_GL_SHOT's, no depth) at every %ld-th vblank hook "
+              "from %ld to %ld\n", e, sr_step, sr_from, sr_to); }
+    else fprintf(stderr, "gl29 shot range (MGS2_GL_SHOT_RANGE %.40s): not <from>:<to>:<step> with step > 0, so off\n", e); }
+}
+static GL28D_COLD void dz_acc(long fvb, const GxDzCount *c, uint32_t us, int me)   /* a list made: its window's counts (me: in an ME turn) */
+{
+  int k = dz_win(fvb), t = me ? 0 : 1;
+  if (k < 0) return;
+  DzWin *w = &dz_w[k];
+  w->fr[t]++; w->n42 += c->n42; w->noth += c->noth; w->npair += c->npair; w->nsub += c->nsub; w->nbias += c->nbias; w->nw += c->nw;
+  for (int j = 0; j < GX_DZF_N; j++) w->fb[j] += c->fb[j];
+  if (c->aux > w->aux) w->aux = c->aux;
+  w->us[t] += us; if (us > w->usmax[t]) w->usmax[t] = us;
+}
+static GL28D_COLD void dz_r(long vb)   /* MGS2_EYE's peek at this hook found R down: by the arm of the frame on the screen and the turn */
+{
+  long f = gl_shown_vb; int t = mq_on && !mq_self ? 0 : 1, j = -1, k;
+  (void)vb;
+  if (f < 0) return;
+  gx_dz_arm(&dz_t, f, 0, &j); dz_held[j >= 0 ? dz_elab[j] : 0][t]++;
+  if ((k = dz_win(f)) >= 0) { dz_w[k].r[t]++; if (f >= (long)dz_w[k].vb0 + 10) dz_w[k].r10++; }
+}
+static void dz_wline(FILE *f, const DzWin *w)
+{
+  char a[8], v1[16];
+  if (w->vb1 == 0x7fffffff) snprintf(v1, sizeof v1, "end"); else snprintf(v1, sizeof v1, "%ld", (long)w->vb1);
+  fprintf(f, "picture: gl29 dz window vb %ld-%s arm %s: frames %ld (ME turns %ld, main %ld); 0x42 decals %ld (of other kinds %ld), paired %ld, "
+          "subset %ld, fallbacks base %ld matrix %ld vertex set %ld triangles %ld uv/colour %ld room %ld, biased %ld, W %ld, the largest copy %lu bytes; "
+          "list build: ME turns %.1f ms (the largest %.2f), main %.1f ms (the largest %.2f); R held %ld vblank hooks (ME turns %ld, main %ld), "
+          "%ld from the window's 10th vblank on\n", (long)w->vb0, v1, dz_anm(dz_lab[w->lab].arm, dz_lab[w->lab].n, a), (long)(w->fr[0] + w->fr[1]),
+          (long)w->fr[0], (long)w->fr[1], (long)w->n42, (long)w->noth, (long)w->npair, (long)w->nsub, (long)w->fb[0], (long)w->fb[1], (long)w->fb[2], (long)w->fb[3],
+          (long)w->fb[4], (long)w->fb[5], (long)w->nbias, (long)w->nw, (unsigned long)w->aux, w->us[0] / 1000.0, w->usmax[0] / 1000.0,
+          w->us[1] / 1000.0, w->usmax[1] / 1000.0, (long)(w->r[0] + w->r[1]), (long)w->r[0], (long)w->r[1], (long)w->r10);
+}
+static GL28D_COLD void dz_tick(FILE *f, long upto)   /* the lines of the windows that end before frame vb upto */
+{
+  while (dz_wcur < dz_nw && dz_w[dz_wcur].vb1 < upto) dz_wline(f, &dz_w[dz_wcur++]);
+}
+static GL28D_COLD void dz_report(FILE *f)   /* the run's end: the windows not printed yet, then R held by arm and turn, and by window */
+{
+  char a[8], v1[16];
+  while (dz_wcur < dz_nw) dz_wline(f, &dz_w[dz_wcur++]);
+  fprintf(f, "gl29 dz: R held (vblank hooks with R down, by the arm of the frame on the screen; ME turns / main turns):");
+  for (int l = 0; l < dz_nlab; l++) fprintf(f, " %s %ld/%ld", dz_anm(dz_lab[l].arm, dz_lab[l].n, a), dz_held[l][0], dz_held[l][1]);
+  fprintf(f, "\ngl29 dz: R held by window (frame vb, arm: vblank hooks, from the window's 10th vblank on):");
+  for (int k = 0; k < dz_nw; k++) { const DzWin *w = &dz_w[k];
+    if (w->vb1 == 0x7fffffff) snprintf(v1, sizeof v1, "end"); else snprintf(v1, sizeof v1, "%ld", (long)w->vb1);
+    fprintf(f, " %ld-%s %s %ld (%ld)", (long)w->vb0, v1, dz_anm(dz_lab[w->lab].arm, dz_lab[w->lab].n, a), (long)(w->r[0] + w->r[1]), (long)w->r10); }
+  fputc('\n', f);
+}
 /* gl28d: MGS2_EYE, at each vblank hook (xl_psp_gl_vblank, outside the step's time): the R trigger peeked (the latest sample; nothing
    consumed), a line at each press and release with the turn and what the screen holds */
 static GL28D_COLD void eye_poll(long vb)
 {
-  SceCtrlData c; int r; uint64_t t = mq_now(); void *a = 0; int w = 0, f = 0, rc; char g[64];
+  SceCtrlData c; int r; uint64_t t = mq_now(); void *a = 0; int w = 0, f = 0, rc; char g[64], za[8];
   if (eye_vb0 < 0) { eye_vb0 = vb; eye_t0 = t; fprintf(stderr, "eye: t 0 at vb %ld (t: ms from this hook)\n", vb); }
   if (sceCtrlPeekBufferPositive(&c, 1) < 1) return;
   r = (c.Buttons & PSP_CTRL_RTRIGGER) != 0;
+  if (dz_on && r) dz_r(vb);   /* gl29: R held, by the arm on the screen */
   if (r == eye_r) return;
   eye_r = r; eye_n[r]++;
   rc = sceDisplayGetFrameBuf(&a, &w, &f, PSP_DISPLAY_SETBUF_IMMEDIATE);
   if (gl_ge) snprintf(g, sizeof g, "draws frame vb %ld into %s", gl_ge_vb, gl_ge_buf == gl_shown_buf ? "THE SHOWN BUFFER" : "the other buffer");
   else snprintf(g, sizeof g, "idle");
   fprintf(stderr, "eye: R %s vb %ld t %llu turn %s two %d ge2 %d flip %s shown frame %ld buffer %d (shown #%ld, %u display vblanks ago); "
-          "the display scans buffer %s; the GE %s\n", r ? "down" : "up", vb, (unsigned long long)((t - eye_t0) / 1000),
+          "the display scans buffer %s; the GE %s%s%s\n", r ? "down" : "up", vb, (unsigned long long)((t - eye_t0) / 1000),
           mq_on && !mq_self ? "me" : "main", mq_on && !mq_self ? two : 0, mq_on && !mq_self ? ge2 : 0, flip_on ? "on" : "off", gl_shown_vb,
-          gl_shown_buf, gl_shown, (unsigned)(sceDisplayGetVcount() - gl_show_vc), rc < 0 ? "?" : fb_nm(fb_off(a)), g);
+          gl_shown_buf, gl_shown, (unsigned)(sceDisplayGetVcount() - gl_show_vc), rc < 0 ? "?" : fb_nm(fb_off(a)), g, dz_on ? "; dz " : "",
+          dz_on ? dz_fnm(gl_shown_vb, za) : "");   /* gl29: the arm of the frame on the screen */
 }
 /* gl28d: MGS2_GL_LIVE, at each vblank hook after the shots (outside the step's time): the buffer handed to the display (gl_shown_buf;
    on the screen, or from the next display vblank, before which the flip wait gives the GE nothing) copied as it is through the uncached
@@ -1630,7 +2051,7 @@ static GL28D_COLD void eye_poll(long vb)
 static GL28D_COLD void gl_live(long vb, int r)
 {
   int in = vb >= live_from && vb <= live_to, per = in && (vb - live_from) % live_every == live_every / 2, rp = 0, b = gl_shown_buf, ok, rc;
-  uint64_t t0; uint32_t rd = 0, dv; void *a = 0; int w = 0, f = 0; char p[256], g[64];
+  uint64_t t0; uint32_t rd = 0, dv; void *a = 0; int w = 0, f = 0; char p[256], g[64], za[8];
   if (in && r && eye_on && live_nr < live_rmax && vb - live_rlast >= 30) rp = 1;
   if (!per && !rp) return;
   if (b < 0) { fprintf(stderr, "picture: gl28 live vb %ld: no frame shown yet\n", vb); return; }
@@ -1643,11 +2064,11 @@ static GL28D_COLD void gl_live(long vb, int r)
   else snprintf(g, sizeof g, "idle");
   ok = gl_bmp(p, b, &rd); if (ok != 1) live_bad++;
   fprintf(stderr, "picture: gl28 live vb %ld (%s%s) turn %s: buffer %d frame vb %ld (shown #%ld, %u display vblanks ago); the display scans "
-          "buffer %s; the other buffer frame vb %ld; the GE %s; lists waiting %u; VRAM read %.1f ms, all %.1f ms: %s %s\n", vb,
+          "buffer %s; the other buffer frame vb %ld; the GE %s; lists waiting %u; VRAM read %.1f ms, all %.1f ms: %s %s%s%s\n", vb,
           per ? "periodic" : "", rp ? (per ? ", R" : "R") : "", mq_on && !mq_self ? "me" : "main", b, gl_buf_vb[b & 1], gl_buf_n[b & 1],
           (unsigned)dv, rc < 0 ? "?" : fb_nm(fb_off(a)), gl_buf_vb[(b & 1) ^ 1], g, mq ? (unsigned)(XS(mq)->listed - mq_cons) : 0u,
           rd / 1000.0, (double)(mq_now() - t0) / 1000.0, ok == 1 ? "saved as" : ok == 0 ? "NOT saved (a write failed):" : "NOT saved (not opened):",
-          p);
+          p, dz_on ? "; dz " : "", dz_on ? dz_fnm(gl_buf_vb[b & 1], za) : "");   /* gl29: the arm of the frame captured */
 }
 /* the loop's waits when the main CPU runs its entries itself: the GE (why 1) waited for here */
 static void mq_wait_self(XmeCtx *x, int why)
@@ -1670,7 +2091,7 @@ static void mq_wait_thr(XmeCtx *x, int why)
 }
 static int mq_thread(SceSize n, void *a)
 {
-  (void)n; (void)a;
+  (void)n; (void)a; { SceKernelThreadInfo ti; memset(&ti, 0, sizeof ti); ti.size = sizeof ti; if (sceKernelReferThreadStatus(sceKernelGetThreadId(), &ti) >= 0 && ti.stack && (uint8_t *)&ti - 512 > (uint8_t *)ti.stack) memset(ti.stack, 0xff, (size_t)((uint8_t *)&ti - 512 - (uint8_t *)ti.stack)); }   /* gl41: the stack's bottom marked (0xff) for the end's deepest-use line, with imports the ELF has */
   pspFpuSetFCR31(0x01000001u);          /* the main thread's rule (main_psp.c, lessons A9): the picture's floats as on the main CPU */
   xme_run(mq, mq_wait_thr);
   return 0;
@@ -1768,7 +2189,7 @@ void mq_setup(void)   /* mp_setup in mode 3, after 4b-2's set-up */
           "MGS2_ME_PIC_TWO): %s; each %u KB and %d extents\n", !mq_turn && two_cfg ? "off (no turns)" : two_cfg == 2 ? "in every other ME turn "
           "(off, on, ...)" : two_cfg == 1 ? "in every ME turn" : "off", (unsigned)(two_ah >> 10), two_xh);
   if (gl_vol2) { mq->fm[0] = gl_vol; mq->fm[1] = gl_vol2; mq->fl[0] = &gxl; mq->fl[1] = &gxl2;
-    mq->fm_arena = GL_PSP_ARENA; mq->fm_nb = GL_PSP_NB; mq->fm_nv = GL_PSP_NV; }
+    mq->fm_arena = GL_PSP_ARENA - nge_k; mq->fm_nb = GL_PSP_NB; mq->fm_nv = GL_PSP_NV; }
   fprintf(stderr, "me picture GE (gl23): two frames on the GE side (the ME begins a frame while the GE draws the one before; MGS2_ME_PIC_GE2): "
           "%s\n", !gl_vol2 ? "off (one frame memory)" : ge2_cfg == 2 ? "in every other ME turn (off, on, ...)" : ge2_cfg == 1 ? "in every ME turn" : "off");
   if ((e = mgs2_getenv("MGS2_ME_PIC_TBK_MS")) && atoi(e) > 0) mq_tbk_us = (uint32_t)atoi(e) * 1000u;
@@ -1784,6 +2205,8 @@ void mq_setup(void)   /* mp_setup in mode 3, after 4b-2's set-up */
                              "MGS2_ME_PIC_GE2 for the second frame memory); a 'gl28 ge2 a/b' line at each ME turn's start from then on\n",
                              ge2_ab); }
   mq_ft_on = glf.ft_on;
+  nat_psp_setup();   /* native step 1 */
+  nge_psp_setup();   /* native step 1 (MGS2_NGE): after the native arrays, before the ME starts */
   xm_install(&xmp);   /* the translator's callbacks are the loop's (ge/xlme.c xm_on_*: its frame, xmp.now), no longer on_call's */
   mq_on = 1; mq_self = 1;   /* (the thread starts after the translator's reset: mq_start) */
   if (mq_m4) mq_lines();   /* step 4d-3 */
@@ -1851,7 +2274,10 @@ void mq_start(void)   /* xlive_chk_dma's start, after xl_reset: the loop's threa
 #endif
   xme_bind(mq, mq_wait_thr);   /* step 4d-4: the heap's requests' ctx and wait (the thread's) */
   mq_sem = sceKernelCreateSema("me_pic", 0, 0, 1, 0);
-  mq_th = mq_sem >= 0 ? sceKernelCreateThread("me_pic", mq_thread, pri, 64 << 10, PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, 0) : -1;
+  /* gl41: the thread's stack 16 KB (was 64 KB), the real ME's own stack size (mecheck's deepest chain 5,120 bytes): with native step 1's
+     tables and the cooker's scratch outside newlib's heap, partition 2 keeps 27 KB in its largest block, and a 64 KB stack was refused
+     (80020190) on the emulator, where the main CPU then ran every entry itself (no turns).  The ME on hardware uses no thread. */
+  mq_th = mq_sem >= 0 ? sceKernelCreateThread("me_pic", mq_thread, pri, MQ_THR_STK, PSP_THREAD_ATTR_USER | PSP_THREAD_ATTR_VFPU, 0) : -1;
   if (mq_th < 0 || sceKernelStartThread(mq_th, 0, 0) < 0) {
     fprintf(stderr, "me picture loop: no thread (semaphore %08x, thread %08x): the main CPU runs the loop's entries itself\n", (unsigned)mq_sem,
             (unsigned)mq_th);
@@ -2033,6 +2459,297 @@ static void mq_takeback(int why)
 }
 /* 4b-2's mp_fill_all: the ME lays the log over the early copies (FILL), the main CPU waits for it, then empties the log and the filter.
    1: a take-back meanwhile (the records dropped) */
+/* ---- native step 1 (native_renderer_design.md 6.1; ge/natsnap.h, boot/nat_stub.h, ge/xlme.h XmPic): the main CPU's hand-off.
+   The stub (boot.c) writes a picture's ship-mesh groups into the array of its packet buffer.  As a transfer ends, its copy's plan
+   (xm_plan) takes the groups its tags reach and keeps their data as extents, and the groups themselves get room in the arena: the
+   ME copies them there with the extents (REC) and its walk draws them (merged by key).  A record walked from RAM takes them in place
+   and answers how many.  Nothing here is read by the game. ---- */
+static int nat_on;                       /* the arrays made (mode 4): arm B's groups are drawn */
+static SceUID nat_rsys = -1;   /* gl36 */
+static SceUID nat_sys[2] = { -1, -1 }; static uint32_t nat_sys_free[4], nat_sys_n; static int nat_one;   /* nat_one: one array for both buffers */
+static uint8_t nat_unf[2];               /* a buffer's groups are in a copy the ME may not have made yet (a record posted without a wait) */
+static long nat_n_sync, nat_n_plan, nat_n_plang, nat_n_dirg, nat_n_room; static uint32_t nat_ca_max;
+/* native step 2: the people's arrays (boot/np6_stub.h g_np6), beside the ship's and by the same rules: a block each of the system's memory
+   outside newlib's heap (NP6_MAXGRP records of 72 B: 72 KB each); a transfer's plan takes the people its tags reach with the ship's, the
+   ME copies them after the ship's (ge/xme.h XME_POFF) */
+extern NatP6Buf g_np6[2]; extern int g_np6_cfg; extern long g_np6_c[N6_N];
+static int np6_on; static SceUID np6_sys[2] = { -1, -1 }; static long np6_n_plang, np6_n_dirg;
+static long np6_c0[N6_N], np6_t0n[8];   /* step 2: the people's counts at the turn's start (nat_t0set) */
+static int np6_pend(int b, const NatP6 **g)
+{
+  const NatP6Buf *q = &g_np6[b];
+  if (!np6_on || !q->g || !q->draw || q->seq != g_nat_bseq[b] || q->cur >= q->n) return 0;
+  *g = q->g + q->cur; return (int)(q->n - q->cur);
+}
+static int nat_pend(int b, const NatGrp **g)   /* buffer b's groups no transfer has taken: the pipeline call that last started in b wrote them */
+{
+  const NatBuf *s = &g_nat[b];
+  if (!nat_on || !s->g || !s->draw || s->seq != g_nat_bseq[b] || s->cur >= s->n) return 0;
+  *g = s->g + s->cur; return (int)(s->n - s->cur);
+}
+static void nat_direct_pre(MpRec *e)     /* a record walked from RAM: both buffers' waiting groups offered (the walk binds one) */
+{
+  const NatGrp *g;
+  e->nb = -1; e->noff = 0;
+  for (int b = 0; b < 2; b++) { e->ngn[b] = (int16_t)(e->ch == 1 && e->lanes ? nat_pend(b, &g) : 0); e->ng0[b] = (int16_t)g_nat[b].cur; e->nru[b] = (uint8_t)g_nat[b].ru; }   /* gl36: nru */
+  if (e->ngn[0] | e->ngn[1]) { XS(mq)->nat_b = -1; XS(mq)->nat_used = 0; }
+  { const NatP6 *q; for (int b = 0; b < 2; b++) { e->pn[b] = (int16_t)(e->ch == 1 && e->lanes ? np6_pend(b, &q) : 0); e->p0[b] = (int16_t)g_np6[b].cur; } }   /* step 2 */
+  if (e->pn[0] | e->pn[1]) { XS(mq)->np6_b = -1; XS(mq)->np6_used = 0; }
+}
+static void nat_direct_post(const MpRec *e)   /* after the wait for that walk: the groups it took */
+{
+  int b; uint32_t u;
+  if (e->pn[0] | e->pn[1]) {   /* step 2: the people's */
+    XME_BARRIER(); b = XS(mq)->np6_b; u = XS(mq)->np6_used;
+    if (b >= 0 && b < 2 && u <= (uint32_t)e->pn[b]) { g_np6[b].cur += u; np6_n_dirg += (long)u; } }
+  if (!(e->ngn[0] | e->ngn[1])) return;
+  XME_BARRIER(); b = XS(mq)->nat_b; u = XS(mq)->nat_used;
+  if (b >= 0 && b < 2 && u <= (uint32_t)e->ngn[b]) { g_nat[b].cur += u; nat_n_dirg += (long)u; }
+}
+static void nat_psp_sync(int b)          /* the stub's (g_nat_sync): buffer b's array is about to be written again */
+{
+  if (!mq_on || mq_dead || !(nat_unf[b] | (nat_one ? nat_unf[b ^ 1] : 0))) return;   /* (one array for both: either one's copy still owed) */
+  nat_n_sync++;
+  if (mp_unfilled && !mq_self) (void)mq_fill(3);   /* the ME's copies made first (an early fill.  With an array each none is
+                                                       expected: a buffer's transfers end a hook before its next pipeline call.  With
+                                                       one array every picture of an ME turn has one: the next pipeline call begins
+                                                       before the hook that lays the sent picture's copies [C emulator q3]) */
+  nat_unf[0] = nat_unf[1] = 0;
+}
+int rt_np6_arm_at(long vb);
+static void np6_psp_setup(void)          /* native step 2 (nat_psp_setup's start): the people's two arrays, when an arm or MGS2_NGE_CYCLE's digit 2 asks */
+{
+  const uint32_t one = ((uint32_t)NP6_MAXGRP * (uint32_t)sizeof(NatP6) + 63u) & ~63u; uint8_t *bl[2] = { 0, 0 };
+  (void)rt_np6_arm_at(0);   /* (the switches read: g_np6_cfg) */
+  if (!g_np6_cfg) return;
+  if (nge_np6_bytes()) { fprintf(stderr, "native step 2: the people's arrays come from the carve after the opening (nge_psp_setup)\n"); return; }
+  if (!mq_m4) { fprintf(stderr, "native step 2: the people's groups are drawn only by mode 4's loop (MGS2_ME_PIC=4): their calls stay stubbed "
+                        "and NOTHING DRAWS them in this run\n"); return; }
+  for (int i = 0; i < 2; i++) {
+    np6_sys[i] = sceKernelAllocPartitionMemory(2, i ? "np6_groups1" : "np6_groups0", PSP_SMEM_Low, one, 0);
+    if (np6_sys[i] >= 0) bl[i] = (uint8_t *)sceKernelGetBlockHeadAddr(np6_sys[i]);
+    if (bl[i] && ((uintptr_t)bl[i] & 63)) bl[i] = 0; }
+  if (bl[0] && bl[1]) { g_np6[0].g = (NatP6 *)(void *)bl[0]; g_np6[1].g = (NatP6 *)(void *)bl[1]; mq->np6_g[0] = g_np6[0].g; mq->np6_g[1] = g_np6[1].g; np6_on = 1;
+    g_nat_sync = nat_psp_sync; }   /* (the stub's, before a people array is written again: as the ship's) */
+  fprintf(stderr, "native step 2: the people's arrays: %d groups of %u B a packet buffer, 2 x %u KB of the system's memory outside newlib's heap: %s "
+          "(%08x, %08x); largest free block now %u KB, total %u KB\n", NP6_MAXGRP, (unsigned)sizeof(NatP6), (unsigned)(one >> 10),
+          np6_on ? "made" : "NOT MADE: the people's calls in arm 3 are stubbed with no record kept (NOTHING DRAWS them)",
+          (unsigned)(uintptr_t)bl[0], (unsigned)(uintptr_t)bl[1], (unsigned)(sceKernelMaxFreeMemSize() >> 10), (unsigned)(sceKernelTotalFreeMemSize() >> 10));
+}
+static void nat_psp_setup(void)          /* mq_setup's end */
+{
+  const char *e; uint32_t one = ((uint32_t)NAT_MAXGRP * (uint32_t)sizeof(NatGrp) + 63u) & ~63u;
+  (void)rt_nat_arm_at(0, 0);   /* (the schedule read, its line printed) */
+  (void)rt_bound_at(0, 0);     /* gl38: the bound cycle and F1's switches read, their lines printed */
+  p9_setup();                  /* gl39 */
+  p10_setup();                 /* gl40 */
+  gl_bd_near = (e = mgs2_getenv("MGS2_GL_RAIN_NEAR")) ? atoi(e) : 0;   /* gl38 (ge/gelive.c gl_bd_near_call), before the ME starts */
+  if (g_bd_cfg || g_bd_rain) fprintf(stderr, "bound: MGS2_GL_RAIN_NEAR %d (the drop sheets' calls a frame without the rain keeps: the last n of its sheet calls, the nearest; 0 all of them)\n", gl_bd_near);
+  mq->nat_t_on = !((e = mgs2_getenv("MGS2_NAT_T")) && !atoi(e));
+  mq->nh_chk = (e = mgs2_getenv("MGS2_NAT_HCHK")) ? atoi(e) : 0;   /* gl34 (ge/xlme.c lw_nptr_h): a check for the emulator's runs */
+  mq->ns_on = mq->nat_t_on && (e = mgs2_getenv("MGS2_NAT_SPLIT")) && atoi(e) > 0;   /* gl34 (ge/natsplit.h), before the ME starts */
+  fprintf(stderr, "nat split (gl34, MGS2_NAT_SPLIT; the lines 'nat split' and 'me chains' of each ME turn): %s; a group in about %d timed by stage\n",
+          mq->ns_on ? "on" : "off", NS_EVERY);
+  np6_psp_setup();   /* native step 2: the people's arrays */
+  if (!g_nat_cfg) { fprintf(stderr, "native step 1: off (no arm in MGS2_NAT or MGS2_NAT_CYCLE): the builder 0x1214a0 runs as always\n"); return; }
+  if (!mq_m4) { fprintf(stderr, "native step 1: the groups are drawn only by mode 4's loop (MGS2_ME_PIC=4): arm 3 stubs the builder and "
+                        "NOTHING DRAWS its groups in this run\n"); return; }
+  nat_sys_free[0] = (uint32_t)sceKernelMaxFreeMemSize(); nat_sys_free[1] = (uint32_t)sceKernelTotalFreeMemSize();
+  { uint8_t *bl[2] = { 0, 0 };   /* a block each (two small blocks fit where one of twice the size may not); one only: both buffers share it */
+    for (int i = 0; i < 2; i++) {
+      if (i && (e = mgs2_getenv("MGS2_NAT_ONE")) && atoi(e)) break;   /* (a test: one array as if the second block were refused) */
+      nat_sys[i] = sceKernelAllocPartitionMemory(2, i ? "nat_groups1" : "nat_groups0", PSP_SMEM_Low, one, 0);
+      if (nat_sys[i] >= 0) bl[i] = (uint8_t *)sceKernelGetBlockHeadAddr(nat_sys[i]);
+      if (bl[i] && ((uintptr_t)bl[i] & 63)) { fprintf(stderr, "native step 1: block %d is not on a 64-byte line (%08x): not used\n", i, (unsigned)(uintptr_t)bl[i]); bl[i] = 0; }
+      if (bl[i]) nat_sys_n += one; }
+    if (!bl[0]) { bl[0] = bl[1]; bl[1] = 0; }
+    if (bl[0]) { nat_one = !bl[1]; g_nat[0].g = (NatGrp *)(void *)bl[0]; g_nat[1].g = (NatGrp *)(void *)(bl[1] ? bl[1] : bl[0]);
+      mq->nat_g[0] = g_nat[0].g; mq->nat_g[1] = g_nat[1].g; g_nat_sync = nat_psp_sync; nat_on = 1; } }
+  nat_sys_free[2] = (uint32_t)sceKernelMaxFreeMemSize(); nat_sys_free[3] = (uint32_t)sceKernelTotalFreeMemSize();
+  fprintf(stderr, "native step 1: the groups' arrays: %d groups of %u B a packet buffer, %u KB of the system's memory outside newlib's heap: %s "
+          "(%08x, %08x); that memory before: largest block %u KB, total %u KB; after: %u KB, %u KB; the merge runs timed on the ME "
+          "(MGS2_NAT_T): %s\n", NAT_MAXGRP, (unsigned)sizeof(NatGrp), (unsigned)(nat_sys_n >> 10),
+          !nat_on ? "NOT MADE: arm 3's calls stay stubbed (the run's state as planned) and NOTHING DRAWS their groups" :
+          nat_one ? "ONE ARRAY ONLY, shared by both buffers (the pictures are the same; each ME-turn picture then has an early fill: arm "
+                    "3's hold is not the design's)" : "made, an array each",
+          (unsigned)(uintptr_t)g_nat[0].g, (unsigned)(uintptr_t)g_nat[1].g,
+          (unsigned)(nat_sys_free[0] >> 10), (unsigned)(nat_sys_free[1] >> 10), (unsigned)(nat_sys_free[2] >> 10),
+          (unsigned)(nat_sys_free[3] >> 10), mq->nat_t_on ? "yes" : "no");
+  if (nat_on && g_nat_rcfg) {   /* gl36: the reuse's table (ge/xlate.h NrEnt), a block of the system's memory outside newlib's heap */
+    static const int cap_try[4] = { NAT_MAXGRP, 1536, 1024, 512 }; uint8_t *bl = 0; int cap = 0;
+    uint32_t f0 = (uint32_t)sceKernelMaxFreeMemSize(), f1 = (uint32_t)sceKernelTotalFreeMemSize();
+    for (int k = 0; k < 4 && !bl; k++) {
+      uint32_t nb = (uint32_t)XL_NR_BYTES(cap_try[k]);   /* gl36 fix B: + the last writers (ge/xlate.h XL_NR_LW_N) */
+      nat_rsys = sceKernelAllocPartitionMemory(2, "nat_reuse", PSP_SMEM_Low, nb, 0);
+      if (nat_rsys >= 0) { bl = (uint8_t *)sceKernelGetBlockHeadAddr(nat_rsys); cap = cap_try[k];
+        if (bl && ((uintptr_t)bl & 63)) { bl = 0; cap = 0; break; } } }   /* (not on a 64-byte line: not used; the system's blocks are) */
+    if (bl) { memset(bl, 0, XL_NR_BYTES(cap)); sceKernelDcacheWritebackAll(); xl_nr_table((NrEnt *)(void *)bl, cap, g_nat_rchk); }
+    fprintf(stderr, "nat reuse (gl36): the table: %s, %d entries of %u B = %u KB and the last writers' 2 KB (%08x); the system's memory before: largest block %u KB, total %u KB; "
+            "after: %u KB, %u KB; check mode (MGS2_NAT_RCHK) %d\n", bl ? "made" : "NOT MADE: nothing is reused", cap, (unsigned)sizeof(NrEnt),
+            (unsigned)((uint32_t)cap * (uint32_t)sizeof(NrEnt) >> 10), (unsigned)(uintptr_t)bl, (unsigned)(f0 >> 10), (unsigned)(f1 >> 10),
+            (unsigned)((uint32_t)sceKernelMaxFreeMemSize() >> 10), (unsigned)((uint32_t)sceKernelTotalFreeMemSize() >> 10), g_nat_rchk);
+  }
+}
+/* a line per turn (ME turn: mq_tend; main CPU turn: mq_tstart), the counts since the turn before */
+static long nat_c0[NC_N], nat_t0n[16]; static uint64_t nat_t0t, nat_w0[2];
+static uint32_t ns_cha[NS_CH]; static int ns_chn; static long ns_ch_lists, ns_ch_unl, ns_ch_in;
+static NatSplit ns_s0; static long ns_fst0, ns_nf0[8], ns_km0[4], ns_l0[3], ns_nh0[3]; static uint64_t ns_rec0, ns_wk0, ns_b0, ns_q0, ns_nb0;   /* gl34: the counts at the turn's start */
+static const char *const ns_name[NS_PN] = { "walk and pointers", "register", "A+D packet", "call's rest", "host call and GS state", "transform", "positions",
+  "cut test", "attributes", "texture", "strips", "GE transform and batch data", "depth range", "into the frame", "way back", "drawn areas", "walk's end",
+  /* gl38, the people's own stages */ "to the hold: test, GS state and texture", "the call kept", "passes' look-ups", "header, bones and lights", "vertices",
+  "strips, GE data and passes' records", "into the frame", "passes into the frame" };
+static uint64_t tm_h0[XME_H_N], tm_gx0[GX_T_N], tm_r0[XME_R_N], tm_l0; static long tm_n0[4], tm_rec0, tm_hk0, tm_ls0, tm_gl0, tm_gc0, f1_n0[12];   /* gl38: the timers' and F1's counts at the turn's start */
+static void nat_t0set(void)
+{
+  for (int k = 0; k < NC_N; k++) nat_c0[k] = g_nat_c[k];
+  g_nat_c[NC_GRP_MAX] = 0;   /* (the turn's own most) */
+  nat_t0n[0] = nat_n_plan; nat_t0n[1] = nat_n_plang; nat_t0n[2] = nat_n_dirg; nat_t0n[3] = nat_n_room; nat_t0n[4] = nat_n_sync;
+  nat_t0n[5] = mq->n_natrec; nat_t0n[6] = mq->n_natg; nat_t0n[7] = xmp.nat_runs; nat_t0n[8] = xmp.nat_core; nat_t0n[9] = xmp.nat_fed;
+  nat_t0n[10] = xmp.nat_bad; nat_t0n[11] = xmp.nat_late; nat_t0n[12] = xmp.nat_stop; nat_t0n[13] = xmp.nat_in; nat_t0n[14] = xmp.nat_out;
+  nat_t0n[15] = xmp.nat_part; nat_t0t = xmp.nat_t; nat_w0[0] = mq_wus[MW_FILL]; nat_w0[1] = mq_wus[MW_NOW];
+  nat_ca_max = 0; nat_fa[0] = nat_fa[1] = nat_fa[2] = 0;
+  for (int k = 0; k < N6_N; k++) np6_c0[k] = g_np6_c[k];   /* step 2 */
+  g_np6_c[N6_GRP_MAX] = 0;
+  np6_t0n[0] = np6_n_plang; np6_t0n[1] = np6_n_dirg; np6_t0n[2] = mq->n_np6g; np6_t0n[3] = xmp.np6_runs; np6_t0n[4] = xmp.np6_core;
+  np6_t0n[5] = xmp.np6_fed; np6_t0n[6] = xmp.np6_bad; np6_t0n[7] = xmp.np6_late;
+  nat_stc0 = g_nat_stc;   /* gl33 */
+  nk_kpt0 = g_nat_kpt; for (int k = 0; k < 9; k++) nk_n0[k] = xl_nk_n[k];   /* gl35 */
+  for (int k = 0; k < 20; k++) nr_n0[k] = xl_nr_n[k];   /* gl36 */
+  for (int k = 0; k < 8; k++) nr_r0[k] = xl_nr_r[k];   /* gl37 */
+  for (int k = 0; k < XME_H_N; k++) tm_h0[k] = mq->t_h[k];   /* gl38 */
+  for (int k = 0; k < GX_T_N; k++) tm_gx0[k] = mq->t_gx[k];
+  for (int k = 0; k < XME_R_N; k++) tm_r0[k] = mq->t_r[k];
+  for (int k = 0; k < 4; k++) tm_n0[k] = mq->n_gx[k];
+  tm_l0 = mq->t_k[XME_T_LIST]; tm_rec0 = mq->n_rec; tm_hk0 = mq->n_hook; tm_ls0 = mq->n_list; tm_gl0 = mq->n_gxl; tm_gc0 = mq->n_gxc;
+  for (int k = 0; k < 12; k++) f1_n0[k] = xl_f1_n[k];
+  ns_s0 = g_ns; ns_fst0 = g_nat_fst; for (int k = 0; k < 8; k++) ns_nf0[k] = xl_nf_n[k]; for (int k = 0; k < 4; k++) ns_km0[k] = vc_km_n[k];   /* gl34 */
+  for (int k = 0; k < 3; k++) ns_nh0[k] = lw_nh_n[k];
+  ns_wk0 = mq->t_k[XE_WALK]; ns_rec0 = mq->t_k[XE_REC]; ns_b0 = xmc.bytes; ns_q0 = xmc.nat_qw; ns_nb0 = mq->n_natb; ns_l0[0] = ns_ch_lists; ns_l0[1] = ns_ch_unl; ns_l0[2] = ns_ch_in;
+}
+static void nat_tline(const char *who, long vb0, long vb, int me)
+{
+  long turn = -1, pics; int arm;
+  if (!g_nat_cfg) return;
+  arm = rt_nat_arm_at(vb0 + 1, &turn); pics = g_nat_c[NC_PICS] - nat_c0[NC_PICS];
+  if (turn < 0 && !arm && !pics && g_nat_c[NC_STUBC] == nat_c0[NC_STUBC]) return;   /* before the cycle, the builder's arm: no line */
+  fprintf(stderr, "nat turn vb %ld-%ld %s arm %d (%s; cycle turn %ld): calls recorded %ld, groups %ld, pictures with records %ld; snapshot bytes a "
+          "picture: mean %ld, most %ld; stubbed with no record %ld; calls with no group %ld; the builder run instead (dropped records) %ld: "
+          "array full %ld, key order %ld, near the buffer's end %ld, other %ld; recorded with no array %ld; groups left untaken %ld; "
+          "transfers planned with groups %ld (%ld groups), groups taken by walks from RAM %ld, plans undone for the groups' room %ld, early "
+          "fills for an array's reuse %ld; ",
+          vb0, vb, who, arm, arm == 3 ? "native" : arm == 4 ? "stubbed, not drawn" : arm ? "?" : "the builder", turn,
+          g_nat_c[NC_REC] - nat_c0[NC_REC], g_nat_c[NC_GRP] - nat_c0[NC_GRP], pics,
+          pics ? (long)sizeof(NatGrp) * (g_nat_c[NC_GRP] - nat_c0[NC_GRP]) / pics : 0, (long)sizeof(NatGrp) * g_nat_c[NC_GRP_MAX],
+          g_nat_c[NC_STUBC] - nat_c0[NC_STUBC], g_nat_c[NC_EMPTY] - nat_c0[NC_EMPTY],
+          g_nat_c[NC_FB_FULL] - nat_c0[NC_FB_FULL] + g_nat_c[NC_FB_ORDER] - nat_c0[NC_FB_ORDER] + g_nat_c[NC_FB_END] - nat_c0[NC_FB_END] +
+          g_nat_c[NC_FB_OTHER] - nat_c0[NC_FB_OTHER], g_nat_c[NC_FB_FULL] - nat_c0[NC_FB_FULL], g_nat_c[NC_FB_ORDER] - nat_c0[NC_FB_ORDER],
+          g_nat_c[NC_FB_END] - nat_c0[NC_FB_END], g_nat_c[NC_FB_OTHER] - nat_c0[NC_FB_OTHER], g_nat_c[NC_NOMEM] - nat_c0[NC_NOMEM],
+          g_nat_c[NC_LEFT] - nat_c0[NC_LEFT], nat_n_plan - nat_t0n[0], nat_n_plang - nat_t0n[1], nat_n_dirg - nat_t0n[2],
+          nat_n_room - nat_t0n[3], nat_n_sync - nat_t0n[4]);
+  fprintf(stderr, "the picture's side: records' groups copied %ld (%ld groups), merge runs %ld, groups to the core %ld, fed word by word %ld, "
+          "dropped %ld, drawn at a walk's end %ld, run lanes stopped at a key %ld, the groups' data in the copy %ld, read from RAM %ld, partly "
+          "(dropped) %ld; native time %.2f ms (%s); hold: the main CPU waited for fills %.1f ms, for copies as they ended %.1f ms; frame "
+          "arena, most: %ld of %d batches, %ld of %d vertices, %ld KB of %u KB data; copy arena, most in a step: %u KB of %u KB\n",
+          mq->n_natrec - nat_t0n[5], mq->n_natg - nat_t0n[6], xmp.nat_runs - nat_t0n[7], xmp.nat_core - nat_t0n[8], xmp.nat_fed - nat_t0n[9],
+          xmp.nat_bad - nat_t0n[10], xmp.nat_late - nat_t0n[11], xmp.nat_stop - nat_t0n[12], xmp.nat_in - nat_t0n[13],
+          xmp.nat_out - nat_t0n[14], xmp.nat_part - nat_t0n[15], me ? (double)(xmp.nat_t - nat_t0t) / mq_tdiv : 0.0,
+          !me ? "not timed in the main CPU's turns" : mq->nat_t_on ? "on the ME; the emulator: its loop thread" : "MGS2_NAT_T=0: not timed",
+          (double)(mq_wus[MW_FILL] - nat_w0[0]) / 1000.0, (double)(mq_wus[MW_NOW] - nat_w0[1]) / 1000.0, (long)nat_fa[0], GL_PSP_NB,
+          (long)nat_fa[1], GL_PSP_NV, (long)(nat_fa[2] >> 10), (unsigned)(GL_PSP_ARENA >> 10), (unsigned)(nat_ca_max >> 10),
+          (unsigned)((two ? two_ah : two_an ? two_an : xmc.arena_n) >> 10));
+  if (g_np6_cfg)   /* step 2: the people's records (boot/np6_stub.h) and their side of the picture */
+    fprintf(stderr, "np6 turn vb %ld-%ld %s arm %d: calls recorded %ld, groups %ld (most in a picture %ld), pictures %ld; stubbed with no record "
+            "%ld; calls with no group %ld; the builder run instead: array full %ld, key order %ld, near the buffer's end %ld, other %ld (the game's "
+            "memo behind the stub's %ld); recorded with no array %ld; groups left untaken %ld; groups planned with transfers %ld, taken by walks "
+            "from RAM %ld; the picture's side: groups copied %ld, runs %ld, groups to the core %ld, fed word by word %ld, dropped %ld, drawn at a "
+            "walk's end %ld; calls in arm 3 that ran the builder %ld (the growth late %ld)\n", vb0, vb, who, rt_np6_arm_at(vb0 + 1), g_np6_c[N6_REC] - np6_c0[N6_REC], g_np6_c[N6_GRP] - np6_c0[N6_GRP],
+            g_np6_c[N6_GRP_MAX], g_np6_c[N6_PICS] - np6_c0[N6_PICS], g_np6_c[N6_STUBC] - np6_c0[N6_STUBC], g_np6_c[N6_EMPTY] - np6_c0[N6_EMPTY],
+            g_np6_c[N6_FB_FULL] - np6_c0[N6_FB_FULL], g_np6_c[N6_FB_ORDER] - np6_c0[N6_FB_ORDER], g_np6_c[N6_FB_END] - np6_c0[N6_FB_END],
+            g_np6_c[N6_FB_OTHER] - np6_c0[N6_FB_OTHER], g_np6_c[N6_FB_MEMO] - np6_c0[N6_FB_MEMO], g_np6_c[N6_NOMEM] - np6_c0[N6_NOMEM],
+            g_np6_c[N6_LEFT] - np6_c0[N6_LEFT], np6_n_plang - np6_t0n[0], np6_n_dirg - np6_t0n[1], mq->n_np6g - np6_t0n[2],
+            xmp.np6_runs - np6_t0n[3], xmp.np6_core - np6_t0n[4], xmp.np6_fed - np6_t0n[5], xmp.np6_bad - np6_t0n[6], xmp.np6_late - np6_t0n[7],
+            g_np6_c[N6_NOARR] - np6_c0[N6_NOARR], g_np6_c[N6_LATE] - np6_c0[N6_LATE]);
+  fprintf(stderr, "nat inpl vb %ld-%ld %s arm %d inpl %d (gl33; 1: a static group's three streams stay in RAM): groups flagged static %ld\n",
+          vb0, vb, who, arm, rt_nat_inpl_at(vb0 + 1), g_nat_stc - nat_stc0);
+  /* gl34: the fast front end's counts (the picture's side counts the groups it drew in the turn; the flags are the recorder's) */
+  fprintf(stderr, "nat fast vb %ld-%ld %s arm %d fast %d (gl34; 1: arm 3's groups go to the fast front end): groups flagged %ld; the picture's side: "
+          "taken %ld, declined: state %ld, entry %ld, buffers %ld, stream counts %ld, material tag %ld, tables full %ld, path 1 busy %ld; "
+          "transforms taken from the last keyed call %ld, computed and kept %ld; pointers by their own hints %ld (MGS2_NAT_HCHK %d: checked %ld, "
+          "differing %ld)\n", vb0, vb, who, arm, rt_nat_fast_at(vb0 + 1), g_nat_fst - ns_fst0,
+          xl_nf_n[0] - ns_nf0[0], xl_nf_n[1] - ns_nf0[1], xl_nf_n[2] - ns_nf0[2], xl_nf_n[3] - ns_nf0[3], xl_nf_n[4] - ns_nf0[4],
+          xl_nf_n[5] - ns_nf0[5], xl_nf_n[6] - ns_nf0[6], xl_nf_n[7] - ns_nf0[7], vc_km_n[0] - ns_km0[0], vc_km_n[1] - ns_km0[1],
+          lw_nh_n[0] - ns_nh0[0], mq->nh_chk, lw_nh_n[2] - ns_nh0[2], lw_nh_n[1] - ns_nh0[1]);
+  /* gl35: the keeps' counts (the picture's side; the flags are the recorder's) */
+  fprintf(stderr, "nat keep vb %ld-%ld %s arm %d keep %d (gl35; bits: 1 drawn areas, 2 A+D packet, 4 / 8 texture): groups flagged %ld; the picture's "
+          "side: drawn areas replayed %ld, checked %ld, differing %ld; textures replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not "
+          "made %ld, PRIM writes in line %ld (MGS2_NAT_KCHK %d)\n", vb0, vb, who, arm, rt_nat_keep_at(vb0 + 1), g_nat_kpt - nk_kpt0,
+          xl_nk_n[0] - nk_n0[0], xl_nk_n[1] - nk_n0[1], xl_nk_n[2] - nk_n0[2], xl_nk_n[3] - nk_n0[3], xl_nk_n[4] - nk_n0[4], xl_nk_n[5] - nk_n0[5],
+          xl_nk_n[6] - nk_n0[6], xl_nk_n[7] - nk_n0[7], xl_nk_n[8] - nk_n0[8], xl_keep_chk);
+  if (xl_nr_cap) { long d[20]; for (int k = 0; k < 20; k++) d[k] = xl_nr_n[k] - nr_n0[k];   /* gl36: the reuse's counts (the picture's side) */
+    fprintf(stderr, "nat reuse vb %ld-%ld %s arm %d reuse %d (gl36; 1: a fast run that matches its kept entries is replayed): runs replayed %ld (groups %ld, "
+            "skipping %ld, in S %ld), recorded %ld (groups %ld; kept %ld, not kept %ld), checked %ld (groups %ld; S differing %ld, boxes differing %ld); boxes "
+            "recorded %ld, kept boxes taken %ld, cut %ld, positions then needed %ld; no table room %ld; replays with a group not taken %ld, with a decline %ld "
+            "(MGS2_NAT_RCHK %d)\n", vb0, vb, who, arm, rt_nat_reuse_at(vb0 + 1), d[0], d[1], d[18], d[2], d[3], d[4], d[5], d[13], d[6], d[7], d[8], d[9],
+            d[16], d[10], d[11], d[12], d[14], d[15], d[17], g_nat_rchk);
+    long q[8]; for (int k = 0; k < 8; k++) q[k] = xl_nr_r[k] - nr_r0[k];   /* gl37 */
+    fprintf(stderr, "nat reuse rule vb %ld-%ld %s arm %d reuse %d rule %d (gl37; 1: a run that does not match is recorded only while the last two pictures "
+            "replayed well): groups tried %ld, replayed or the same as the picture before %ld; runs not recorded %ld (groups %ld), the same as their shadow %ld "
+            "(groups %ld); pictures recording %ld, not recording %ld\n", vb0, vb, who, arm, rt_nat_reuse_at(vb0 + 1), xl_nr_rule, q[6], q[7], q[0], q[1], q[2],
+            q[3], q[4], q[5]); }
+  if (g_nat_f1cfg || g_nat_f1chk) { long d[12]; for (int k = 0; k < 12; k++) d[k] = xl_f1_n[k] - f1_n0[k];   /* gl38: F1's counts (the picture's side) */
+    fprintf(stderr, "nat f1 vb %ld-%ld %s arm %d F1 %d (gl38; 1: in a fast run that is not replayed, a group whose VU writes a later group of the run "
+            "overwrites does not write them): runs planned %ld (groups %ld, of them not written %ld, without the fast form %ld), runs not planned %ld (state %ld, a group without an "
+            "MSCAL %ld), planned runs with a problem %ld; check mode: groups compared %ld, DIFFERING %ld, written by the plan and not by the notes %ld, "
+            "skipped by the plan ahead of a group that declined when it ran %ld (MGS2_NAT_F1CHK %d)\n", vb0, vb, who, arm, rt_nat_f1_at(vb0), d[0], d[1], d[2],
+            d[10], d[3], d[8], d[9], d[4], d[5], d[6], d[7], d[11], g_nat_f1chk); }
+  if (me) {   /* gl38: the hooks', lists' and records' parts (ge/xme.h XME_H_*, XME_R_*; ge/gelist.h GX_T_*), the ME's own time in ms */
+    double h[XME_H_N], g[GX_T_N], r[XME_R_N], gs = 0, d = (double)mq_tdiv, l = (double)(mq->t_k[XME_T_LIST] - tm_l0) / d;
+    for (int k = 0; k < XME_H_N; k++) h[k] = (double)(mq->t_h[k] - tm_h0[k]) / d;
+    for (int k = 0; k < GX_T_N; k++) { g[k] = (double)(mq->t_gx[k] - tm_gx0[k]) / d; gs += g[k]; }
+    for (int k = 0; k < XME_R_N; k++) r[k] = (double)(mq->t_r[k] - tm_r0[k]) / d;
+    fprintf(stderr, "me turn vb %ld-%ld gl38 timers (ms, the ME's own; each part holds one clock read a hook or a record): hooks %ld, lists %ld: frame ends "
+            "%.2f, frame ends and lists %.2f, results and cache out %.2f, frame starts %.2f, texture cache's frame %.2f; records %ld: out of the cache %.2f, "
+            "extents copied %.2f, native groups copied %.2f; the list build by part, in %ld of the lists (one in %d; a clock read at each change of the "
+            "batches' kind, %ld of them; ms in those lists): depth %.2f, set-up and clear %.2f, GS primitives' batches %.2f (%ld), ship batches %.2f (%ld), "
+            "effects' batches %.2f (%ld), people's batches %.2f (%ld), list's end %.2f, digests %.2f, sum %.2f\n", vb0, vb,
+            mq->n_hook - tm_hk0, mq->n_list - tm_ls0, h[XME_H_END], l, h[XME_H_RES], h[XME_H_BEGIN], h[XME_H_TKF], mq->n_rec - tm_rec0, r[XME_R_INV],
+            r[XME_R_COPY], r[XME_R_NAT], mq->n_gxl - tm_gl0, XME_GX_EVERY, mq->n_gxc - tm_gc0, g[GX_T_DEPTH], g[GX_T_SETUP], g[GX_T_KIND],
+            mq->n_gx[0] - tm_n0[0], g[GX_T_KIND + 1], mq->n_gx[1] - tm_n0[1], g[GX_T_KIND + 2], mq->n_gx[2] - tm_n0[2], g[GX_T_KIND + 3],
+            mq->n_gx[3] - tm_n0[3], g[GX_T_TAIL], g[GX_T_DIG], gs); }
+  if (me && mq->ns_on) {   /* gl38 (ge/natsplit.h): a people group (lane 2, P06) by stage, at the walk and at its flush */
+    const NatSplit *s = &g_ns; long pn = s->pn - ns_s0.pn, hn = s->phn - ns_s0.phn; double us = (double)mq_tdiv / 1000.0, sw = 0, sf = 0;
+    fprintf(stderr, "people split vb %ld-%ld me turn (gl38; ticks a ms %u): lane 2's groups in the timed walks %ld, of them timed at the walk %ld, at their "
+            "flush %ld; us a timed group by stage (each holds one read); at the walk:", vb0, vb, (unsigned)mq_tdiv, s->pseen - ns_s0.pseen, pn, hn);
+    for (int k = 0; k < NS_PN; k++) { double v; if (k >= NS_P_C2) continue;
+      v = pn ? (double)(s->t[NS_PN + k] - ns_s0.t[NS_PN + k]) / us / (double)pn : 0.0; if (v == 0.0) continue;
+      sw += v; fprintf(stderr, " %s %.2f,", ns_name[k], v); }
+    fprintf(stderr, " sum %.2f; at the flush:", sw);
+    for (int k = NS_P_C2; k < NS_PN; k++) { double v = hn ? (double)(s->t[NS_PN + k] - ns_s0.t[NS_PN + k]) / us / (double)hn : 0.0;
+      sf += v; fprintf(stderr, " %s %.2f,", ns_name[k], v); }
+    fprintf(stderr, " sum %.2f\n", sf); }
+  if (me && mq->ns_on) {   /* gl34 (ge/natsplit.h): the ME's time inside the native path, and the walks' time by chain */
+    const NatSplit *s = &g_ns; long n = s->n - ns_s0.n, seen = s->seen - ns_s0.seen, cn = s->cal_n - ns_s0.cal_n; double us = (double)mq_tdiv / 1000.0, sum = 0;
+    double nat = (double)(xmp.nat_t - nat_t0t) / mq_tdiv;
+    fprintf(stderr, "nat split vb %ld-%ld me turn arm %d fast %d (gl34; ticks a ms %u): groups in the timed merge runs %ld, of them timed by stage %ld "
+            "(vertices %ld, left out by the cut %ld); clock read pairs %ld, mean %.3f us a read; us a timed group by stage (each holds one read):",
+            vb0, vb, arm, rt_nat_fast_at(vb0 + 1), (unsigned)mq_tdiv, seen, n, s->nv - ns_s0.nv, s->ncut - ns_s0.ncut, cn,
+            cn ? (double)(s->cal_t - ns_s0.cal_t) / us / (double)cn : 0.0);
+    for (int k = 0; k < NS_N; k++) { double v = n ? (double)(s->t[k] - ns_s0.t[k]) / us / (double)n : 0.0; sum += v; fprintf(stderr, " %s %.2f%s", ns_name[k], v, k + 1 < NS_N ? "," : ";"); }
+    fprintf(stderr, " sum %.2f; the turn's native time %.2f ms = %.2f us a group; hand-off: the ME's records %.1f ms, the plans' bytes %lu KB, of them asked "
+            "for by the groups' data %lu KB, the groups' array %lu KB\n", sum, nat, seen ? nat * 1000.0 / (double)seen : 0.0,
+            (double)(mq->t_k[XE_REC] - ns_rec0) / mq_tdiv, (unsigned long)((xmc.bytes - ns_b0) >> 10), (unsigned long)((xmc.nat_qw - ns_q0) >> 6),
+            (unsigned long)((mq->n_natb - ns_nb0) >> 10));
+    fprintf(stderr, "me chains vb %ld-%ld me turn arm %d fast %d (gl34; a chain is a transfer of the frame's list): lists read %ld, transfers in a list "
+            "%ld, not in one %ld; chain: transfers, ms, converter calls, native ms (groups):", vb0, vb, arm, rt_nat_fast_at(vb0 + 1),
+            ns_ch_lists - ns_l0[0], ns_ch_in - ns_l0[2], ns_ch_unl - ns_l0[1]);
+    for (int k = 0; k < NS_CH_N; k++) { long w = s->ch_n[k] - ns_s0.ch_n[k];
+      if (!w && k < NS_CH) continue;
+      if (k < NS_CH) fprintf(stderr, " %d:", k); else fprintf(stderr, k == NS_CH_FLUSH ? " the transfers' ends (held calls):" : " other transfers:");
+      fprintf(stderr, " %ld, %.2f, %ld, %.2f (%ld);", w, (double)(s->ch_t[k] - ns_s0.ch_t[k]) / mq_tdiv, s->ch_calls[k] - ns_s0.ch_calls[k],
+              (double)(s->ch_nat[k] - ns_s0.ch_nat[k]) / mq_tdiv, s->ch_grp[k] - ns_s0.ch_grp[k]); }
+    fprintf(stderr, " the ME's walks %.1f ms\n", (double)(mq->t_k[XE_WALK] - ns_wk0) / mq_tdiv);
+  }
+}
 static int mq_fill(int why)
 {
   long tb = mq_tbk_cold; int n = 0; XmeE e;
@@ -2046,6 +2763,7 @@ static int mq_fill(int why)
   if (why) mp_fill_early[why - 1] += n; else mp_fill_dl += n;
   if (mp_nlog > mp_nlog_max) mp_nlog_max = mp_nlog;
   mp_nlog = 0; mp_unfilled = 0;
+  nat_unf[0] = nat_unf[1] = 0;   /* native step 1: every record before this fill has its groups' copy */
   if (!++mp_hgen) { memset(mp_h, 0, (size_t)mp_hn * sizeof *mp_h); mp_hgen = 1; }
   g_g0_on = g_xl_end;   /* (a record in its walk: a write there is counted) */
   return 0;
@@ -2062,27 +2780,74 @@ static void mq_late(int why, int wait)
   mp_nrec = 0; mp_late_runs++; mp_chn = 0;
   if (wait) mq_arena_wait();
 }
+/* gl34 (ge/natsplit.h): the transfer's place in its frame's chain list.  The list is read at the transfer whose tadr is the list's
+   first start (the frame's first chain: the list is still the frame's then) and kept for the frame's other transfers */
+static int ns_chain_at(const uint8_t *mem, int ch, uint32_t tadr)   /* gl38: at the transfer's start (xlive_chk_dma), with the bound turns or the split on */
+{
+  uint32_t a, lp, n;
+  if (ch != 1 || (tadr & 0x80000000u) || !mem) return -1;
+  a = tadr & (XL_GSZ - 1) & ~15u;
+  lp = *(const uint32_t *)(mem + 0x1b9348) & (XL_GSZ - 1) & ~3u;
+  if (lp && lp + 12 + 16 * NS_CH + 16 <= XL_GSZ) {
+    n = *(const uint32_t *)(mem + lp);
+    if (n && n <= NS_CH && (*(const uint32_t *)(mem + lp + 16) & (XL_GSZ - 1) & ~15u) == a) {
+      for (uint32_t i = 0; i < n; i++) ns_cha[i] = *(const uint32_t *)(mem + lp + 16 + 16 * i) & (XL_GSZ - 1) & ~15u;
+      ns_chn = (int)n; ns_ch_lists++; ns_ch_in++; return 0; } }
+  for (int i = 1; i < ns_chn; i++) if (ns_cha[i] == a) { ns_cha[i] = 0xffffffffu; ns_ch_in++; return i; }   /* once: an old list names no later frame's transfer */
+  ns_ch_unl++; return -1;
+}
 static void mq_rec(const MpRec *r, int now)   /* a record to the ME as its transfer ends; now: the main CPU waits for its copy (or walk) */
 {
   XmeE e; uint32_t s;
   memset(&e, 0, sizeof e); e.kind = XE_REC;
   e.r.ch = r->ch; e.r.lanes = r->lanes; e.r.restart = r->restart; e.r.x0 = r->x0; e.r.nx = r->nx; e.r.t = r->t; e.r.now = now;
   e.r.chcr = r->chcr; e.r.madr = r->madr; e.r.qwc = r->qwc; e.r.tadr = r->tadr; e.r.opt = r->opt; e.r.opt2 = r->opt2;
+  e.r.nb = r->nb; e.r.ng0[0] = r->ng0[0]; e.r.ng0[1] = r->ng0[1]; e.r.ngn[0] = r->ngn[0]; e.r.ngn[1] = r->ngn[1]; e.r.noff = r->noff;   /* native step 1 */
+  e.r.p0[0] = r->p0[0]; e.r.p0[1] = r->p0[1]; e.r.pn[0] = r->pn[0]; e.r.pn[1] = r->pn[1];   /* step 2 */
+  e.r.nru[0] = r->nru[0]; e.r.nru[1] = r->nru[1];   /* gl36 */
+  e.r.chi = r->chi;   /* gl34 (gl38: found as the transfer started) */
+  if (r->nx >= 0 && r->nb >= 0 && !now) nat_unf[r->nb] = 1;
   s = mq_post(&e);
   if (now) mq_wait(s, MW_NOW);
 }
-static int mq_plan(const MpRec *e, int *x0, int *nx)   /* gl24b: xm_plan, counting a walk's extents and arena bytes with two areas */
+static int mq_plan(MpRec *e, int *x0, int *nx)   /* gl24b: xm_plan, counting a walk's extents and arena bytes with two areas */
 {
-  uint32_t u0 = xmc.used; int r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, x0, nx);
+  uint32_t u0 = xmc.used; int r;
+  e->nb = -1; e->ngn[0] = e->ngn[1] = 0; e->noff = 0; e->nru[0] = e->nru[1] = 0;   /* native step 1: the groups this transfer's tags reach, planned with it */
+  e->p0[0] = e->p0[1] = e->pn[0] = e->pn[1] = 0;   /* step 2: the people's */
+  xmc.nat_n[0] = xmc.nat_n[1] = 0; xmc.np6_n[0] = xmc.np6_n[1] = 0;
+  if (nat_on && e->ch == 1 && e->lanes) { xmc.nat_n[0] = nat_pend(0, &xmc.nat_g[0]); xmc.nat_n[1] = nat_pend(1, &xmc.nat_g[1]); }
+  if (np6_on && e->ch == 1 && e->lanes) { xmc.np6_n[0] = np6_pend(0, &xmc.np6_g[0]); xmc.np6_n[1] = np6_pend(1, &xmc.np6_g[1]); }
+  xmc.xp = rt_xp_at(me_vb); xmc.clk = p10_on > 0 ? p10_clk : 0;   /* gl40 */
+  { const long d0 = xmc.xp_dif;
+    r = xm_plan(&xmc, e->chcr, e->madr, e->qwc, e->tadr, x0, nx);
+    if (!d0 && xmc.xp_dif) xmc.xp_dif_vb = (int32_t)me_vb; }
+  if (!r && xmc.nat_b >= 0 && (xmc.nat_cur > 0 || xmc.np6_cur > 0)) {   /* (step 2: the people's records right after the ship's: XME_POFF) */
+    const int b = xmc.nat_b; uint32_t off = 0;
+    int bad = xm_nat_room(&xmc, XME_NATBYTES(b, xmc.nat_cur, xmc.np6_cur), &off);   /* (step 2: both kinds' groups and references, ge/xme.h) */
+    if (bad) {   /* no room for their copy: the plan undone, as an arena too full for the extents (xm_plan's 3) */
+      xmc.copies--; xmc.exts -= *nx; xmc.bytes -= xmc.used - u0; xmc.next = *x0; xmc.used = u0; xmc.fails[3]++; nat_n_room++; r = 3; }
+    else { e->nb = b; e->ng0[b] = (int16_t)g_nat[b].cur; e->ngn[b] = (int16_t)xmc.nat_cur; e->noff = off; e->nru[b] = (uint8_t)g_nat[b].ru;   /* gl36: nru */
+      e->p0[b] = (int16_t)g_np6[b].cur; e->pn[b] = (int16_t)xmc.np6_cur; } }
+  if (!r) { uint32_t h = xmc.used - (two ? (uint32_t)two_h * two_ah : 0u); if (h > nat_ca_max) nat_ca_max = h; }
   if (two && !r) { two_wx += *nx; two_wb += xmc.used - u0; }
   return r;
 }
-static void mq_chk_end(void)   /* xlive_chk_end in mode 3 */
+static void mq_chk_end_do(void);
+static void mq_chk_end(void)   /* xlive_chk_end in mode 3 (gl40: timed whole with MGS2_PROBE10, its waits by reason) */
+{
+  uint32_t t0;
+  if (p10_on <= 0) { mq_chk_end_do(); return; }
+  t0 = sceKernelGetSystemTimeLow(); p10_in = 1;
+  mq_chk_end_do();
+  p10_in = 0; p10_ce++; p10_ceus += sceKernelGetSystemTimeLow() - t0;
+}
+static void mq_chk_end_do(void)
 {
   MpRec *e; int r, x0 = 0, nx = 0; long tb = mq_tbk_cold;
   if (mq_m4 && mq_self) {   /* step 4d: the main CPU makes the picture itself and cannot reach the ME's arena: walked from RAM now */
     if (!mp_nrec) return;
-    e = &mp_rec[mp_nrec - 1]; e->nx = -1; mq_own++; mq_rec(e, 0); mq_late(3, 1); return; }
+    e = &mp_rec[mp_nrec - 1]; e->nx = -1; mq_own++; { MpRec keep; nat_direct_pre(e); keep = *e; mq_rec(e, 0); mq_late(3, 1); nat_direct_post(&keep); } return; }
   { uint64_t ov = mq_now(); mq_ov_us += (ov - mq_ov_t) & (0 - (uint64_t)mq_ov_f); mq_ov_n += mq_ov_f; mq_ov_f = 0; }   /* gl20: the overlap (no branch) */
   if (!two) mq_arena_wait();   /* (no plan while the ME walks the records before; gl24: in the half it walks) */
   else { two_poll(); if (two_pend[two_h]) two_wait(two_h, MW_ARENA); }   /* gl25: only the walk that holds this half */
@@ -2108,9 +2873,13 @@ static void mq_chk_end(void)   /* xlive_chk_end in mode 3 */
     r = mq_plan(e, &x0, &nx);
   }
   if (r) {   /* none: walked from RAM now (nx -1), with the records before */
-    mp_direct++; e->nx = -1; mq_rec(e, 0); mq_late(3, 1); return; }
+    MpRec keep; mp_direct++; e->nx = -1; nat_direct_pre(e); keep = *e; mq_rec(e, 0); mq_late(3, 1); nat_direct_post(&keep); return; }
   e->x0 = x0; e->nx = nx;
-  if (me_vb >= mp_dl && !mp_spr(e)) { e->filled = 0; mp_mark(e, 1); mp_unfilled++; mq_rec(e, 0); }   /* an early copy, laid at the FILL */
+  if (e->nb >= 0) { g_nat[e->nb].cur += (uint32_t)e->ngn[e->nb]; nat_n_plan++; nat_n_plang += e->ngn[e->nb];   /* native step 1: taken */
+    g_np6[e->nb].cur += (uint32_t)e->pn[e->nb]; np6_n_plang += e->pn[e->nb]; }   /* step 2 */
+  if (me_vb >= mp_dl && !mp_spr(e)) { e->filled = 0;   /* an early copy, laid at the FILL */
+    if (p10_on > 0) { uint32_t t0 = sceKernelGetSystemTimeLow(); mp_mark(e, 1); p10_mk++; p10_mkus += sceKernelGetSystemTimeLow() - t0; } else mp_mark(e, 1);
+    mp_unfilled++; mq_rec(e, 0); }
   else { e->filled = 1; mp_fill_end[me_vb < mp_dl ? 0 : 1]++; mq_rec(e, 1); }   /* before vb 60, or scratchpad bytes: as it ends */
   if (mq_tbk_cold != tb) return;
   g_g0_on = mp_unfilled > 0;
@@ -2124,6 +2893,7 @@ static void mq_thin(void)   /* the thinning's scan for the frame begun last (it 
   memcpy(mq->thin_r, gl_ft.r, (size_t)n * sizeof gl_ft.r[0]); mq->thin_n = n; mq->thin_keep3 = gl_ft.keep[3];
   if (nd) memcpy(mq->thin_d, gl_ft.d, (size_t)nd * sizeof gl_ft.d[0]);
   mq->thin_nd = nd;
+  mq->bd_n = gl_ft.all ? gl_ft.nb : 0; if (mq->bd_n > 0) memcpy(mq->bd_r, gl_ft.b, (size_t)mq->bd_n * sizeof gl_ft.b[0]);   /* gl38: the rain owners' blocks */
   memset(&e, 0, sizeof e); e.kind = XE_THIN;
   mq_thin_seq = mq_post(&e); mq_thin_due = 1;
 }
@@ -2147,12 +2917,52 @@ static GL28D_COLD void ge2_ab_turn(long vb)
           ge2_cfg, gl_vol2 ? "made" : "NOT made");
 }
 /* step 4d, mode 4, after the hook's FILL, WALK and HOOK (no record waits): the hang test's stop found, the turns changed */
+/* gl38 (ge/bound.h): the bound cycle's turns.  From its first vblank every turn is the ME's (no main turn between two of them: the
+   hand-over and back at once, for the turn's lines), but a turn of kind 7 (want 1), which is the main CPU's with the ME resting; the
+   frame that began at this hook already has the new turn's mask (mq_frame) */
+static void mq_bd_turn(long vb, long tix, int want)
+{
+  if (tix == bd_tix) return;
+  if (!mq_turn_k) {   /* an ME turn ends: as the switch to the main CPU */
+    mq_sync(); if (!MQ_LOOP()) return;
+    mq_arena_wait(); if (!MQ_LOOP()) return;
+    XS(mq)->ge2 = 0; mq->cache = 0; mq->clk = mq_clk_us; mq_heap_own(); mq_self = 1; mq_tend(vb); two_start(0); flip_on = flip_sel(vb);
+    if (!want) flip_mvb0 = -1;   /* (no main turn: no main turn lines at the ME turn's start below) */
+#ifdef MGS2_ME_REAL
+    else rs_allow(vb);
+#endif
+  } else if (want) {   /* a main turn after a main turn: the lines of the one that ends, as mq_tstart prints them */
+#ifdef MGS2_ME_REAL
+    rs_end(vb);
+#endif
+    if (flip_mvb0 >= 0) { flip_line("main turn", flip_mvb0, vb, 1); nat_tline("main turn", flip_mvb0, vb, 0); bd_tline("main turn", flip_mvb0, vb); }
+    flip_t0set(1); nat_t0set(); flip_mvb0 = vb;
+#ifdef MGS2_ME_REAL
+    rs_allow(vb);
+#endif
+  }
+  if (!want) {   /* to the ME: as mq_turn_hook's */
+#ifdef MGS2_ME_REAL
+    rs_end(vb);
+    mq->cache = mq_me > 0 ? xme_me_cache : mq_cache_thr;
+#else
+    mq->cache = mq_cache_thr;
+#endif
+    if (ge_fast_cfg == 2) ge_fast = (int)((vb / (2 * mq_turn)) & 1);
+    ge2 = gl_vol2 && (ge2_cfg == 1 || (ge2_cfg == 2 && ((vb / (2 * mq_turn)) & 1)));
+    if (ge2_ab >= 0 && vb >= ge2_ab) ge2_ab_turn(vb);
+    XS(mq)->ge2 = (uint32_t)ge2;
+    xme_heap_ask(me_rs_on); mq_self = 0; mq_tstart(vb); two_start(two_on(vb)); flip_on = flip_sel(vb); }
+  mq_turn_k = want; bd_tix = tix; mq_turns++; mq_thin_due = 0; mq_walk_due = 0;
+}
 static void mq_turn_hook(long vb)
 {
   int k;
   if (mq_dead) return;
   if (!mq_self && mq->hang_vb >= 0 && !mq->hang_in && vb >= mq->hang_vb) mq_drain();
   if (!mq_turn || !MQ_LOOP()) return;
+  if (g_bd_cfg) { long tix; int bd = rt_bound_at(vb, &tix);   /* gl38 */
+    if (tix >= 0) { mq_bd_turn(vb, tix, (bd & (BD_ALL | BD_ME)) == BD_ALL); return; } }   /* gl39: kind 8 (BD_ALL | BD_ME) stays the ME's */
   k = (int)((vb / mq_turn) & 1);
   if (k == mq_turn_k) return;
   if (k) {   /* to the main CPU */
@@ -2202,11 +3012,23 @@ static void mq_frame(long vb)
     if (mq_stop_due && !mq_stop_sent) { e.h.stop = 1; mq_post(&e); mq_stop_sent = 1; }
     return; }
   HOST_ENTER(HOST_GL);
-  if (gl_now) { gl_now = 0; e.h.end = 1; e.h.d = (int)(gl_built++ & 1); e.h.dig = vb - 1 >= dig_from && vb - 1 <= dig_to; }
+  if (gl_now) { gl_now = 0; e.h.end = 1; e.h.d = (int)(gl_built++ & 1); e.h.dig = vb - 1 >= dig_from && vb - 1 <= dig_to && !rt_dig_off_at(vb - 1);   /* gl39: MGS2_DIG_CYCLE */
+    if (dz_on) e.h.dz = gx_dz_arm(&dz_t, vb - 1, &e.h.dzn, 0); }   /* gl29: MGS2_GL_DZ's arm for the frame that ended */
   if (gl_full && state == 1 && (g_opt & (OPT_XL | OPT_GL)) == (OPT_XL | OPT_GL)) {
-    e.h.begin = 1; e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
+    bd_cur = rt_bound_at(vb, 0); gl_ft.all = (bd_cur & (BD_SORT | BD_RAIN)) != 0; bd_fr += bd_cur != 0;   /* gl38: the frame's mask, to the ME in begin's bits 16-23 */
+    if (nge_kg && !nge_gst && vb >= nge_grow_vb()) { nge_gst = 1; nge_gfin = ge_fin_n; nge_gvb0 = vb;   /* step 2: frames from this one with the smaller arena */
+      fprintf(stderr, "picture: step 2: vb %ld: frames begin with the smaller arena (%u KB); the GE's finishes %u\n", vb,
+              (unsigned)((GL_PSP_ARENA - nge_kg) >> 10), (unsigned)ge_fin_n); }
+    e.h.begin = 1 | rt_nat_cull_at(vb) << 8 | (bd_cur & 0xff) << 16 | (nge_gst ? 1u << 24 : 0u);   /* (step 2: BD_NATIVE the main CPU's) */ e.h.opt = g_opt; e.h.opt2 = g_opt2; gl_now = 1; thin_due = 1; mq_c4 = (g_opt2 & OPT2_C4) != 0;
     if (gl_first_vb < 0) { gl_first_vb = vb; fprintf(stderr, "picture: the first frame begins at vb %ld\n", vb); } }
   mq_post(&e);
+  if (nge_gst == 1 && nge_gok && ge_fin_n - nge_gfin >= 3) { nge_gst = 2; nge_grow(nge_p6b[0] ? nge_p6b : 0, vb);
+    fprintf(stderr, "picture: step 2: vb %ld: grown (a frame begun at vb %ld or later drawn; the GE's finishes %u)\n", vb, nge_gvb0, (unsigned)ge_fin_n); }   /* step 2 (the guard above) */
+  if ((bd_cur & BD_ME) && gl_now && !mq_self && mq_m4 && !mq_dead) {   /* gl39, kind 8: the ME's load for this step, posted in every flavour (0: an entry
+                                                                        that does nothing), only when the loop has caught up */
+    if (XS(mq)->head - XS(mq)->tail <= 1) { XmeE l; memset(&l, 0, sizeof l); l.kind = XE_LOAD; l.why = rt_load_at(vb); l.nlog = (int)p9_load_us;
+      l.h.vb = (int32_t)vb; l.h.opt = ((uint32_t)(uintptr_t)_ftext + 63u) & ~63u; l.h.opt2 = 2u << 20; mq_post(&l); p9_ldp++; }
+    else p9_ldskip++; }
   mq_service();
   HOST_LEAVE(HOST_GL);
   mq_ov_t = mq_now(); mq_ov_f = 1;   /* gl20 */
@@ -2230,7 +3052,10 @@ static void mq_end(void)   /* xl_psp_gl_end (the run's end): the last step's rec
               "exit request" : "NO ANSWER in 50 ms: held in reset", (unsigned)mq_mcu->h.state, (unsigned)mq_mcu->h.heartbeat,
               (unsigned)mq_mcu->h.boots); }
 #endif
-    if (mq_th >= 0) { SceUInt us = 1000000; int r = sceKernelWaitThreadEnd(mq_th, &us);
+    if (mq_th >= 0) { SceUInt us = 1000000; int r = sceKernelWaitThreadEnd(mq_th, &us), fs = -1, sz = 0; SceKernelThreadInfo ti; memset(&ti, 0, sizeof ti); ti.size = sizeof ti;
+      if (sceKernelReferThreadStatus(mq_th, &ti) >= 0 && ti.stack) { const uint8_t *p = (const uint8_t *)ti.stack; sz = ti.stackSize; fs = 0; while (fs < sz && p[fs] == 0xff) fs++; }
+      fprintf(stderr, "me picture loop (gl41): the thread's stack %u KB, never touched at its bottom %d B (deepest use %d B; the bottom marked at its start)\n",
+              MQ_THR_STK >> 10, fs, fs >= 0 ? sz - fs : -1);
       if (r < 0) fprintf(stderr, "me picture loop: its thread did not end (%08x)\n", (unsigned)r);
       sceKernelDeleteThread(mq_th); mq_th = -1; } }
   mq_self = 1;
@@ -2239,6 +3064,48 @@ static void mq_end(void)   /* xl_psp_gl_end (the run's end): the last step's rec
 }
 static void mq_report(FILE *f)
 {
+  if (g_nat_cfg)   /* native step 1: the run's totals */
+    fprintf(f, "native step 1 totals: arrays %s; calls recorded %ld, groups %ld, pictures with records %ld; stubbed with no record %ld; calls "
+            "with no group %ld; the builder run instead: array full %ld, key order %ld, near the buffer's end %ld, other %ld; recorded with no "
+            "array %ld; groups left untaken %ld (pictures %ld); transfers planned with groups %ld (%ld groups), groups taken by walks from RAM "
+            "%ld, plans undone for the groups' room %ld, early fills for an array's reuse %ld; records' groups copied %ld (%ld groups, %llu "
+            "bytes); merge runs %ld, groups to the core %ld, fed word by word %ld, dropped %ld, drawn at a walk's end %ld, run lanes stopped "
+            "at a key %ld; the groups' data in the copy %ld, read from RAM %ld, partly (dropped) %ld\n", !nat_on ? "NOT MADE" : nat_one ? "ONE, shared" : "made, one a buffer",
+            g_nat_c[NC_REC], g_nat_c[NC_GRP], g_nat_c[NC_PICS], g_nat_c[NC_STUBC], g_nat_c[NC_EMPTY], g_nat_c[NC_FB_FULL], g_nat_c[NC_FB_ORDER],
+            g_nat_c[NC_FB_END], g_nat_c[NC_FB_OTHER], g_nat_c[NC_NOMEM], g_nat_c[NC_LEFT], g_nat_c[NC_LEFT_PICS], nat_n_plan, nat_n_plang,
+            nat_n_dirg, nat_n_room, nat_n_sync, mq->n_natrec, mq->n_natg, (unsigned long long)mq->n_natb, xmp.nat_runs, xmp.nat_core, xmp.nat_fed,
+            xmp.nat_bad, xmp.nat_late, xmp.nat_stop, xmp.nat_in, xmp.nat_out, xmp.nat_part);
+  if (g_nat_cfg) fprintf(f, "static streams in place totals (gl33): groups flagged static %ld\n", g_nat_stc);
+  if (g_nat_f1cfg || g_nat_f1chk) fprintf(f, "F1 totals (gl38): runs planned %ld (groups %ld, of them not written %ld, without the fast form %ld), runs not planned %ld (state %ld, a "
+                         "group without an MSCAL %ld), planned runs with a problem %ld; check mode: groups compared %ld, DIFFERING %ld, written by the plan and not "
+                         "by the notes %ld, skipped by the plan ahead of a group that declined when it ran %ld\n", xl_f1_n[0], xl_f1_n[1], xl_f1_n[2], xl_f1_n[10],
+                         xl_f1_n[3], xl_f1_n[8], xl_f1_n[9], xl_f1_n[4], xl_f1_n[5], xl_f1_n[6], xl_f1_n[7], xl_f1_n[11]);
+  fprintf(f, "gl40 XP totals: plans %ld (failed: ranges %ld, extents %ld, arena %ld, chain %ld), xc_add calls %ld, sort moves %ld, copied back %ld; "
+          "XP check: plans compared %ld, DIFFERING %ld (first at vb %ld: results %x, extents %u / %u), by result only %ld; M5 walks %ld\n", xmc.xp_plans,
+          xmc.fails[1], xmc.fails[2], xmc.fails[3], xmc.fails[4], xmc.xp_adds, xmc.xp_moves, xmc.xp_cpy, xmc.xp_chk, xmc.xp_dif, (long)(xmc.xp_dif ? xmc.xp_dif_vb : -1),
+          (unsigned)xmc.xp_dif_w[0], (unsigned)xmc.xp_dif_w[1], (unsigned)xmc.xp_dif_w[2], xmc.xp_room, g_k_m5);
+  if (g_bd_cfg || g_bd_rain) { fprintf(f, "bound totals (gl38): frames begun with a mask %ld; transfers left out by chain:", bd_fr);
+    for (int i = 0; i <= NS_CH; i++) if (bd_tr[i]) fprintf(f, " %d:%ld", i == NS_CH ? -1 : i, bd_tr[i]);
+    fprintf(f, "; native groups recorded and not drawn %ld; rain owners' calls %ld (sheets %ld), left out %ld, near sheet calls kept %ld; chain 6's other calls "
+            "left out %ld, its GS primitives %ld; rain owners' blocks over the table %ld, not right %ld\n", bd_grp, gl_bd_n[GL_BD_RAIN], gl_bd_n[GL_BD_SHEET],
+            gl_bd_n[GL_BD_RAIN_OUT], gl_bd_n[GL_BD_NEAR_KEPT], gl_bd_n[GL_BD_SORT_OUT], gl_bd_n[GL_BD_PRIM_OUT], gl_ft.b_over, gl_ft.b_bad); }
+  if (g_nat_cfg && xl_nr_cap) fprintf(f, "reuse totals (gl36): table %d entries; runs replayed %ld (groups %ld, skipping %ld), recorded %ld (groups %ld; kept %ld, "
+                         "not kept %ld), checked %ld (groups %ld; S differing %ld, boxes differing %ld); in S %ld; boxes recorded %ld, taken %ld, cut %ld, "
+                         "positions then needed %ld; no table room %ld; replays with a group not taken %ld, with a decline %ld\n", xl_nr_cap, xl_nr_n[0],
+                         xl_nr_n[1], xl_nr_n[18], xl_nr_n[3], xl_nr_n[4], xl_nr_n[5], xl_nr_n[13], xl_nr_n[6], xl_nr_n[7], xl_nr_n[8], xl_nr_n[9], xl_nr_n[2],
+                         xl_nr_n[16], xl_nr_n[10], xl_nr_n[11], xl_nr_n[12], xl_nr_n[14], xl_nr_n[15], xl_nr_n[17]);
+  if (g_nat_cfg && xl_nr_cap) fprintf(f, "reuse rule totals (gl37): rule %d; groups tried %ld, replayed or the same as the picture before %ld; runs not "
+                         "recorded %ld (groups %ld), the same as their shadow %ld (groups %ld); pictures recording %ld, not recording %ld\n", xl_nr_rule,
+                         xl_nr_r[6], xl_nr_r[7], xl_nr_r[0], xl_nr_r[1], xl_nr_r[2], xl_nr_r[3], xl_nr_r[4], xl_nr_r[5]);
+  if (g_nat_cfg) fprintf(f, "keeps for fast native groups totals (gl35): groups flagged %ld; drawn areas replayed %ld, checked %ld, differing %ld; textures "
+                         "replayed %ld, checked %ld, differing %ld, records %ld; CLUT calls not made %ld, PRIM writes in line %ld\n", g_nat_kpt, xl_nk_n[0],
+                         xl_nk_n[1], xl_nk_n[2], xl_nk_n[3], xl_nk_n[4], xl_nk_n[5], xl_nk_n[6], xl_nk_n[7], xl_nk_n[8]);
+  if (g_nat_cfg) fprintf(f, "fast native front end totals (gl34): groups flagged %ld; taken %ld, declined: state %ld, entry %ld, buffers %ld, stream counts "
+                         "%ld, material tag %ld, tables full %ld, path 1 busy %ld; transforms taken %ld, computed and kept %ld; pointers by their own hints %ld "
+                         "(checked %ld, differing %ld); nat split: groups timed by "
+                         "stage %ld of %ld, clock read pairs %ld; chain lists read %ld, transfers in a list %ld, not in one %ld\n", g_nat_fst, xl_nf_n[0],
+                         xl_nf_n[1], xl_nf_n[2], xl_nf_n[3], xl_nf_n[4], xl_nf_n[5], xl_nf_n[6], xl_nf_n[7], vc_km_n[0], vc_km_n[1], lw_nh_n[0], lw_nh_n[2], lw_nh_n[1], g_ns.n, g_ns.seen,
+                         g_ns.cal_n, ns_ch_lists, ns_ch_in, ns_ch_unl);
   fprintf(f, "picture display (gl27): flip wait MGS2_GL_FLIPWAIT %d (from vb %ld): ME turns: lists held for the screen %ld (%.2f s), lists drawn "
           "into the shown buffer %ld; main CPU turns: held %ld (%.2f s), drawn into the shown buffer %ld%s", flip_cfg, flip_from, flip_hold[0],
           flip_us[0] / 1e6, flip_race[0], flip_hold[1], flip_us[1] / 1e6, flip_race[1], fbc_from < 0 ? "\n" : "");
@@ -2378,7 +3245,7 @@ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr
   if (!(g_opt & OPT_XL)) { if (state == 1) state = 2; return; }
   cfg();
 #ifdef MGS2_GL
-  if (mq_on) mq_service();   /* task #180 step 4c: a list the GE finished shown, the ME's next list to the GE */
+  if (mq_on) { p9_dma[p9_top()]++; mq_service(); }   /* task #180 step 4c: a list the GE finished shown, the ME's next list to the GE (gl39: counted) */
 #endif
   if (!mp_want) {   /* (task #180: with the split each record's switches are set as it is walked, ge/xlme.c xm_switch) */
   { static int ud = 1; int m = (g_opt & OPT_XL_VMUD) != 0; if (m != ud) { xl_vm_mode(m); ud = m; } }   /* (xlate.c's default: 1) */
@@ -2430,6 +3297,7 @@ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr
       xl_on_pass(on_pass, 0); xl_on_flush(on_flush, 0);
       gl_setup();
       mp_setup();   /* task #180 */
+      nge_psp_setup();   /* native step 1 (MGS2_NGE): when mq_setup did not (no ME) */
 #endif
       xl_reset(); l_words = l_calls = l_ad = 0;
 #ifdef MGS2_GL
@@ -2455,11 +3323,21 @@ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr
                                     transfer (it was gl_call's at the frame's first effect call); the ME will not read the game's RAM for it */
     thin_due = 0; HOST_ENTER(HOST_GL);   /* task #180: gl17's scan (the streaks' too with C4 on) and the rain's sprite blocks */
     if (mq_on) mq_thin();   /* step 4c: the ranges to the ME through the slot */
-    else { const int n = fx_thin_scan(glf.ft, glf.ram, glf.h.c4); gl_thin(&glf, glf.ft->r, n, glf.ft->keep[3], glf.ft->d, glf.ft->nd); }
+    else { const int n = fx_thin_scan(glf.ft, glf.ram, glf.h.c4); gl_thin(&glf, glf.ft->r, n, glf.ft->keep[3], glf.ft->d, glf.ft->nd);
+      gl_bd_ranges(&glf, glf.ft->b, glf.ft->all ? glf.ft->nb : 0); }   /* gl38 */
     HOST_LEAVE(HOST_GL); }
   if (state < 0) return;   /* task #180 step 4d: the picture stopped in a wait above (mode 4's cold take-back) */
 #endif
 #ifdef MGS2_GL
+  { int chi = -1;   /* gl38: the transfer's chain (ge/natsplit.h), and the frame's mask: a kind's transfer is left out here, never queued */
+    if (mq_on && (g_bd_cfg || mq->ns_on)) chi = ns_chain_at(mem, ch, tadr);
+    bd_chi = chi;
+    if (bd_cur && bd_drop_chain(bd_cur, chi)) {
+      bd_tr[chi < 0 || chi >= NS_CH ? NS_CH : chi]++;
+      if (bd_cur & BD_ALL) for (int b = 0; b < 2; b++) { const NatGrp *g; int n = nat_pend(b, &g);   /* the picture's native groups: none will be drawn */
+        if (n > 0) { g_nat[b].cur += (uint32_t)n; bd_grp += n; }
+        { const NatP6 *q; int m = np6_pend(b, &q); if (m > 0) { g_np6[b].cur += (uint32_t)m; bd_grp += m; } } }   /* (step 2: the people's) */
+      return; } }
   if (mp_on) {   /* task #180: queued; its copy as it ends (xlive_chk_end) */
     MpRec *r; int own;
     if (mp_nrec == MP_NREC) { mp_drain_full++; mp_late(2); if (!mp_on) return; }
@@ -2467,6 +3345,9 @@ void xlive_chk_dma(const uint8_t *mem, const uint8_t *spr, int ch, uint32_t chcr
     r->lanes = one_mode && one ? ((g_opt & OPT_XL_LANE) ? 1 : 0) | ((g_opt & OPT_XL_LANE2) ? 2 : 0) | ((g_opt & OPT_XL_LANE3) ? 4 : 0) | ((g_opt & OPT_XL_LANE4) ? 8 : 0) : 0;
     r->restart = mp_restart_due; mp_restart_due = 0; r->x0 = 0; r->nx = -1;
     r->t = ++mp_seg; r->filled = 0; r->h0 = 0; r->nh = -1;   /* step 4b-2 */
+    r->nb = -1; r->ng0[0] = r->ng0[1] = r->ngn[0] = r->ngn[1] = 0; r->noff = 0;   /* native step 1 */
+    r->p0[0] = r->p0[1] = r->pn[0] = r->pn[1] = 0;   /* step 2 */
+    r->chi = (int16_t)bd_chi;   /* gl38 */
     own = mq_m4 && mq_self;   /* step 4d: walked from RAM as it ends (mq_chk_end): no image marks, no guards */
     xmc.nmk = 0; xmc.mk_full = 0; g_xl_img = !own; g_xl_end = 1; mp_queued++;
     if (mp_mode == 2 && !own) g_g0_on = 1;   /* 4b-2: a guarded write in the walk is counted (none is expected) */
@@ -2499,8 +3380,19 @@ void xl_psp_report(FILE *f)
       if (me_ev[k].op == '+' || me_ev[k].op == '!') fprintf(f, "(for %u B) ", me_ev[k].w);
       fprintf(f, "at %08x", me_ev[k].at);
       if (me_ev[k].op == '>') fprintf(f, " from %08x", me_ev[k].from);
-      fprintf(f, " (%08x)", me_ev[k].brk); }
-    fprintf(f, "\n"); }
+      fprintf(f, " (%08x; room %u KB, top %u KB, free %u KB)", me_ev[k].brk, me_ev[k].room >> 10, me_ev[k].top >> 10, me_ev[k].fr >> 10); }
+    fprintf(f, "\n");
+    fprintf(f, "picture heap (gl41): newlib's room at the hooks' events (after each; room = above newlib's break, top = its free top chunk, "
+            "free = all its free bytes): the lowest room + top %u KB, at vb %ld (event %c)%s\n", me_room_min == ~0u ? 0u : me_room_min >> 10, me_room_vb,
+            me_room_op ? me_room_op : '-', me_room_min == ~0u ? " (no event)" : "");
+    if (tk) {   /* gl41 heap fix (b): the texture table's allocation: the last event whose region holds the table now */
+      uint32_t t = (uint32_t)(uintptr_t)tk_table(tk); int j = -1;
+      for (int k = 0; k < me_nev; k++) if ((me_ev[k].op == '+' || me_ev[k].op == '=' || me_ev[k].op == '>') && t >= me_ev[k].at && t < me_ev[k].at + me_ev[k].n) j = k;
+      if (j >= 0) fprintf(f, "picture heap (gl41): the texture table (at %08x, %ld entries) came with the event at vb %ld (%c %u KB): newlib's room then "
+                          "%u KB above the break + %u KB free top = %u KB\n", (unsigned)t, tk_stats(tk)->tab_cap, me_ev[j].vb, me_ev[j].op,
+                          me_ev[j].n >> 10, me_ev[j].room >> 10, me_ev[j].top >> 10, (me_ev[j].room + me_ev[j].top) >> 10);
+      else fprintf(f, "picture heap (gl41): the texture table (at %08x, %ld entries) came from a region given before (no newlib event of its "
+                   "own)%s\n", (unsigned)t, tk_stats(tk)->tab_cap, me_nev_all > me_nev ? "; or from an event past the 48 logged" : ""); } }
   if (state == -1) { fprintf(f, "translator: no memory for the texture map, it did not run\n"); return; }
 #ifdef MGS2_GL
   if (state == -2) fprintf(f, "translator: stopped at vb %ld with the picture (task #180 step 4d: mode 4's cold take-back); the counts below "
@@ -2570,6 +3462,7 @@ void xl_psp_report(FILE *f)
         for (int i = 0; i < mpw_n; i++) fprintf(f, "me picture watch: line %07x\n", (unsigned)(mpw[i].l << 6)); }
 #endif
     }
+    if (nge_k) nge_end_line();   /* native step 1 */
     if (mq) mq_report(f); }   /* step 4c */
   if (gl_ok < 0) { fprintf(f, "picture: none (no memory or no set-up)\n"); return; }
   if (!gl_ok) { fprintf(f, "picture: never set up\n"); return; }
@@ -2588,6 +3481,7 @@ void xl_psp_report(FILE *f)
   if (eye_on) fprintf(f, "gl28 eye: R pressed %ld times, let go %ld times (from vb %ld)\n", eye_n[1], eye_n[0], eye_vb0);   /* gl28d */
   if (live_from >= 0) fprintf(f, "gl28 live: captures %ld periodic, %ld at R presses (of %ld at most); not saved %ld\n", live_np, live_nr,
                               live_rmax, live_bad);
+  if (dz_on) dz_report(f);   /* gl29 */
   gl_line(f, &glf.all, glf.all_dbytes, glf.all_tbytes, "picture: the frames:"); fprintf(f, "; memo answers that differed %ld\n", glf.memo_bad);
   gl_line(f, &glf.max, glf.max.dbytes, glf.max.tbytes, "picture: the largest of each in one frame:"); fputc('\n', f);
   { const TkStats *k = tk_stats(tk);
@@ -2599,7 +3493,8 @@ void xl_psp_report(FILE *f)
     fprintf(f, "picture: texture conversions: %ld a block at a time, %ld handed back to the texel path; GS blocks read %ld, %ld of them whole "
             "from one upload\n", k->blk, k->blk_back, gu_stats(map)->blocks, gu_stats(map)->blocks_one);
     fprintf(f, "picture: the texture cache's table: grown %ld times, %ld entries now; newlib's free top given back after %ld of the "
-            "growths (task #159)\n", k->tab_grows, k->tab_cap, k->tab_trims);
+            "growths (task #159); gl41: the table made 128 KB at its first entry, growths refused %ld; textures refused for want of memory: %ld (the pool %ld, the table %ld)\n",
+            k->tab_grows, k->tab_cap, k->tab_trims, k->tab_fail, k->nomem + k->tab_fail, k->nomem, k->tab_fail);
     { const GuStats *u = gu_stats(map);   /* sb9: Stage C step 0 */
       fprintf(f, "picture: step 0: texture look-ups by upload %ld, answered %ld; not served: TEX0 / CLAMP %ld, TEXA %ld, pages %ld %ld %ld %ld %ld "
               "%ld, no slot %ld, entry gone %ld; slots filled %ld, geometry slots made %ld; CLUT loads by identity %ld (joined %ld; no block "
@@ -2614,6 +3509,11 @@ void xl_psp_report(FILE *f)
             x->calls[2], x->batches[1], x->batches[2], x->calls[3], x->batches[3], x->lit_pass[2], x->lit_pass[3], x->calls[4], x->batches[4],
             x->bad[4], x->face_unseen, x->face_exact, x->face_pass[2], x->face_pass[3]);
     fprintf(f, "picture: effect vertices %ld, %ld of them through the clamps with the fast path on\n", x->clip[0], x->clip[1]);
+    { const long *u = x->cull_n;   /* cull study v3 (ge/xconv.h XcStats.cull_n) */
+      fprintf(f, "natcull: totals (v3): effect calls tested %ld, left out %ld (%ld vertices); kept: vertex 0 inside %ld, no plane proven %ld, "
+              "a bad attribute %ld, count %ld, out of the clamps' range %ld, thinned %ld; check mode: left-out calls converted %ld, DIFFERING "
+              "%ld, kept calls that drew nothing %ld; vertices read %ld, %ld of them in calls kept; left-out vertices on the clamped path %ld, "
+              "check mode: converted through the clamps %ld\n", u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7], u[11], u[8], u[9], u[10], u[12], u[13], u[14], u[15]); }
     fprintf(f, "picture: step c: %ld calls held (%ld of them P07); flushes at a transfer's end %ld, for a call's room %ld, records full %ld, "
             "P07 copies full %ld, at a frame's end %ld; faults: held calls not placed %ld, passes after their call ran %ld\n", glf.held_n,
             glf.held7_n, glf.hflush[0], glf.hflush[1], glf.hflush[2], glf.hflush_log, glf.hflush[3], glf.held_bad, glf.held_late);

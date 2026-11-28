@@ -452,6 +452,14 @@ static inline int lane_p04(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t
 #endif
   *next = tadr + 16 * (nr + 3); return nr + 1;
 }
+#ifdef NAT_HOOK
+static uint32_t nat_stop = 0xffffffffu;   /* native step 1 (boot/nat_x86.c): the next native group's key (RAM offset) of the buffer being
+                                             walked: a run lane stops before it, so the walk reaches the tag where the group is merged */
+static long nat_stop_hit;
+#define NAT_RUN_STOP(a) (!((a) & 0x80000000u) && ((a) & (GUEST_SIZE - 1) & ~15u) >= nat_stop && (nat_stop_hit++, 1))
+#else
+#define NAT_RUN_STOP(a) 0
+#endif
 /* sb2, Stage B lane 2 (renderer_notes 11.20): at tag t (as lane_p04), a P12e8b8 group (P06: Snake, the crew, the guards; re/mesh_packets.md
    §6): the constant block's REF when it comes first (24 quadwords to T + 0, STCYCL 1 / 1), three material slots (8 quadwords to T + 0xe8,
    0xf0, 0xf8, STCYCL 1 / 1) and six stream slots (A, B V4-16 at T + 0x100, 0x101; C, D, E V2-16 masked at 0x102, 0x103, 0x104; F V4-16
@@ -537,6 +545,7 @@ static inline int lane_p07(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t
     nop += snop; n6c += s6c; n6d += s6d; n6e += s6e; n10 += s10;
 #endif
     tadr += 384; t = (const uint32_t *)((tadr & 0x80000000u) ? g_spr + (tadr & 0x3ff0) : g_mem + (tadr & (GUEST_SIZE - 1) & ~15u));
+    if (NAT_RUN_STOP(tadr)) break;
     if (t[2] != 0x01000107u) break;   /* the next tag does not start a slot */
   }
   if (!ns) return 0;
@@ -588,6 +597,7 @@ static inline int lane_fx(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t 
     if (k < 6) break;
     np++;
     tadr += 160; t = (const uint32_t *)((tadr & 0x80000000u) ? g_spr + (tadr & 0x3ff0) : g_mem + (tadr & (GUEST_SIZE - 1) & ~15u));
+    if (NAT_RUN_STOP(tadr)) break;
     if ((t[2] != 0x01000103u && t[2] != 0x01000106u && t[2] != 0x0100010cu) || (t[3] & 0xff00ffffu) != 0x6c008100u) break;   /* the next
                                                                                                 tag does not start a prim */
   }
@@ -598,6 +608,11 @@ static inline int lane_fx(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t 
 #endif
   *next = tadr; return 6 * np;
 }
+#endif
+#ifdef NAT_HOOK
+extern int g_nat_cfg;   /* native step 1: boot/nat_stub.h; the walk's hooks in boot/nat_x86.c (included by boot_x86.c) */
+static int nat_walk(const uint32_t *t, uint32_t tadr, VifLoc *s, uint32_t *next, uint32_t chcr, uint32_t depth);
+static void nat_xfer(uint32_t tadr);
 #endif
 static void vif1_chain_fast(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t tadr)   /* dma_feed for VIF1 */
 {
@@ -611,10 +626,16 @@ static void vif1_chain_fast(uint32_t chcr, uint32_t madr, uint32_t qwc, uint32_t
     vif1_run_any(madr, qwc, &u); s = u;
     if (id == 0 || id == 7 || ((chcr & 0x80) && (chcr >> 31))) goto out;
   }
+#ifdef NAT_HOOK
+  if (g_nat_cfg) nat_xfer(tadr);
+#endif
   for (;;) {
     const uint32_t *t = (const uint32_t *)((tadr & 0x80000000u) ? g_spr + (tadr & 0x3ff0) : g_mem + (tadr & (GUEST_SIZE - 1) & ~15u)), *p = 0;
     uint32_t t0 = t[0], t1 = t[1], n = t0 & 0xffff, id = (t0 >> 28) & 7, addr = t1 & 0xfffffff0u, data, next; int end = 0;
     XL_TAG(t, tadr);
+#ifdef NAT_HOOK
+    if (g_nat_cfg) { uint32_t nx_; int nt_ = nat_walk(t, tadr, &s, &nx_, chcr, nasp); if (nt_) { tadr = nx_; guard += (uint32_t)nt_; continue; } }
+#endif
 #ifdef MGS2_XLIVE
     if (g_xl_lane && g_xl_one && !s.left && (chcr & 0x40) && (t[2] & 0xffffff00u) == 0x01000100u) {   /* every lane's first tag starts with
                                                     STCYCL cl / 1 (sb6: one test of the tag's first TTE word, then its CL picks the lane) */
@@ -929,9 +950,10 @@ static void io_flush(void)
 static long io_vb;                                       /* vblank starts seen (= k_vblanks) */
 static void io_vblank(int start)
 {
-  { static int on = -1, last; if (on < 0) on = getenv("MGS2_VU_UNSUP") != 0;    /* dev: unsupported ops seen since the last vblank (EE VCALLMS) */
+  { static int on = -1, last; if (on < 0) { on = getenv("MGS2_VU_UNSUP") != 0; l41_init(); }   /* dev: unsupported ops seen since the last vblank (EE VCALLMS); gl41: l41_init (runtime/vu_l41.h) */
     if (on && g_unsup_vu != last) { vu_unsup_scan(-1, g_unsup_vu - last); last = g_unsup_vu; } }
   if (start) { io_csr |= 8; io_csr ^= 1u << 13; io_istat |= 4; gscap_vblank(++io_vb); } else io_istat |= 8;
+  L41_VBLANK(start, io_vb);   /* gl41: the levers' counters (MGS2_L41_LOG=1) */
   IO32(0x2001000) = io_csr; IO32(0xf000) = io_istat;
 }
 static void io_init(void) { }

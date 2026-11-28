@@ -60,6 +60,22 @@ static void sif_push(int cmd, uint32_t dest, const uint8_t *src, uint32_t n)
   if (!it->data) { fprintf(stderr, "sif: no memory for %u bytes of IOP->EE data (%d items queued)\n", n, sif_ft - sif_fh); exit(7); }
   memcpy(it->data, src, n); sif_ft++;
 }
+/* gl36: sif_push for a buffer the caller malloc'd and gives away: the same writes in the same order and at the same time as
+   sif_push, but a queued item keeps the caller's buffer instead of a copy of it (fileio's reads: a file's size less of the heap at
+   its peak; the boot's 354 KB read of MODULE.IPK at vb 0 left gl35 under 16 KB to spare on the emulator).  src is freed here. */
+static void sif_push_own(int cmd, uint32_t dest, uint8_t *src, uint32_t n)
+{
+  SifItem *it;
+  sif_npush++;
+  if (!cmd && sif_in_run) {
+    while (sif_fh != sif_ft && !sif_fifo[sif_fh % SIF_FIFO].cmd) {
+      it = &sif_fifo[sif_fh % SIF_FIFO]; ee_copy_to(it->dest, it->data, it->n); free(it->data); sif_fh++; }
+    if (sif_fh == sif_ft) { ee_copy_to(dest, src, n); free(src); return; }
+  }
+  it = &sif_fifo[sif_ft % SIF_FIFO];
+  if (sif_ft - sif_fh >= SIF_FIFO) { fprintf(stderr, "sif: IOP->EE FIFO full\n"); exit(7); }
+  it->cmd = cmd; it->dest = dest; it->n = n; it->data = src; sif_ft++;
+}
 static void sif_ee_deliver(void)
 {
   while (sif_fh != sif_ft) {

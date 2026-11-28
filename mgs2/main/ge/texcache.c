@@ -30,9 +30,14 @@ struct TkCache {
   int um;                                  /* sb9 tk_umemo */
   struct UgE *ug; struct UtE *ut; uint32_t uclk;   /* sb9 0a: the G and T tables (made at the first look-up with the memo on); a clock
                                                        for their uses (the least recently used way goes) */
+  uint32_t kgen; TkKeep kl; uint64_t kpid;   /* gl35 (texcache.h tk_keep_ok): the generation, the last look-up's record, um_hit's palette identity */
   int uf; struct UfE *ufe; uint8_t ufm[16];        /* sb10 T1 tk_ufront: the memo's front (made with G and T), each set's most recent way */
 };
 #define TK_NIL 0xffffffffu
+/* gl41 heap fix (a): the entry table is made 128 KB at once (gl40: 256 entries, doubled as it filled: its last growth, 64 -> 128 KB at vb
+   10,850, made newlib take 128 KB fresh at its top for a moment, with ~12-25 KB to spare; attic/ge_native/step1_results.md section 6).
+   The entries are handed out in the same order either way (a growth only appends fresh entries to an empty free list). */
+#define TK_CAP0 ((int)(131072u / sizeof(Ent)))
 
 static uint64_t mix(uint64_t h, uint64_t v) { h = (h ^ v) * 0x9e3779b97f4a7c15ull; return h ^ h >> 31; }
 
@@ -56,9 +61,12 @@ void tk_free(TkCache *c)
   free(c->e); free(c->bucket); free(c->ug); free(c->ut); free(c->ufe); free(c);
 }
 const TkStats *tk_stats(const TkCache *c) { return &c->st; }
-void tk_blk(TkCache *c, int mode) { c->blk = mode; }
-void tk_flags(TkCache *c, int on) { c->flags = on; }
-void tk_t16(TkCache *c, int on) { c->t16 = on; }
+#ifdef __psp__
+const void *tk_table(const TkCache *c) { return c->e; }
+#endif
+void tk_blk(TkCache *c, int mode) { c->blk = mode; c->kgen++; }
+void tk_flags(TkCache *c, int on) { c->flags = on; c->kgen++; }
+void tk_t16(TkCache *c, int on) { c->t16 = on; c->kgen++; }
 int tk_t16_on(const TkCache *c) { return c->t16; }
 
 /* ---- tk_pool: a free run's first 8 bytes hold the next run's unit and its own length in units ---- */
@@ -66,6 +74,7 @@ typedef struct { uint32_t next, len; } Run;
 static Run *run_at(TkCache *c, uint32_t u) { return (Run *)(c->pool + (size_t)u * 64); }
 int tk_pool(TkCache *c, void *mem, uint32_t size)
 {
+  c->kgen++;   /* gl35 */
   uintptr_t a = ((uintptr_t)mem + 63) & ~(uintptr_t)63; uint32_t skip = (uint32_t)(a - (uintptr_t)mem);
   if (!mem || size < skip + 64 || c->cap) return -1;
   c->pool = (uint8_t *)a; c->punits = (size - skip) / 64; c->pfree = 0;
@@ -115,6 +124,7 @@ static int find(TkCache *c, uint64_t id)
 static void drop(TkCache *c, int i)
 {
   Ent *e = &c->e[i]; int *p = &c->bucket[e->id & (c->nbucket - 1)];
+  c->kgen++;   /* gl35 */
   while (*p != i) p = &c->e[*p].hnext;
   *p = e->hnext;
   lru_unlink(c, i);
@@ -164,14 +174,15 @@ static Ent *grow_table(TkCache *c, int n)
 #else
   Ent *q = realloc(c->e, want);
 #endif
-  if (q) { c->st.tab_grows++; c->st.tab_cap = n; }
+  if (q) { c->st.tab_grows++; c->st.tab_cap = n; } else c->st.tab_fail++;
   return q;
 }
 static int insert(TkCache *c, uint64_t id, int pal, uint8_t *data, uint32_t size)
 {
+  c->kgen++;   /* gl35 */
   make_room(c, size);
   if (c->freel < 0) {
-    int n = c->cap ? 2 * c->cap : 256; Ent *q = grow_table(c, n); if (!q) return -1;
+    int n = c->cap ? 2 * c->cap : TK_CAP0; Ent *q = grow_table(c, n); if (!q) return -1;
     memset(q + c->cap, 0, (size_t)(n - c->cap) * sizeof *q);
     for (int i = n - 1; i >= c->cap; i--) { q[i].next = c->freel; c->freel = i; }
     c->e = q; c->cap = n;
@@ -250,6 +261,15 @@ static uint32_t pal_entry(const GuMap *m, int cpsm, int k, uint64_t texa, long *
 /* the palette of texture entry i, *pidp the CLUT identity (gu_clut_id), which becomes the palette's: its entry, found (the entry hint first,
    taken only when it holds that key: keys are unique in the cache) or made, after which the texture's lowest alpha is worked out again if
    it was for another palette; -1 when it cannot be made (counted unsup) */
+static inline void pal_ma(TkCache *c, int i, int j, int n, uint64_t pid)   /* (gl35: apart, tk_keep_again does the same) */
+{
+  Ent *e = &c->e[i];
+  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
+    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
+    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
+    e->ma = m; e->ma_pid = pid;
+  }
+}
 static int tk_pal(TkCache *c, int i, uint64_t *pidp, int n, int csa, int cpsm, uint64_t texa, int hint, int *conv)
 {
   c->st.pal_uses++;
@@ -265,17 +285,13 @@ static int tk_pal(TkCache *c, int i, uint64_t *pidp, int n, int csa, int cpsm, u
     c->e[j].npal = n; c->st.pal_misses++; c->st.unknown += unk; *conv = 1;
   } else c->st.pal_hits++;
   touch(c, j);
-  Ent *e = &c->e[i];
-  if (e->ma_pid != pid || !pid) {   /* the lowest PS2 alpha of the entries the texture uses, worked out again for another palette */
-    const uint8_t *pa = c->e[j].data + n * 4; int m = 255;
-    for (int k = 0; k < n; k++) if ((e->t.used[k >> 3] >> (k & 7) & 1) && pa[k] < m) m = pa[k];
-    e->ma = m; e->ma_pid = pid;
-  }
+  pal_ma(c, i, j, n, pid);
   return j;
 }
 int tk_get(TkCache *c, const uint64_t *gr, int ctxt, TkTex *o) { return tk_get_cl(c, gr, ctxt, gr[0x08 + ctxt], o); }
 int tk_get_cl(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
 {
+  c->kgen++; c->kl.ok = 0;   /* gl35 */
   uint64_t t0 = gr[0x06 + ctxt], texa = gr[0x3b];
   int psm = (int)(t0 >> 20 & 63), cpsm = (int)(t0 >> 51 & 15), csa = (int)(t0 >> 56 & 31), bits, u0, v0, w, h, f;
   uint32_t tbp = (uint32_t)(t0 & 0x3fff), tbw = (uint32_t)(t0 >> 14 & 63);
@@ -343,7 +359,7 @@ typedef struct UgE {
 typedef struct UtE { uint64_t sig, k0, cl, texa, id, pid; uint32_t use; int ent, pent; } UtE;   /* the key (sig, G's key, TEXA); when last
                                                                        used (0: never); the texture's entry and identity; the last palette
                                                                        identity and entry (a hint) */
-void tk_umemo(TkCache *c, int mode) { c->um = mode; }
+void tk_umemo(TkCache *c, int mode) { c->um = mode; c->kgen++; }
 /* ---- sb10, Stage C step 1 T1 (stagec_notes.md 1.3): the memo's front.  Keyed by G's key (TEX0 & 0x3ffffffff, CLAMP) and the whole TEXA,
    it names the G and T entries the memo's own path found or filled for that key, with the map's generation then (GuStats xfers +
    xfer_local + drawn + dt_fail: every change to what a block holds moves it, CLUT loads do not).  The same generation: no block changed,
@@ -352,7 +368,7 @@ void tk_umemo(TkCache *c, int mode) { c->um = mode; }
    the memo's own path (gu_pages_sig settles the map first, so no transfer is pending while an entry stands).  2 ways a set, 16 sets ---- */
 #define UF_SB 4
 typedef struct UfE { uint64_t k0, cl, texa, gen; struct UgE *g; struct UtE *t; } UfE;
-void tk_ufront(TkCache *c, int mode) { c->uf = mode; }
+void tk_ufront(TkCache *c, int mode) { c->uf = mode; c->kgen++; }
 static uint64_t uf_gen(const TkCache *c) { const GuStats *u = gu_stats(c->map); return (uint64_t)(u->xfers + u->xfer_local + u->drawn + u->dt_fail); }
 static uint32_t uf_set(uint32_t h, uint64_t texa) { return (h ^ ((uint32_t)texa * 0x9e3779b1u ^ (uint32_t)(texa >> 32))) >> (32 - UF_SB); }
 static void uf_put(TkCache *c, uint32_t s, uint64_t k0, uint64_t cl, uint64_t texa, uint64_t gen, struct UgE *g, struct UtE *t)
@@ -450,6 +466,7 @@ static int um_hit(TkCache *c, uint64_t t0, uint64_t texa, const UgE *g, UtE *t, 
   int n = (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, pf = 0, pconv = 0;
   uint64_t pid = gu_clut_id(c->map, cpsm, csa * 16, n, &pf);
   if (pf & GU_ID_LOST) { memset(o, 0, sizeof *o); c->st.lost++; return o->kind = TK_LOST; }
+  c->kpid = pid;   /* gl35 */
   c->st.hits++; touch(c, i);
   int j = tk_pal(c, i, &pid, n, csa, cpsm, texa, t->pent, &pconv);
   if (j < 0) { memset(o, 0, sizeof *o); return o->kind = TK_UNSUP; }
@@ -471,7 +488,7 @@ int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
     if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = (uint32_t)tc_texture_size(t0, cl); }
     return kind;
   }
-  c->st.um_asks++; c->uclk++;
+  c->st.um_asks++; c->uclk++; c->kl.ok = 0;
   uint64_t k0 = (t0 & 0x3ffffffffull) | 1ull << 63; uint32_t h = ug_hash(k0, cl);
   uint64_t fgen = 0; uint32_t fs = 0; int fhit = 0; UgE *g; UtE *t = 0;
   if (c->uf) {   /* sb10 T1: the front */
@@ -494,6 +511,7 @@ int tk_get_um(TkCache *c, const uint64_t *gr, int ctxt, uint64_t cl, TkTex *o)
       goto found;
     }
   }
+  c->kgen++;   /* gl35: not the front's answer */
   g = ug_get(c, k0, t0, cl, h);
 #ifdef UM_SIM
   uint64_t sim_h = 0; sim_gl((t0 & 0x3ffffffffull) | 1ull << 63, cl);
@@ -519,7 +537,13 @@ found:
   t->use = c->uclk;
   if ((unsigned)t->ent >= (unsigned)c->cap || c->e[t->ent].id != t->id) { c->st.um_gone++; goto fill; }
   if (c->uf && !fhit) uf_put(c, fs, k0, cl, texa, fgen, g, t);   /* sb10 T1 */
-  if (c->um == 1) return um_hit(c, t0, texa, g, t, o);
+  if (c->um == 1) {
+    kind = um_hit(c, t0, texa, g, t, o);
+    if (fhit && c->uf == 1 && kind == TK_TEX && g->ok == 1 && !o->pal_conv) {   /* gl35: the pure path, as tk_keep_again does it again */
+      TkKeep *K = &c->kl; K->g = g; K->t = t; K->pid_in = c->kpid; K->pid = o->pal_id; K->ufgen = fgen; K->kgen = c->kgen;
+      K->fs = (uint16_t)fs; K->i = (int16_t)o->ent; K->j = (int16_t)o->pal_ent; K->w = c->ufm[fs]; K->ok = 1; }
+    return kind;
+  }
   { /* the check mode: tk_get_cl's answer against the memo's */
     int ent = t->ent, pent = t->pent; uint64_t id = t->id, pid = t->pid;
     kind = tk_get_cl(c, gr, ctxt, cl, o); c->st.um_chk++;
@@ -545,4 +569,29 @@ filled:
 slow:
   if ((kind = tk_get_cl(c, gr, ctxt, cl, o)) == TK_TEX) { o->tp = &o->t; o->size = g->ok ? g->size : (uint32_t)tc_texture_size(t0, cl); }
   return kind;
+}
+
+/* gl35, the texture kept by material (texcache.h; attic/gl35/keep_design.txt K3) */
+const TkKeep *tk_keep_last(const TkCache *c) { return &c->kl; }
+int tk_keep_ok(TkCache *c, const TkKeep *K, uint64_t t0)
+{
+  if (!K->ok || K->kgen != c->kgen || c->um != 1 || c->uf != 1 || K->ufgen != uf_gen(c)) return 0;
+  int psm = (int)(t0 >> 20 & 63), cpsm = (int)(t0 >> 51 & 15), csa = (int)(t0 >> 56 & 31), pf = 0;
+  uint64_t pid = gu_clut_id(c->map, cpsm, csa * 16, (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, &pf);   /* (um_hit's own call: the same note in the load) */
+  return !(pf & GU_ID_LOST) && pid == K->pid_in;
+}
+void tk_keep_again(TkCache *c, const TkKeep *K, uint64_t t0, TkTex *o)
+{
+  UgE *g = K->g; UtE *t = K->t; int psm = (int)(t0 >> 20 & 63), n = (psm == GS_T8 || psm == GS_T8H) ? 256 : 16, i = K->i, j = K->j;
+  c->st.um_asks++; c->uclk++; c->kl = *K;
+  c->ufm[K->fs] = K->w; g->use = c->uclk; c->st.uf_hits++;   /* the front's answer */
+  t->use = c->uclk;
+  c->st.uses++; c->st.um_hits++;   /* um_hit */
+  c->kpid = K->pid_in;
+  c->st.hits++; touch(c, i);
+  c->st.pal_uses++; c->st.pal_hits++; touch(c, j); pal_ma(c, i, j, n, K->pid);   /* tk_pal: the palette is there */
+  t->pid = K->pid; t->pent = j;
+  const Ent *e = &c->e[i];
+  o->kind = TK_TEX; o->data = e->data; o->pal = (const uint32_t *)c->e[j].data; o->npal = n; o->id = t->id; o->pal_id = K->pid; o->minalpha = e->ma;
+  o->conv = 0; o->pal_conv = 0; o->ent = i; o->pal_ent = j; o->tp = &e->t; o->size = g->size;
 }

@@ -158,7 +158,20 @@ extern uint32_t g_opt;
                                            copies through the scratchpad and no copy of the hidden second set's vertices; the vertex maths (VU0's random
                                            numbers) and the first set's buffers as the translation leaves them.  Once on, keep H3R on for the rest of
                                            the run.  NOTE: gl16 / gl17 cycle words have this bit set */
-#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R))   /* g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
+#define OPT2_M5 262144u               /* gl39 M5 (runtime/kernel.h k_take_interrupts): the pending interrupts taken by a walk of the set bits
+                                           (count trailing zeros), lowest channel first, INTC before DMAC, each bit read again after the
+                                           handler before: the same handlers in the same order as the loops over all 26 channels.  Exact */
+#define OPT2_P1 524288u               /* gl41 P1 (attic/gl41s; runtime/vu0.h vu_run_shared): the VU0 micro-program call through a 64-entry
+                                           (image hash, entry) cache straight to the program's VFPU / C form; a miss or a changed image takes
+                                           gl39's path, which fills the entry.  The same functions in the same FPU-mode test.  Exact */
+#define OPT2_P3 1048576u              /* gl41 P3 (attic/gl41s; gen_vu.h made by tools gl41_genvu.py): the box cull's VFPU form
+                                           (vupv_96936c0f_0) without its 8 per-corner NaN / Inf checks: each checked register is only
+                                           multiplied (lanes z, w kept) before its next check, so a non-finite lane is still caught there
+                                           and the call falls back as before.  Exact */
+#define OPT2_B43 2097152u             /* gl43 B (Ffm's rain option "B", 2026-11-22 13:03/13:05; attic/gl43; boot/native_b43.h): the aft deck's
+                                           floor and falling splashes keep only the seed's draws, the time and their slots' lives, and their
+                                           prims and ripple.c's stay hidden.  A visible change (DEVIATIONS.md B entry): off by default */
+#define OPT2_DEFAULT (~(OPT2_C2 | OPT2_C4 | OPT2_C4X | OPT2_G0 | OPT2_G0H | OPT2_H3 | OPT2_NBS | OPT2_G0C | OPT2_H3R | OPT2_G0R | OPT2_B43))   /* gl43: and B43; g_opt2 at the start: every switch on but C2, C4, C4X, G0, G0H, H3, NBS, G0C, H3R and G0R (sbg0: G0, H3, NBS, G0C, H3R and G0R until proven; sb15: C4 and C4X until Ffm's OK; sb12 for gl15:
                                            C1 on by default, my call after gl14's run, which Ffm left to me on 2026-11-02 17:12; sb11 / gl14:
                                            ~OPT2_C1) */
 extern uint32_t g_opt2;

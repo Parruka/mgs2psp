@@ -9,5 +9,5 @@ SECTIONS {
   .me_data : ALIGN(64) { __me_data_start = .; *(.me_data) . = ALIGN(64); __me_data_end = .; }
 } INSERT AFTER .data;
 SECTIONS {
-  .me_bss (NOLOAD) : ALIGN(64) { __me_bss_start = .; *(.me_bss) . = ALIGN(64); __me_bss_end = .; }
+  .me_bss (NOLOAD) : ALIGN(64) { __me_bss_start = .; *(.me_bss.h39) . = ALIGN(64); __me_h39_end = .; *(.me_bss) . = ALIGN(64); __me_bss_end = .; }
 } INSERT AFTER .bss;

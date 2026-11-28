@@ -1,8 +1,10 @@
 /* vu1conv.c: see vu1conv.h. */
 #include "vu1conv.h"
+#include "hot39.h"   /* gl39 */
 #include <math.h>
 #include <string.h>
 #include "me_rt.h"   /* task #149: -DMGS2_ME_SAFE (ME-safe calls) */
+#include "natsplit.h"   /* gl34: NS_MARK */
 
 static const uint32_t *vq(const uint8_t *vm, uint32_t qa) { return (const uint32_t *)(vm + ((qa & 0x3ffu) << 4)); }
 /* a float as the VU reads it: no denormals, and an exponent of 255 is the largest finite value */
@@ -99,12 +101,24 @@ int vc_df0_rec(const uint8_t *vm, uint32_t top, const void *const *p, const uint
    C's u | v << 16 its u, v; a UV is negative when bit 15 or 31 of C's word is set.  Kind 3 (plus ROW, which may leave 16 bits) as
    vc_df0_rec.  The box only when the count is returned (no position off 16 bits, no negative UV) */
 typedef uint32_t __attribute__((may_alias)) vc_w32;
-int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
+/* gl34 (vu1conv.h vc_df0_pos_k): the transform of the last call that came with a key */
+static VcXform vc_km H39; static const void *vc_km_src H39; static uint32_t vc_km_gen H39;
+long vc_km_n[4];
+#ifndef __psp__
+int vc_km_chk = -1;   /* (-1: the host has not set it) */
+#endif
+static inline __attribute__((always_inline)) int df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen)
 {
   const uint32_t *h = vq(vm, top + 0x14);
   int n = (int)(h[0] & 0xffff);
   if (n > max) return -1;
-  vc_xform(vm, top, 0, 32768.0f, x);
+  if (xsrc && xsrc == vc_km_src && xgen == vc_km_gen) {
+    *x = vc_km; vc_km_n[0]++;
+#ifndef __psp__
+    if (vc_km_chk > 0) { VcXform e; vc_xform(vm, top, 0, 32768.0f, &e); vc_km_n[2]++; if (memcmp(&e, x, sizeof e)) vc_km_n[3]++; }
+#endif
+  } else { vc_xform(vm, top, 0, 32768.0f, x); if (xsrc) { vc_km = *x; vc_km_src = xsrc; vc_km_gen = xgen; vc_km_n[1]++; } }
+  NS_MARK(NS_XF);
   x->n = n; x->clip = h[3] != 0;
   const vc_w32 *wc = (const vc_w32 *)p[2];
   int lx = 32767, ly = 32767, lz = 32767, hx = -32768, hy = -32768, hz = -32768, bad = 0;
@@ -132,6 +146,44 @@ int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint
   if (ng & 0x80008000u) return -3;
   b[0] = (int16_t)lx; b[1] = (int16_t)ly; b[2] = (int16_t)lz; b[3] = (int16_t)hx; b[4] = (int16_t)hy; b[5] = (int16_t)hz;
   return n;
+}
+int vc_df0_pos(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max)
+{
+  return df0_pos(vm, top, p, kind, row, x, v, b, max, 0, 0);
+}
+int vc_df0_pos_k(const uint8_t *vm, uint32_t top, const void *const *p, const uint8_t *kind, const uint32_t *row, VcXform *x, VcVert *v, int16_t *b, int max, const void *xsrc, uint32_t xgen)
+{
+  return df0_pos(vm, top, p, kind, row, x, v, b, max, xsrc, xgen);
+}
+/* gl36 (vu1conv.h): df0_pos in two parts for a group with a kept box (ge/xconv.c xc_call, xlate.h XR_BOX): the transform as df0_pos
+   takes or computes it (the same memo, counts and split mark), and the positions' stores of its loop */
+int vc_df0_xf_k(const uint8_t *vm, uint32_t top, VcXform *x, int max, const void *xsrc, uint32_t xgen)
+{
+  const uint32_t *h = vq(vm, top + 0x14);
+  int n = (int)(h[0] & 0xffff);
+  if (n > max) return -1;
+  if (xsrc && xsrc == vc_km_src && xgen == vc_km_gen) {
+    *x = vc_km; vc_km_n[0]++;
+#ifndef __psp__
+    if (vc_km_chk > 0) { VcXform e; vc_xform(vm, top, 0, 32768.0f, &e); vc_km_n[2]++; if (memcmp(&e, x, sizeof e)) vc_km_n[3]++; }
+#endif
+  } else { vc_xform(vm, top, 0, 32768.0f, x); if (xsrc) { vc_km = *x; vc_km_src = xsrc; vc_km_gen = xgen; vc_km_n[1]++; } }
+  NS_MARK(NS_XF);
+  x->n = n; x->clip = h[3] != 0;
+  return n;
+}
+void vc_df0_pv(const void *const *p, const uint8_t *kind, const uint32_t *row, VcVert *v, int n)
+{
+  if (kind[0] != 3) {
+    const vc_w32 *wa = (const vc_w32 *)p[0]; vc_w32 *o = (vc_w32 *)v;
+    for (int i = 0; i < n; i++, wa += 2, o += 4) { const uint32_t a0 = wa[0], a1 = wa[1]; o[2] = a0; o[3] = a1 & 0xffffu; }
+  } else {
+    const vc_h16 *pa = p[0];
+    for (int i = 0; i < n; i++) {
+      uint32_t p0 = (uint32_t)(int32_t)pa[4 * i] + row[0], p1 = (uint32_t)(int32_t)pa[4 * i + 1] + row[1], p2 = (uint32_t)(int32_t)pa[4 * i + 2] + row[2];
+      v[i].x = (int16_t)p0; v[i].y = (int16_t)p1; v[i].z = (int16_t)p2; v[i].pad = 0;
+    }
+  }
 }
 void vc_df0_att(const void *const *p, const uint8_t *kind, const uint32_t *row, const VcXform *x, VcVert *v, uint16_t *flags, int n)
 {
@@ -1231,7 +1283,7 @@ static struct {
   uint32_t key[33];
   float acl; uint32_t a1, a2;
   float ldir[3][3]; uint32_t lcol[3], emis; float tgen[12];
-} C2m;
+} C2m H39;
 static int p6_c2k(const uint8_t *vm, uint32_t top, int p3, uint32_t *key)   /* the words the constants come from */
 {
   int nk = 0;
@@ -1455,6 +1507,62 @@ int vc_p06_c2v(const void *const *p, VcLit *L, const VcP6C2 *k, uint8_t *v, uint
     case 2: return p6_c2loop(p, L, k, v, flags, zr, zw, zn, 0, 1);
     default: return p6_c2loop(p, L, k, v, flags, zr, zw, zn, 1, 1);
   }
+}
+/* native step 2 (ge/nge.h NgeP6G): the parts of vc_p06_c2v's vertices that depend on the call, on a copy of a cooked group's (made by
+   vc_p06_c2v with alpha 255): the alpha a2 of every vertex when it is not 255, then the d of the nb blended vertices bl[] (skinned,
+   weight not 1.0) from the call's skin matrix, p6_c2loop's blend in its order and float mode (the normal and the weight read back from
+   the vertex: the weight word's low half is 8 w); both in VB1 and, uv2 2, in VB2 at v + a1 */
+void vc_p06_c2bl(uint8_t *v, int n, uint32_t a1, int uv2, const uint8_t *bl, int nb, const VcP6C2 *k)
+{
+  const int st = k->skin ? 24 : 20, co = k->skin ? 8 : 4, nc = uv2 == 2 ? 2 : 1;
+  const uint32_t ac = k->a2 << 24;
+  if (k->a2 != 0xffu)
+    for (int c = 0; c < nc; c++) for (int i = 0; i < n; i++) { p6u32 *w = (p6u32 *)(v + c * a1 + (uint32_t)(st * i + co)); *w = (*w & 0xffffffu) | ac; }
+  if (!k->skin || !nb) return;
+  const float i12 = 1.0f / 4096, T254 = VC_C2T.f[254];
+  const float b00 = k->b[0][0], b01 = k->b[0][1], b02 = k->b[0][2], b10 = k->b[1][0], b11 = k->b[1][1], b12 = k->b[1][2];
+  const float b20 = k->b[2][0], b21 = k->b[2][1], b22 = k->b[2][2];
+  for (int j = 0; j < nb; j++) {
+    uint8_t *o = v + 24u * bl[j];
+    const p6h16 *h = (const p6h16 *)o;
+    const int32_t PW = (int32_t)((uint32_t)(uint16_t)h[0] >> 3), N0 = h[6], N1 = h[7], N2 = h[8];
+    float n0 = (float)N0 * i12, n1 = (float)N1 * i12, n2 = (float)N2 * i12;
+    const float w = (float)PW * i12, w1 = 1.0f - w;
+    const float bn0 = (b00 * n0 + b10 * n1) + b20 * n2, bn1 = (b01 * n0 + b11 * n1) + b21 * n2, bn2 = (b02 * n0 + b12 * n1) + b22 * n2;
+    n0 = n0 * w + bn0 * w1; n1 = n1 * w + bn1 * w1; n2 = n2 * w + bn2 * w1;
+    const float s = (n0 * n0 + n1 * n1) + n2 * n2;
+    const uint32_t d = s >= T254 ? 255u : c2_d(s), c = d * 0x010101u | ac;
+    *(p6u32 *)(o + 8) = c;
+    if (uv2 == 2) *(p6u32 *)(o + a1 + 8) = c;
+  }
+}
+/* native step 2: vc_p06_c2v's depth range part (zr given) for a cooked group's n vertices at v (the position and, skinned, the weight
+   read back from the vertex), in p6_c2loop's order and float mode: zw[0], zw[1] the least and largest w above 0, *zn their count */
+void vc_p06_c2z(const uint8_t *v, int n, const VcP6C2 *k, const float *zr, float *zw, long *zn)
+{
+  const float i12 = 1.0f / 4096, za = zr[0], zb = zr[1], zc = zr[2], zt = zr[3];
+  float lo = 3.0e38f, hi = 0; long cnt = 0;
+  if (k->skin) {
+    const float b00 = k->b[0][0], b01 = k->b[0][1], b02 = k->b[0][2], b10 = k->b[1][0], b11 = k->b[1][1], b12 = k->b[1][2];
+    const float b20 = k->b[2][0], b21 = k->b[2][1], b22 = k->b[2][2], b30 = k->b[3][0], b31 = k->b[3][1], b32 = k->b[3][2];
+    for (int i = 0; i < n; i++) {
+      const p6h16 *h = (const p6h16 *)(v + 24 * i);
+      const int32_t PW = (int32_t)((uint32_t)(uint16_t)h[0] >> 3), P0 = h[9], P1 = h[10], P2 = h[11];
+      const float p0 = (float)P0, p1 = (float)P1, p2 = (float)P2, w = (float)PW * i12, w1 = 1.0f - w;
+      const float bp0 = ((b00 * p0 + b10 * p1) + b20 * p2) + b30, bp1 = ((b01 * p0 + b11 * p1) + b21 * p2) + b31;
+      const float bp2 = ((b02 * p0 + b12 * p1) + b22 * p2) + b32;
+      const float q0 = p0 * w + bp0 * w1, q1 = p1 * w + bp1 * w1, q2 = p2 * w + bp2 * w1;
+      const float wz = q0 * za + q1 * zb + q2 * zc + zt;
+      if (wz > 0) { if (wz < lo) lo = wz; if (wz > hi) hi = wz; cnt++; }
+    }
+  } else
+    for (int i = 0; i < n; i++) {
+      const p6h16 *h = (const p6h16 *)(v + 20 * i);
+      const int32_t P0 = h[7], P1 = h[8], P2 = h[9];
+      const float wz = (float)P0 * za + (float)P1 * zb + (float)P2 * zc + zt;
+      if (wz > 0) { if (wz < lo) lo = wz; if (wz > hi) hi = wz; cnt++; }
+    }
+  zw[0] = lo; zw[1] = hi; *zn = cnt;
 }
 
 /* ---- Stage C step 4 (vu1conv.h): P04+0x3740, the sprites ---- */

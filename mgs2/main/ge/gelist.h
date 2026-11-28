@@ -53,6 +53,41 @@ typedef struct {                              /* one frame's */
                                                  their own state (as C1's; the restores are counted in c1_words) */
 } GxCount;
 
+/* gl29 (2026-11-20, gl29_plan.md G1; MGS2_GL_DZ): depth arms for the 0x42 shadow decals (blend (0 - Cs) As + Cd, depth test on, drawn
+   with hardware transform: GERK_XFORM), chosen per frame by the frame's last vblank.  O: as gl28.  X: each decal drawn from its base's
+   own vertices and strips (the base: up to 64 batches back, a Z-writing XFORM batch, not 0x42, with the same world, projection and
+   viewport words, the same set of distinct positions after one s16 offset of at most 64 a component, the same triangle set), each base
+   vertex with the uv and colour of the decal's vertex on its position, the copy in the list's aux: the GE gets the base's own vertex
+   data, so the decal's depth equals the base's.  Y: the decal's own vertices and strips with the base's positions (a diagnostic: does
+   the GE's depth depend on the vertices' order).  W: the depth test ALWAYS and depth writes on in both passes (a diagnostic: the decal
+   whole, and its own depth in the buffer).  B<n>: the viewport's z offset (VPXS+5) sent n steps of its 24-bit word nearer in both
+   passes.  The pairing's scratch is aux below its lowest byte (not taken); nothing static.
+   gl30 (gl30_plan.md): X first looks for the exact base as above (a candidate examined only when one of its vertices lies within 64 on
+   each axis of the decal's first vertex); when none is found, XS: the nearest same-matrix base whose distinct positions and triangle set
+   contain the decal's after one offset (at most 64 a component), drawn the Y way (the decal's own vertices and strips, each position the
+   base's), counted in nsub; the uv / colour work is linear (sorted (key, index) arrays, a merge join). */
+enum { GX_DZ_O = 0, GX_DZ_X = 1, GX_DZ_Y = 2, GX_DZ_W = 3, GX_DZ_B = 4 };
+enum { GX_DZF_BASE = 0, GX_DZF_MAT = 1, GX_DZF_VSET = 2, GX_DZF_TRI = 3, GX_DZF_ATTR = 4, GX_DZF_ROOM = 5, GX_DZF_N = 6 };   /* X and Y's
+                                                 fallbacks (the batch then drawn as O): no candidate with the decal's translation; one with
+                                                 it but other matrix words; matrices equal but another vertex set; vertex sets equal but
+                                                 other triangles; two decal vertices on one position with other uv or colour; no aux room */
+typedef struct {                              /* one frame's (gx_frame clears them): */
+  int32_t n42;                                /* 0x42 XFORM batches with the depth test (the arms' targets; pass 0) */
+  int32_t noth;                               /* 0x42 batches with the depth test of another kind (left as they are) */
+  int32_t npair, fb[GX_DZF_N];                /* X / Y: drawn from their base; the fallbacks by reason */
+  int32_t nbias, nw;                          /* B: batches biased; W: batches drawn with ALWAYS and Z write */
+  uint32_t aux;                               /* X / Y: aux bytes of the copies */
+  int32_t nsub;                               /* gl30 XS (X only): no exact base, drawn the Y way from a subset base (not in npair or fb) */
+} GxDzCount;
+#define GX_DZ_MAX 48
+typedef struct { int32_t vb0, vb1; int16_t arm, n; } GxDzEnt;
+typedef struct { int n; GxDzEnt e[GX_DZ_MAX]; } GxDzSched;
+/* MGS2_GL_DZ=<vb0>:<vb1>:<arm>[,...] (arm O, X, Y, W or B<n>, n 1..255; at most GX_DZ_MAX entries; a space or line end ends it): the
+   entries, or -1 (t->n 0) when the text is not that.  No libc (the host's and the twin's parser alike) */
+int gx_dz_parse(const char *s, GxDzSched *t);
+/* the arm of the frame whose last vblank is fvb (the first entry with vb0 <= fvb <= vb1; else O), its steps in *n; *k the entry (-1: none) */
+int gx_dz_arm(const GxDzSched *t, long fvb, int *n, int *k);
+
 typedef struct {
   uint32_t *w; uint32_t n, cap;               /* the list (cap words) */
   uint8_t *aux; uint32_t naux, cap_aux;       /* the frame's own vertices and indices: the naux bytes from aux + alow to aux + cap_aux */
@@ -74,7 +109,23 @@ typedef struct {
                                                  the GerC2 (with its emissive), whichever set them last */
   int s_matupd, s_have_emis; uint32_t s_emis;  /* sb12 C2: MATUPD (-1: not set this frame) and EMIS as set; s_tmap 2: C2's mode (1 | 3 << 8),
                                                  1 C1's (1 | 2 << 8) */
+  /* gl29 (MGS2_GL_DZ, gl29_plan.md G1): the frame's depth arm for the 0x42 decals (the host sets dz and dzn before gx_frame; 0, 0: the
+     frame as gl28's, word for word) and its counts (gx_frame clears them) */
+  int dz, dzn;                                /* GX_DZ_* and B's steps */
+  GxDzCount dc;
+  /* (private) the batch whose arm pass 0 chose, for pass 1: its index, the arm it got (0: O, a fallback), X / Y's vertices in aux and
+     their strips; B's steps for xf_rest while that batch is drawn */
+  uint32_t dz_i; int dz_got; const void *dz_v; const uint16_t *dz_runs; uint32_t dz_nst; int dz_bias;
+  /* gl38, the list build's split: clk the host's clock for this list (0: not timed; set before gx_frame); t_k its ticks by part (GX_T_*;
+     the batches by kind, a clock read where the kind changes) and n_k the batches by kind, of the last gx_frame */
+  uint32_t (*clk)(void); uint32_t t_k[10], n_k[4], n_chg;   /* (n_chg: the changes of kind, = the clock reads among the batches) */
 } GxList;
+enum { GX_T_DEPTH = 0,   /* the through vertices' depth mapped in place */
+       GX_T_SETUP,       /* the list's set-up and the clear */
+       GX_T_KIND,        /* + GerBatch.kind: 0 through (GS primitives), 1 XFORM (df0: the ship), 2 XFORMF (the effects), 3 LIT (the people, the faces) */
+       GX_T_TAIL = GX_T_KIND + 4,   /* the list's end */
+       GX_T_DIG,         /* the frame's digest (ge/xlme.c xm_list, when asked for) */
+       GX_T_N };
 
 /* aux == (uint8_t *)words and cap_aux == 4 cap: one block for both (above) */
 void gx_init(GxList *L, uint32_t *words, uint32_t cap, uint8_t *aux, uint32_t cap_aux);

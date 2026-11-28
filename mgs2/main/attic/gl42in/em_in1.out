@@ -1,0 +1,6 @@
+em42.sh: in1 2340 s
+em42.sh: pictures 56
+em42.sh: split dumps in the game folder: 0
+/home/claude/main/build_gl42/emu_in1/log.txt: 124 hash lines, 0 vuh lines; reference /home/claude/main/build_gl42/pk_f42/hashref.txt: 685 lines
+compared 124 reference lines (0 with vuh): 0 differ; 561 reference lines not in the log (first 100, last 31700)
+refcmp rc 0
