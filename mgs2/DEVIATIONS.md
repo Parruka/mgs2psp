@@ -134,6 +134,7 @@ The game makes the same decisions on the PC, both emulators and your PSP in ever
     - **What you see:** nothing changes on screen: the prims it leaves are hidden and never drawn.
     - **Undo:** clear bit 22 of MGS2_OPT2 and the MGS2_OPT2_CYCLE words. NOTE: gl43's words (ffdff9ff, fffff9ff) carry bit 22: with gl44's EBOOT they turn V44 on.
     - **Status:** gl44 = a measurement build (V44 in t52, t53, t55, t58, t60, t62, t65, t66, t69, t71, t73). Not on by default (OPT2_DEFAULT leaves it out).
+    - **On the PSP (gl44 r2, 2026-11-28) [C]:** exact (hashes 62/62, digests and content 61/61, counters = the emulator's); K-N2BV - K-N2B in the rain wait -1.29 ms a step (three pairs -1.15 to -1.28), all of it logic. prof/hw_gl44/gl44_psp_read.md.
 
   Proof for each: every load the game makes is at the same address in every vblank, with the same bytes except leftovers no code acts on, and the virtual time, the sound state and every picture digest are equal (speed_notes.md §34; rain_study.md §6-§10) [C]. The RAM differs only in the draw pipeline's buffers and the skipped actors' own words.
   - The rain ones are exact only while A1 and A2 stand: they skip what feeds only the streaks and the rain's sprites. Bringing either back means turning its skips off.
