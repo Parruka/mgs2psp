@@ -1,0 +1,89 @@
+gl44 r2 on the PSP, 2026-11-28 10:06:54 UTC, pclink start, plugin OFF, AC adapter (external power 1 from t 38 s). rd44pc.py's TURNS table
+as read on the PC (LOGS\gl44\r2\rd44_out.txt). END 'Press X to exit.' 6486 lines; HASHES 62 EQUAL 4dea1824afdf; DIGESTS 61 EQUAL
+6bf2bb9bfd5c / dz 5bb8f80b7648; CONTENT 61 EQUAL 6b657c5fbaf2; SCHEDULE CHECK none. Black box: 2343 records, 2364 s, EXITED IN ORDER,
+write mean 18.64 ms, max 154; lateness mean 0.01, max 5 ms. Heap: lowest room + top 2654 KB at vb 23676; texture table at vb 536 with
+2631 + 34 = 2666 KB (pclink start); textures refused 0; free outside the heap at the end: largest 24 KB, total 40 KB.
+MAIN-DRAWING STEPS before vb 24,000:
+  tanker bow (15,700-16,100)  main n 2 | step 51.45 logic 34.17 pipe 4.62 gsw 3.58 pic 3.67 gew 2.85
+  tanker bow (15,700-16,100)  me   n 2 | step 37.92 logic 11.93 pipe 6.23 gsw 4.39 pic 0.19 gew 12.74
+  20,000-24,000               main n 20 | step 87.37 logic 45.03 pipe 34.17 gsw 3.60 pic 0.40 gew 0.36
+  20,000-24,000               me   n 20 | step 86.42 logic 35.86 pipe 26.34 gsw 3.40 pic 0.11 gew 16.94
+  all windows before 24,000   main n 120 | step 57.98 logic 38.74 pipe 11.53 gsw 2.94 pic 1.06 gew 0.39
+  all windows before 24,000   me   n 119 | step 55.31 logic 28.12 pipe 10.17 gsw 2.97 pic 0.12 gew 10.64
+TURNS  vb | t scene | kind | who | step main ME P | logic pipe gew
+24000 | t0  deck, change of scene | K-A   | me | 99.01 96.76 32.21 96.76 | 47.49 40.96 2.25
+24100 | t1  first deck scene | K-N2  | me | 90.56 90.41 50.18 90.41 | 53.93 27.06 0.15
+24200 | t2  first deck scene | K-A   | me | 104.96 104.81 56.35 104.81 | 64.96 30.23 0.15
+24300 | t3  first deck scene | K-N2R | me | 72.18 72.07 25.98 72.07 | 43.11 21.81 0.11
+24400 | t4  first deck scene | K-A   | me | 85.70 85.55 48.15 85.55 | 50.90 25.24 0.15
+24500 | t5  first deck scene | K-N1  | me | 87.85 87.69 56.09 87.69 | 53.18 25.84 0.16
+24600 | t6  first deck scene | K-A   | me | 88.79 88.41 57.46 88.41 | 53.89 26.46 0.38
+24700 | t7  first deck scene | K-N2  | me | 94.91 94.74 63.63 94.74 | 57.13 28.18 0.17
+24800 | t8  first deck scene | K-A   | me | 85.32 85.05 52.66 85.05 | 51.07 24.38 0.27
+24900 | t9  first deck scene | K-N2R | me | 77.29 77.15 25.58 77.15 | 45.21 23.06 0.14
+25000 | t10 deck, change of scene | K-A | me | 42.62 42.48 19.53 42.48 | 24.32 11.36 0.14
+25100 | t11 deck (first play) | K-N2  | me | 37.33 37.15 20.43 37.15 | 20.20 11.67 0.18
+25200 | t12 deck (first play) | K-A   | me | 37.75 37.53 20.78 37.53 | 20.62 11.61 0.22
+25300 | t13 deck (first play) | K-N2R | me | 37.03 36.95 9.95 36.95 | 19.19 12.25 0.08
+25400 | t14 deck (first play) | K-A   | me | 38.89 38.72 19.47 38.72 | 21.16 11.72 0.17
+25500 | t15 deck (first play) | K-N1  | me | 36.13 35.96 18.99 35.96 | 19.64 11.26 0.17
+25600 | t16 deck (first play) | K-A   | me | 36.27 36.07 18.52 36.07 | 19.71 11.18 0.20
+25700 | t17 deck (first play) | K-N2  | me | 36.28 36.11 17.25 36.11 | 19.32 10.97 0.17
+25800 | t18 deck (first play) | K-A   | me | 41.84 41.66 34.61 41.66 | 22.49 13.85 0.18
+25900 | t19 deck (first play) | K7    | main | 35.69 35.38 - 35.38 | 15.88 13.94 0.31
+26000 | t20 deck, change of scene | K-A | me | 21.22 16.47 7.42 16.47 | 11.80 2.24 4.75
+26100 | t21 deck, change of scene | K-N2 | me | 18.94 12.57 12.00 12.57 | 4.72 1.04 6.37
+26200 | t22 steady deck | K-A   | me | 40.76 24.50 40.44 40.44 | 11.44 6.20 16.26
+26300 | t23 steady deck | K-N2R | me | 22.21 21.88 17.43 21.88 | 9.20 6.20 0.33
+26400 | t24 steady deck | K-A   | me | 40.82 24.73 40.96 40.96 | 11.61 6.26 16.09
+26500 | t25 steady deck | K-N1  | me | 39.87 24.35 39.99 39.99 | 11.51 6.25 15.52
+26600 | t26 steady deck | K-A   | me | 40.18 24.60 39.97 39.97 | 11.50 6.25 15.58
+26700 | t27 steady deck | K-N2  | me | 40.61 25.05 40.39 40.39 | 11.94 6.24 15.56
+26800 | t28 steady deck | K-A   | me | 40.19 24.51 40.01 40.01 | 11.49 6.29 15.68
+26900 | t29 steady deck | K-N2R | me | 22.51 22.17 17.36 22.17 | 9.20 6.34 0.34
+27000 | t30 steady deck | K-A   | me | 40.38 24.57 40.36 40.36 | 11.54 6.23 15.81
+27100 | t31 steady deck | K-N2  | me | 40.34 24.75 40.22 40.22 | 11.71 6.40 15.59
+27200 | t32 steady deck | K-A   | me | 40.56 24.44 40.39 40.39 | 11.45 6.21 16.12
+27300 | t33 steady deck | K-N2R | me | 22.55 22.21 17.31 22.21 | 9.28 6.27 0.34
+27400 | t34 steady deck | K-A   | me | 40.25 24.60 40.37 40.37 | 11.43 6.30 15.65
+27500 | t35 steady deck | K-N1  | me | 40.32 24.34 40.41 40.41 | 11.42 6.27 15.98
+27600 | t36 steady deck | K-A   | me | 40.27 24.72 40.02 40.02 | 11.60 6.21 15.55
+27700 | t37 steady deck | K-N2  | me | 40.37 24.70 40.21 40.21 | 11.90 6.25 15.67
+27800 | t38 steady deck | K-A   | me | 40.53 24.57 40.43 40.43 | 11.49 6.32 15.96
+27900 | t39 steady deck | K7    | main | 20.52 20.25 - 20.25 | 7.43 6.26 0.27
+28000 | t40 steady deck | K-A   | me | 39.90 24.44 40.07 40.07 | 11.40 6.28 15.46
+28100 | t41 steady deck | K-N2  | me | 40.43 24.99 40.21 40.21 | 11.88 6.32 15.44
+28200 | t42 steady deck | K-A   | me | 40.56 24.41 40.46 40.46 | 11.50 6.29 16.15
+28300 | t43 steady deck | K-N2R | me | 22.47 22.14 17.32 22.14 | 9.26 6.15 0.33
+28400 | t44 steady deck | K-A   | me | 40.26 24.56 40.36 40.36 | 11.47 6.21 15.70
+28500 | t45 steady deck | K-N1  | me | 39.89 23.91 39.98 39.98 | 11.27 6.23 15.98
+28600 | t46 steady deck | K-A   | me | 40.44 24.11 40.36 40.36 | 11.32 6.35 16.33
+28700 | t47 change of scene | K-N2 | me | 11.72 6.74 7.57 7.57 | 2.76 1.25 4.98
+28800 | t48 change of scene | K-A  | me | 18.58 18.52 0.19 18.52 | 11.35 0.10 0.06
+28900 | t49 change of scene | K7   | main | 24.06 24.06 - 24.06 | 14.09 0.00 0.00
+29000 | t50 rain begins | K-A | me | 58.55 55.90 23.81 55.90 | 42.32 8.58 2.65
+29100 | t51 rain wait, first turns | K-B  | me | 74.48 73.91 64.53 73.91 | 40.76 25.40 0.57
+29200 | t52 rain wait, first turns | K-BV | me | 72.30 71.88 64.46 71.88 | 38.81 25.53 0.42
+29300 | t53 rain wait, first turns | K-BV | me | 72.28 71.80 63.28 71.80 | 39.29 25.09 0.48
+29400 | t54 rain wait, first turns | K-B  | me | 71.95 71.64 58.17 71.64 | 39.59 24.86 0.31
+29500 | t55 rain wait | K-N2BV XP7 digests on | me | 82.24 72.93 82.33 82.33 | 41.39 25.21 9.31
+29600 | t56 rain wait | K-N2   | me | 75.67 74.87 63.97 74.87 | 41.61 26.79 0.80
+29700 | t57 rain wait | K-N2B  | me | 70.58 70.19 53.95 70.19 | 38.77 25.14 0.39
+29800 | t58 rain wait | K-N2BV | me | 69.12 68.88 53.77 68.88 | 37.14 25.34 0.24
+29900 | t59 rain wait | K-N2B  | me | 70.09 69.88 53.22 69.88 | 38.77 24.93 0.21
+30000 | t60 rain wait | K-N2BV | me | 69.11 68.94 53.54 68.94 | 37.56 25.08 0.17
+30100 | t61 rain wait | K-N2B  | me | 70.68 70.51 54.01 70.51 | 39.03 25.14 0.17
+30200 | t62 rain wait | K-N2BV | me | 69.74 69.46 54.09 69.46 | 37.53 25.55 0.28
+30300 | t63 rain wait | K-N2B  | me | 71.10 70.83 53.92 70.83 | 39.13 25.30 0.27
+30400 | t64 rain wait | K7B    | main | 65.88 65.82 - 65.82 | 34.63 24.57 0.06
+30500 | t65 rain wait | K7BV   | main | 62.17 62.17 - 62.17 | 31.74 23.80 0.00
+30600 | t66 rain wait (heavier) | K7BV | main | 64.96 64.96 - 64.96 | 32.57 25.19 0.00
+30700 | t67 rain wait (heavier) | K7B  | main | 65.98 65.98 - 65.98 | 33.10 25.60 0.00
+30800 | t68 rain walk | K-N2B  | me | 73.48 73.07 55.33 73.07 | 40.02 26.40 0.41
+30900 | t69 rain walk | K-N2BV | me | 69.76 69.54 45.31 69.54 | 38.49 24.77 0.22
+31000 | t70 rain walk | K-N2B  | me | 75.77 75.53 51.72 75.53 | 42.62 26.19 0.24
+31100 | t71 rain walk | K-N2BV | me | 71.05 70.86 48.45 70.86 | 38.68 25.73 0.19
+31200 | t72 rain walk | K-N2B  | me | 71.96 71.79 49.07 71.79 | 39.31 26.05 0.17
+31300 | t73 the walk ends | K-N2BV XP7 digests on | me | 32.32 31.02 14.60 31.02 | 17.78 4.68 1.30
+People in the K-N2 turns of the rain wait: 50 pictures, 14,100 / 14,100 groups native, no room 0, 22.0 hash checks a step, 0.75-0.79 ms.
+Walk: t68 18584/19547 groups native (40 cooked), t69 15246/15250, t70 18308/20904 (22 cooked), t71 16550/17459, t72 17361/19058; no room 0.
